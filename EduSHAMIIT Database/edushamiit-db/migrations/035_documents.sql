@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS documents ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), user_id UUID REFERENCES profiles(id) ON DELETE CASCADE, document_type TEXT NOT NULL, file_url TEXT NOT NULL, file_name TEXT, verification_status TEXT DEFAULT 'pending', uploaded_at TIMESTAMPTZ DEFAULT NOW() ); 

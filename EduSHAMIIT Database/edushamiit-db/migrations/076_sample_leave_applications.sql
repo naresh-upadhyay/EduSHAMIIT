@@ -1,0 +1,9 @@
+-- Sample Leave Applications
+INSERT INTO leave_applications (id, school_id, applicant_id, applicant_role, leave_type, start_date, end_date, reason, status, created_at) VALUES
+  ('76000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', '10000000-0000-0000-0000-000000000002', 'student', 'Medical', '2026-04-10', '2026-04-12', 'Fever and cold. Doctor advised rest for 3 days.', 'approved', '2026-04-08T09:00:00'),
+  ('76000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', '10000000-0000-0000-0000-000000000003', 'student', 'Family Function', '2026-04-15', '2026-04-16', 'Attending cousin''s wedding ceremony.', 'pending', '2026-04-09T10:00:00'),
+  ('76000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', '10000000-0000-0000-0000-000000000004', 'student', 'Medical', '2026-04-20', '2026-04-21', 'Dental appointment and follow-up.', 'approved', '2026-04-18T11:00:00'),
+  ('76000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', '20000000-0000-0000-0000-000000000002', 'teacher', 'Personal', '2026-04-22', '2026-04-22', 'Personal family matter to attend to.', 'pending', '2026-04-19T14:00:00'),
+  ('76000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', '10000000-0000-0000-0000-000000000005', 'student', 'Sports Competition', '2026-04-25', '2026-04-27', 'Selected for inter-school basketball tournament.', 'approved', '2026-04-20T08:00:00'),
+  ('76000000-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111111', '10000000-0000-0000-0000-000000000006', 'student', 'Medical', '2026-04-28', '2026-04-30', 'Viral infection. Doctor recommended complete rest.', 'pending', '2026-04-26T09:00:00')
+ON CONFLICT (id) DO NOTHING;

@@ -1,0 +1,8 @@
+-- Sample Notices
+INSERT INTO notices (id, school_id, title, content, category, author_name, is_pinned, is_urgent, status) VALUES
+  ('40000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Annual Day Celebration', 'The Annual Day celebration will be held on April 20th, 2026. All students are requested to participate actively.', 'Event', 'Principal', TRUE, FALSE, 'published'),
+  ('40000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Mid-Term Exam Schedule', 'Mid-term examinations will commence from April 25th. Students are advised to prepare well.', 'Academic', 'Academic Head', TRUE, TRUE, 'published'),
+  ('40000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Holiday Notice', 'The school will remain closed on April 14th on account of Dr. Ambedkar Jayanti.', 'General', 'Administration', FALSE, FALSE, 'published'),
+  ('40000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'Fee Payment Reminder', 'Last date for Q1 fee payment is April 15th, 2026. Please pay before deadline.', 'Urgent', 'Accounts Department', TRUE, TRUE, 'published'),
+  ('40000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'Science Exhibition', 'Annual Science Exhibition on April 18th. Registration deadline: April 10th.', 'Event', 'Science Department', FALSE, FALSE, 'published')
+ON CONFLICT (id) DO NOTHING;

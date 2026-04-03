@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS knowledge_base ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), subject TEXT, grade TEXT, source TEXT, content TEXT, embedding vector(1536), metadata JSONB, created_at TIMESTAMPTZ DEFAULT NOW() ); 

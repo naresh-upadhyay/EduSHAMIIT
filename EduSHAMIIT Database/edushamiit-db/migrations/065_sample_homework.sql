@@ -1,0 +1,8 @@
+-- Sample Homework
+INSERT INTO homework (id, school_id, subject_id, teacher_id, title, description, due_date, max_marks, class, status) VALUES
+  ('60000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', 'Trigonometry Problems Ch-8', 'Solve problems 1-20 from Chapter 8 on Trigonometric Identities', '2026-04-10', 25, 'X-A', 'active'),
+  ('60000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000003', 'Newton''s Laws Worksheet', 'Complete the worksheet on Newton''s laws of motion with all numerical problems', '2026-04-08', 20, 'X-A', 'active'),
+  ('60000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000004', 'Chemical Bonding MCQ', 'Answer 20 MCQs on chemical bonding from the worksheet provided', '2026-04-12', 20, 'X-A', 'active'),
+  ('60000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000005', 'Essay Writing', 'Write a 500-word essay on "The Importance of Education in Modern Society"', '2026-04-15', 30, 'X-A', 'active'),
+  ('60000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000006', '20000000-0000-0000-0000-000000000006', 'Python Programming', 'Write a Python program to implement a simple calculator with basic operations', '2026-04-11', 25, 'X-A', 'active')
+ON CONFLICT (id) DO NOTHING;

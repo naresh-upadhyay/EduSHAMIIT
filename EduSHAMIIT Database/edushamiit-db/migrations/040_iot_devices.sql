@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS iot_devices ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), room_id TEXT NOT NULL, device_id TEXT UNIQUE NOT NULL, ip_address TEXT, num_relays INT DEFAULT 4, last_seen TIMESTAMPTZ, is_online BOOLEAN DEFAULT true ); 

@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), fee_id UUID REFERENCES fees(id), student_id UUID REFERENCES profiles(id), amount NUMERIC(10,2) NOT NULL, payment_method TEXT, transaction_id TEXT, status TEXT DEFAULT 'completed', paid_at TIMESTAMPTZ DEFAULT NOW()); 

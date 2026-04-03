@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS results (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), student_id UUID REFERENCES profiles(id), subject_id UUID REFERENCES subjects(id), exam_type TEXT NOT NULL, marks_obtained NUMERIC(5,2), total_marks NUMERIC(5,2), grade TEXT, remarks TEXT, published_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()); 

@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS student_transport ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), student_id UUID REFERENCES profiles(id) ON DELETE CASCADE, route_id UUID REFERENCES bus_routes(id), stop_id UUID REFERENCES bus_stops(id), seat_no TEXT, assigned_at TIMESTAMPTZ DEFAULT NOW() ); 

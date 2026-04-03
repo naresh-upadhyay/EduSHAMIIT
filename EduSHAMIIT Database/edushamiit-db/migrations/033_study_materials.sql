@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS study_materials ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), teacher_id UUID REFERENCES profiles(id), title TEXT NOT NULL, description TEXT, material_type TEXT CHECK (material_type IN ('Notes','PPTs','Videos','Worksheets')), target_class TEXT, attachment_urls JSONB, created_at TIMESTAMPTZ DEFAULT NOW() ); 

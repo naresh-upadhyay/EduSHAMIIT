@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS homework (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), subject_id UUID REFERENCES subjects(id), teacher_id UUID REFERENCES profiles(id), title TEXT NOT NULL, description TEXT, due_date DATE, class TEXT, max_marks INT, attachments JSONB, status TEXT DEFAULT 'active', created_at TIMESTAMPTZ DEFAULT NOW()); 

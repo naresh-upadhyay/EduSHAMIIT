@@ -1,0 +1,6 @@
+CREATE OR REPLACE FUNCTION auto_grade_mcq(p_school_id UUID, p_exam_id UUID, p_student_id UUID) RETURNS JSONB AS $$
+DECLARE v_total_marks NUMERIC := 0; v_total_attempted INT := 0; v_total_correct INT := 0;
+BEGIN UPDATE exam_submissions es SET is_correct = (es.selected_answer = eq.correct_answer), marks_awarded = CASE WHEN es.selected_answer = eq.correct_answer THEN eq.positive_marks ELSE -eq.negative_marks END FROM exam_questions eq WHERE es.question_id = eq.id AND es.exam_id = p_exam_id AND es.student_id = p_student_id AND es.school_id = p_school_id AND eq.question_type = 'mcq';
+SELECT COALESCE(SUM(marks_awarded), 0), COUNT(*), COUNT(CASE WHEN is_correct THEN 1 END) INTO v_total_marks, v_total_attempted, v_total_correct FROM exam_submissions WHERE exam_id = p_exam_id AND student_id = p_student_id AND school_id = p_school_id;
+UPDATE exam_sessions SET total_marks = v_total_marks, total_attempted = v_total_attempted, total_correct = v_total_correct, status = 'submitted' WHERE exam_id = p_exam_id AND student_id = p_student_id AND school_id = p_school_id;
+RETURN jsonb_build_object('total_marks', v_total_marks, 'total_attempted', v_total_attempted, 'total_correct', v_total_correct); END; $$ LANGUAGE plpgsql;

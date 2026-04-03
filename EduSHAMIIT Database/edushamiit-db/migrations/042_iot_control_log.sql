@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS iot_control_log ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), room_id TEXT, device TEXT, action TEXT, triggered_by TEXT DEFAULT 'ai_assistant', user_id UUID, created_at TIMESTAMPTZ DEFAULT NOW() ); 

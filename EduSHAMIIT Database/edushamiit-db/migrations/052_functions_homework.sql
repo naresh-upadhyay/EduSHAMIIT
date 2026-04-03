@@ -1,0 +1,3 @@
+CREATE OR REPLACE FUNCTION get_homework_submission_stats(p_school_id UUID, p_teacher_id UUID)
+RETURNS TABLE (homework_id UUID, title TEXT, subject_name TEXT, total_submitted BIGINT, total_graded BIGINT, total_pending BIGINT) AS $$
+BEGIN RETURN QUERY SELECT h.id AS homework_id, h.title, s.name AS subject_name, COUNT(hs.id) AS total_submitted, COUNT(CASE WHEN hs.status = 'graded' THEN 1 END) AS total_graded, COUNT(CASE WHEN hs.status = 'submitted' THEN 1 END) AS total_pending FROM homework h JOIN subjects s ON h.subject_id = s.id LEFT JOIN homework_submissions hs ON h.id = hs.homework_id WHERE h.school_id = p_school_id AND h.teacher_id = p_teacher_id AND h.status = 'active' GROUP BY h.id, h.title, s.name; END; $$ LANGUAGE plpgsql;

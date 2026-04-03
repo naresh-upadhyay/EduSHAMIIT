@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS live_class_comments ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), live_class_id UUID REFERENCES live_classes(id) ON DELETE CASCADE, user_id UUID REFERENCES profiles(id) ON DELETE CASCADE, comment TEXT NOT NULL, is_pinned BOOLEAN DEFAULT FALSE, likes INT DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW() ); 

@@ -1,0 +1,2 @@
+CREATE OR REPLACE FUNCTION calculate_grade(p_pct NUMERIC) RETURNS TEXT AS $$
+BEGIN RETURN CASE WHEN p_pct >= 90 THEN 'A+' WHEN p_pct >= 80 THEN 'A' WHEN p_pct >= 70 THEN 'B+' WHEN p_pct >= 60 THEN 'B' WHEN p_pct >= 50 THEN 'C' WHEN p_pct >= 40 THEN 'D' ELSE 'F' END; END; $$ LANGUAGE plpgsql IMMUTABLE;

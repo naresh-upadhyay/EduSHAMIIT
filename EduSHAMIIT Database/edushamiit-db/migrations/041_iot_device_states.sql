@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS iot_device_states ( school_id UUID REFERENCES schools(id), device_id TEXT PRIMARY KEY, room_id TEXT, fan TEXT DEFAULT 'off', light1 TEXT DEFAULT 'off', light2 TEXT DEFAULT 'off', projector TEXT DEFAULT 'off', updated_at TIMESTAMPTZ DEFAULT NOW() ); 

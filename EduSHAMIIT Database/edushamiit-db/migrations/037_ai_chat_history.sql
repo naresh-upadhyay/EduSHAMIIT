@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS ai_chat_history ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), user_id UUID REFERENCES profiles(id) ON DELETE CASCADE, session_id UUID, role TEXT CHECK (role IN ('user','assistant')), content TEXT NOT NULL, tool_calls JSONB, created_at TIMESTAMPTZ DEFAULT NOW() ); 

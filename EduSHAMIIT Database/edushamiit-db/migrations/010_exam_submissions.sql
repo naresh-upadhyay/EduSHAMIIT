@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS exam_submissions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), exam_id UUID REFERENCES exams(id), student_id UUID REFERENCES profiles(id), answers JSONB, score NUMERIC(5,2), submitted_at TIMESTAMPTZ DEFAULT NOW(), graded_at TIMESTAMPTZ, status TEXT DEFAULT 'pending'); 

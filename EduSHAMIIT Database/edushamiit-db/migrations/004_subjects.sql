@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS subjects (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), name TEXT NOT NULL, icon TEXT, color TEXT, teacher_id UUID REFERENCES profiles(id), total_chapters INT DEFAULT 0, class TEXT, created_at TIMESTAMPTZ DEFAULT NOW()); 

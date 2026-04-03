@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS exam_questions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), exam_id UUID REFERENCES exams(id) ON DELETE CASCADE, question_text TEXT NOT NULL, question_type TEXT NOT NULL DEFAULT 'mcq', options JSONB, correct_answer TEXT, marks INT DEFAULT 1, order_number INT, created_at TIMESTAMPTZ DEFAULT NOW()); 

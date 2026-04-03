@@ -1,0 +1,228 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # DATABASE
+  # ============================================
+  postgres:
+    image: supabase/postgres:15.1.0
+    container_name: eduSHAMIIT-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: edushamiit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-eduSHAMIIT2026}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=3
+        -c shared_preload_libraries=vector
+    networks:
+      - eduSHAMIIT-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # CACHE
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: eduSHAMIIT-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    networks:
+      - eduSHAMIIT-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MESSAGE QUEUE
+  # ============================================
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: eduSHAMIIT-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: eduSHAMIIT
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-eduSHAMIIT2026}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - eduSHAMIIT-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # MQTT BROKER (IoT)
+  # ============================================
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: eduSHAMIIT-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+    networks:
+      - eduSHAMIIT-net
+
+  # ============================================
+  # BACKEND API (3 replicas for scaling)
+  # ============================================
+  api-1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eduSHAMIIT-api-1
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-eduSHAMIIT2026}@postgres:5432/edushamiit
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://eduSHAMIIT:${RABBITMQ_PASSWORD:-eduSHAMIIT2026}@rabbitmq:5672
+      - SUPABASE_URL=http://postgres:5432
+      - SUPABASE_JWT_SECRET=${JWT_SECRET:-eduSHAMIIT-jwt-secret-2026}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_SECRET=${RAZORPAY_SECRET}
+      - WHATSAPP_API_KEY=${WHATSAPP_API_KEY}
+      - WHATSAPP_NUMBER=${WHATSAPP_NUMBER}
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+      - UPI_MERCHANT_ID=${UPI_MERCHANT_ID:-eduSHAMIIT-school@upi}
+      - UPI_MERCHANT_NAME=${UPI_MERCHANT_NAME:-EduSHAMIIT Academy}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    networks:
+      - eduSHAMIIT-net
+    restart: unless-stopped
+
+  api-2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eduSHAMIIT-api-2
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-eduSHAMIIT2026}@postgres:5432/edushamiit
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://eduSHAMIIT:${RABBITMQ_PASSWORD:-eduSHAMIIT2026}@rabbitmq:5672
+      - SUPABASE_JWT_SECRET=${JWT_SECRET:-eduSHAMIIT-jwt-secret-2026}
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    networks:
+      - eduSHAMIIT-net
+    restart: unless-stopped
+
+  api-3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eduSHAMIIT-api-3
+    environment:
+      - DATABASE_URL=postgresql://postgres:${DB_PASSWORD:-eduSHAMIIT2026}@postgres:5432/edushamiit
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://eduSHAMIIT:${RABBITMQ_PASSWORD:-eduSHAMIIT2026}@rabbitmq:5672
+      - SUPABASE_JWT_SECRET=${JWT_SECRET:-eduSHAMIIT-jwt-secret-2026}
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    networks:
+      - eduSHAMIIT-net
+    restart: unless-stopped
+
+  # ============================================
+  # LOAD BALANCER
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: eduSHAMIIT-gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - api-1
+      - api-2
+      - api-3
+    networks:
+      - eduSHAMIIT-net
+    restart: unless-stopped
+
+  # ============================================
+  # AI SERVICES
+  # ============================================
+  whisper:
+    build:
+      context: ./services/whisper
+      dockerfile: Dockerfile
+    container_name: eduSHAMIIT-whisper
+    ports:
+      - "8009:8009"
+    networks:
+      - eduSHAMIIT-net
+    restart: unless-stopped
+
+  camera:
+    build:
+      context: ./services/camera
+      dockerfile: Dockerfile
+    container_name: eduSHAMIIT-camera
+    ports:
+      - "8010:8010"
+    networks:
+      - eduSHAMIIT-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  mosquitto_data:
+
+networks:
+  eduSHAMIIT-net:
+    driver: bridge

@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS salary (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), teacher_id UUID REFERENCES profiles(id), amount NUMERIC(10,2) NOT NULL, month INT CHECK (month BETWEEN 1 AND 12), year INT, status TEXT DEFAULT 'pending', paid_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()); 

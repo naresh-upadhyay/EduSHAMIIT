@@ -1,0 +1,8 @@
+-- Sample Events
+INSERT INTO events (id, school_id, title, description, event_date, event_time, venue, max_participants, current_participants, registration_deadline, is_registration_open) VALUES
+  ('50000000-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Annual Day 2026', 'Grand annual day celebration with cultural performances and prize distribution.', '2026-04-20', '17:00:00', 'School Auditorium', 500, 320, '2026-04-15', TRUE),
+  ('50000000-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Science Exhibition', 'Annual science exhibition for classes IX-XII.', '2026-04-18', '09:00:00', 'Science Block', 200, 85, '2026-04-10', TRUE),
+  ('50000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Inter-House Sports Meet', 'Annual inter-house sports competition.', '2026-04-25', '08:00:00', 'Sports Ground', 300, 150, '2026-04-20', TRUE),
+  ('50000000-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'Career Counseling Workshop', 'Workshop on career guidance for class X students.', '2026-04-22', '10:00:00', 'Conference Hall', 100, 45, '2026-04-18', TRUE),
+  ('50000000-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111', 'Art & Craft Workshop', 'Creative workshop on traditional Indian art forms.', '2026-04-19', '14:00:00', 'Art Room', 50, 38, '2026-04-15', TRUE)
+ON CONFLICT (id) DO NOTHING;

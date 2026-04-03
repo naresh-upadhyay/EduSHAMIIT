@@ -1,0 +1,21 @@
+# Env files
+.env
+.env.*
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# Flutter / Dart
+.build/
+.dart_tool/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

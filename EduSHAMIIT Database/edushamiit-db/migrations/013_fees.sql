@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS fees (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), student_id UUID REFERENCES profiles(id), fee_type TEXT NOT NULL, amount NUMERIC(10,2) NOT NULL, due_date DATE, fee_period TEXT, status TEXT DEFAULT 'pending', academic_year TEXT, created_at TIMESTAMPTZ DEFAULT NOW()); 

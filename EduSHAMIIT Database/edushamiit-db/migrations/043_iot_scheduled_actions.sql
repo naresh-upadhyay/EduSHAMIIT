@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS iot_scheduled_actions ( id UUID PRIMARY KEY DEFAULT gen_random_uuid(), school_id UUID REFERENCES schools(id), room_id TEXT, device TEXT, action TEXT, scheduled_time TIMESTAMPTZ, status TEXT DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW() ); 

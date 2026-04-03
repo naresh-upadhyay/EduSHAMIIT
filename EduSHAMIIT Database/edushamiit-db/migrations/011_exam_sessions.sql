@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS exam_sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), exam_id UUID REFERENCES exams(id), student_id UUID REFERENCES profiles(id), started_at TIMESTAMPTZ DEFAULT NOW(), ended_at TIMESTAMPTZ, ip_address INET, status TEXT DEFAULT 'active'); 
