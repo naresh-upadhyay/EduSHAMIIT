@@ -69,10 +69,10 @@ EduSHAMIIT AI is a unified AI-powered Academic App built with Flutter. It serves
 
 | Portal      | Screen Count | Primary Color    | Secondary Color |
 | ----------- | ------------ | ---------------- | --------------- |
-| **Shared**  | 7 screens    | Varies by role   | Varies          |
+| **Shared**  | 8 screens    | Varies by role   | Varies          |
 | **Student** | 29 screens   | Purple (#4F46E5) | Cyan (#06B6D4)  |
 | **Teacher** | 29 screens   | Cyan (#0EA5E9)   | Blue (#0369A1)  |
-| **Total**   | ~65 screens  |                  |                 |
+| **Total**   | ~66 screens  |                  |                 |
 
 ### Target Platforms
 
@@ -294,7 +294,7 @@ lib/
 │   └── animations/ (3 animation files)
 │
 ├── features/
-│   ├── shared/ (splash, login, settings, messaging, ai_chat)
+│   ├── shared/ (splash, login, reset_password, settings, messaging, ai_chat)
 │   ├── student/ (14 feature modules, 29 screens)
 │   └── teacher/ (17 feature modules, 29 screens)
 │
@@ -358,6 +358,7 @@ final goRouter = GoRouter(
     // SHARED ROUTES
     GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(path: '/reset-password', builder: (_, __) => const ResetPasswordScreen()),
     GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
     GoRoute(path: '/ai-chat', builder: (_, __) => const AIChatScreen()),
 

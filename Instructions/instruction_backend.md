@@ -3319,6 +3319,37 @@ async def bank_webhook(request: dict):
 
 ## 13. AUTHENTICATION ENDPOINTS
 
+### 13.0 POST /api/auth/reset-password (Generate OTP / Verify & Reset)
+
+```python
+# app/api/auth.py
+from fastapi import APIRouter, HTTPException
+from app.services.supabase_client import get_supabase
+import uuid
+from datetime import datetime, timedelta
+
+router = APIRouter()
+
+@router.post("/send-otp")
+async def send_otp(request: dict):
+    sb = get_supabase()
+    identifier = request.get("identifier") # email or user_id
+
+    # Logic to look up user and generate OTP
+    # Save to password_resets table
+    return {"message": "OTP sent successfully"}
+
+@router.post("/reset-password")
+async def reset_password(request: dict):
+    sb = get_supabase()
+    otp = request.get("otp")
+    new_password = request.get("new_password")
+
+    # Logic to verify OTP from password_resets table
+    # Call Supabase Admin API to update password
+    return {"message": "Password reset successfully"}
+```
+
 ### 13.1 POST /api/auth/login
 
 ```python

@@ -19,6 +19,33 @@ class UserRegister(BaseModel):
     class_name: Optional[str] = None
 
 
+class SendOTPRequest(BaseModel):
+    identifier: str  # email or user_id
+    user_name: Optional[str] = None
+
+
+class VerifyOTPRequest(BaseModel):
+    identifier: str  # email or user_id
+    otp: str
+
+
+class ResetPasswordRequest(BaseModel):
+    identifier: str  # email or user_id
+    otp: str
+    new_password: str
+
+
+class OTPResponse(BaseModel):
+    success: bool
+    message: str
+    expires_in: Optional[int] = None  # seconds
+
+
+class ResetPasswordResponse(BaseModel):
+    success: bool
+    message: str
+
+
 class TokenResponse(BaseModel):
     token: str
     refresh_token: str

@@ -172,7 +172,25 @@ CREATE INDEX idx_profiles_xp ON profiles(school_id, xp_points DESC);
 
 **Description:** Core user table supporting 3 roles. Contains academic info, parent contacts, XP gamification. `school_id` + `user_id` is unique.
 
-### 2.4 Subjects Table
+### 2.4 Password Resets Table
+
+```sql
+CREATE TABLE password_resets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id UUID REFERENCES schools(id),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  otp TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'used')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_password_resets_user ON password_resets(user_id);
+```
+
+**Description:** Table to store generated OTPs for the password reset functionality. Allows tracking of OTP status and expiration.
+
+### 2.5 Subjects Table
 
 ```sql
 CREATE TABLE subjects (
