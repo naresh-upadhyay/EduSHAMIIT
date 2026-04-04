@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduVerse Pro — App Strategy & Dashboard Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0f2f7;
+  --white: #ffffff;
+  --card: #ffffff;
+  --border: #e4e8f0;
+  --text: #0f1623;
+  --muted: #6b7694;
+  --soft: #f7f8fc;
+
+  /* App colors */
+  --app1: #1a1f3a; /* Admin Suite - dark navy */
+  --app1-acc: #6366f1;
+  --app2: #0d2137; /* School Ops - dark teal */
+  --app2-acc: #06b6d4;
+  --app3: #1a0a2e; /* Academic - deep purple */  
+  --app3-acc: #a855f7;
+  --app4: #0a2218; /* Family App - deep green */
+  --app4-acc: #22c55e;
+  --app5: #1f1200; /* Gate/Support - amber */
+  --app5-acc: #f59e0b;
+
+  /* Role colors matching existing app */
+  --student: #6366f1;
+  --teacher: #06b6d4;
+  --parent: #22c55e;
+  --admin: #f59e0b;
+  --principal: #e05c7a;
+  --director: #c9a84c;
+  --finance: #10b981;
+  --hr: #8b5cf6;
+  --transport: #3b82f6;
+  --guard: #94a3b8;
+  --support: #78716c;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.page { max-width: 1280px; margin: 0 auto; padding: 48px 24px 80px; }
+
+/* ── HEADER ── */
+.header { text-align: center; margin-bottom: 64px; }
+.super-label {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--text); color: #fff;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+  padding: 6px 16px; border-radius: 100px; margin-bottom: 24px;
+}
+.super-label span { color: #6366f1; }
+h1 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(32px, 5vw, 60px);
+  font-weight: 900; line-height: 1.05;
+  letter-spacing: -0.03em; margin-bottom: 16px;
+}
+h1 em { font-style: normal; color: #6366f1; }
+.header-sub { color: var(--muted); font-size: 16px; max-width: 560px; margin: 0 auto 32px; }
+
+.answer-box {
+  display: inline-flex; align-items: center; gap: 24px;
+  background: var(--text); color: #fff;
+  border-radius: 20px; padding: 20px 32px;
+  flex-wrap: wrap; justify-content: center;
+}
+.answer-item { text-align: center; }
+.answer-num { font-family: 'Fraunces', serif; font-size: 36px; font-weight: 900; color: #6366f1; line-height: 1; }
+.answer-lbl { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; letter-spacing: 0.08em; text-transform: uppercase; }
+.answer-div { width: 1px; height: 40px; background: rgba(255,255,255,0.1); }
+
+/* ── SECTION ── */
+.section { margin-bottom: 64px; }
+.sec-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.sec-num {
+  font-family: 'Fraunces', serif; font-size: 13px; font-weight: 700;
+  background: var(--text); color: #fff;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sec-title { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 700; }
+.sec-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+/* ── APP CARDS ── */
+.apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+
+.app-card {
+  border-radius: 24px; overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+.app-header {
+  padding: 24px 24px 20px;
+  position: relative; overflow: hidden;
+}
+.app-header::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at top right, rgba(255,255,255,0.08) 0%, transparent 70%);
+}
+.app-num {
+  font-family: 'Fraunces', serif; font-size: 11px; font-weight: 700;
+  color: rgba(255,255,255,0.4); letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.app-name { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 900; color: #fff; margin-bottom: 4px; }
+.app-tagline { font-size: 12px; color: rgba(255,255,255,0.55); }
+.app-roles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.role-chip {
+  font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 100px;
+  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.role-chip.active { background: rgba(255,255,255,0.25); color: #fff; border-color: rgba(255,255,255,0.3); }
+
+.app-body { background: var(--card); padding: 20px 24px 24px; }
+.app-screens { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.screen-tag {
+  font-size: 11px; color: var(--muted);
+  background: var(--soft); border: 1px solid var(--border);
+  padding: 3px 8px; border-radius: 6px;
+}
+.app-features { display: flex; flex-direction: column; gap: 5px; }
+.feat { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.feat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+.a1 .app-header { background: var(--app1); }
+.a1 .feat-dot { background: var(--app1-acc); }
+.a2 .app-header { background: var(--app2); }
+.a2 .feat-dot { background: var(--app2-acc); }
+.a3 .app-header { background: var(--app3); }
+.a3 .feat-dot { background: var(--app3-acc); }
+.a4 .app-header { background: var(--app4); }
+.a4 .feat-dot { background: var(--app4-acc); }
+.a5 .app-header { background: var(--app5); }
+.a5 .feat-dot { background: var(--app5-acc); }
+
+/* ── ROLE SWITCHING ── */
+.switch-box {
+  background: var(--text);
+  border-radius: 24px;
+  padding: 36px;
+  color: #fff;
+}
+.switch-title { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 900; margin-bottom: 8px; }
+.switch-sub { color: rgba(255,255,255,0.45); font-size: 13px; margin-bottom: 32px; }
+
+.switch-demo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media(max-width:700px){ .switch-demo { grid-template-columns:1fr; } }
+
+.phone-shell {
+  background: #18191f;
+  border-radius: 36px;
+  padding: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  position: relative;
+}
+.phone-notch {
+  width: 80px; height: 22px; background: #18191f;
+  border-radius: 0 0 16px 16px;
+  margin: 0 auto 6px;
+  position: relative; z-index: 2;
+}
+.phone-screen {
+  border-radius: 28px;
+  overflow: hidden;
+  min-height: 420px;
+}
+
+/* Family App Screens */
+.fam-screen { background: #f8fffe; min-height: 420px; font-family: 'Plus Jakarta Sans', sans-serif; }
+.fam-header { background: linear-gradient(135deg, #0d4f3c, #1a7a5e); padding: 24px 20px 30px; }
+.fam-greet { font-size: 12px; color: rgba(255,255,255,0.6); }
+.fam-name { font-size: 20px; font-weight: 800; color: #fff; margin: 2px 0 4px; }
+.fam-role-switch { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.fam-chip {
+  font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 100px;
+  border: 1.5px solid rgba(255,255,255,0.25); color: rgba(255,255,255,0.65);
+  cursor: pointer; transition: all 0.2s;
+}
+.fam-chip.on { background: rgba(255,255,255,0.2); color: #fff; border-color: rgba(255,255,255,0.4); }
+.fam-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-top: 16px; }
+.fam-stat { background: rgba(255,255,255,0.12); border-radius: 10px; padding: 8px; text-align: center; }
+.fam-stat-n { font-size: 16px; font-weight: 800; color: #fff; }
+.fam-stat-l { font-size: 9px; color: rgba(255,255,255,0.55); }
+.fam-body { padding: 16px; }
+.fam-sec-label { font-size: 10px; font-weight: 700; color: #6b7694; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.fam-quick { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
+.fam-btn { background: #fff; border-radius: 10px; padding: 10px 4px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.fam-btn-ico { font-size: 20px; margin-bottom: 4px; }
+.fam-btn-lbl { font-size: 9px; color: #6b7694; font-weight: 600; }
+.fam-child-card { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.fam-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg,#6366f1,#a855f7); display:flex;align-items:center;justify-content:center; font-size:18px; flex-shrink:0; }
+.fam-child-name { font-size: 13px; font-weight: 700; color: #0f1623; }
+.fam-child-cls { font-size: 11px; color: #6b7694; }
+.fam-child-badges { display: flex; gap: 4px; margin-top: 4px; }
+.fam-badge { font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 100px; }
+.fb-attend { background: #dcfce7; color: #16a34a; }
+.fb-fee { background: #fef3c7; color: #d97706; }
+.fb-rank { background: #ede9fe; color: #7c3aed; }
+
+/* Admin Screen */
+.adm-screen { background: #0f1623; min-height: 420px; }
+.adm-header { background: linear-gradient(135deg, #1a1f3a, #2d3158); padding: 20px 16px 24px; }
+.adm-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.adm-greet { font-size: 11px; color: rgba(255,255,255,0.45); }
+.adm-name { font-size: 17px; font-weight: 800; color: #fff; margin: 2px 0; }
+.adm-sub { font-size: 10px; color: rgba(255,255,255,0.35); }
+.adm-role-row { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.adm-chip { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); color: rgba(255,255,255,0.5); border: 1px solid rgba(99,102,241,0.2); }
+.adm-chip.on { background: rgba(99,102,241,0.35); color: #fff; border-color: rgba(99,102,241,0.5); }
+.adm-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 14px; }
+.adm-stat { background: rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 6px; text-align: center; }
+.adm-stat-n { font-size: 16px; font-weight: 800; color: #fff; }
+.adm-stat-l { font-size: 8px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+.adm-body { padding: 14px; }
+.adm-row-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.adm-quick { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 12px; }
+.adm-btn { background: rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 4px; text-align: center; border: 1px solid rgba(255,255,255,0.07); }
+.adm-btn-ico { font-size: 18px; margin-bottom: 3px; }
+.adm-btn-lbl { font-size: 8px; color: rgba(255,255,255,0.4); font-weight: 600; }
+.adm-alert { background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+.adm-alert-ico { font-size: 16px; }
+.adm-alert-text { font-size: 11px; color: rgba(255,255,255,0.65); flex: 1; }
+.adm-alert-time { font-size: 9px; color: rgba(255,255,255,0.25); }
+
+/* ── MAPPING TABLE ── */
+.map-wrap { background: var(--card); border-radius: 20px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+.map-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.map-table th { background: var(--soft); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.map-table td { padding: 11px 14px; border-bottom: 1px solid #f0f2f7; vertical-align: middle; }
+.map-table tr:hover td { background: #fafbff; }
+.map-table tr:last-child td { border-bottom: none; }
+
+.role-badge { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
+.rb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.app-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; white-space: nowrap; }
+.ab1 { background: rgba(99,102,241,0.1); color: var(--app1-acc); }
+.ab2 { background: rgba(6,182,212,0.1); color: var(--app2-acc); }
+.ab3 { background: rgba(168,85,247,0.1); color: var(--app3-acc); }
+.ab4 { background: rgba(34,197,94,0.1); color: var(--app4-acc); }
+.ab5 { background: rgba(245,158,11,0.1); color: var(--app5-acc); }
+.chk { color: #22c55e; font-size: 14px; }
+.crs { color: #e05c7a; opacity: 0.35; font-size: 14px; }
+.par { color: #f59e0b; font-size: 12px; }
+
+/* ── ROLE SWITCH DETAIL ── */
+.switch-detail { background: var(--card); border-radius: 20px; padding: 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); margin-top: 24px; }
+.sd-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.sd-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+.sd-steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.sd-step { background: var(--soft); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.sd-step-num { font-family: 'Fraunces', serif; font-size: 11px; font-weight: 700; color: #6366f1; margin-bottom: 6px; letter-spacing: 0.1em; }
+.sd-step-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.sd-step-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* ── DASHBOARD PREVIEWS ── */
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.preview-card { border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+.preview-label { padding: 14px 18px; font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+.preview-screen { min-height: 260px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; padding: 14px; }
+
+/* Principal screen */
+.pri-screen { background: linear-gradient(180deg, #2d0a1f 0%, #1a0511 40%, #f8f0f4 40%); }
+.pri-hdr { padding: 4px 0 16px; }
+.pri-name { font-size: 16px; font-weight: 800; color: #fff; }
+.pri-role { font-size: 10px; color: rgba(255,255,255,0.45); margin-bottom: 10px; }
+.pri-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+.pri-stat { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 8px; text-align: center; }
+.pri-stat-n { font-size: 15px; font-weight: 800; color: #fff; }
+.pri-stat-l { font-size: 8px; color: rgba(255,255,255,0.45); }
+.pri-actions { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin: 12px 0 10px; }
+.pri-btn { background: #fff; border-radius: 10px; padding: 8px 4px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.pri-btn-i { font-size: 16px; }
+.pri-btn-l { font-size: 8px; color: #6b7694; font-weight: 600; }
+.pri-alert { background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+.pri-alert-dot { width: 6px; height: 6px; border-radius: 50%; background: #e05c7a; margin-top: 4px; flex-shrink: 0; }
+.pri-alert-text { font-size: 11px; color: #374151; font-weight: 500; }
+.pri-alert-sub { font-size: 9px; color: #9ca3af; }
+
+/* Finance screen */
+.fin-screen { background: linear-gradient(180deg, #0a2218 0%, #052610 45%, #f0fdf4 45%); }
+.fin-hdr { padding: 4px 0 16px; }
+.fin-name { font-size: 16px; font-weight: 800; color: #fff; }
+.fin-role { font-size: 10px; color: rgba(255,255,255,0.45); margin-bottom: 10px; }
+.fin-collected { background: rgba(255,255,255,0.12); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+.fin-big { font-size: 22px; font-weight: 800; color: #fff; }
+.fin-small { font-size: 10px; color: rgba(255,255,255,0.5); }
+.fin-bar { height: 6px; background: rgba(255,255,255,0.15); border-radius: 10px; margin: 6px 0; }
+.fin-bar-fill { height: 100%; background: #22c55e; border-radius: 10px; width: 72%; }
+.fin-actions { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin: 10px 0; }
+.fin-btn { background: #fff; border-radius: 10px; padding: 8px 4px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.fin-btn-i { font-size: 16px; }
+.fin-btn-l { font-size: 8px; color: #6b7694; font-weight: 600; }
+.fin-row { background: #fff; border-radius: 10px; padding: 8px 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.fin-row-name { font-size: 11px; font-weight: 600; color: #0f1623; }
+.fin-row-sub { font-size: 9px; color: #9ca3af; }
+.fin-row-amt { font-size: 12px; font-weight: 700; }
+.amt-due { color: #dc2626; }
+.amt-ok { color: #16a34a; }
+
+/* Gate/Guard screen */
+.gate-screen { background: linear-gradient(180deg, #1a1200 0%, #2d1f00 40%, #fffbf0 40%); }
+.gate-hdr { padding: 4px 0 16px; }
+.gate-name { font-size: 16px; font-weight: 800; color: #fff; }
+.gate-role { font-size: 10px; color: rgba(255,255,255,0.45); margin-bottom: 10px; }
+.gate-scanner { background: rgba(245,158,11,0.15); border: 1.5px dashed rgba(245,158,11,0.4); border-radius: 14px; padding: 14px; text-align: center; margin-bottom: 10px; }
+.gate-scan-ico { font-size: 28px; margin-bottom: 4px; }
+.gate-scan-txt { font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 600; }
+.gate-recent { display: flex; flex-direction: column; gap: 5px; }
+.gate-entry { background: #fff; border-radius: 10px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.gate-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.gate-in { background: #22c55e; }
+.gate-out { background: #e05c7a; }
+.gate-name-txt { font-size: 11px; font-weight: 600; color: #0f1623; }
+.gate-type { font-size: 9px; color: #9ca3af; }
+.gate-time { font-size: 10px; color: #6b7694; margin-left: auto; font-weight: 600; }
+
+/* Director screen */
+.dir-screen { background: linear-gradient(180deg, #1a1300 0%, #2a1e00 40%, #fffdf0 40%); }
+.dir-hdr { padding: 4px 0 16px; }
+.dir-name { font-size: 16px; font-weight: 800; color: #fff; }
+.dir-role { font-size: 10px; color: rgba(255,255,255,0.45); margin-bottom: 8px; }
+.dir-schools { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.dir-school { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: rgba(201,168,76,0.2); color: #f0d080; border: 1px solid rgba(201,168,76,0.3); }
+.dir-kpis { display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; margin-bottom: 10px; }
+.dir-kpi { background: rgba(255,255,255,0.08); border-radius: 12px; padding: 10px; }
+.dir-kpi-n { font-size: 18px; font-weight: 800; color: #f0d080; }
+.dir-kpi-l { font-size: 9px; color: rgba(255,255,255,0.4); }
+.dir-item { background: #fff; border-radius: 10px; padding: 8px 10px; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.dir-item-ico { font-size: 14px; }
+.dir-item-text { font-size: 11px; font-weight: 600; color: #0f1623; flex: 1; }
+.dir-item-val { font-size: 11px; font-weight: 700; color: #c9a84c; }
+
+/* Applicant screen */
+.app-screen { background: #f0f4ff; min-height: 260px; font-size: 12px; padding: 14px; }
+.appl-header { background: linear-gradient(135deg, #1a1f3a, #3730a3); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+.appl-name { font-size: 15px; font-weight: 800; color: #fff; }
+.appl-id { font-size: 10px; color: rgba(255,255,255,0.45); margin-bottom: 10px; }
+.appl-progress { display: flex; align-items: center; gap: 0; margin-top: 8px; }
+.appl-step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+.appl-circle { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; }
+.appl-done { background: #22c55e; color: #fff; }
+.appl-now { background: #6366f1; color: #fff; box-shadow: 0 0 0 3px rgba(99,102,241,0.3); }
+.appl-todo { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.4); }
+.appl-line { flex: 1; height: 2px; background: rgba(255,255,255,0.15); margin: 0; align-self: flex-start; margin-top: 11px; }
+.appl-line.done { background: #22c55e; }
+.appl-step-lbl { font-size: 7px; color: rgba(255,255,255,0.4); margin-top: 3px; text-align: center; }
+.appl-step-lbl.done-lbl { color: rgba(255,255,255,0.65); }
+.appl-step-lbl.now-lbl { color: #fff; }
+.appl-info { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.appl-info-title { font-size: 13px; font-weight: 700; color: #0f1623; margin-bottom: 10px; }
+.appl-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f0f2f7; }
+.appl-row:last-child { border-bottom: none; }
+.appl-row-lbl { font-size: 11px; color: #6b7694; }
+.appl-row-val { font-size: 11px; font-weight: 600; color: #0f1623; }
+
+/* ── SCREEN COUNT TABLE ── */
+.sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.sc-card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 2px 16px rgba(0,0,0,0.05); }
+.sc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.sc-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.sc-app-name { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700; }
+.sc-count { font-size: 11px; color: var(--muted); }
+.sc-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.sc-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.sc-item-name { color: var(--muted); }
+.sc-item-n { font-weight: 700; color: var(--text); }
+
+/* ── FOOTER SUMMARY ── */
+.summary { background: var(--text); border-radius: 24px; padding: 36px; color: #fff; }
+.summary-title { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 900; margin-bottom: 8px; }
+.summary-sub { color: rgba(255,255,255,0.45); margin-bottom: 28px; font-size: 13px; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.s-box { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px; }
+.s-box-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.s-box-val { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 900; color: #6366f1; }
+.s-box-desc { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+
+@media(max-width:600px) {
+  .apps-grid, .preview-grid, .sc-grid { grid-template-columns: 1fr; }
+  .switch-demo { grid-template-columns: 1fr; }
+  .answer-box { gap: 16px; padding: 16px 20px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="super-label">EduVerse Pro <span>·</span> App Architecture Blueprint</div>
+    <h1>Build <em>3 Apps</em>,<br>Cover All 17 Roles</h1>
+    <p class="header-sub">You already have Student & Teacher dashboards. Here's the complete picture — minimum apps, maximum coverage, smart role-switching inside each.</p>
+    <div class="answer-box">
+      <div class="answer-item"><div class="answer-num">3</div><div class="answer-lbl">Flutter Apps</div></div>
+      <div class="answer-div"></div>
+      <div class="answer-item"><div class="answer-num">17</div><div class="answer-lbl">Roles Covered</div></div>
+      <div class="answer-div"></div>
+      <div class="answer-item"><div class="answer-num">80+</div><div class="answer-lbl">Total Screens</div></div>
+      <div class="answer-div"></div>
+      <div class="answer-item"><div class="answer-num">2</div><div class="answer-lbl">Already Built ✓</div></div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: THE 3 APPS -->
+  <div class="section">
+    <div class="sec-header">
+      <div class="sec-num">1</div>
+      <div>
+        <div class="sec-title">The 3 Flutter Apps</div>
+        <div class="sec-sub">One codebase per app. Role-based rendering inside each. Shared design system & Supabase backend.</div>
+      </div>
+    </div>
+
+    <div class="apps-grid">
+
+      <!-- App 1: Already built -->
+      <div class="app-card a3" style="border: 2px solid #22c55e;">
+        <div class="app-header" style="background: linear-gradient(135deg,#1a0a2e,#2d1060);">
+          <div class="app-num">✅ APP 01 — ALREADY BUILT (2/2 roles)</div>
+          <div class="app-name">EduVerse Academic</div>
+          <div class="app-tagline">Student learning + Teacher operations · Your existing app</div>
+          <div class="app-roles">
+            <span class="role-chip active">🧒 Student</span>
+            <span class="role-chip active">📚 Teacher / HOD</span>
+          </div>
+        </div>
+        <div class="app-body">
+          <div class="app-screens">
+            <span class="screen-tag">Home Dashboard</span><span class="screen-tag">Timetable</span><span class="screen-tag">Attendance</span><span class="screen-tag">Gradebook</span><span class="screen-tag">Homework</span><span class="screen-tag">Live Class</span><span class="screen-tag">Exams</span><span class="screen-tag">Results</span><span class="screen-tag">Library</span><span class="screen-tag">Messages</span><span class="screen-tag">Courses</span><span class="screen-tag">Certificates</span><span class="screen-tag">Leave</span><span class="screen-tag">EduBot AI</span><span class="screen-tag">Salary (Teacher)</span>
+          </div>
+          <div class="app-features">
+            <div class="feat"><div class="feat-dot"></div>Role switch: Student ↔ Teacher within same login</div>
+            <div class="feat"><div class="feat-dot"></div>Student sees XP, streaks, AI tutor EduBot</div>
+            <div class="feat"><div class="feat-dot"></div>Teacher sees class roster, gradebook, live class tools</div>
+            <div class="feat"><div class="feat-dot"></div>~25 screens total across both roles</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- App 2: Family App -->
+      <div class="app-card a4">
+        <div class="app-header" style="background: linear-gradient(135deg,#0a2218,#0d4f3c);">
+          <div class="app-num">🔨 APP 02 — BUILD NEXT (3 roles)</div>
+          <div class="app-name">EduVerse Family</div>
+          <div class="app-tagline">Parent portal + Admission applicant + Guest enquiry</div>
+          <div class="app-roles">
+            <span class="role-chip active">👨‍👩‍👧 Parent</span>
+            <span class="role-chip active">📝 Admission Applicant</span>
+            <span class="role-chip active">🔍 Guest / Enquiry</span>
+          </div>
+        </div>
+        <div class="app-body">
+          <div class="app-screens">
+            <span class="screen-tag">AI Admission Chatbot</span><span class="screen-tag">Enquiry Form</span><span class="screen-tag">Track Application</span><span class="screen-tag">6-step Pipeline</span><span class="screen-tag">Child Dashboard</span><span class="screen-tag">Attendance View</span><span class="screen-tag">Fee Payment</span><span class="screen-tag">Report Cards</span><span class="screen-tag">Bus Tracker</span><span class="screen-tag">Teacher Chat</span><span class="screen-tag">Notices</span><span class="screen-tag">PTM Booking</span><span class="screen-tag">Multi-child Switch</span>
+          </div>
+          <div class="app-features">
+            <div class="feat"><div class="feat-dot"></div>Guest → Applicant → Parent: same app, upgrades role</div>
+            <div class="feat"><div class="feat-dot"></div>Parent can switch between multiple children instantly</div>
+            <div class="feat"><div class="feat-dot"></div>Live GPS bus tracking with geo-fence alerts</div>
+            <div class="feat"><div class="feat-dot"></div>UPI / BBPS / Razorpay fee payment built-in</div>
+            <div class="feat"><div class="feat-dot"></div>~20 screens total across all 3 role states</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- App 3: Admin Suite -->
+      <div class="app-card a1">
+        <div class="app-header" style="background: linear-gradient(135deg,#1a1f3a,#0d0f1e);">
+          <div class="app-num">🔨 APP 03 — BUILD LAST (12 roles)</div>
+          <div class="app-name">EduVerse Admin Suite</div>
+          <div class="app-tagline">Every staff role — one app, role-based UI rendering</div>
+          <div class="app-roles">
+            <span class="role-chip">🛡️ Super Admin</span>
+            <span class="role-chip">👑 Director</span>
+            <span class="role-chip">🎓 Principal</span>
+            <span class="role-chip">💰 Finance</span>
+            <span class="role-chip">🏢 Admin Mgr</span>
+            <span class="role-chip">🧑‍⚕️ HR</span>
+            <span class="role-chip">🚌 Transport</span>
+            <span class="role-chip">📖 Librarian</span>
+            <span class="role-chip">🏃 Sports</span>
+            <span class="role-chip">🔒 Security</span>
+            <span class="role-chip">🧹 Support</span>
+            <span class="role-chip">🚌 Driver</span>
+          </div>
+        </div>
+        <div class="app-body">
+          <div class="app-screens">
+            <span class="screen-tag">Command Center</span><span class="screen-tag">Staff Directory</span><span class="screen-tag">Attendance Manager</span><span class="screen-tag">Payroll</span><span class="screen-tag">Fee Collection</span><span class="screen-tag">Admissions Pipeline</span><span class="screen-tag">Visitor Log</span><span class="screen-tag">Gate QR Scanner</span><span class="screen-tag">Timetable Builder</span><span class="screen-tag">Transport Dashboard</span><span class="screen-tag">Library Manager</span><span class="screen-tag">HR Dashboard</span><span class="screen-tag">Reports & Analytics</span><span class="screen-tag">AI Assistant</span><span class="screen-tag">Task Checklist</span><span class="screen-tag">Multi-school View</span>
+          </div>
+          <div class="app-features">
+            <div class="feat"><div class="feat-dot"></div>Single login detects role → renders matching dashboard</div>
+            <div class="feat"><div class="feat-dot"></div>Director sees all schools; Principal sees own school only</div>
+            <div class="feat"><div class="feat-dot"></div>Support staff get ultra-simple task checklist view</div>
+            <div class="feat"><div class="feat-dot"></div>Security guard gets dedicated Gate QR scanner mode</div>
+            <div class="feat"><div class="feat-dot"></div>~40 screens, role-filtered navigation per user</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECTION 2: ROLE → APP MAPPING -->
+  <div class="section">
+    <div class="sec-header">
+      <div class="sec-num">2</div>
+      <div>
+        <div class="sec-title">Role → App Mapping</div>
+        <div class="sec-sub">Every role, which app they use, what they can do.</div>
+      </div>
+    </div>
+    <div class="map-wrap">
+      <table class="map-table">
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>App</th>
+            <th>Dashboard</th>
+            <th>Finance</th>
+            <th>Academic</th>
+            <th>People</th>
+            <th>AI Feature</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#c9a84c"></span>Super Admin</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Platform-wide</td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td>Platform health AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#c9a84c"></span>Director</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Multi-school KPIs</td><td><span class="chk">✓</span></td><td><span class="par">◐</span></td><td><span class="chk">✓</span></td><td>Executive briefing AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#e05c7a"></span>Principal</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>School command center</td><td><span class="par">◐</span></td><td><span class="chk">✓</span></td><td><span class="chk">✓</span></td><td>Risk early warning AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#10b981"></span>Finance Officer</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Revenue & collections</td><td><span class="chk">✓</span></td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>Defaulter prediction AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#f59e0b"></span>Admin Manager</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Ops & admissions</td><td><span class="crs">✗</span></td><td><span class="par">◐</span></td><td><span class="par">◐</span></td><td>Lead scoring AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#8b5cf6"></span>HR Manager</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Staff lifecycle</td><td>Payroll</td><td><span class="crs">✗</span></td><td><span class="chk">✓</span></td><td>Attrition risk AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#06b6d4"></span>Teacher / HOD</span></td><td><span class="app-badge ab3">Academic</span></td><td>Class operations</td><td>Salary view</td><td><span class="chk">✓</span></td><td>Students</td><td>Lesson planner AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#3b82f6"></span>Transport Coord.</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Route & GPS dashboard</td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>Drivers</td><td>Route optimizer AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#a78bfa"></span>Librarian</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Catalog & issues</td><td>Fines</td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>Reading rec. AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#f97316"></span>Sports Coord.</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Events & clubs</td><td><span class="crs">✗</span></td><td><span class="par">◐</span></td><td><span class="crs">✗</span></td><td>Talent ID AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#6366f1"></span>Student</span></td><td><span class="app-badge ab3">Academic</span></td><td>Learning dashboard</td><td>View fees</td><td><span class="chk">✓</span></td><td><span class="crs">✗</span></td><td>EduBot AI tutor</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#22c55e"></span>Parent</span></td><td><span class="app-badge ab4">Family</span></td><td>Child tracker</td><td>Pay fees</td><td>View only</td><td><span class="crs">✗</span></td><td>Smart alert AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#06b6d4"></span>Guest / Enquiry</span></td><td><span class="app-badge ab4">Family</span></td><td>School explorer</td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>Admission chatbot AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#a78bfa"></span>Admission Applicant</span></td><td><span class="app-badge ab4">Family</span></td><td>Pipeline tracker</td><td>Reg. fee</td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>Document check AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#94a3b8"></span>Security Guard</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Gate QR scanner</td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>Visitors</td><td>Anomaly alert AI</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#78716c"></span>Support Staff</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Task checklist</td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>—</td></tr>
+          <tr><td><span class="role-badge"><span class="rb-dot" style="background:#f97316"></span>Bus Driver</span></td><td><span class="app-badge ab1">Admin Suite</span></td><td>Route + boarding log</td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td><span class="crs">✗</span></td><td>Route AI</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTION 3: ROLE SWITCHING STRATEGY -->
+  <div class="section">
+    <div class="sec-header">
+      <div class="sec-num">3</div>
+      <div>
+        <div class="sec-title">Role Switching — How It Works</div>
+        <div class="sec-sub">One person, multiple hats. One app handles it gracefully.</div>
+      </div>
+    </div>
+
+    <div class="switch-box">
+      <div class="switch-title">Same Login → Different World</div>
+      <div class="switch-sub">When a user logs in, Supabase returns their role(s). The app renders the matching dashboard. If they have multiple roles, a role-switcher chip appears in the header — just like your existing designs already show.</div>
+      <div class="switch-demo">
+
+        <!-- Family App demo -->
+        <div>
+          <div style="color:rgba(255,255,255,0.45); font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:12px;">Family App — Parent with 2 children</div>
+          <div class="phone-shell">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <div class="fam-screen">
+                <div class="fam-header">
+                  <div class="fam-greet">Good Morning ☀️</div>
+                  <div class="fam-name">Ramesh Sharma</div>
+                  <div class="fam-role-switch">
+                    <div class="fam-chip on">👨‍👩‍👧 Parent</div>
+                    <div class="fam-chip">📝 Applicant</div>
+                  </div>
+                  <div class="fam-stats">
+                    <div class="fam-stat"><div class="fam-stat-n">2</div><div class="fam-stat-l">Children</div></div>
+                    <div class="fam-stat"><div class="fam-stat-n">₹0</div><div class="fam-stat-l">Dues</div></div>
+                    <div class="fam-stat"><div class="fam-stat-n">3</div><div class="fam-stat-l">Alerts</div></div>
+                  </div>
+                </div>
+                <div class="fam-body">
+                  <div class="fam-sec-label">Quick Access</div>
+                  <div class="fam-quick">
+                    <div class="fam-btn"><div class="fam-btn-ico">🚌</div><div class="fam-btn-lbl">Bus Track</div></div>
+                    <div class="fam-btn"><div class="fam-btn-ico">💰</div><div class="fam-btn-lbl">Pay Fees</div></div>
+                    <div class="fam-btn"><div class="fam-btn-ico">📊</div><div class="fam-btn-lbl">Results</div></div>
+                    <div class="fam-btn"><div class="fam-btn-ico">💬</div><div class="fam-btn-lbl">Teacher</div></div>
+                  </div>
+                  <div class="fam-sec-label">My Children</div>
+                  <div class="fam-child-card">
+                    <div class="fam-avatar">👦</div>
+                    <div>
+                      <div class="fam-child-name">Arjun Sharma</div>
+                      <div class="fam-child-cls">Class X-A · Roll 12</div>
+                      <div class="fam-child-badges">
+                        <span class="fam-badge fb-attend">94% Attend.</span>
+                        <span class="fam-badge fb-rank">Rank 3rd</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="fam-child-card">
+                    <div class="fam-avatar">👧</div>
+                    <div>
+                      <div class="fam-child-name">Priya Sharma</div>
+                      <div class="fam-child-cls">Class VI-B · Roll 8</div>
+                      <div class="fam-child-badges">
+                        <span class="fam-badge fb-attend">88% Attend.</span>
+                        <span class="fam-badge fb-fee">Fee Due ₹4,500</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Suite demo -->
+        <div>
+          <div style="color:rgba(255,255,255,0.45); font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:12px;">Admin Suite — Principal switching to Finance view</div>
+          <div class="phone-shell">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <div style="background:#0f1623; min-height:100%;">
+                <div class="adm-header">
+                  <div class="adm-top">
+                    <div>
+                      <div class="adm-greet">Good Morning ☀️</div>
+                      <div class="adm-name">Dr. Suresh Mehta</div>
+                      <div class="adm-sub">Principal · DAV Public School</div>
+                    </div>
+                    <div style="font-size:22px;">👨‍💼</div>
+                  </div>
+                  <div class="adm-role-row">
+                    <div class="adm-chip on">🎓 Principal</div>
+                    <div class="adm-chip">💰 Finance View</div>
+                    <div class="adm-chip">📊 Reports</div>
+                  </div>
+                  <div class="adm-stats">
+                    <div class="adm-stat"><div class="adm-stat-n">847</div><div class="adm-stat-l">Students</div></div>
+                    <div class="adm-stat"><div class="adm-stat-n">62</div><div class="adm-stat-l">Staff</div></div>
+                    <div class="adm-stat"><div class="adm-stat-n">91%</div><div class="adm-stat-l">Attend.</div></div>
+                    <div class="adm-stat"><div class="adm-stat-n">12</div><div class="adm-stat-l">Pending</div></div>
+                  </div>
+                </div>
+                <div class="adm-body">
+                  <div class="adm-row-label">Quick Access</div>
+                  <div class="adm-quick">
+                    <div class="adm-btn"><div class="adm-btn-ico">📋</div><div class="adm-btn-lbl">Attendance</div></div>
+                    <div class="adm-btn"><div class="adm-btn-ico">👥</div><div class="adm-btn-lbl">Staff</div></div>
+                    <div class="adm-btn"><div class="adm-btn-ico">📅</div><div class="adm-btn-lbl">Timetable</div></div>
+                    <div class="adm-btn"><div class="adm-btn-ico">📢</div><div class="adm-btn-lbl">Notice</div></div>
+                    <div class="adm-btn"><div class="adm-btn-ico">🚪</div><div class="adm-btn-lbl">Admission</div></div>
+                    <div class="adm-btn"><div class="adm-btn-ico">🏆</div><div class="adm-btn-lbl">Results</div></div>
+                    <div class="adm-btn"><div class="adm-btn-ico">🤖</div><div class="adm-btn-lbl">AI Assist</div></div>
+                    <div class="adm-btn"><div class="adm-btn-ico">📊</div><div class="adm-btn-lbl">Reports</div></div>
+                  </div>
+                  <div class="adm-row-label">Live Alerts</div>
+                  <div class="adm-alert"><div class="adm-alert-ico">🔴</div><div class="adm-alert-text">3 teachers absent today — substitutes needed</div><div class="adm-alert-time">8:05 AM</div></div>
+                  <div class="adm-alert"><div class="adm-alert-ico">💰</div><div class="adm-alert-text">₹2.4L fee collection pending — 18 students</div><div class="adm-alert-time">7:30 AM</div></div>
+                  <div class="adm-alert"><div class="adm-alert-ico">📝</div><div class="adm-alert-text">New admission application: Rohan Verma, Class IX</div><div class="adm-alert-time">7:15 AM</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="switch-detail">
+      <div class="sd-title">Role Switching — Technical Flow</div>
+      <div class="sd-sub">How Supabase + Flutter + Riverpod handle this seamlessly</div>
+      <div class="sd-steps">
+        <div class="sd-step"><div class="sd-step-num">STEP 01</div><div class="sd-step-title">Login</div><div class="sd-step-desc">User logs in with phone/email. Supabase Auth validates credentials.</div></div>
+        <div class="sd-step"><div class="sd-step-num">STEP 02</div><div class="sd-step-title">Role Fetch</div><div class="sd-step-desc">Auth token decoded → user_roles table queried. Returns list of assigned roles + school_id.</div></div>
+        <div class="sd-step"><div class="sd-step-num">STEP 03</div><div class="sd-step-title">Riverpod State</div><div class="sd-step-desc">currentRoleProvider set. All widgets rebuild based on active role. Navigation tree changes.</div></div>
+        <div class="sd-step"><div class="sd-step-num">STEP 04</div><div class="sd-step-title">Dashboard Render</div><div class="sd-step-desc">GoRouter redirects to role-specific home route. Different bottom nav, quick actions, data.</div></div>
+        <div class="sd-step"><div class="sd-step-num">STEP 05</div><div class="sd-step-title">Role Switch Tap</div><div class="sd-step-desc">User taps chip in header → updates currentRoleProvider → full UI re-renders instantly. No re-login.</div></div>
+        <div class="sd-step"><div class="sd-step-num">STEP 06</div><div class="sd-step-title">RLS Protection</div><div class="sd-step-desc">Every Supabase query filtered by role. Even if UI bug, DB enforces access at row level.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: DASHBOARD PREVIEWS for remaining roles -->
+  <div class="section">
+    <div class="sec-header">
+      <div class="sec-num">4</div>
+      <div>
+        <div class="sec-title">Dashboard Previews — Remaining Roles</div>
+        <div class="sec-sub">What each new dashboard looks like inside Admin Suite and Family App</div>
+      </div>
+    </div>
+    <div class="preview-grid">
+
+      <!-- Principal -->
+      <div class="preview-card">
+        <div class="preview-label" style="background: linear-gradient(135deg,#2d0a1f,#5a1040);">🎓 Principal Dashboard</div>
+        <div class="preview-screen pri-screen">
+          <div class="pri-hdr">
+            <div class="pri-name">Dr. Suresh Mehta</div>
+            <div class="pri-role">Principal · DAV Public School</div>
+            <div class="pri-stats">
+              <div class="pri-stat"><div class="pri-stat-n">847</div><div class="pri-stat-l">Students</div></div>
+              <div class="pri-stat"><div class="pri-stat-n">91%</div><div class="pri-stat-l">Attendance</div></div>
+              <div class="pri-stat"><div class="pri-stat-n">62</div><div class="pri-stat-l">Staff</div></div>
+            </div>
+          </div>
+          <div class="pri-actions">
+            <div class="pri-btn"><div class="pri-btn-i">📋</div><div class="pri-btn-l">Attendance</div></div>
+            <div class="pri-btn"><div class="pri-btn-i">👥</div><div class="pri-btn-l">Staff</div></div>
+            <div class="pri-btn"><div class="pri-btn-i">📅</div><div class="pri-btn-l">Timetable</div></div>
+            <div class="pri-btn"><div class="pri-btn-i">🚪</div><div class="pri-btn-l">Admissions</div></div>
+          </div>
+          <div style="font-size:10px; font-weight:700; color:#6b7694; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px;">Live Alerts</div>
+          <div class="pri-alert"><div class="pri-alert-dot"></div><div><div class="pri-alert-text">3 teachers absent today</div><div class="pri-alert-sub">Substitutes needed · 8:05 AM</div></div></div>
+          <div class="pri-alert"><div class="pri-alert-dot" style="background:#f59e0b"></div><div><div class="pri-alert-text">18 students fee defaulters</div><div class="pri-alert-sub">₹2.4L pending · Finance dept</div></div></div>
+        </div>
+      </div>
+
+      <!-- Finance -->
+      <div class="preview-card">
+        <div class="preview-label" style="background: linear-gradient(135deg,#0a2218,#0d4f3c);">💰 Finance Officer Dashboard</div>
+        <div class="preview-screen fin-screen">
+          <div class="fin-hdr">
+            <div class="fin-name">Kavita Agarwal</div>
+            <div class="fin-role">Finance Officer · April 2025</div>
+            <div class="fin-collected">
+              <div class="fin-small">Monthly Collection</div>
+              <div class="fin-big">₹18,42,500</div>
+              <div class="fin-bar"><div class="fin-bar-fill"></div></div>
+              <div style="display:flex;justify-content:space-between;"><span style="font-size:9px;color:rgba(255,255,255,0.45);">72% of ₹25.6L target</span><span style="font-size:9px;color:#22c55e;font-weight:700;">On Track</span></div>
+            </div>
+          </div>
+          <div class="fin-actions">
+            <div class="fin-btn"><div class="fin-btn-i">💳</div><div class="fin-btn-l">Collect Fee</div></div>
+            <div class="fin-btn"><div class="fin-btn-i">📋</div><div class="fin-btn-l">Defaulters</div></div>
+            <div class="fin-btn"><div class="fin-btn-i">💵</div><div class="fin-btn-l">Payroll</div></div>
+            <div class="fin-btn"><div class="fin-btn-i">📊</div><div class="fin-btn-l">Reports</div></div>
+          </div>
+          <div style="font-size:10px; font-weight:700; color:#6b7694; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px;">Recent Transactions</div>
+          <div class="fin-row"><div><div class="fin-row-name">Arun Verma — X-A</div><div class="fin-row-sub">Annual Fee · Paid via UPI</div></div><div class="fin-row-amt amt-ok">+₹42,000</div></div>
+          <div class="fin-row"><div><div class="fin-row-name">Sneha Patel — VIII-B</div><div class="fin-row-sub">Term 2 · Overdue 14 days</div></div><div class="fin-row-amt amt-due">₹8,500 DUE</div></div>
+        </div>
+      </div>
+
+      <!-- Director -->
+      <div class="preview-card">
+        <div class="preview-label" style="background: linear-gradient(135deg,#1a1300,#3d2e00);">👑 Director Dashboard</div>
+        <div class="preview-screen dir-screen">
+          <div class="dir-hdr">
+            <div class="dir-name">Mr. Rajesh Gupta</div>
+            <div class="dir-role">Chairman · Gupta Education Group</div>
+            <div class="dir-schools">
+              <span class="dir-school">DAV Noida</span>
+              <span class="dir-school">DAV Ghaziabad</span>
+              <span class="dir-school">DAV Lucknow</span>
+            </div>
+          </div>
+          <div class="dir-kpis">
+            <div class="dir-kpi"><div class="dir-kpi-n">2,847</div><div class="dir-kpi-l">Total Students</div></div>
+            <div class="dir-kpi"><div class="dir-kpi-n">₹54.2L</div><div class="dir-kpi-l">Monthly Revenue</div></div>
+            <div class="dir-kpi"><div class="dir-kpi-n">91%</div><div class="dir-kpi-l">Avg Attendance</div></div>
+            <div class="dir-kpi"><div class="dir-kpi-n">186</div><div class="dir-kpi-l">Total Staff</div></div>
+          </div>
+          <div style="font-size:10px; font-weight:700; color:#6b7694; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px;">Branch Performance</div>
+          <div class="dir-item"><div class="dir-item-ico">🏫</div><div class="dir-item-text">DAV Noida</div><div class="dir-item-val">↑ 94% collect.</div></div>
+          <div class="dir-item"><div class="dir-item-ico">🏫</div><div class="dir-item-text">DAV Ghaziabad</div><div class="dir-item-val">→ 78% collect.</div></div>
+          <div class="dir-item"><div class="dir-item-ico">🏫</div><div class="dir-item-text">DAV Lucknow</div><div class="dir-item-val">↓ 61% collect.</div></div>
+        </div>
+      </div>
+
+      <!-- Gate Guard -->
+      <div class="preview-card">
+        <div class="preview-label" style="background: linear-gradient(135deg,#1a1200,#3d2c00);">🔒 Security Guard — Gate App</div>
+        <div class="preview-screen gate-screen">
+          <div class="gate-hdr">
+            <div class="gate-name">Ramkumar Singh</div>
+            <div class="gate-role">Security Guard · Main Gate</div>
+            <div class="gate-scanner">
+              <div class="gate-scan-ico">📷</div>
+              <div class="gate-scan-txt">Tap to Scan QR / RFID</div>
+            </div>
+          </div>
+          <div style="font-size:10px; font-weight:700; color:#6b7694; letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px;">Today's Log</div>
+          <div class="gate-recent">
+            <div class="gate-entry"><div class="gate-dot gate-in"></div><div><div class="gate-name-txt">Anita Sharma (Parent)</div><div class="gate-type">Visitor · Meeting Principal</div></div><div class="gate-time">9:12 AM</div></div>
+            <div class="gate-entry"><div class="gate-dot gate-out"></div><div><div class="gate-name-txt">Rajesh Kumar (Vendor)</div><div class="gate-type">Exit · Canteen delivery</div></div><div class="gate-time">9:05 AM</div></div>
+            <div class="gate-entry"><div class="gate-dot gate-in"></div><div><div class="gate-name-txt">Mrs. Priya Sharma</div><div class="gate-type">Staff · Teacher check-in</div></div><div class="gate-time">8:45 AM</div></div>
+            <div class="gate-entry"><div class="gate-dot gate-in"></div><div><div class="gate-name-txt">Bus #KA-01-1234</div><div class="gate-type">Transport · 42 students</div></div><div class="gate-time">8:30 AM</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admission Applicant -->
+      <div class="preview-card">
+        <div class="preview-label" style="background: linear-gradient(135deg,#1a1f3a,#3730a3);">📝 Admission Applicant Tracker</div>
+        <div class="app-screen">
+          <div class="appl-header">
+            <div class="appl-name">Rohit Verma (Father)</div>
+            <div class="appl-id">Applicant ID: ADM-2025-00847 · Applying for Class IX</div>
+            <div class="appl-progress">
+              <div class="appl-step"><div class="appl-circle appl-done">✓</div><div class="appl-step-lbl done-lbl">Enquiry</div></div>
+              <div class="appl-line done"></div>
+              <div class="appl-step"><div class="appl-circle appl-done">✓</div><div class="appl-step-lbl done-lbl">Applied</div></div>
+              <div class="appl-line done"></div>
+              <div class="appl-step"><div class="appl-circle appl-now">3</div><div class="appl-step-lbl now-lbl">Test</div></div>
+              <div class="appl-line"></div>
+              <div class="appl-step"><div class="appl-circle appl-todo">4</div><div class="appl-step-lbl">Interview</div></div>
+              <div class="appl-line"></div>
+              <div class="appl-step"><div class="appl-circle appl-todo">5</div><div class="appl-step-lbl">Approval</div></div>
+              <div class="appl-line"></div>
+              <div class="appl-step"><div class="appl-circle appl-todo">6</div><div class="appl-step-lbl">Enrolled</div></div>
+            </div>
+          </div>
+          <div class="appl-info">
+            <div class="appl-info-title">📝 Entrance Test Details</div>
+            <div class="appl-row"><div class="appl-row-lbl">Date & Time</div><div class="appl-row-val">15 May 2025, 10:00 AM</div></div>
+            <div class="appl-row"><div class="appl-row-lbl">Venue</div><div class="appl-row-val">Room 201, Main Block</div></div>
+            <div class="appl-row"><div class="appl-row-lbl">Subjects</div><div class="appl-row-val">Math, Science, English</div></div>
+            <div class="appl-row"><div class="appl-row-lbl">Admit Card</div><div class="appl-row-val" style="color:#6366f1;">📥 Download</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Support Staff / Task view -->
+      <div class="preview-card">
+        <div class="preview-label" style="background: linear-gradient(135deg,#1c1917,#3c3128);">🧹 Support Staff — Task App</div>
+        <div class="preview-screen" style="background:#fafaf9; padding:14px;">
+          <div style="background:linear-gradient(135deg,#292524,#44403c); border-radius:14px; padding:14px; margin-bottom:12px;">
+            <div style="font-size:15px; font-weight:800; color:#fff;">Mohan Lal</div>
+            <div style="font-size:10px; color:rgba(255,255,255,0.45); margin-bottom:10px;">Housekeeping · Block A</div>
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px;">
+              <div style="background:rgba(255,255,255,0.08); border-radius:10px; padding:8px; text-align:center;"><div style="font-size:16px; font-weight:800; color:#fff;">8</div><div style="font-size:8px; color:rgba(255,255,255,0.4);">Total Tasks</div></div>
+              <div style="background:rgba(34,197,94,0.15); border-radius:10px; padding:8px; text-align:center;"><div style="font-size:16px; font-weight:800; color:#22c55e;">5</div><div style="font-size:8px; color:rgba(255,255,255,0.4);">Done</div></div>
+              <div style="background:rgba(245,158,11,0.15); border-radius:10px; padding:8px; text-align:center;"><div style="font-size:16px; font-weight:800; color:#f59e0b;">3</div><div style="font-size:8px; color:rgba(255,255,255,0.4);">Pending</div></div>
+            </div>
+          </div>
+          <div style="font-size:10px; font-weight:700; color:#6b7694; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px;">Today's Tasks</div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="background:#fff; border-radius:10px; padding:10px; display:flex; align-items:center; gap:10px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+              <div style="width:20px; height:20px; border-radius:50%; background:#dcfce7; display:flex; align-items:center; justify-content:center; font-size:11px;">✓</div>
+              <div style="flex:1;"><div style="font-size:12px; font-weight:600; color:#374151; text-decoration:line-through; opacity:0.5;">Clean Classroom 301</div><div style="font-size:9px; color:#9ca3af;">Completed 7:30 AM</div></div>
+            </div>
+            <div style="background:#fff; border-radius:10px; padding:10px; display:flex; align-items:center; gap:10px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+              <div style="width:20px; height:20px; border-radius:50%; background:#fef3c7; display:flex; align-items:center; justify-content:center; font-size:11px;">⏳</div>
+              <div style="flex:1;"><div style="font-size:12px; font-weight:600; color:#374151;">Mop corridor Block A</div><div style="font-size:9px; color:#9ca3af;">Due by 10:00 AM</div></div>
+              <div style="font-size:18px;">📸</div>
+            </div>
+            <div style="background:#fff; border-radius:10px; padding:10px; display:flex; align-items:center; gap:10px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+              <div style="width:20px; height:20px; border-radius:50%; background:#fef3c7; display:flex; align-items:center; justify-content:center; font-size:11px;">⏳</div>
+              <div style="flex:1;"><div style="font-size:12px; font-weight:600; color:#374151;">Sanitize Boys Washroom</div><div style="font-size:9px; color:#9ca3af;">Due by 11:00 AM</div></div>
+              <div style="font-size:18px;">📸</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECTION 5: SCREEN COUNT -->
+  <div class="section">
+    <div class="sec-header">
+      <div class="sec-num">5</div>
+      <div>
+        <div class="sec-title">Screen Count by App</div>
+        <div class="sec-sub">What you need to build across all 3 apps</div>
+      </div>
+    </div>
+    <div class="sc-grid">
+      <div class="sc-card">
+        <div class="sc-header">
+          <div class="sc-icon" style="background:rgba(168,85,247,0.1); color:#a855f7;">📚</div>
+          <div><div class="sc-app-name">EduVerse Academic</div><div class="sc-count">✅ Already built — 2 roles</div></div>
+        </div>
+        <ul class="sc-list">
+          <li class="sc-item"><span class="sc-item-name">Home Dashboard (Student)</span><span class="sc-item-n" style="color:#22c55e;">✓ Done</span></li>
+          <li class="sc-item"><span class="sc-item-name">Home Dashboard (Teacher)</span><span class="sc-item-n" style="color:#22c55e;">✓ Done</span></li>
+          <li class="sc-item"><span class="sc-item-name">Timetable, Attendance, Grades</span><span class="sc-item-n">~8</span></li>
+          <li class="sc-item"><span class="sc-item-name">Homework, Exams, Results</span><span class="sc-item-n">~6</span></li>
+          <li class="sc-item"><span class="sc-item-name">Live Class, Library, EduBot</span><span class="sc-item-n">~5</span></li>
+          <li class="sc-item"><span class="sc-item-name">Messages, Profile, Settings</span><span class="sc-item-n">~4</span></li>
+          <li class="sc-item" style="border-top:1px solid #f0f2f7; margin-top:4px; padding-top:6px;"><span style="font-weight:700;">Total</span><span class="sc-item-n">~25 screens</span></li>
+        </ul>
+      </div>
+      <div class="sc-card">
+        <div class="sc-header">
+          <div class="sc-icon" style="background:rgba(34,197,94,0.1); color:#22c55e;">👨‍👩‍👧</div>
+          <div><div class="sc-app-name">EduVerse Family</div><div class="sc-count">🔨 Build next — 3 roles</div></div>
+        </div>
+        <ul class="sc-list">
+          <li class="sc-item"><span class="sc-item-name">Guest Enquiry + AI Chatbot</span><span class="sc-item-n">~3</span></li>
+          <li class="sc-item"><span class="sc-item-name">Admission Application Form</span><span class="sc-item-n">~4</span></li>
+          <li class="sc-item"><span class="sc-item-name">6-Step Pipeline Tracker</span><span class="sc-item-n">~2</span></li>
+          <li class="sc-item"><span class="sc-item-name">Parent Home + Child Switch</span><span class="sc-item-n">~3</span></li>
+          <li class="sc-item"><span class="sc-item-name">Fee Payment, Results, Attend.</span><span class="sc-item-n">~4</span></li>
+          <li class="sc-item"><span class="sc-item-name">Bus Tracker, Teacher Chat, PTM</span><span class="sc-item-n">~4</span></li>
+          <li class="sc-item" style="border-top:1px solid #f0f2f7; margin-top:4px; padding-top:6px;"><span style="font-weight:700;">Total</span><span class="sc-item-n">~20 screens</span></li>
+        </ul>
+      </div>
+      <div class="sc-card">
+        <div class="sc-header">
+          <div class="sc-icon" style="background:rgba(99,102,241,0.1); color:#6366f1;">🏫</div>
+          <div><div class="sc-app-name">EduVerse Admin Suite</div><div class="sc-count">🔨 Build last — 12 roles</div></div>
+        </div>
+        <ul class="sc-list">
+          <li class="sc-item"><span class="sc-item-name">Principal Command Center</span><span class="sc-item-n">~6</span></li>
+          <li class="sc-item"><span class="sc-item-name">Director Multi-school View</span><span class="sc-item-n">~4</span></li>
+          <li class="sc-item"><span class="sc-item-name">Finance, HR, Admin modules</span><span class="sc-item-n">~12</span></li>
+          <li class="sc-item"><span class="sc-item-name">Admission Pipeline Manager</span><span class="sc-item-n">~4</span></li>
+          <li class="sc-item"><span class="sc-item-name">Visitor Log + Gate QR Scanner</span><span class="sc-item-n">~3</span></li>
+          <li class="sc-item"><span class="sc-item-name">Transport, Library, Sports</span><span class="sc-item-n">~6</span></li>
+          <li class="sc-item"><span class="sc-item-name">Support Staff Task View</span><span class="sc-item-n">~3</span></li>
+          <li class="sc-item"><span class="sc-item-name">Reports, Settings, AI Assistant</span><span class="sc-item-n">~4</span></li>
+          <li class="sc-item" style="border-top:1px solid #f0f2f7; margin-top:4px; padding-top:6px;"><span style="font-weight:700;">Total</span><span class="sc-item-n">~42 screens</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="summary-title">The Complete EduVerse Pro Blueprint</div>
+    <div class="summary-sub">Everything needed to launch a world-class AI school ERP</div>
+    <div class="summary-grid">
+      <div class="s-box"><div class="s-box-label">Apps to Build</div><div class="s-box-val">3</div><div class="s-box-desc">Academic · Family · Admin Suite</div></div>
+      <div class="s-box"><div class="s-box-label">Already Built</div><div class="s-box-val" style="color:#22c55e;">2</div><div class="s-box-desc">Student + Teacher dashboards ✓</div></div>
+      <div class="s-box"><div class="s-box-label">Roles Covered</div><div class="s-box-val">17</div><div class="s-box-desc">Every person in the school</div></div>
+      <div class="s-box"><div class="s-box-label">Total Screens</div><div class="s-box-val">~87</div><div class="s-box-desc">Across all 3 apps</div></div>
+      <div class="s-box"><div class="s-box-label">Shared Backend</div><div class="s-box-val">1</div><div class="s-box-desc">Supabase · Single source of truth</div></div>
+      <div class="s-box"><div class="s-box-label">Design System</div><div class="s-box-val">1</div><div class="s-box-desc">Shared tokens · 3 color themes</div></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

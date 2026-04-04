@@ -5,7 +5,7 @@
 > **PROJECT NAME**: EduSHAMIIT AI
 > **PACKAGE NAME**: com.shamiit.edu
 > **AI AGENT NAME**: Shami
-> **BACKEND**: Python FastAPI (see `edushamiit_ai.md` for complete backend spec)
+> **BACKEND**: Python FastAPI (see `instruction_backend.md` for complete backend spec)
 > **ARCHITECTURE**: Single Flutter app with role-based routing (Student vs Teacher)
 
 ---
@@ -127,6 +127,7 @@ Run the complete folder creation commands from Section 4.
 ### Step 5: Add Fonts
 
 Download from Google Fonts and place in assets/fonts/:
+
 - Outfit (Light, Regular, Medium, SemiBold, Bold, ExtraBold, Black)
 - DM Sans (Light, Regular, Medium, SemiBold, Bold)
 
@@ -382,6 +383,7 @@ Each screen includes: route, visual design, full Dart widget code, data fetched,
 **Header Gradient:** `#4F46E5` → `#302B63`
 
 **Data Fetched:**
+
 - Table: `profiles` (user info, xp_points, learning_streak)
 - Table: `timetable` (today's schedule)
 - Table: `homework` (pending homework)
@@ -392,6 +394,7 @@ Each screen includes: route, visual design, full Dart widget code, data fetched,
 **API Endpoint:** `GET /api/student/dashboard?user_id={user_id}&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -437,22 +440,22 @@ Each screen includes: route, visual design, full Dart widget code, data fetched,
     }
   ],
   "quick_access": [
-    {"title": "Timetable", "icon": "📅", "route": "/student/timetable"},
-    {"title": "Results", "icon": "📊", "route": "/student/results"},
-    {"title": "Fees", "icon": "💰", "route": "/student/fees"},
-    {"title": "Notices", "icon": "📢", "route": "/student/notices"},
-    {"title": "Homework", "icon": "📝", "route": "/student/homework"},
-    {"title": "Transport", "icon": "🚌", "route": "/student/transport"},
-    {"title": "Events", "icon": "🎉", "route": "/student/events"},
-    {"title": "Attendance", "icon": "📊", "route": "/student/attendance"},
-    {"title": "Library", "icon": "📚", "route": "/student/library"},
-    {"title": "Courses", "icon": "📖", "route": "/student/courses"},
-    {"title": "Exams", "icon": "📝", "route": "/student/exams"},
-    {"title": "Live Class", "icon": "🎥", "route": "/student/live-classes"},
-    {"title": "Messages", "icon": "💬", "route": "/messaging"},
-    {"title": "Achievements", "icon": "🏆", "route": "/student/achievements"},
-    {"title": "Leave", "icon": "🏖️", "route": "/student/leave"},
-    {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard"}
+    { "title": "Timetable", "icon": "📅", "route": "/student/timetable" },
+    { "title": "Results", "icon": "📊", "route": "/student/results" },
+    { "title": "Fees", "icon": "💰", "route": "/student/fees" },
+    { "title": "Notices", "icon": "📢", "route": "/student/notices" },
+    { "title": "Homework", "icon": "📝", "route": "/student/homework" },
+    { "title": "Transport", "icon": "🚌", "route": "/student/transport" },
+    { "title": "Events", "icon": "🎉", "route": "/student/events" },
+    { "title": "Attendance", "icon": "📊", "route": "/student/attendance" },
+    { "title": "Library", "icon": "📚", "route": "/student/library" },
+    { "title": "Courses", "icon": "📖", "route": "/student/courses" },
+    { "title": "Exams", "icon": "📝", "route": "/student/exams" },
+    { "title": "Live Class", "icon": "🎥", "route": "/student/live-classes" },
+    { "title": "Messages", "icon": "💬", "route": "/messaging" },
+    { "title": "Achievements", "icon": "🏆", "route": "/student/achievements" },
+    { "title": "Leave", "icon": "🏖️", "route": "/student/leave" },
+    { "title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard" }
   ]
 }
 ```
@@ -1114,12 +1117,14 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
 **Header Gradient:** `#1E40AF` → `#1D4ED8`
 
 **Data Fetched:**
+
 - Table: `timetable` (filtered by class and day)
 - Table: `subjects` (subject details)
 
 **API Endpoint:** `GET /api/student/timetable?class=X-A&day=monday&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1353,12 +1358,14 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
 **Header Gradient:** `#4F46E5` → `#6366F1`
 
 **Data Fetched:**
+
 - Table: `results` (all results for student)
 - Table: `subjects` (subject names)
 
 **API Endpoint:** `GET /api/student/results?student_id={user_id}&school_id={school_id}&category={category}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1656,6 +1663,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `GET /api/student/exams?class=X-A&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1687,17 +1695,18 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `GET /api/student/fees?student_id={user_id}&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
   "student_id": "uuid-user-1",
-  "total_outstanding": 12500.00,
-  "total_paid": 37500.00,
+  "total_outstanding": 12500.0,
+  "total_paid": 37500.0,
   "pending_fees": [
     {
       "id": "uuid-fee-1",
       "fee_type": "Tuition Fee",
-      "amount": 12500.00,
+      "amount": 12500.0,
       "amount_paid": 0,
       "due_date": "2026-04-15",
       "status": "pending"
@@ -1705,7 +1714,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   ],
   "recent_payments": [
     {
-      "amount": 12500.00,
+      "amount": 12500.0,
       "method": "UPI",
       "date": "2026-03-01",
       "transaction_id": "TXN123456"
@@ -1723,6 +1732,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `GET /api/student/homework?class=X-A&status={status}&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1761,6 +1771,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `GET /api/student/attendance?student_id={user_id}&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1770,9 +1781,9 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   "late_days": 2,
   "total_days": 100,
   "subject_wise": [
-    {"subject": "Mathematics", "present": 19, "total": 20, "pct": 95.0},
-    {"subject": "Physics", "present": 18, "total": 20, "pct": 90.0},
-    {"subject": "Chemistry", "present": 20, "total": 20, "pct": 100.0}
+    { "subject": "Mathematics", "present": 19, "total": 20, "pct": 95.0 },
+    { "subject": "Physics", "present": 18, "total": 20, "pct": 90.0 },
+    { "subject": "Chemistry", "present": 20, "total": 20, "pct": 100.0 }
   ]
 }
 ```
@@ -1786,6 +1797,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `GET /api/student/transport?student_id={user_id}&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1815,6 +1827,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `GET /api/student/notices?school_id={school_id}&category={category}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1840,6 +1853,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `GET /api/student/events?school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1874,6 +1888,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 **API Endpoint:** `POST /api/student/leave/apply`
 
 **Request JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1913,6 +1928,7 @@ Each follows the same pattern: header with gradient, data list, API call, full D
 **API Endpoint:** `GET /api/teacher/dashboard?teacher_id={user_id}&school_id={school_id}`
 
 **Response JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1963,6 +1979,7 @@ Each follows the same pattern: header with gradient, data list, API call, full D
 **API Endpoint:** `POST /api/teacher/attendance/mark`
 
 **Request JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -1971,9 +1988,9 @@ Each follows the same pattern: header with gradient, data list, API call, full D
   "subject_id": "uuid-subject-1",
   "date": "2026-04-02",
   "attendance_records": [
-    {"student_id": "uuid-s1", "status": "present"},
-    {"student_id": "uuid-s2", "status": "absent"},
-    {"student_id": "uuid-s3", "status": "late"}
+    { "student_id": "uuid-s1", "status": "present" },
+    { "student_id": "uuid-s2", "status": "absent" },
+    { "student_id": "uuid-s3", "status": "late" }
   ]
 }
 ```
@@ -1987,6 +2004,7 @@ Each follows the same pattern: header with gradient, data list, API call, full D
 **API Endpoint:** `POST /api/teacher/homework/create`
 
 **Request JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -2016,6 +2034,7 @@ Each follows the same pattern: header with gradient, data list, API call, full D
 **API Endpoint:** `POST /api/teacher/submissions/grade`
 
 **Request JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -2042,6 +2061,7 @@ Each follows the same pattern: header with gradient, data list, API call, full D
 **API Endpoint:** `POST /api/teacher/exams/generate-questions`
 
 **Request JSON:**
+
 ```json
 {
   "school_id": "uuid-school-1",
@@ -2085,11 +2105,13 @@ Each follows the same pattern: header with gradient, data list, API call, full D
 ## 8. SHARED REUSABLE COMPONENTS
 
 ### 8.1 Role-Aware Components
+
 - `AppBottomNav`: student items vs teacher items
 - `AppHeader`: gradient colors based on role
 - `AIFab`: purple gradient for student, cyan for teacher
 
 ### 8.2 All Shared Components
+
 - AppCard, AppChip, AppChipRow, AppModal, AppBadge
 - AppSectionHeader, AITag, AITypingIndicator, LiveDot
 - SuccessCheck, CountdownTimer, CircularProgress
@@ -2100,6 +2122,7 @@ Each follows the same pattern: header with gradient, data list, API call, full D
 ## 9. RESPONSIVE DESIGN STRATEGY
 
 ### 9.1 Breakpoints
+
 ```dart
 class Breakpoints {
   static const double mobile = 600.0;
@@ -2109,19 +2132,21 @@ class Breakpoints {
 ```
 
 ### 9.2 Responsive Rules
-| Element | Mobile | Tablet | Desktop |
-|---|---|---|---|
-| Navigation | Bottom bar | Navigation rail | Sidebar |
-| Layout | Single column | 2 columns | 3-4 columns |
-| Grid | 4 columns | 6 columns | 8 columns |
-| Cards | Full width | 50% | 33% |
-| Padding | 14px | 24px | 32px |
+
+| Element    | Mobile        | Tablet          | Desktop     |
+| ---------- | ------------- | --------------- | ----------- |
+| Navigation | Bottom bar    | Navigation rail | Sidebar     |
+| Layout     | Single column | 2 columns       | 3-4 columns |
+| Grid       | 4 columns     | 6 columns       | 8 columns   |
+| Cards      | Full width    | 50%             | 33%         |
+| Padding    | 14px          | 24px            | 32px        |
 
 ---
 
 ## 10. NAVIGATION AND ROUTING
 
 Use GoRouter with role-based routes. After login detect role from `profiles` table and navigate:
+
 - Student: `/student/dashboard`
 - Teacher: `/teacher/dashboard`
 
@@ -2159,15 +2184,19 @@ dependencies:
 ## 12. DEVELOPMENT PHASES
 
 ### Phase 1-2: Foundation + Shared Screens
+
 Project setup, Supabase, fonts, dual theme, Splash, Login, Settings, AI Chat
 
 ### Phase 3-7: Student Features
+
 Dashboard, Timetable, Results, Exams, Fees, Homework, Transport, Events, Achievements, Attendance, Library, Leaderboard
 
 ### Phase 8-10: Teacher Features
+
 Dashboard, Classes, Attendance, Homework, Exams, Paper Builder, Gradebook, Salary, Notices
 
 ### Phase 11-12: AI Integration + Polish
+
 Python FastAPI backend, 40 tools, responsive testing, performance, animations
 
 ---
