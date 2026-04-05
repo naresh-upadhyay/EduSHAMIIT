@@ -160,7 +160,7 @@ async def login(request: LoginRequest):
         })
 
         user_id = auth_response.user.id
-        profile = sb.table("profiles").select("*").eq("id", user_id).single().execute()
+        profile = sb.table("profiles").select("*").eq("id", user_id).maybe_single().execute()
 
         if not profile.data:
             raise HTTPException(status_code=404, detail="Profile not found")
@@ -664,9 +664,9 @@ async def reset_password(request: EnhancedResetPasswordRequest):
         user_email = user.get("email", identifier)
         full_name = user.get("full_name")
         
-        # Find and verify OTP
+        # Find and verify OTP (accept both pending and verified, as verified means it's been confirmed in the previous step)
         now = datetime.now(timezone.utc).isoformat()
-        result = sb.table("password_resets").select("*").eq("user_id", user_id).eq("otp", otp).eq("status", "pending").gte("expires_at", now).execute()
+        result = sb.table("password_resets").select("*").eq("user_id", user_id).eq("otp", otp).in_("status", ["pending", "verified"]).gte("expires_at", now).execute()
         
         if not result.data:
             raise HTTPException(status_code=400, detail="Invalid or expired OTP")
@@ -718,3 +718,65 @@ async def reset_password(request: EnhancedResetPasswordRequest):
     except Exception as e:
         logging.error(f"Error resetting password: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
+
+
+@router.delete("/user/{identifier}")
+async def delete_user(identifier: str):
+    """Delete a user and their application-level profile.
+    Accepts either the Supabase Auth UUID or the custom application user_id (e.g. STU-123456).
+    """
+    try:
+        sb = get_supabase()
+        
+        # 1. Resolve the Auth UUID from the profile record
+        auth_uuid = None
+        
+        # Check if identifier looks like a UUID
+        is_uuid = False
+        try:
+            uuid.UUID(identifier)
+            is_uuid = True
+        except ValueError:
+            is_uuid = False
+
+        # Query profile to find the actual Auth record UUID
+        if is_uuid:
+            # Try finding by internal ID first (which is the Auth UUID)
+            profile = sb.table("profiles").select("id").eq("id", identifier).maybe_single().execute()
+            if profile.data:
+                auth_uuid = profile.data["id"]
+        
+        # If not found yet, try finding by custom user_id (STU-XXXX)
+        if not auth_uuid:
+            profile = sb.table("profiles").select("id").eq("user_id", identifier).maybe_single().execute()
+            if profile.data:
+                auth_uuid = profile.data["id"]
+
+        # If we still don't have a UUID, and the identifier is a UUID, we assume it's a headless Auth user
+        if not auth_uuid and is_uuid:
+            auth_uuid = identifier
+
+        if not auth_uuid:
+            raise HTTPException(status_code=404, detail=f"User {identifier} not found in profile system or auth records.")
+
+        # 2. Delete from Supabase Auth (admin privileges)
+        auth_deleted = False
+        try:
+            sb.auth().admin_delete_user(auth_uuid)
+            auth_deleted = True
+        except Exception as e:
+            logging.warning(f"Auth record deletion failed for {auth_uuid}: {str(e)}")
+            
+        # 3. Delete from profiles table
+        # We delete by the record's primary key (id) for precision
+        sb.table("profiles").delete().eq("id", auth_uuid).execute()
+        
+        return {
+            "success": True,
+            "message": f"User {identifier} deleted successfully. Auth record removed: {auth_deleted}."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error deleting user {identifier}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")

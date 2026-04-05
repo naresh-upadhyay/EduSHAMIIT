@@ -110,6 +110,24 @@ class AuthClient:
         data = response.json()
         return AuthResponse(data)
 
+    def admin_delete_user(self, user_id: str):
+        """Delete a user using admin privileges (service role key)."""
+        response = httpx.delete(
+            f"{self.client.auth_url}/admin/users/{user_id}",
+            headers=self.client.headers,
+            timeout=10.0
+        )
+
+        if response.status_code not in (200, 204):
+            # Try to get error message from JSON response
+            try:
+                error = response.json()
+            except:
+                error = {"msg": response.text}
+            raise Exception(self._get_error_message(error, "User deletion failed"))
+
+        return True
+
 
 class AuthResponse:
     """Auth response wrapper."""
@@ -152,6 +170,7 @@ class TableQuery:
         self._limit = None
         self._offset = None
         self._single = False
+        self._maybe_single = False
 
     def select(self, columns: str):
         """Select columns."""
@@ -242,7 +261,7 @@ class TableQuery:
 
     def maybe_single(self):
         """Expect single result or null."""
-        self._single = True
+        self._maybe_single = True
         return self
 
     def execute(self) -> dict:
@@ -319,6 +338,8 @@ class TableQuery:
         if self._single:
             headers["Prefer"] = "return=representation,resolution=merge-duplicates"
             headers["Accept"] = "application/vnd.pgrst.object+json"
+        elif self._maybe_single:
+            params["limit"] = 1
 
         if hasattr(self, '_operation'):
             if self._operation == "insert":
@@ -348,18 +369,23 @@ class TableQuery:
             raise Exception(f"Operation failed: {error}")
 
         if response.status_code == 204:
-            return QueryResult([], is_single=self._single)
+            return QueryResult([], is_single=self._single, is_maybe_single=self._maybe_single)
 
         data = response.json()
-        return QueryResult(data, is_single=self._single)
+        return QueryResult(data, is_single=self._single, is_maybe_single=self._maybe_single)
 
 
 class QueryResult:
     """Query result wrapper."""
 
-    def __init__(self, data, is_single=False):
+    def __init__(self, data, is_single=False, is_maybe_single=False):
         if is_single:
             self.data = data if data else None
+        elif is_maybe_single:
+            if isinstance(data, list):
+                self.data = data[0] if data else None
+            else:
+                self.data = data if data else None
         else:
             if isinstance(data, list):
                 self.data = data
