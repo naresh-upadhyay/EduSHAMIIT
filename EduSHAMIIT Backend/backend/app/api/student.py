@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional
 from datetime import datetime, timedelta
 
-from app.middleware.auth import get_current_user, require_school_id
+from app.middleware.auth import get_current_user, require_school_id, require_student
 from app.services.supabase_client import get_supabase
 from app.cache.redis_client import get_cached, set_cached
 
@@ -20,7 +20,7 @@ def _calculate_grade(pct):
 
 
 @router.get("/dashboard")
-async def student_dashboard(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def student_dashboard(user=Depends(require_student), school_id=Depends(require_school_id)):
     cached = await get_cached(school_id, "dashboard", user["id"])
     if cached:
         return cached
@@ -66,7 +66,7 @@ async def student_dashboard(user=Depends(get_current_user), school_id=Depends(re
 
 
 @router.get("/timetable")
-async def student_timetable(day: str = "monday", user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def student_timetable(day: str = "monday", user=Depends(require_student), school_id=Depends(require_school_id)):
     sb = get_supabase()
     profile = sb.table("profiles").select("class").eq("id", user["id"]).single().execute().data
     day_map = {"monday":0,"tuesday":1,"wednesday":2,"thursday":3,"friday":4,"saturday":5}
@@ -76,7 +76,7 @@ async def student_timetable(day: str = "monday", user=Depends(get_current_user),
 
 
 @router.get("/results")
-async def student_results(category: str = "All", user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def student_results(category: str = "All", user=Depends(require_student), school_id=Depends(require_school_id)):
     sb = get_supabase()
     query = sb.table("results").select("*, subjects(name, icon)").eq("school_id", school_id).eq("student_id", user["id"])
     if category != "All":
@@ -89,7 +89,7 @@ async def student_results(category: str = "All", user=Depends(get_current_user),
 
 
 @router.get("/exams")
-async def student_exams(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def student_exams(user=Depends(require_student), school_id=Depends(require_school_id)):
     sb = get_supabase()
     profile = sb.table("profiles").select("class").eq("id", user["id"]).single().execute().data
     exams = sb.table("exams").select("*, subjects(name, icon)").eq("school_id", school_id).contains("target_classes", f'["{profile["class"]}"]').gte("exam_date", datetime.now().date().isoformat()).order("exam_date").execute().data

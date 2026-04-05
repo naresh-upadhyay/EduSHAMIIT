@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional
 from datetime import datetime
 
-from app.middleware.auth import get_current_user, require_school_id
+from app.middleware.auth import get_current_user, require_school_id, require_teacher
 from app.services.supabase_client import get_supabase
 
 router = APIRouter()
@@ -19,7 +19,7 @@ def _calculate_grade(pct):
 
 
 @router.get("/dashboard")
-async def teacher_dashboard(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_dashboard(user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     classes = sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).execute().data
     unique_classes = list(set(c["class"] for c in classes))
@@ -36,7 +36,7 @@ async def teacher_dashboard(user=Depends(get_current_user), school_id=Depends(re
 
 
 @router.get("/classes")
-async def teacher_classes(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_classes(user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     classes = sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).execute().data
     unique_classes = list(set(c["class"] for c in classes))
@@ -48,7 +48,7 @@ async def teacher_classes(user=Depends(get_current_user), school_id=Depends(requ
 
 
 @router.post("/attendance/mark")
-async def mark_attendance(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def mark_attendance(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     date = request.get("date", datetime.now().date().isoformat())
     records = request.get("attendance_records", [])
@@ -62,7 +62,7 @@ async def mark_attendance(request: dict, user=Depends(get_current_user), school_
 
 
 @router.post("/homework/create")
-async def create_homework(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def create_homework(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     homework = sb.table("homework").insert({
         "school_id": school_id, "subject_id": request.get("subject_id"), "teacher_id": user["id"],
@@ -74,7 +74,7 @@ async def create_homework(request: dict, user=Depends(get_current_user), school_
 
 
 @router.post("/submissions/grade")
-async def grade_submission(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def grade_submission(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     sb.table("homework_submissions").update({
         "status": "graded", "marks": request.get("marks"), "grade": request.get("grade"),
@@ -85,14 +85,14 @@ async def grade_submission(request: dict, user=Depends(get_current_user), school
 
 
 @router.get("/class-detail")
-async def teacher_class_detail(class_name: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_class_detail(class_name: str = "", user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     students = sb.table("profiles").select("id, full_name, roll_number, xp_points, learning_streak, avatar_url").eq("school_id", school_id).eq("class", class_name).eq("role", "student").order("roll_number").execute().data
     return {"success": True, "school_id": school_id, "data": {"class": class_name, "students": students}}
 
 
 @router.get("/timetable")
-async def teacher_timetable(day: str = "monday", user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_timetable(day: str = "monday", user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     day_map = {"monday":0,"tuesday":1,"wednesday":2,"thursday":3,"friday":4,"saturday":5}
     day_num = day_map.get(day.lower(), datetime.now().weekday())
@@ -101,7 +101,7 @@ async def teacher_timetable(day: str = "monday", user=Depends(get_current_user),
 
 
 @router.post("/exams/create")
-async def create_exam(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def create_exam(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     exam = sb.table("exams").insert({
         "school_id": school_id, "subject_id": request.get("subject_id"), "teacher_id": user["id"],
@@ -115,7 +115,7 @@ async def create_exam(request: dict, user=Depends(get_current_user), school_id=D
 
 
 @router.post("/exams/generate-questions")
-async def generate_exam_questions(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def generate_exam_questions(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
         import os
@@ -128,7 +128,7 @@ async def generate_exam_questions(request: dict, user=Depends(get_current_user),
 
 
 @router.get("/gradebook")
-async def teacher_gradebook(class_name: str = "", subject_id: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_gradebook(class_name: str = "", subject_id: str = "", user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     students = sb.table("profiles").select("id, full_name, roll_number").eq("school_id", school_id).eq("class", class_name).eq("role", "student").order("roll_number").execute().data
     query = sb.table("results").select("student_id, marks_obtained, max_marks, grade, exam_category").eq("school_id", school_id).in_("student_id", [s["id"] for s in students])
@@ -146,7 +146,7 @@ async def teacher_gradebook(class_name: str = "", subject_id: str = "", user=Dep
 
 
 @router.put("/grading-config")
-async def update_grading_config(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def update_grading_config(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     sb.table("grading_policies").upsert({
         "school_id": school_id, "teacher_id": user["id"], "class": request.get("class_name"),
@@ -159,7 +159,7 @@ async def update_grading_config(request: dict, user=Depends(get_current_user), s
 
 
 @router.get("/students")
-async def teacher_students(class_name: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_students(class_name: str = "", user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     query = sb.table("profiles").select("id, full_name, class, roll_number, phone, father_name, father_phone, avatar_url").eq("school_id", school_id).eq("role", "student")
     if class_name:
@@ -169,14 +169,14 @@ async def teacher_students(class_name: str = "", user=Depends(get_current_user),
 
 
 @router.post("/leave/apply")
-async def teacher_apply_leave(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_apply_leave(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     sb.table("leave_applications").insert({"school_id": school_id, "applicant_id": user["id"], "applicant_role": "teacher", "leave_type": request.get("leave_type"), "start_date": request.get("start_date"), "end_date": request.get("end_date"), "reason": request.get("reason")}).execute()
     return {"success": True, "message": "Leave application submitted"}
 
 
 @router.post("/notices/create")
-async def create_notice(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def create_notice(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     profile = sb.table("profiles").select("full_name").eq("id", user["id"]).single().execute().data
     notice = sb.table("notices").insert({"school_id": school_id, "title": request.get("title"), "content": request.get("content"), "category": request.get("category", "General"), "author_id": user["id"], "author_name": profile["full_name"], "is_urgent": request.get("is_urgent", False), "status": "published"}).execute()
@@ -184,7 +184,7 @@ async def create_notice(request: dict, user=Depends(get_current_user), school_id
 
 
 @router.get("/live-classes")
-async def teacher_live_classes(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_live_classes(user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     classes = sb.table("live_classes").select("*, subjects(name, icon)").eq("school_id", school_id).eq("teacher_id", user["id"]).order("scheduled_at", ascending=False).execute().data
     return {"success": True, "school_id": school_id, "data": {"live_classes": classes}}
