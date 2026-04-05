@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -17,13 +18,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   @override
   void initState() {
     super.initState();
-    _spinningController = AnimationController(vsync: this, duration: const Duration(seconds: 2));
+    // Set system UI overlay style for splash
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+
+    _spinningController = AnimationController(vsync: this, duration: const Duration(seconds: 4));
     _spinningAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _spinningController, curve: Curves.linear));
     _spinningController.repeat();
-    _loadingController = AnimationController(vsync: this, duration: const Duration(seconds: 3));
+    _loadingController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
     _loadingAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _loadingController, curve: Curves.easeInOut));
     _loadingController.forward();
-    Future.delayed(const Duration(seconds: 3), () { if (mounted) context.go('/login'); });
+    Future.delayed(const Duration(seconds: 2), () { if (mounted) context.go('/login'); });
   }
 
   @override
@@ -33,21 +42,102 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF0F0C29), Color(0xFF302B63), Color(0xFF24243E)])),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0F0C29), Color(0xFF302B63), Color(0xFF24243E)],
+          ),
+        ),
         child: SafeArea(
-          child: Column(children: [
-            const Spacer(flex: 2),
-            AnimatedBuilder(animation: _spinningAnimation, builder: (context, child) { return CustomPaint(painter: SpinningRingPainter(_spinningAnimation.value), child: const SizedBox(width: 140, height: 140, child: Center(child: Text('🎓', style: TextStyle(fontSize: 70))))); }),
-            const SizedBox(height: 48),
-            const Text('EduSHAMIIT', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 2)),
-            const SizedBox(height: 4),
-            ShaderMask(shaderCallback: (bounds) => const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]).createShader(bounds), child: const Text('AI', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 2))),
-            const SizedBox(height: 20),
-            const Text('AI-Powered School ERP', style: TextStyle(fontSize: 16, color: Color(0xB3FFFFFF), letterSpacing: 1.5)),
-            const Spacer(flex: 3),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 60), child: AnimatedBuilder(animation: _loadingAnimation, builder: (context, child) { return ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(value: _loadingAnimation.value, minHeight: 6, backgroundColor: Color(0x40FFFFFF), valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)))); })),
-            const SizedBox(height: 60),
-          ]),
+          child: Column(
+            children: [
+              const Spacer(flex: 2),
+              // Logo with spinning ring
+              AnimatedBuilder(
+                animation: _spinningAnimation,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: SpinningRingPainter(_spinningAnimation.value),
+                    child: Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.15),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Center(
+                        child: Text('🎓', style: TextStyle(fontSize: 42)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 48),
+              // EduSHAMIIT title with gradient
+              RichText(
+                text: TextSpan(
+                  children: [
+                    const TextSpan(
+                      text: 'Edu',
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    TextSpan(
+                      text: 'SHAMIIT',
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        foreground: Paint()
+                          ..shader = const LinearGradient(
+                            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+                          ).createShader(const Rect.fromLTWH(0, 0, 200, 70)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Subtitle
+              const Text(
+                'AI-Powered School ERP',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0x66FFFFFF),
+                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(flex: 3),
+              // Loading bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 60),
+                child: AnimatedBuilder(
+                  animation: _loadingAnimation,
+                  builder: (context, child) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: _loadingAnimation.value,
+                        minHeight: 3,
+                        backgroundColor: Colors.white.withOpacity(0.1),
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 60),
+            ],
+          ),
         ),
       ),
     );
@@ -60,11 +150,34 @@ class SpinningRingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 4;
-    final paint = Paint()..style = PaintingStyle.stroke..strokeWidth = 4..strokeCap = StrokeCap.round;
-    final gradient = SweepGradient(startAngle: 0, endAngle: 6.28318, colors: const [Color(0xFF4F46E5), Color(0xFF06B6D4), Color(0xFF4F46E5)], stops: const [0.0, 0.5, 1.0], transform: GradientRotation(progress * 6.28318));
+    final radius = size.width / 2 + 8;
+    
+    // Outer ring with gradient
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    
+    final gradient = SweepGradient(
+      startAngle: 0,
+      endAngle: 6.28318,
+      colors: const [
+        Color(0xFF4F46E5),
+        Color(0xFF06B6D4),
+        Color(0xFF4F46E5),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+      transform: GradientRotation(progress * 6.28318),
+    );
     paint.shader = gradient.createShader(Rect.fromCircle(center: center, radius: radius));
     canvas.drawCircle(center, radius, paint);
+    
+    // Inner subtle ring
+    final innerPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0xFF4F46E5).withOpacity(0.3);
+    canvas.drawCircle(center, radius - 4, innerPaint);
   }
   @override
   bool shouldRepaint(covariant SpinningRingPainter oldDelegate) => oldDelegate.progress != progress;

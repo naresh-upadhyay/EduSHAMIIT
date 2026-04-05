@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
@@ -14,44 +15,92 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _studentIdController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   UserRole _selectedRole = UserRole.student;
 
   @override
+  void initState() {
+    super.initState();
+    // Set system UI overlay style for login
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+  }
+
+  @override
   void dispose() {
-    _emailController.dispose();
+    _studentIdController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('Login button pressed!');
+    
+    // Check form validation
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed!');
+      return;
+    }
+    print('Form validation passed.');
 
-    final authNotifier = ref.read(authProvider.notifier);
-    final success = await authNotifier.signIn(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-      ref: ref,
-    );
+    final email = _studentIdController.text.trim();
+    final password = _passwordController.text;
+    
+    print('Attempting login with email: $email');
 
-    if (!mounted) return;
-
-    if (success) {
-      final role = ref.read(roleProvider).role;
-      if (role == UserRole.teacher) {
-        context.go('/teacher/dashboard');
-      } else {
-        context.go('/student/dashboard');
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login failed. Please check your credentials.'),
-          backgroundColor: Colors.red,
-        ),
+    try {
+      final authNotifier = ref.read(authProvider.notifier);
+      final success = await authNotifier.signIn(
+        email: email,
+        password: password,
+        ref: ref,
       );
+
+      if (!mounted) return;
+
+      print('Login result: $success');
+
+      if (success) {
+        final role = ref.read(roleProvider).role;
+        print('User role: $role');
+        if (role == UserRole.teacher) {
+          context.go('/teacher/dashboard');
+        } else {
+          context.go('/student/dashboard');
+        }
+      } else {
+        // Get error from auth state
+        final authState = ref.read(authProvider);
+        final errorMessage = authState.error ?? 'Login failed. Please check your credentials.';
+        print('Login failed: $errorMessage');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Login exception: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -70,221 +119,223 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Column(
               children: [
-                const SizedBox(height: 40),
-                // Logo and title
+                const SizedBox(height: 24),
+                // Logo with spinning ring effect
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 70,
+                  height: 70,
                   decoration: BoxDecoration(
-                    gradient: AppGradients.studentPrimary,
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.15),
+                      width: 1,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4F46E5).withOpacity(0.3),
+                        color: const Color(0xFF4F46E5).withOpacity(0.2),
                         blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
                   child: const Center(
-                    child: Text('🎓', style: TextStyle(fontSize: 40)),
+                    child: Text('🎓', style: TextStyle(fontSize: 32)),
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'EduSHAMIIT',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 1,
-                  ),
-                ),
-                ShaderMask(
-                  shaderCallback: (bounds) => AppGradients.studentPrimary.createShader(bounds),
-                  child: const Text(
-                    'AI',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sign in to continue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withOpacity(0.6),
-                  ),
-                ),
-                const SizedBox(height: 40),
-
-                // Role selector
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
+                const SizedBox(height: 16),
+                // EduSHAMIIT title
+                RichText(
+                  text: TextSpan(
                     children: [
-                      Expanded(
-                        child: _buildRoleButton(
-                          'Student',
-                          '👨‍🎓',
-                          UserRole.student,
+                      const TextSpan(
+                        text: 'Edu',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
                         ),
                       ),
-                      Expanded(
-                        child: _buildRoleButton(
-                          'Teacher',
-                          '👨‍🏫',
-                          UserRole.teacher,
+                      TextSpan(
+                        text: 'SHAMIIT',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          foreground: Paint()
+                            ..shader = const LinearGradient(
+                              colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+                            ).createShader(const Rect.fromLTWH(0, 0, 200, 70)),
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Subtitle
+                const Text(
+                  'AI-Powered School ERP',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0x66FFFFFF),
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 32),
 
-                // Login form
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      _buildTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        hint: 'Enter your email',
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        hint: 'Enter your password',
-                        icon: Icons.lock_outlined,
-                        obscureText: _obscurePassword,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          if (value.length < 6) {
-                            return 'Password must be at least 6 characters';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
+                // Login as label
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Login as',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.5),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
+
+                // Role selector - 2 columns
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildRoleCard('Student', '🎒', UserRole.student),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildRoleCard('Teacher', '👨‍🏫', UserRole.teacher),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Email / Student ID field
+                _buildDarkTextField(
+                  controller: _studentIdController,
+                  label: 'Email / Student ID',
+                  hint: 'Enter your email or student ID',
+                ),
+                const SizedBox(height: 8),
+
+                // Password field
+                _buildDarkTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  hint: 'Enter your password',
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: Colors.white54,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Forgot Password link
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => context.push('/forgot-password'),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: const Text(
                       'Forgot Password?',
-                      style: TextStyle(color: Color(0xFF4F46E5)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF4F46E5),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
 
                 // Login button
                 (authState.isLoading
                     ? const CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       )
-                    : SizedBox(
+                    : Container(
                         width: double.infinity,
-                        height: 54,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF4F46E5).withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
                         child: ElevatedButton(
                           onPressed: _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4F46E5),
-                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            elevation: 0,
                           ),
                           child: const Text(
-                            'Sign In',
+                            '✨ Login with AI Assist',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                         ),
                       )),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // Demo credentials hint
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                // AI monitor text
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      '🤖 ',
+                      style: TextStyle(fontSize: 12),
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Demo Credentials:',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
+                    Text(
+                      'AI monitors your learning journey every second',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withOpacity(0.3),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Student: student@demo.com / demo123',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                      Text(
-                        'Teacher: teacher@demo.com / demo123',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Alternative login options
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildAltLoginButton('🆔', 'Face ID'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildAltLoginButton('🔑', 'OTP Login'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildAltLoginButton('📲', 'QR Scan'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 40),
               ],
@@ -295,7 +346,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildRoleButton(String label, String emoji, UserRole role) {
+  Widget _buildRoleCard(String label, String emoji, UserRole role) {
     final isSelected = _selectedRole == role;
     return GestureDetector(
       onTap: () {
@@ -305,22 +356,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected
+              ? const Color(0xFF4F46E5).withOpacity(0.25)
+              : Colors.white.withOpacity(0.06),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF4F46E5).withOpacity(0.6)
+                : Colors.white.withOpacity(0.08),
+            width: 1.5,
+          ),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 28)),
+            Text(emoji, style: const TextStyle(fontSize: 22)),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white60,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 14,
+                color: isSelected
+                    ? Colors.white.withOpacity(0.7)
+                    : Colors.white.withOpacity(0.7),
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 9.5,
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -328,38 +390,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildAltLoginButton(String emoji, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 18)),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.4),
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDarkTextField({
     required TextEditingController controller,
     required String label,
     required String hint,
-    required IconData icon,
-    TextInputType? keyboardType,
     bool? obscureText,
     Widget? suffixIcon,
-    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.5),
             fontWeight: FontWeight.w500,
-            fontSize: 14,
+            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
-          keyboardType: keyboardType,
           obscureText: obscureText ?? false,
-          validator: validator,
           style: const TextStyle(color: Colors.white),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return '$label is required';
+            }
+            return null;
+          },
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
-            prefixIcon: Icon(icon, color: Colors.white54),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: Colors.white.withOpacity(0.08),
@@ -375,13 +460,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
             ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Colors.red),
-            ),
+            errorStyle: const TextStyle(color: Color(0xFFFF6B6B), fontSize: 10),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
+              horizontal: 14,
+              vertical: 12,
             ),
           ),
         ),

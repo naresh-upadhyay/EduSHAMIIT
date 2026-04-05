@@ -146,8 +146,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildProfileCard() {
     final authState = ref.watch(authProvider);
-    final user = authState.user;
+    final userData = authState.userData; // Map<String, dynamic> from backend
     final roleState = ref.watch(roleProvider);
+
+    final displayName = userData?['full_name'] as String? ??
+        userData?['email'] as String? ??
+        'User';
+    final initials = displayName.length >= 2
+        ? displayName.substring(0, 2).toUpperCase()
+        : displayName.toUpperCase();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -168,9 +175,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             radius: 40,
             backgroundColor: Colors.white.withOpacity(0.2),
             child: Text(
-              user != null
-                  ? user.email!.substring(0, 2).toUpperCase()
-                  : 'U',
+              initials,
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
@@ -180,7 +185,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            user?.email?.split('@').first ?? 'User',
+            displayName,
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,

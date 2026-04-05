@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
+import 'package:edu_shamiit_ai/core/services/api_service.dart';
 import 'package:edu_shamiit_ai/shared/widgets/ai_fab.dart';
 
 class StudentDashboard extends ConsumerStatefulWidget {
@@ -16,79 +18,149 @@ class StudentDashboard extends ConsumerStatefulWidget {
 class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
+  String _greeting = 'Hello';
 
   @override
   void initState() {
     super.initState();
+    _setGreeting();
     _loadDashboard();
   }
 
-  Future<void> _loadDashboard() async {
-    // TODO: Call real API from backend
-    await Future.delayed(const Duration(milliseconds: 500));
+  void _setGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      _greeting = 'Good Morning';
+    } else if (hour < 17) {
+      _greeting = 'Good Afternoon';
+    } else {
+      _greeting = 'Good Evening';
+    }
+  }
 
+  Future<void> _loadDashboard() async {
     setState(() {
-      _dashboardData = {
-        "user": {
-          "full_name": "Rohan Sharma",
-          "class": "X-A",
-          "xp_points": 2450,
-          "learning_streak": 18,
-          "avatar_url": "",
-        },
-        "stats": {
-          "attendance_pct": 94.0,
-          "avg_score": 91.4,
-          "class_rank": 3,
-          "xp_points": 2450,
-        },
-        "today_schedule": [
-          {
-            "subject": "Mathematics",
-            "icon": "📐",
-            "start_time": "08:00",
-            "end_time": "08:45",
-            "room": "101",
-            "is_now": true
-          },
-          {
-            "subject": "Physics",
-            "icon": "⚛️",
-            "start_time": "09:00",
-            "end_time": "09:45",
-            "room": "Lab-1",
-            "is_now": false
-          },
-        ],
-        "pending_homework": [
-          {
-            "id": "uuid-hw-1",
-            "title": "Trigonometry Problems",
-            "subject": "Mathematics",
-            "icon": "📐",
-            "due_date": "2026-04-05",
-            "status": "due_soon"
-          }
-        ],
-        "quick_access": [
-          {"title": "Timetable", "icon": "📅", "route": "/student/timetable"},
-          {"title": "Results", "icon": "📊", "route": "/student/results"},
-          {"title": "Fees", "icon": "💰", "route": "/student/fees"},
-          {"title": "Notices", "icon": "📢", "route": "/student/notices"},
-          {"title": "Homework", "icon": "📝", "route": "/student/homework"},
-          {"title": "Transport", "icon": "🚌", "route": "/student/transport"},
-          {"title": "Events", "icon": "🎉", "route": "/student/events"},
-          {"title": "Attendance", "icon": "📊", "route": "/student/attendance"},
-        ],
-      };
-      _isLoading = false;
+      _isLoading = true;
     });
+
+    try {
+      // Try to fetch from API first
+      final data = await ApiService().get('/student/dashboard');
+      setState(() {
+        _dashboardData = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Fallback to mock data if API fails
+      await Future.delayed(const Duration(milliseconds: 500));
+      setState(() {
+        _dashboardData = _getMockData();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Map<String, dynamic> _getMockData() {
+    return {
+      "user": {
+        "full_name": "Arjun Kumar",
+        "class": "X-A",
+        "roll_no": "18",
+        "session": "2024-25",
+        "xp_points": 2450,
+        "learning_streak": 18,
+        "avatar_emoji": "🧑",
+      },
+      "stats": {
+        "attendance_pct": 94.0,
+        "avg_score": 91.4,
+        "class_rank": 3,
+        "xp_points": 2450,
+      },
+      "today_schedule": [
+        {
+          "subject": "Mathematics",
+          "icon": "📐",
+          "start_time": "8:00",
+          "end_time": "9:00",
+          "room": "301",
+          "teacher": "Mr. R. Sharma",
+          "is_now": false,
+        },
+        {
+          "subject": "Physics",
+          "icon": "⚛️",
+          "start_time": "9:00",
+          "end_time": "10:00",
+          "room": "Lab 2",
+          "teacher": "Dr. A. Verma",
+          "is_now": true,
+        },
+        {
+          "subject": "English",
+          "icon": "📖",
+          "start_time": "10:20",
+          "end_time": "11:20",
+          "room": "204",
+          "teacher": "Ms. P. Gupta",
+          "is_now": false,
+        },
+      ],
+      "pending_homework": [
+        {
+          "id": "hw-1",
+          "title": "Integration Practice Set — Chapter 7",
+          "subject": "Mathematics",
+          "icon": "📐",
+          "due_date": "TODAY 5 PM",
+          "status": "due_today",
+          "problems": "5 problems",
+        },
+        {
+          "id": "hw-2",
+          "title": "Titration Lab Report — Acid-Base",
+          "subject": "Chemistry",
+          "icon": "⚗️",
+          "due_date": "Tomorrow",
+          "status": "due_soon",
+          "problems": "Lab Report",
+        },
+      ],
+      "quick_access": [
+        {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
+        {"title": "Results", "icon": "📊", "route": "/student/results", "bg": "FDF4FF"},
+        {"title": "Fees", "icon": "💳", "route": "/student/fees", "bg": "ECFDF5"},
+        {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
+        {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
+        {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
+        {"title": "Events", "icon": "📅", "route": "/student/events", "bg": "FEF3C7"},
+        {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
+        {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
+        {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
+        {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
+        {"title": "Leave", "icon": "✉️", "route": "/student/leave", "bg": "FEF2F2"},
+        {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
+        {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": true},
+        {"title": "Messages", "icon": "💬", "route": "/student/messages", "bg": "E0E7FF"},
+        {"title": "Certificates", "icon": "🎓", "route": "/student/certificates", "bg": "FEF3C7"},
+      ],
+    };
   }
 
   @override
   Widget build(BuildContext context) {
+    // Set system UI overlay style
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     return Scaffold(
@@ -100,17 +172,17 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               _buildHeader(),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _buildQuickAccessGrid(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _buildTodaySchedule(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _buildAiInsightCard(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
                       _buildPendingHomework(),
                       const SizedBox(height: 100),
                     ],
@@ -138,16 +210,20 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     final stats = _dashboardData!['stats'];
 
     return SliverAppBar(
-      expandedHeight: 200,
+      expandedHeight: 210,
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
-            gradient: AppGradients.studentHeader,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF4F46E5), Color(0xFF302B63)],
+            ),
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -158,90 +234,152 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Hello, ${user['full_name']}! 👋',
-                            style: const TextStyle(
-                              fontFamily: AppFonts.heading,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Class ${user['class']} • Keep it up!',
+                            '$_greeting 🌤️',
                             style: TextStyle(
                               fontFamily: AppFonts.body,
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 11,
+                              color: Colors.white.withOpacity(0.6),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user['full_name'],
+                            style: const TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
                           ),
                         ],
                       ),
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                const Text('🔥', style: TextStyle(fontSize: 16)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${user['learning_streak']} days',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
                           Stack(
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                                onPressed: () {},
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
                               ),
                               Positioned(
-                                right: 8,
-                                top: 8,
+                                right: 0,
+                                top: 0,
                                 child: Container(
-                                  width: 18,
-                                  height: 18,
+                                  width: 16,
+                                  height: 16,
                                   decoration: const BoxDecoration(
                                     color: Color(0xFFEF4444),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Center(
-                                    child: Text('3', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                    child: Text(
+                                      '3',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(width: 8),
-                          const CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Colors.white30,
-                            child: Text('👨‍🎓', style: TextStyle(fontSize: 20)),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF06B6D4), Color(0xFF4F46E5)],
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 2,
+                              ),
+                            ),
+                            child: Text(
+                              user['avatar_emoji'] ?? '🧑',
+                              style: const TextStyle(fontSize: 18),
+                            ),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+                  // Learning streak
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '🔥 Learning Streak',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'Keep it going!',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              '${user['learning_streak']}',
+                              style: const TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFFF59E0B),
+                              ),
+                            ),
+                            Text(
+                              'days',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.white.withOpacity(0.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Stats row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('📊', '${stats['attendance_pct']}%', 'Attendance'),
-                      _buildStatItem('📝', '${stats['avg_score']}', 'Score'),
-                      _buildStatItem('🏆', '#${stats['class_rank']}', 'Rank'),
-                      _buildStatItem('⭐', '${stats['xp_points']}', 'XP'),
+                      _buildStatItem('${stats['attendance_pct']}%', 'Attend.'),
+                      _buildStatItem('${stats['avg_score']}', 'Avg Score'),
+                      _buildStatItem('${stats['class_rank']}rd', 'Rank'),
+                      _buildStatItem('${stats['xp_points']}', 'XP Points'),
                     ],
                   ),
                 ],
@@ -253,16 +391,14 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     );
   }
 
-  Widget _buildStatItem(String emoji, String value, String label) {
+  Widget _buildStatItem(String value, String label) {
     return Column(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
-        const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
             fontFamily: AppFonts.heading,
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
@@ -270,9 +406,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         Text(
           label,
           style: TextStyle(
-            fontFamily: AppFonts.body,
-            fontSize: 12,
-            color: Colors.white.withOpacity(0.7),
+            fontSize: 9,
+            color: Colors.white.withOpacity(0.5),
           ),
         ),
       ],
@@ -289,18 +424,19 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           'Quick Access',
           style: TextStyle(
             fontFamily: AppFonts.heading,
-            fontSize: 18,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
+            color: Color(0xFF0F172A),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 4,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
             childAspectRatio: 0.85,
           ),
           itemCount: quickAccess.length,
@@ -310,8 +446,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               onTap: () => context.push(item['route']),
               child: Container(
                 decoration: BoxDecoration(
-                  color: StudentColors.surface,
-                  borderRadius: BorderRadius.circular(14),
+                  color: const Color(0xFFFFFFFF),
+                  borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
@@ -323,14 +459,42 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(item['icon'], style: const TextStyle(fontSize: 28)),
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: Color(int.parse(item['bg'], radix: 16)).withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Center(
+                        child: Stack(
+                          children: [
+                            Text(item['icon'], style: const TextStyle(fontSize: 20)),
+                            if (item['badge'] == true)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEF4444),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Text(
                       item['title'],
                       style: const TextStyle(
                         fontFamily: AppFonts.body,
-                        fontSize: 11,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w600,
+                        color: Color(0xFF475569),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -347,29 +511,51 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   Widget _buildTodaySchedule() {
     final schedule = _dashboardData!['today_schedule'] as List;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "Today's Schedule",
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Today's Schedule",
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () => context.push('/student/timetable'),
-              child: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...schedule.map((item) => _buildScheduleCard(item)),
-      ],
+              TextButton(
+                onPressed: () => context.push('/student/timetable'),
+                child: const Text(
+                  'View All →',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF4F46E5),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...schedule.map((item) => _buildScheduleCard(item)),
+        ],
+      ),
     );
   }
 
@@ -377,19 +563,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     final isNow = item['is_now'] == true;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: isNow ? Border.all(color: StudentColors.success, width: 2) : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: isNow ? const Color(0xFFF0FFF4) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
@@ -397,57 +575,50 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
             children: [
               Text(
                 item['start_time'],
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppFonts.heading,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isNow ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
                 ),
               ),
               Text(
                 item['end_time'],
                 style: TextStyle(
-                  fontFamily: AppFonts.body,
-                  fontSize: 12,
-                  color: StudentColors.text3,
+                  fontSize: 9,
+                  color: isNow ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
                 ),
               ),
             ],
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Container(
-            width: 4,
-            height: 40,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(
-              color: StudentColors.primary,
-              borderRadius: BorderRadius.circular(2),
+              color: isNow ? const Color(0xFF059669) : const Color(0xFF4F46E5),
+              shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(item['icon'], style: const TextStyle(fontSize: 16)),
-                    const SizedBox(width: 6),
-                    Text(
-                      item['subject'],
-                      style: const TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
                 Text(
-                  'Room ${item['room']}',
+                  item['subject'],
+                  style: const TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                Text(
+                  'Room ${item['room']} · ${item['teacher']}',
                   style: TextStyle(
-                    fontFamily: AppFonts.body,
-                    fontSize: 13,
-                    color: StudentColors.text3,
+                    fontSize: 10,
+                    color: const Color(0xFF94A3B8),
                   ),
                 ),
               ],
@@ -455,16 +626,16 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           ),
           if (isNow)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: StudentColors.successBg,
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(6),
               ),
               child: const Text(
-                'NOW',
+                '● Ongoing',
                 style: TextStyle(
-                  color: StudentColors.success,
-                  fontSize: 11,
+                  color: Color(0xFF059669),
+                  fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -476,46 +647,41 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
 
   Widget _buildAiInsightCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: StudentColors.primary.withOpacity(0.3)),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEEF2FF), Color(0xFFF0FDFF)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE0E7FF), width: 1.5),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
             decoration: BoxDecoration(
-              gradient: AppGradients.studentPrimary,
-              borderRadius: BorderRadius.circular(10),
+              color: const Color(0xFF4F46E5),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: const Center(child: Text('🤖', style: TextStyle(fontSize: 20))),
+            child: const Text(
+              '🤖 AI INSIGHT',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Shami AI Insight',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Your Physics score improved by 5%! Keep practicing Newton\'s laws.',
-                  style: TextStyle(
-                    fontFamily: AppFonts.body,
-                    fontSize: 13,
-                    color: StudentColors.text2,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          const Text(
+            'Your Physics score improved by 8% this month! Focus on Optics — there\'s a 78% chance it appears in your upcoming exam.',
+            style: TextStyle(
+              fontFamily: AppFonts.body,
+              fontSize: 12,
+              color: Color(0xFF3730A3),
+              height: 1.6,
             ),
           ),
         ],
@@ -526,95 +692,117 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   Widget _buildPendingHomework() {
     final homework = _dashboardData!['pending_homework'] as List;
 
-    if (homework.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Pending Homework',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            TextButton(
-              onPressed: () => context.push('/student/homework'),
-              child: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...homework.map((hw) => _buildHomeworkCard(hw)),
-      ],
-    );
-  }
-
-  Widget _buildHomeworkCard(Map<String, dynamic> hw) {
-    final isUrgent = hw['status'] == 'due_soon';
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(hw['icon'], style: const TextStyle(fontSize: 28)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hw['title'],
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Pending Homework',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${hw['subject']} • Due: ${hw['due_date']}',
+              ),
+              TextButton(
+                onPressed: () => context.push('/student/homework'),
+                child: const Text(
+                  '3 tasks',
                   style: TextStyle(
-                    fontFamily: AppFonts.body,
-                    fontSize: 13,
-                    color: StudentColors.text3,
+                    fontSize: 10,
+                    color: Color(0xFF4F46E5),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isUrgent ? StudentColors.warningBg : StudentColors.infoBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              isUrgent ? 'Due Soon' : 'Pending',
-              style: TextStyle(
-                color: isUrgent ? StudentColors.warning : StudentColors.info,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+          const SizedBox(height: 10),
+          ...homework.map((hw) => _buildHomeworkCard(hw)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeworkCard(Map<String, dynamic> hw) {
+    final isUrgent = hw['status'] == 'due_today';
+
+    return GestureDetector(
+      onTap: () => context.push('/student/homework'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isUrgent ? const Color(0xFFEF4444).withOpacity(0.2) : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isUrgent ? const Color(0xFFEEF2FF) : const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(hw['icon'], style: const TextStyle(fontSize: 14)),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hw['title'],
+                    style: const TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    hw['subject'],
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              hw['due_date'],
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: isUrgent ? const Color(0xFFEF4444) : const Color(0xFFD97706),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -623,7 +811,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     return Container(
       height: 60,
       decoration: BoxDecoration(
-        color: StudentColors.surface,
+        color: const Color(0xFFFFFFFF),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -636,7 +824,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem('🏠', 'Home', true, '/student/dashboard'),
-          _buildNavItem('📖', 'Courses', false, '/student/courses'),
+          _buildNavItem('📚', 'Courses', false, '/student/courses'),
           _buildNavItem('📊', 'Results', false, '/student/results'),
           _buildNavItem('🏆', 'Achieve', false, '/student/achievements'),
           _buildNavItem('👤', 'Profile', false, '/student/profile'),
@@ -651,15 +839,25 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(emoji, style: TextStyle(fontSize: 22, color: isActive ? StudentColors.primary : StudentColors.text3)),
-          const SizedBox(height: 4),
+          Container(
+            width: 36,
+            height: 28,
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFFEEF2FF) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(emoji, style: TextStyle(fontSize: 16)),
+            ),
+          ),
+          const SizedBox(height: 3),
           Text(
             label,
             style: TextStyle(
               fontFamily: AppFonts.body,
-              fontSize: 11,
+              fontSize: 9,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? StudentColors.primary : StudentColors.text3,
+              color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
             ),
           ),
         ],

@@ -46,7 +46,8 @@ class SupabaseService {
   static Session? get currentSession => client.auth.currentSession;
 
   /// Check if user is authenticated
-  static bool get isAuthenticated => currentUser != null && currentSession != null;
+  static bool get isAuthenticated =>
+      currentUser != null && currentSession != null;
 
   /// Sign up with email and password
   static Future<AuthResponse> signUp({
