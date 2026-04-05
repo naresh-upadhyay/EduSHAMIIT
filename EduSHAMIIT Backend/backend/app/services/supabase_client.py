@@ -40,6 +40,22 @@ class AuthClient:
     def __init__(self, client: SupabaseClient):
         self.client = client
 
+    def _get_error_message(self, error_data: dict, default: str) -> str:
+        """Extract a readable error message from Supabase auth response."""
+        # Handle specific error codes for better user experience
+        if isinstance(error_data, dict):
+            error_code = error_data.get("error_code") or error_data.get("error")
+            if error_code == "user_already_exists" or "already registered" in str(error_data).lower():
+                return "Email already exists"
+                
+            return (
+                error_data.get("msg") or 
+                error_data.get("message") or 
+                error_data.get("error_description") or 
+                error_data.get("error") or 
+                default
+            )
+        return str(error_data) if error_data else default
     def sign_in_with_password(self, credentials: dict) -> dict:
         """Sign in with email and password."""
         email = credentials.get("email")
@@ -54,7 +70,7 @@ class AuthClient:
 
         if response.status_code != 200:
             error = response.json()
-            raise Exception(error.get("error_description", error.get("message", "Login failed")))
+            raise Exception(self._get_error_message(error, "Login failed"))
 
         data = response.json()
         return AuthResponse(data)
@@ -73,7 +89,7 @@ class AuthClient:
 
         if response.status_code != 200:
             error = response.json()
-            raise Exception(error.get("error_description", error.get("message", "Registration failed")))
+            raise Exception(self._get_error_message(error, "Registration failed"))
 
         data = response.json()
         return AuthResponse(data)
@@ -89,7 +105,7 @@ class AuthClient:
 
         if response.status_code != 200:
             error = response.json()
-            raise Exception(error.get("error_description", error.get("message", "Token refresh failed")))
+            raise Exception(self._get_error_message(error, "Token refresh failed"))
 
         data = response.json()
         return AuthResponse(data)

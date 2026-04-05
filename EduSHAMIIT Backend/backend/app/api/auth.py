@@ -247,6 +247,7 @@ async def register(request: RegisterRequest):
             "school_id": request.school_id,
             "user_id": f"STU-{uuid.uuid4().hex[:6].upper()}",
             "full_name": request.full_name,
+            "email": request.email,
             "role": request.role,
             "class": request.class_name,
         }).execute()
