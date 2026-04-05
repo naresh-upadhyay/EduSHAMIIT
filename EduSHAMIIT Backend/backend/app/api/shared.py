@@ -52,7 +52,7 @@ async def get_settings(user=Depends(get_current_user), school_id=Depends(require
 @router.put("/user/settings")
 async def update_settings(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    sb.table("user_settings").upsert({"school_id": school_id, "user_id": user["id"], **request}).execute()
+    sb.table("user_settings").upsert({"school_id": school_id, "user_id": user["id"], **request}, on_conflict="user_id").execute()
     return {"success": True, "message": "Settings updated"}
 
 

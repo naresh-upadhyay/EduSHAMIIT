@@ -198,6 +198,11 @@ class TableQuery:
         self._filters.append(f"{column}=cs.{value}")
         return self
 
+    def or_(self, condition: str):
+        """Add an OR condition."""
+        self._filters.append(f"or=({condition})")
+        return self
+
     def order(self, column: str, ascending: bool = True):
         """Order results."""
         direction = "asc" if ascending else "desc"
@@ -247,6 +252,7 @@ class TableQuery:
         headers = self.client.headers.copy()
         if self._single:
             headers["Prefer"] = "return=representation,resolution=merge-duplicates"
+            headers["Accept"] = "application/vnd.pgrst.object+json"
 
         response = httpx.get(url, headers=headers, params=params, timeout=10.0)
 
@@ -255,7 +261,7 @@ class TableQuery:
             raise Exception(f"Query failed: {error}")
 
         data = response.json()
-        return QueryResult(data)
+        return QueryResult(data, is_single=self._single)
 
     def insert(self, data: dict):
         """Insert a row."""
@@ -296,6 +302,7 @@ class TableQuery:
 
         if self._single:
             headers["Prefer"] = "return=representation,resolution=merge-duplicates"
+            headers["Accept"] = "application/vnd.pgrst.object+json"
 
         if hasattr(self, '_operation'):
             if self._operation == "insert":
@@ -304,6 +311,8 @@ class TableQuery:
                 response = httpx.patch(url, headers=headers, json=self._data, params=params, timeout=10.0)
             elif self._operation == "upsert":
                 headers["Prefer"] = "return=representation,resolution=merge-duplicates"
+                if hasattr(self, '_on_conflict') and self._on_conflict:
+                    params["on_conflict"] = self._on_conflict
                 response = httpx.post(url, headers=headers, json=self._data, params=params, timeout=10.0)
             elif self._operation == "delete":
                 response = httpx.delete(url, headers=headers, params=params, timeout=10.0)
@@ -323,20 +332,23 @@ class TableQuery:
             raise Exception(f"Operation failed: {error}")
 
         if response.status_code == 204:
-            return QueryResult([])
+            return QueryResult([], is_single=self._single)
 
         data = response.json()
-        return QueryResult(data)
+        return QueryResult(data, is_single=self._single)
 
 
 class QueryResult:
     """Query result wrapper."""
 
-    def __init__(self, data):
-        if isinstance(data, list):
-            self.data = data
+    def __init__(self, data, is_single=False):
+        if is_single:
+            self.data = data if data else None
         else:
-            self.data = [data] if data else []
+            if isinstance(data, list):
+                self.data = data
+            else:
+                self.data = [data] if data else []
 
 
 def get_supabase() -> SupabaseClient:

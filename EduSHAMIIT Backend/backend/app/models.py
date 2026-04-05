@@ -4,13 +4,24 @@ from datetime import datetime
 
 
 # Auth Models
-class UserLogin(BaseModel):
+class LoginRequest(BaseModel):
+    """Request model for user login"""
     email: str
     password: str
     role: Optional[str] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "student@example.com",
+                "password": "SecurePassword123",
+                "role": "student"
+            }
+        }
 
-class UserRegister(BaseModel):
+
+class RegisterRequest(BaseModel):
+    """Request model for user registration"""
     email: str
     password: str
     full_name: str
@@ -18,21 +29,120 @@ class UserRegister(BaseModel):
     school_id: str
     class_name: Optional[str] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "newstudent@example.com",
+                "password": "NewPassword123",
+                "full_name": "John Doe",
+                "role": "student",
+                "school_id": "11111111-1111-1111-1111-111111111111",
+                "class_name": "10A"
+            }
+        }
 
-class SendOTPRequest(BaseModel):
+
+class RefreshRequest(BaseModel):
+    """Request model for token refresh"""
+    refresh_token: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+            }
+        }
+
+
+class SendOtpRequest(BaseModel):
+    """Request model for sending OTP"""
     identifier: str  # email or user_id
     user_name: Optional[str] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "identifier": "student@example.com",
+                "user_name": "John Doe"
+            },
+            "description": "Send OTP to user. Identifier can be email or user_id (UUID)"
+        }
 
-class VerifyOTPRequest(BaseModel):
+
+class VerifyOtpRequest(BaseModel):
+    """Request model for OTP verification"""
     identifier: str  # email or user_id
     otp: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "identifier": "student@example.com",
+                "otp": "123456"
+            }
+        }
 
 
 class ResetPasswordRequest(BaseModel):
+    """Request model for password reset"""
     identifier: str  # email or user_id
     otp: str
     new_password: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "identifier": "student@example.com",
+                "otp": "123456",
+                "new_password": "NewSecurePassword123"
+            }
+        }
+
+
+class LoginResponse(BaseModel):
+    """Response model for login"""
+    success: bool
+    school_id: Optional[str]
+    data: Optional[Dict[str, Any]]
+    message: Optional[str] = None
+
+
+class RegisterResponse(BaseModel):
+    """Response model for registration"""
+    success: bool
+    message: str
+
+
+class RefreshResponse(BaseModel):
+    """Response model for token refresh"""
+    success: bool
+    data: Optional[Dict[str, Any]]
+    message: Optional[str] = None
+
+
+class OtpResponse(BaseModel):
+    """Response model for OTP operations"""
+    success: bool
+    message: str
+    expires_in: Optional[int] = None  # seconds
+
+
+class VerifyOtpResponse(BaseModel):
+    """Response model for OTP verification"""
+    success: bool
+    message: str
+
+
+class ResetPasswordResponse(BaseModel):
+    """Response model for password reset"""
+    success: bool
+    message: str
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response model"""
+    success: bool = False
+    detail: str
 
 
 class OTPResponse(BaseModel):

@@ -1,7 +1,16 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, validator
+from typing import Optional, Dict, Any
 from app.services.supabase_client import get_supabase
 from app.services.email_service import get_email_service
 from app.config import settings
+from app.models import (
+    LoginRequest, RegisterRequest, RefreshRequest, SendOtpRequest, 
+    VerifyOtpRequest, ResetPasswordRequest, LoginResponse, RegisterResponse,
+    RefreshResponse, OtpResponse, VerifyOtpResponse, ResetPasswordResponse,
+    ErrorResponse
+)
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 import httpx
@@ -9,6 +18,7 @@ import os
 import uuid
 import random
 import logging
+import re
 
 router = APIRouter()
 
@@ -16,16 +26,133 @@ JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMII
 JWT_ALGORITHM = "HS256"
 
 
-@router.post("/login")
-async def login(request: dict):
+def validate_email(email: str) -> str:
+    """Validate email format"""
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_regex, email):
+        raise ValueError("Invalid email format")
+    return email
+
+
+def validate_password(password: str) -> str:
+    """Validate password strength"""
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters long")
+    if not re.search(r'[A-Z]', password):
+        raise ValueError("Password must contain at least one uppercase letter")
+    if not re.search(r'[a-z]', password):
+        raise ValueError("Password must contain at least one lowercase letter")
+    if not re.search(r'\d', password):
+        raise ValueError("Password must contain at least one number")
+    return password
+
+
+class EnhancedSendOtpRequest(SendOtpRequest):
+    """Enhanced OTP request with validation"""
+    
+    @validator('identifier')
+    def validate_identifier(cls, v):
+        if not v:
+            raise ValueError("Identifier is required")
+        # Check if it's a UUID or email
+        if '@' not in v:
+            try:
+                uuid.UUID(v)
+            except ValueError:
+                raise ValueError("Invalid UUID format for identifier")
+        else:
+            validate_email(v)
+        return v
+
+
+class EnhancedResetPasswordRequest(ResetPasswordRequest):
+    """Enhanced password reset request with validation"""
+    
+    @validator('new_password')
+    def validate_new_password(cls, v):
+        return validate_password(v)
+    
+    @validator('otp')
+    def validate_otp(cls, v):
+        if not v or not v.isdigit():
+            raise ValueError("OTP must be a numeric value")
+        if len(v) != settings.OTP_LENGTH:
+            raise ValueError(f"OTP must be {settings.OTP_LENGTH} digits long")
+        return v
+
+
+@router.post("/login", 
+    summary="User Login",
+    description="Authenticate user with email and password, returns JWT token and user information",
+    responses={
+        200: {
+            "description": "Login successful",
+            "model": LoginResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "school_id": "SCH-12345",
+                        "data": {
+                            "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                            "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                            "user": {
+                                "id": "user-uuid-here",
+                                "full_name": "John Doe",
+                                "role": "student",
+                                "class": "10A",
+                                "school_id": "SCH-12345",
+                                "avatar_url": "https://example.com/avatar.jpg"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid request",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Email and password required"
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Authentication failed",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Login failed: Invalid credentials"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "User not found",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Profile not found"
+                    }
+                }
+            }
+        }
+    }
+)
+async def login(request: LoginRequest):
     """Authenticate user and return JWT token."""
     try:
         sb = get_supabase()
-        email = request.get("email")
-        password = request.get("password")
-
-        if not email or not password:
-            raise HTTPException(status_code=400, detail="Email and password required")
+        email = request.email
+        password = request.password
 
         auth_response = sb.auth().sign_in_with_password({
             "email": email,
@@ -53,10 +180,10 @@ async def login(request: dict):
             algorithm=JWT_ALGORITHM,
         )
 
-        return {
-            "success": True,
-            "school_id": p["school_id"],
-            "data": {
+        return LoginResponse(
+            success=True,
+            school_id=p["school_id"],
+            data={
                 "token": token,
                 "refresh_token": auth_response.session.refresh_token,
                 "user": {
@@ -67,48 +194,120 @@ async def login(request: dict):
                     "school_id": p["school_id"],
                     "avatar_url": p.get("avatar_url"),
                 },
-            },
-        }
+            }
+        )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
 
 
-@router.post("/register")
-async def register(request: dict):
+@router.post("/register",
+    summary="User Registration",
+    description="Register a new user account with email, password, and profile information",
+    responses={
+        200: {
+            "description": "Registration successful",
+            "model": RegisterResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Registration successful"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Registration failed",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Registration failed: Email already exists"
+                    }
+                }
+            }
+        }
+    }
+)
+async def register(request: RegisterRequest):
     """Register new user."""
     try:
         sb = get_supabase()
 
         auth_response = sb.auth().sign_up({
-            "email": request["email"],
-            "password": request["password"],
+            "email": request.email,
+            "password": request.password,
         })
 
         sb.table("profiles").insert({
             "id": auth_response.user.id,
-            "school_id": request["school_id"],
+            "school_id": request.school_id,
             "user_id": f"STU-{uuid.uuid4().hex[:6].upper()}",
-            "full_name": request["full_name"],
-            "role": request["role"],
-            "class": request.get("class_name"),
+            "full_name": request.full_name,
+            "role": request.role,
+            "class": request.class_name,
         }).execute()
 
-        return {"success": True, "message": "Registration successful"}
+        return RegisterResponse(
+            success=True,
+            message="Registration successful"
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
-@router.post("/refresh")
-async def refresh_token(request: dict):
+@router.post("/refresh",
+    summary="Token Refresh",
+    description="Refresh JWT token using refresh token",
+    responses={
+        200: {
+            "description": "Token refreshed successfully",
+            "model": RefreshResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": {
+                            "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid request",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Refresh token required"
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Token refresh failed",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Token refresh failed: Invalid refresh token"
+                    }
+                }
+            }
+        }
+    }
+)
+async def refresh_token(request: RefreshRequest):
     """Refresh JWT token."""
     try:
         sb = get_supabase()
-        refresh_token = request.get("refresh_token")
-
-        if not refresh_token:
-            raise HTTPException(status_code=400, detail="Refresh token required")
+        refresh_token = request.refresh_token
 
         auth_response = sb.auth().refresh_session(refresh_token)
         profile = sb.table("profiles").select("*").eq("id", auth_response.user.id).single().execute()
@@ -125,7 +324,10 @@ async def refresh_token(request: dict):
             algorithm=JWT_ALGORITHM,
         )
 
-        return {"success": True, "data": {"token": token}}
+        return RefreshResponse(
+            success=True,
+            data={"token": token}
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -166,18 +368,81 @@ def find_user_by_identifier(sb, identifier: str) -> dict:
     return None
 
 
-@router.post("/send-otp")
-async def send_otp(request: dict):
+@router.post("/send-otp",
+    summary="Send OTP",
+    description="Send OTP to user's email for password reset. Identifier can be email or user_id.",
+    responses={
+        200: {
+            "description": "OTP sent successfully",
+            "model": OtpResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "OTP sent successfully",
+                        "expires_in": 900
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid request",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Identifier (email or user_id) required"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "User not found",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "User not found"
+                    }
+                }
+            }
+        },
+        429: {
+            "description": "Rate limit exceeded",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Rate limit exceeded. Maximum 3 OTP requests per hour."
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Failed to send OTP: Database error"
+                    }
+                }
+            }
+        }
+    }
+)
+async def send_otp(request: EnhancedSendOtpRequest):
     """Send OTP for password reset."""
     try:
         sb = get_supabase()
         email_service = get_email_service()
         
-        identifier = request.get("identifier")  # email or user_id
-        user_name = request.get("user_name")
-        
-        if not identifier:
-            raise HTTPException(status_code=400, detail="Identifier (email or user_id) required")
+        identifier = request.identifier
+        user_name = request.user_name
         
         # Find user
         user = find_user_by_identifier(sb, identifier)
@@ -220,11 +485,11 @@ async def send_otp(request: dict):
         
         expires_in = int(settings.OTP_EXPIRATION_MINUTES * 60)
         
-        return {
-            "success": True,
-            "message": "OTP sent successfully",
-            "expires_in": expires_in
-        }
+        return OtpResponse(
+            success=True,
+            message="OTP sent successfully",
+            expires_in=expires_in
+        )
         
     except HTTPException:
         raise
@@ -233,17 +498,67 @@ async def send_otp(request: dict):
         raise HTTPException(status_code=500, detail=f"Failed to send OTP: {str(e)}")
 
 
-@router.post("/verify-otp")
-async def verify_otp(request: dict):
+@router.post("/verify-otp",
+    summary="Verify OTP",
+    description="Verify OTP for password reset using identifier and OTP code",
+    responses={
+        200: {
+            "description": "OTP verified successfully",
+            "model": VerifyOtpResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "OTP verified successfully"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid OTP",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Identifier and OTP required"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "User not found",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "User not found"
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Failed to verify OTP: Database error"
+                    }
+                }
+            }
+        }
+    }
+)
+async def verify_otp(request: VerifyOtpRequest):
     """Verify OTP for password reset."""
     try:
         sb = get_supabase()
         
-        identifier = request.get("identifier")  # email or user_id
-        otp = request.get("otp")
-        
-        if not identifier or not otp:
-            raise HTTPException(status_code=400, detail="Identifier and OTP required")
+        identifier = request.identifier
+        otp = request.otp
         
         # Find user
         user = find_user_by_identifier(sb, identifier)
@@ -263,10 +578,10 @@ async def verify_otp(request: dict):
         otp_record = result.data[0]
         sb.table("password_resets").update({"status": "verified"}).eq("id", otp_record["id"]).execute()
         
-        return {
-            "success": True,
-            "message": "OTP verified successfully"
-        }
+        return VerifyOtpResponse(
+            success=True,
+            message="OTP verified successfully"
+        )
         
     except HTTPException:
         raise
@@ -275,23 +590,69 @@ async def verify_otp(request: dict):
         raise HTTPException(status_code=500, detail=f"Failed to verify OTP: {str(e)}")
 
 
-@router.post("/reset-password")
-async def reset_password(request: dict):
+@router.post("/reset-password",
+    summary="Reset Password",
+    description="Reset user password using OTP verification",
+    responses={
+        200: {
+            "description": "Password reset successfully",
+            "model": ResetPasswordResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Password reset successfully"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid request",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Identifier, OTP, and new password required"
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "User not found",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "User not found"
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "Server error",
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "detail": "Failed to reset password: Database error"
+                    }
+                }
+            }
+        }
+    }
+)
+async def reset_password(request: EnhancedResetPasswordRequest):
     """Reset password using OTP."""
     try:
         sb = get_supabase()
         email_service = get_email_service()
         
-        identifier = request.get("identifier")  # email or user_id
-        otp = request.get("otp")
-        new_password = request.get("new_password")
-        
-        if not identifier or not otp or not new_password:
-            raise HTTPException(status_code=400, detail="Identifier, OTP, and new password required")
-        
-        # Validate password length
-        if len(new_password) < 8:
-            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+        identifier = request.identifier
+        otp = request.otp
+        new_password = request.new_password
         
         # Find user
         user = find_user_by_identifier(sb, identifier)
@@ -346,10 +707,10 @@ async def reset_password(request: dict):
         if not email_sent:
             logging.warning(f"Failed to send confirmation email to {user_email}")
         
-        return {
-            "success": True,
-            "message": "Password reset successfully"
-        }
+        return ResetPasswordResponse(
+            success=True,
+            message="Password reset successfully"
+        )
         
     except HTTPException:
         raise

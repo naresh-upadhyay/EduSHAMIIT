@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     OTP_RATE_LIMIT_PER_HOUR: int = 3
 
     class Config:
-        env_file = "../../.env"
+        env_file = "../.env"
         case_sensitive = True
         extra = "ignore"
 
