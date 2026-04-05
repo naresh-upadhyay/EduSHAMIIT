@@ -120,7 +120,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Column(
+            child: Form(
+              key: _formKey,
+              child: Column(
               children: [
                 const SizedBox(height: 24),
                 // Logo with spinning ring effect
@@ -339,6 +341,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 40),
               ],
+              ),
             ),
           ),
         ),
