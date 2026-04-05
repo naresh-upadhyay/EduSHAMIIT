@@ -14,6 +14,16 @@ import 'package:edu_shamiit_ai/features/student/results/screens/student_results.
 import 'package:edu_shamiit_ai/features/student/homework/screens/student_homework.dart';
 import 'package:edu_shamiit_ai/features/student/attendance/screens/student_attendance.dart';
 import 'package:edu_shamiit_ai/features/student/fees/screens/student_fees.dart';
+import 'package:edu_shamiit_ai/features/student/leave/screens/student_leave_application.dart';
+import 'package:edu_shamiit_ai/features/student/profile/screens/student_profile.dart';
+import 'package:edu_shamiit_ai/features/student/library/screens/student_library.dart';
+import 'package:edu_shamiit_ai/features/student/courses/screens/student_courses.dart';
+import 'package:edu_shamiit_ai/features/student/notifications/screens/student_notifications.dart';
+import 'package:edu_shamiit_ai/features/student/live_classes/screens/student_live_classes.dart';
+import 'package:edu_shamiit_ai/features/student/leaderboard/screens/student_leaderboard.dart';
+import 'package:edu_shamiit_ai/features/student/messaging/screens/student_messaging.dart';
+import 'package:edu_shamiit_ai/features/student/settings/screens/student_settings.dart';
+import 'package:edu_shamiit_ai/features/student/online_exam/screens/student_online_exam.dart';
 import 'package:edu_shamiit_ai/features/teacher/dashboard/screens/teacher_dashboard.dart';
 
 final goRouter = GoRouter(
@@ -106,12 +116,6 @@ final goRouter = GoRouter(
       builder: (_, __) => const StudentAttendance(),
     ),
     GoRoute(
-      path: '/student/courses',
-      builder: (_, __) => const Scaffold(
-        body: Center(child: Text('Courses Screen')),
-      ),
-    ),
-    GoRoute(
       path: '/student/achievements',
       builder: (_, __) => const Scaffold(
         body: Center(child: Text('Achievements Screen')),
@@ -119,9 +123,43 @@ final goRouter = GoRouter(
     ),
     GoRoute(
       path: '/student/profile',
-      builder: (_, __) => const Scaffold(
-        body: Center(child: Text('Profile Screen')),
-      ),
+      builder: (_, __) => const StudentProfile(),
+    ),
+    GoRoute(
+      path: '/student/leave-application',
+      builder: (_, __) => const StudentLeaveApplication(),
+    ),
+    GoRoute(
+      path: '/student/library',
+      builder: (_, __) => const StudentLibrary(),
+    ),
+    GoRoute(
+      path: '/student/courses',
+      builder: (_, __) => const StudentCourses(),
+    ),
+    GoRoute(
+      path: '/student/notifications',
+      builder: (_, __) => const StudentNotifications(),
+    ),
+    GoRoute(
+      path: '/student/live-classes',
+      builder: (_, __) => const StudentLiveClasses(),
+    ),
+    GoRoute(
+      path: '/student/leaderboard',
+      builder: (_, __) => const StudentLeaderboard(),
+    ),
+    GoRoute(
+      path: '/student/messaging',
+      builder: (_, __) => const StudentMessaging(),
+    ),
+    GoRoute(
+      path: '/student/settings',
+      builder: (_, __) => const StudentSettings(),
+    ),
+    GoRoute(
+      path: '/student/online-exam',
+      builder: (_, __) => const StudentOnlineExam(),
     ),
 
     // TEACHER ROUTES
