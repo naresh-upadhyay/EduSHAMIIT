@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/ai_chat_provider.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
@@ -14,45 +16,20 @@ class AiChatScreen extends ConsumerStatefulWidget {
 class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<Map<String, dynamic>> _messages = [
-    {
-      'isUser': false,
-      'text': '👋 Hey Arjun! I\'m your EduVerse AI. I can help you with homework, explain concepts, track your exams, check your fees, or anything school-related!',
-      'time': '9:00 AM',
-    },
-    {
-      'isUser': true,
-      'text': 'What should I focus on for my Math exam?',
-      'time': '9:32 AM',
-    },
-    {
-      'isUser': false,
-      'text': 'Based on past patterns, focus on:\n\n📐 Integration & Differentiation — 40%\n📊 Probability — 20%\n📈 Coordinate Geometry — 15%\n\nYou\'re weakest in Integration. Want a quick revision? 🚀',
-      'time': '9:32 AM',
-    },
-  ];
 
-  final List<String> _suggestions = [
-    '📅 Show timetable',
-    '📝 Pending homework',
-    '🚌 Where\'s bus?',
-  ];
-
-  final List<String> _aiResponses = [
-    "I'll check that for you! Your timetable shows Physics Lab at 9 AM tomorrow. 📚",
-    'You have 3 pending homework assignments. The Math one is due today! ⚠️',
-    'Your bus (Route 7B) is currently 1.2 km away. ETA: 8 minutes. 🚌',
-    'Great question! Integration by parts: ∫u dv = uv - ∫v du. Want me to solve a problem? 📐',
-    'Your attendance is at 94%. You\'ve missed 10 days this term. Keep it up! 📋',
-    'Next exam: Mathematics on March 28. Focus on Calculus & Probability chapters. 🎯',
-    'Your current rank is 3rd in class with 2,450 XP points. Amazing progress! 🏆',
-  ];
-
-  int _responseIndex = 0;
-  bool _isTyping = false;
+  @override
+  void initState() {
+    super.initState();
+    // Load chat history on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(aiChatProvider.notifier).loadChatHistory();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final chatState = ref.watch(aiChatProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       body: Column(
@@ -108,9 +85,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Text(
-                            'Always Online',
-                            style: TextStyle(
+                          Text(
+                            chatState.isTyping ? 'Typing...' : 'Always Online',
+                            style: const TextStyle(
                               fontSize: 10,
                               color: Colors.white54,
                             ),
@@ -120,35 +97,57 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     ],
                   ),
                 ),
+                // Menu button for export/clear
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  onSelected: (value) {
+                    if (value == 'export') {
+                      _exportChat();
+                    } else if (value == 'clear') {
+                      _clearChat();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'export', child: Text('Export Chat')),
+                    const PopupMenuItem(value: 'clear', child: Text('Clear Chat')),
+                  ],
+                ),
               ],
             ),
           ),
+
+          // Loading indicator
+          if (chatState.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator()),
+            ),
 
           // Messages
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(12),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
+              itemCount: chatState.messages.length + (chatState.isTyping ? 1 : 0),
               itemBuilder: (context, index) {
-                if (_isTyping && index == _messages.length) {
+                if (chatState.isTyping && index == chatState.messages.length) {
                   return _buildTypingIndicator();
                 }
 
-                final msg = _messages[index];
+                final msg = chatState.messages[index];
                 return _buildMessage(msg);
               },
             ),
           ),
 
           // Suggestion Chips
-          if (_messages.length <= 3)
+          if (chatState.messages.length <= 3 && chatState.suggestions.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: _suggestions.map((s) {
+                  children: chatState.suggestions.map((s) {
                     return Padding(
                       padding: const EdgeInsets.only(right: 5),
                       child: ActionChip(
@@ -161,7 +160,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                           ),
                         ),
                         backgroundColor: StudentColors.primaryLight,
-                        onPressed: () => _sendMessage(s),
+                        onPressed: () => _sendSuggestion(s),
                       ),
                     );
                   }).toList(),
@@ -217,14 +216,14 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     );
   }
 
-  Widget _buildMessage(Map<String, dynamic> msg) {
+  Widget _buildMessage(ChatMessage msg) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
-        mainAxisAlignment: msg['isUser'] ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!msg['isUser'])
+          if (!msg.isUser)
             Container(
               width: 28,
               height: 28,
@@ -241,14 +240,14 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: msg['isUser'] ? StudentColors.primary : StudentColors.surface,
+                color: msg.isUser ? StudentColors.primary : StudentColors.surface,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
-                  bottomLeft: msg['isUser'] ? const Radius.circular(16) : Radius.zero,
-                  bottomRight: msg['isUser'] ? Radius.zero : const Radius.circular(16),
+                  bottomLeft: msg.isUser ? const Radius.circular(16) : Radius.zero,
+                  bottomRight: msg.isUser ? Radius.zero : const Radius.circular(16),
                 ),
-                boxShadow: msg['isUser']
+                boxShadow: msg.isUser
                     ? null
                     : [
                         BoxShadow(
@@ -261,22 +260,35 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    msg['text'],
+                    msg.text,
                     style: TextStyle(
                       fontSize: 12,
-                      color: msg['isUser'] ? Colors.white : StudentColors.text,
+                      color: msg.isUser ? Colors.white : StudentColors.text,
                       height: 1.6,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    msg['time'],
+                    msg.formattedTime,
                     style: TextStyle(
                       fontSize: 9,
-                      color: msg['isUser'] ? Colors.white60 : StudentColors.text3,
+                      color: msg.isUser ? Colors.white60 : StudentColors.text3,
                     ),
-                    textAlign: msg['isUser'] ? TextAlign.end : TextAlign.start,
+                    textAlign: msg.isUser ? TextAlign.end : TextAlign.start,
                   ),
+                  // Show AI suggestion if available
+                  if (!msg.isUser && msg.aiSuggestion != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: ActionChip(
+                        label: Text(
+                          msg.aiSuggestion!,
+                          style: const TextStyle(fontSize: 10, color: StudentColors.primary),
+                        ),
+                        backgroundColor: StudentColors.primaryLight,
+                        onPressed: () => _sendMessage(msg.aiSuggestion!),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -351,7 +363,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         },
         builder: (context, value, child) {
           return Transform.translate(
-            offset: Offset(0, value.sin() * -6),
+            offset: Offset(0, sin(value) * -6),
             child: child,
           );
         },
@@ -362,38 +374,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
   void _sendMessage(String text) {
     if (text.trim().isEmpty) return;
-
-    setState(() {
-      _messages.add({
-        'isUser': true,
-        'text': text,
-        'time': _getCurrentTime(),
-      });
-      _controller.clear();
-      _isTyping = true;
-    });
-
+    
+    ref.read(aiChatProvider.notifier).sendMessage(text);
+    _controller.clear();
     _scrollToBottom();
-
-    // Simulate AI response
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (!mounted) return;
-      setState(() {
-        _isTyping = false;
-        _messages.add({
-          'isUser': false,
-          'text': _aiResponses[_responseIndex % _aiResponses.length],
-          'time': _getCurrentTime(),
-        });
-        _responseIndex++;
-      });
-      _scrollToBottom();
-    });
   }
 
-  String _getCurrentTime() {
-    final now = DateTime.now();
-    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  void _sendSuggestion(String suggestion) {
+    ref.read(aiChatProvider.notifier).useSuggestion(suggestion);
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -406,6 +395,41 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         );
       }
     });
+  }
+
+  void _exportChat() async {
+    final chatHistory = await ref.read(aiChatProvider.notifier).exportChat();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Chat exported!')),
+      );
+      // In a real app, you would share or save the chatHistory string
+      debugPrint(chatHistory);
+    }
+  }
+
+  void _clearChat() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear Chat'),
+        content: const Text('Are you sure you want to clear all chat history?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(aiChatProvider.notifier).clearChat();
+              Navigator.pop(context);
+            },
+            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

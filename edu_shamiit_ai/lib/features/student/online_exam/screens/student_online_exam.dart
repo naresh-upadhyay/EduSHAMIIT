@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentOnlineExam extends ConsumerStatefulWidget {
   const StudentOnlineExam({super.key});
@@ -12,43 +13,40 @@ class StudentOnlineExam extends ConsumerStatefulWidget {
 }
 
 class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
-  final List<Map<String, dynamic>> _upcomingExams = [
-    {
-      'subject': 'Mathematics',
-      'type': 'Final',
-      'date': '28',
-      'month': 'MAR',
-      'time': '🕘 9:00 – 12:00 AM · 3 hrs',
-      'hall': 'Hall A',
-    },
-    {
-      'subject': 'Physics',
-      'type': 'Final',
-      'date': '30',
-      'month': 'MAR',
-      'time': '🕘 9:00 – 12:00 AM · 3 hrs',
-      'hall': 'Hall B',
-    },
-    {
-      'subject': 'Chemistry',
-      'type': 'Final',
-      'date': '01',
-      'month': 'APR',
-      'time': '🕘 9:00 – 12:00 AM · 3 hrs',
-      'hall': 'Lab 2',
-    },
-    {
-      'subject': 'English',
-      'type': 'Final',
-      'date': '03',
-      'month': 'APR',
-      'time': '🕘 10:00 AM – 1:00 PM',
-      'hall': 'Hall A',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(onlineExamProvider.notifier).fetchExams();
+    });
+  }
+
+  String _getMonthAbbr(String dateStr) {
+    if (dateStr.isEmpty) return 'TBD';
+    try {
+      final date = DateTime.parse(dateStr);
+      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      return months[date.month - 1];
+    } catch (e) {
+      return 'TBD';
+    }
+  }
+
+  String _getDay(String dateStr) {
+    if (dateStr.isEmpty) return '--';
+    try {
+      final date = DateTime.parse(dateStr);
+      return date.day.toString().padLeft(2, '0');
+    } catch (e) {
+      return '--';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final examState = ref.watch(onlineExamProvider);
+    final exams = examState.exams;
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF0FDF9),
       body: Column(
@@ -81,7 +79,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white15,
+                    color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -94,48 +92,84 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Next Exam Countdown
-                _buildCountdownCard(),
-                
-                const SizedBox(height: 12),
-                
-                // AI Prep Tip
-                _buildAITipCard(),
-                
-                const SizedBox(height: 16),
-                
-                // Section Title
-                const Text(
-                  'Exam Schedule',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                // Exam List
-                ..._upcomingExams.map((exam) => _buildExamCard(exam)),
-                
-                const SizedBox(height: 16),
-                
-                // Online Exam Portal
-                _buildOnlineExamPortal(),
-                
-                const SizedBox(height: 50),
-              ],
-            ),
+            child: examState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : exams.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.event_note, size: 64, color: StudentColors.text3),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No exams scheduled',
+                              style: TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: StudentColors.text3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          // Next Exam Countdown
+                          _buildCountdownCard(exams),
+                          
+                          const SizedBox(height: 12),
+                          
+                          // AI Prep Tip
+                          _buildAITipCard(),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Section Title
+                          const Text(
+                            'Exam Schedule',
+                            style: TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          
+                          // Exam List
+                          ...exams.map((exam) => _buildExamCard(exam)),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Online Exam Portal
+                          _buildOnlineExamPortal(),
+                          
+                          const SizedBox(height: 50),
+                        ],
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCountdownCard() {
+  Widget _buildCountdownCard(List<ExamItem> exams) {
+    // Find next upcoming exam
+    final upcomingExams = exams.where((e) => e.status == 'upcoming').toList();
+    final nextExam = upcomingExams.isNotEmpty ? upcomingExams.first : null;
+    
+    if (nextExam == null) {
+      return const SizedBox.shrink();
+    }
+    
+    // Calculate days until exam
+    final examDate = DateTime.tryParse(nextExam.examDate);
+    final daysUntil = examDate != null ? examDate.difference(DateTime.now()).inDays : 0;
+    final displayDays = daysUntil > 0 ? daysUntil : 0;
+    final displayHours = 14; // Placeholder
+    final displayMins = 32; // Placeholder
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -158,9 +192,9 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            '📐 Mathematics — Final',
-            style: TextStyle(
+          Text(
+            '📐 ${nextExam.title} — ${nextExam.status.toUpperCase()}',
+            style: const TextStyle(
               fontFamily: AppFonts.heading,
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -170,11 +204,11 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildCountdownBox('05', 'Days'),
+              _buildCountdownBox('$displayDays', 'Days'),
               const SizedBox(width: 8),
-              _buildCountdownBox('14', 'Hours'),
+              _buildCountdownBox('$displayHours', 'Hours'),
               const SizedBox(width: 8),
-              _buildCountdownBox('32', 'Mins'),
+              _buildCountdownBox('$displayMins', 'Mins'),
             ],
           ),
         ],
@@ -232,11 +266,11 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Based on your performance, focus on Integration & Calculus. These topics have 65% weightage in finals. Practice 10 problems daily.',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white75,
+              color: Colors.white.withOpacity(0.75),
               height: 1.6,
             ),
           ),
@@ -244,7 +278,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
           ElevatedButton(
             onPressed: () {},
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white15,
+              backgroundColor: Colors.white.withOpacity(0.15),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -256,7 +290,19 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
     );
   }
 
-  Widget _buildExamCard(Map<String, dynamic> exam) {
+  Widget _buildExamCard(ExamItem exam) {
+    final statusColors = {
+      'upcoming': const Color(0xFF134E4A),
+      'ongoing': StudentColors.primary,
+      'completed': StudentColors.success,
+    };
+    
+    final statusLabels = {
+      'upcoming': 'UPCOMING',
+      'ongoing': 'ONGOING',
+      'completed': 'COMPLETED',
+    };
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
@@ -282,7 +328,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             child: Column(
               children: [
                 Text(
-                  exam['date']!,
+                  _getDay(exam.examDate),
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 18,
@@ -291,7 +337,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
                   ),
                 ),
                 Text(
-                  exam['month']!,
+                  _getMonthAbbr(exam.examDate),
                   style: const TextStyle(
                     fontSize: 9,
                     color: Colors.white70,
@@ -306,7 +352,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  exam['subject']!,
+                  exam.title,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 13,
@@ -315,7 +361,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  exam['time']!,
+                  exam.description ?? 'No description',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -327,15 +373,15 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: (statusColors[exam.status] ?? StudentColors.border).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              exam['hall']!,
-              style: const TextStyle(
+              statusLabels[exam.status] ?? exam.status.toUpperCase(),
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: StudentColors.text2,
+                color: statusColors[exam.status] ?? StudentColors.text2,
               ),
             ),
           ),
@@ -364,11 +410,11 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Take MCQ-based exams online with a timer. Upload handwritten answers for subjective sections.',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white75,
+              color: Colors.white.withOpacity(0.75),
               height: 1.5,
             ),
           ),
@@ -440,7 +486,6 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
               decoration: BoxDecoration(
                 border: Border.all(color: StudentColors.border),
                 borderRadius: BorderRadius.circular(12),
-                borderStyle: BorderStyle.solid,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1013,9 +1058,9 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
   }
 
   Widget _buildOption(String text, int index) {
-    final isSelected = _answers[_currentQuestion] == index;
+    final isSelected = _answers[_currentQuestion] == index.toString();
     return GestureDetector(
-      onTap: () => setState(() => _answers[_currentQuestion] = index),
+      onTap: () => setState(() => _answers[_currentQuestion] = index.toString()),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),

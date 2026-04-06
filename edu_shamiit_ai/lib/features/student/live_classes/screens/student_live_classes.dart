@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/live_classes_provider.dart';
 
 class StudentLiveClasses extends ConsumerStatefulWidget {
   const StudentLiveClasses({super.key});
@@ -12,65 +13,10 @@ class StudentLiveClasses extends ConsumerStatefulWidget {
 }
 
 class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
-  final List<Map<String, dynamic>> _liveNow = [
-    {
-      'subject': 'Physics — Optics Chapter 9',
-      'teacher': 'Dr. A. Verma',
-      'started': 'Started 25 min ago',
-      'viewers': 34,
-      'icon': '⚛️',
-      'color': const LinearGradient(colors: [Color(0xFF1E293B), Color(0xFF334155)]),
-    },
-    {
-      'subject': 'Mathematics — Integration by Parts',
-      'teacher': 'Mr. R. Sharma',
-      'started': 'Started 10 min ago',
-      'viewers': 28,
-      'icon': '📐',
-      'color': const LinearGradient(colors: [Color(0xFF312E81), Color(0xFF4338CA)]),
-    },
-  ];
-
-  final List<Map<String, dynamic>> _upcoming = [
-    {
-      'subject': 'Chemistry — Electrochemistry',
-      'teacher': 'Dr. S. Mehta',
-      'time': '2:00 PM',
-      'in': 'In 1h 30m',
-      'icon': '⚗️',
-    },
-    {
-      'subject': 'English — Essay Writing',
-      'teacher': 'Ms. P. Gupta',
-      'time': '3:30 PM',
-      'in': 'In 3h',
-      'icon': '📖',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _recorded = [
-    {
-      'subject': 'Physics — Wave Optics',
-      'teacher': 'Dr. A. Verma',
-      'date': 'Mar 25 · 45 min',
-      'icon': '📹',
-    },
-    {
-      'subject': 'Mathematics — Limits',
-      'teacher': 'Mr. R. Sharma',
-      'date': 'Mar 24 · 52 min',
-      'icon': '📹',
-    },
-    {
-      'subject': 'Chemistry — Periodic Table',
-      'teacher': 'Dr. S. Mehta',
-      'date': 'Mar 23 · 38 min',
-      'icon': '📹',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final liveClassesState = ref.watch(liveClassesProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
@@ -106,9 +52,9 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                     color: Colors.white24,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    '🔴 2 Live Now',
-                    style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
+                  child: Text(
+                    '🔴 ${liveClassesState.liveNow.length} Live Now',
+                    style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -116,65 +62,79 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Live Now Section
-                const Text(
-                  '🔴 LIVE NOW',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: StudentColors.error,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._liveNow.map((cls) => _buildLiveCard(cls)),
-                
-                const SizedBox(height: 20),
-                
-                // Upcoming Section
-                const Text(
-                  '📅 UPCOMING TODAY',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: StudentColors.text3,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._upcoming.map((cls) => _buildUpcomingCard(cls)),
-                
-                const SizedBox(height: 20),
-                
-                // Recorded Section
-                const Text(
-                  '📋 RECORDED CLASSES',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: StudentColors.text3,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._recorded.map((cls) => _buildRecordedCard(cls)),
-                
-                const SizedBox(height: 50),
-              ],
-            ),
+            child: liveClassesState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : liveClassesState.error != null
+                    ? Center(child: Text('Error: ${liveClassesState.error}'))
+                    : ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          // Live Now Section
+                          const Text(
+                            '🔴 LIVE NOW',
+                            style: TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: StudentColors.error,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...liveClassesState.liveNow.map((cls) => _buildLiveCard(cls)),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Upcoming Section
+                          const Text(
+                            '📅 UPCOMING TODAY',
+                            style: TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: StudentColors.text3,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (liveClassesState.upcoming.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Text('No upcoming classes today', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                            ),
+                          ...liveClassesState.upcoming.map((cls) => _buildUpcomingCard(cls)),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Recorded Section
+                          const Text(
+                            '📋 RECORDED CLASSES',
+                            style: TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: StudentColors.text3,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (liveClassesState.recorded.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Text('No recorded classes', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                            ),
+                          ...liveClassesState.recorded.map((cls) => _buildRecordedCard(cls)),
+                          
+                          const SizedBox(height: 50),
+                        ],
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLiveCard(Map<String, dynamic> cls) {
+  Widget _buildLiveCard(LiveClassModel cls) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -194,12 +154,12 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
           Container(
             height: 110,
             decoration: BoxDecoration(
-              gradient: cls['color'] as Gradient,
+              gradient: cls.color ?? const LinearGradient(colors: [Color(0xFF1E293B), Color(0xFF334155)]),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Stack(
               children: [
-                Center(child: Text(cls['icon']!, style: const TextStyle(fontSize: 40))),
+                Center(child: Text(cls.icon, style: const TextStyle(fontSize: 40))),
                 // LIVE badge
                 Positioned(
                   top: 8,
@@ -241,7 +201,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '👥 ${cls['viewers']} watching',
+                      '👥 ${cls.viewers ?? 0} watching',
                       style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                   ),
@@ -271,7 +231,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  cls['subject']!,
+                  cls.subject,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 13,
@@ -280,7 +240,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  cls['teacher'] + ' · ' + cls['started'],
+                  '${cls.teacher} · ${cls.started ?? ''}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -322,7 +282,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
     );
   }
 
-  Widget _buildUpcomingCard(Map<String, dynamic> cls) {
+  Widget _buildUpcomingCard(LiveClassModel cls) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -345,7 +305,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               color: StudentColors.successBg,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(child: Text(cls['icon']!, style: const TextStyle(fontSize: 18))),
+            child: Center(child: Text(cls.icon, style: const TextStyle(fontSize: 18))),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -353,7 +313,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  cls['subject']!,
+                  cls.subject,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 12,
@@ -362,7 +322,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${cls['teacher']} · ${cls['time']}',
+                  '${cls.teacher} · ${cls.time ?? ''}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -378,7 +338,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              cls['in']!,
+              cls.timeUntil ?? '',
               style: const TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
@@ -391,7 +351,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
     );
   }
 
-  Widget _buildRecordedCard(Map<String, dynamic> cls) {
+  Widget _buildRecordedCard(LiveClassModel cls) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -423,7 +383,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  cls['subject']!,
+                  cls.subject,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 12,
@@ -432,7 +392,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  cls['date']!,
+                  cls.date ?? '',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -456,7 +416,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
     );
   }
 
-  void _joinClass(Map<String, dynamic> cls) {
+  void _joinClass(LiveClassModel cls) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -465,16 +425,16 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
     );
   }
 
-  void _playRecording(Map<String, dynamic> cls) {
+  void _playRecording(LiveClassModel cls) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('🎥 Playing: ${cls['subject']}')),
+      SnackBar(content: Text('🎥 Playing: ${cls.subject}')),
     );
   }
 }
 
 // Live Class Detail Screen (YouTube-style)
 class _LiveClassDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> classData;
+  final LiveClassModel classData;
 
   const _LiveClassDetailScreen({required this.classData});
 
@@ -534,7 +494,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(widget.classData['icon']!, style: const TextStyle(fontSize: 60)),
+                        Text(widget.classData.icon, style: const TextStyle(fontSize: 60)),
                         const SizedBox(height: 8),
                         const Text(
                           'Live Class in Progress',
@@ -585,7 +545,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '👁️ ${widget.classData['viewers']}.2k',
+                      '👁️ ${widget.classData.viewers}.2k',
                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                   ),
@@ -643,7 +603,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.classData['subject']!,
+                  widget.classData.subject,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 14,
@@ -653,7 +613,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${widget.classData['viewers']}.2k views · ${widget.classData['started']}',
+                  '${widget.classData.viewers}.2k views · ${widget.classData.started ?? ''}',
                   style: const TextStyle(fontSize: 10, color: Colors.white54),
                 ),
                 const SizedBox(height: 12),
@@ -665,7 +625,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                       height: 30,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-                        borderRadius: BorderRadius.circular(50%),
+                        borderRadius: BorderRadius.circular(50),
                       ),
                       child: const Center(child: Text('👨‍🏫', style: TextStyle(fontSize: 14))),
                     ),
@@ -675,7 +635,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.classData['teacher']!,
+                            widget.classData.teacher,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -840,7 +800,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
             height: 24,
             decoration: BoxDecoration(
               color: Colors.primaries[DateTime.now().millisecond % Colors.primaries.length],
-              borderRadius: BorderRadius.circular(50%),
+              borderRadius: BorderRadius.circular(50),
             ),
             child: Center(child: Text(comment['avatar'], style: const TextStyle(fontSize: 10))),
           ),

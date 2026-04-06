@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentAttendance extends ConsumerStatefulWidget {
   const StudentAttendance({super.key});
@@ -13,45 +14,146 @@ class StudentAttendance extends ConsumerStatefulWidget {
 }
 
 class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
-  Map<String, dynamic>? _attendanceData;
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadAttendance();
-  }
-
-  Future<void> _loadAttendance() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    setState(() {
-      _attendanceData = {
-        "overall_pct": 94.0,
-        "present_days": 94,
-        "absent_days": 4,
-        "late_days": 2,
-        "total_days": 100,
-        "subject_wise": [
-          { "subject": "Mathematics", "present": 19, "total": 20, "pct": 95.0 },
-          { "subject": "Physics", "present": 18, "total": 20, "pct": 90.0 },
-          { "subject": "Chemistry", "present": 20, "total": 20, "pct": 100.0 },
-          { "subject": "English", "present": 19, "total": 20, "pct": 95.0 },
-          { "subject": "Computer Science", "present": 18, "total": 20, "pct": 90.0 },
-        ],
-        "weekly": [95, 92, 96, 94, 90],
-      };
-      _isLoading = false;
+    // Fetch attendance data when screen loads
+    Future.microtask(() {
+      ref.read(attendanceProvider.notifier).fetchAttendance();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    final attendanceState = ref.watch(attendanceProvider);
 
-    final data = _attendanceData!;
-    final weekly = data['weekly'] as List;
+    if (attendanceState.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (attendanceState.error != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFEFF6FF),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: StudentColors.error),
+              const SizedBox(height: 16),
+              Text(
+                'Failed to load attendance',
+                style: const TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                attendanceState.error!,
+                style: const TextStyle(color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ref.read(attendanceProvider.notifier).fetchAttendance();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Calculate summary data from records
+    final records = attendanceState.records;
+    final summary = attendanceState.summary;
+    
+    final overallPct = summary['overall_percentage'] as num? ?? 0.0;
+    final presentDays = summary['present_days'] as int? ?? 0;
+    final absentDays = summary['absent_days'] as int? ?? 0;
+    final lateDays = summary['late_days'] as int? ?? 0;
+    final totalDays = summary['total_days'] as int? ?? 0;
+
+    // Calculate subject-wise attendance
+    final subjectWise = <Map<String, dynamic>>[];
+    final subjectMap = <String, Map<String, int>>{};
+    
+    for (final record in records) {
+      final subjectName = record.subjectName ?? 'General';
+      if (!subjectMap.containsKey(subjectName)) {
+        subjectMap[subjectName] = {'present': 0, 'total': 0};
+      }
+      if (record.status == 'present' || record.status == 'late') {
+        subjectMap[subjectName]!['present'] = (subjectMap[subjectName]!['present'] ?? 0) + 1;
+      }
+      subjectMap[subjectName]!['total'] = (subjectMap[subjectName]!['total'] ?? 0) + 1;
+    }
+    
+    for (final entry in subjectMap.entries) {
+      final present = entry.value['present'] ?? 0;
+      final total = entry.value['total'] ?? 0;
+      final pct = total > 0 ? (present / total * 100) : 0.0;
+      subjectWise.add({
+        'subject': entry.key,
+        'present': present,
+        'total': total,
+        'pct': pct,
+      });
+    }
+
+    // Sort by percentage (lowest first)
+    subjectWise.sort((a, b) => (a['pct'] as double).compareTo(b['pct'] as double));
+
+    // Calculate weekly trend (last 5 days)
+    final weekly = <int>[];
+    if (records.isNotEmpty) {
+      // Group records by date and calculate daily percentage
+      final dailyMap = <String, Map<String, int>>{};
+      for (final record in records) {
+        // Use a simple date grouping (in real app, would use actual dates)
+        final dayKey = 'Day ${weekly.length + 1}';
+        if (!dailyMap.containsKey(dayKey)) {
+          dailyMap[dayKey] = {'present': 0, 'total': 0};
+        }
+        if (record.status == 'present' || record.status == 'late') {
+          dailyMap[dayKey]!['present'] = (dailyMap[dayKey]!['present'] ?? 0) + 1;
+        }
+        dailyMap[dayKey]!['total'] = (dailyMap[dayKey]!['total'] ?? 0) + 1;
+      }
+      
+      // Take last 5 days or pad with zeros
+      final dailyValues = dailyMap.values.take(5).map((d) {
+        final present = d['present'] ?? 0;
+        final total = d['total'] ?? 0;
+        return total > 0 ? ((present / total) * 100).round() : 0;
+      }).toList();
+      
+      while (weekly.length < 5) {
+        if (weekly.length < dailyValues.length) {
+          weekly.add(dailyValues[weekly.length]);
+        } else {
+          weekly.add(overallPct.round());
+        }
+      }
+    } else {
+      weekly.addAll([0, 0, 0, 0, 0]);
+    }
+
+    final data = {
+      'overall_pct': overallPct.toDouble(),
+      'present_days': presentDays,
+      'absent_days': absentDays,
+      'late_days': lateDays,
+      'total_days': totalDays,
+      'subject_wise': subjectWise,
+      'weekly': weekly,
+    };
 
     return Scaffold(
       backgroundColor: const Color(0xFFEFF6FF),
@@ -124,7 +226,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                         width: 80,
                         height: 80,
                         child: CircularProgressIndicator(
-                          value: data['overall_pct'] / 100,
+                          value: ((data['overall_pct'] ?? 0) as num) / 100,
                           strokeWidth: 8,
                           backgroundColor: Colors.white24,
                           valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),

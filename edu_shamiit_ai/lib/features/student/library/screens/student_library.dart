@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentLibrary extends ConsumerStatefulWidget {
   const StudentLibrary({super.key});
@@ -14,52 +15,25 @@ class StudentLibrary extends ConsumerStatefulWidget {
 class _StudentLibraryState extends ConsumerState<StudentLibrary> {
   int _selectedTab = 0; // 0=My Books, 1=Browse, 2=Digital, 3=Request
 
-  final List<Map<String, dynamic>> _myBooks = [
-    {
-      'title': 'NCERT Physics Part II',
-      'author': 'By NCERT · Class XII',
-      'dueDate': 'April 5',
-      'status': 'on_time',
-      'icon': '📘',
-      'color': const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-    },
-    {
-      'title': 'H.C. Verma Vol.1',
-      'author': 'By H.C. Verma',
-      'dueDate': 'March 30',
-      'status': 'overdue_soon',
-      'icon': '📙',
-      'color': const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFF59E0B)]),
-    },
-    {
-      'title': 'R.D. Sharma Class X',
-      'author': 'By R.D. Sharma',
-      'dueDate': 'April 10',
-      'status': 'on_time',
-      'icon': '📗',
-      'color': const LinearGradient(colors: [Color(0xFF059669), Color(0xFF34D399)]),
-    },
-  ];
-
-  final List<Map<String, dynamic>> _browseBooks = [
-    {
-      'title': 'The Alchemist',
-      'author': 'Paulo Coelho · Fiction',
-      'status': 'Available (3 copies)',
-      'icon': '📕',
-      'color': const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFF97316)]),
-    },
-    {
-      'title': 'Wings of Fire',
-      'author': 'A.P.J. Abdul Kalam · Autobiography',
-      'status': 'Available (1 copy)',
-      'icon': '📗',
-      'color': const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(libraryProvider.notifier).fetchLibraryData();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final libraryState = ref.watch(libraryProvider);
+    final borrows = libraryState.borrows;
+    
+    // Calculate stats for header
+    final activeBorrows = borrows.where((b) => b.status == 'borrowed').length;
+    final overdueBooks = borrows.where((b) => 
+      b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && b.returnedAt == null
+    ).length;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF5FF),
       body: Column(
@@ -94,12 +68,12 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white15,
+                        color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        '🤖 Recommend',
-                        style: TextStyle(fontSize: 9, color: Colors.white70, fontWeight: FontWeight.w600),
+                      child: Text(
+                        '📚 $activeBorrows borrowed',
+                        style: const TextStyle(fontSize: 9, color: Colors.white70, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -147,10 +121,14 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               children: [
-                if (_selectedTab == 0) ..._buildMyBooksTab(),
-                if (_selectedTab == 1) ..._buildBrowseTab(),
-                if (_selectedTab == 2) ..._buildDigitalTab(),
-                if (_selectedTab == 3) ..._buildRequestTab(),
+                if (libraryState.isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else ...[
+                  if (_selectedTab == 0) ..._buildMyBooksTab(borrows),
+                  if (_selectedTab == 1) ..._buildBrowseTab(),
+                  if (_selectedTab == 2) ..._buildDigitalTab(),
+                  if (_selectedTab == 3) ..._buildRequestTab(),
+                ],
                 const SizedBox(height: 50),
               ],
             ),
@@ -186,9 +164,39 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     );
   }
 
-  List<Widget> _buildMyBooksTab() {
-    return _myBooks.map((book) {
-      final isOverdue = book['status'] == 'overdue_soon';
+  List<Widget> _buildMyBooksTab(List<LibraryBorrow> borrows) {
+    final myBorrows = borrows.where((b) => b.status == 'borrowed').toList();
+    
+    if (myBorrows.isEmpty) {
+      return [
+        Center(
+          child: Column(
+            children: [
+              const Icon(Icons.library_books, size: 64, color: StudentColors.text3),
+              const SizedBox(height: 16),
+              Text(
+                'No books borrowed',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: StudentColors.text3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('Browse the library to find books to borrow'),
+            ],
+          ),
+        ),
+      ];
+    }
+    
+    return myBorrows.map((borrow) {
+      final isOverdue = borrow.dueDate != null && borrow.dueDate!.isBefore(DateTime.now());
+      final dueDateStr = borrow.dueDate != null 
+          ? '${borrow.dueDate!.day}/${borrow.dueDate!.month}/${borrow.dueDate!.year}'
+          : 'No due date';
+      
       return Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
@@ -208,10 +216,12 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
               width: 50,
               height: 66,
               decoration: BoxDecoration(
-                gradient: book['color'] as Gradient,
+                gradient: isOverdue 
+                    ? const LinearGradient(colors: [Color(0xFFD97706), Color(0xFFF59E0B)])
+                    : const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Center(child: Text(book['icon']!, style: const TextStyle(fontSize: 22))),
+              child: Center(child: Text(isOverdue ? '⚠️' : '📖', style: const TextStyle(fontSize: 22))),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -219,7 +229,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    book['title']!,
+                    borrow.bookTitle,
                     style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 12,
@@ -228,7 +238,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    book['author']!,
+                    'By ${borrow.bookAuthor}',
                     style: const TextStyle(
                       fontSize: 10,
                       color: StudentColors.text3,
@@ -238,7 +248,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   Row(
                     children: [
                       Text(
-                        isOverdue ? '⚠️ Return by: ${book['dueDate']}' : 'Return by: ${book['dueDate']} ✅',
+                        isOverdue ? '⚠️ Due: $dueDateStr' : 'Due: $dueDateStr ✅',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -247,7 +257,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                       ),
                       const Spacer(),
                       ElevatedButton(
-                        onPressed: () => _showRenewDialog(book),
+                        onPressed: () => _showRenewDialog(borrow),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isOverdue ? StudentColors.warningBg : StudentColors.primaryLight,
                           foregroundColor: isOverdue ? StudentColors.warning : StudentColors.primary,
@@ -268,7 +278,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
   }
 
   List<Widget> _buildBrowseTab() {
-    return _browseBooks.map((book) {
+    // Sample browse books (would come from API in real app)
+    final browseBooks = [
+      {'title': 'The Alchemist', 'author': 'Paulo Coelho · Fiction', 'status': 'Available (3 copies)', 'icon': '📕', 'color': const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFF97316)])},
+      {'title': 'Wings of Fire', 'author': 'A.P.J. Abdul Kalam · Autobiography', 'status': 'Available (1 copy)', 'icon': '📗', 'color': const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)])},
+    ];
+    
+    return browseBooks.map((book) {
       return Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
@@ -291,7 +307,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 gradient: book['color'] as Gradient,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Center(child: Text(book['icon']!, style: const TextStyle(fontSize: 22))),
+              child: Center(child: Text(book['icon'] as String, style: const TextStyle(fontSize: 22))),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -299,7 +315,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    book['title']!,
+                    book['title'] as String,
                     style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 12,
@@ -308,7 +324,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    book['author']!,
+                    book['author'] as String,
                     style: const TextStyle(
                       fontSize: 10,
                       color: StudentColors.text3,
@@ -316,7 +332,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    book['status']!,
+                    book['status'] as String,
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -486,13 +502,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     );
   }
 
-  void _showRenewDialog(Map<String, dynamic> book) {
+  void _showRenewDialog(LibraryBorrow borrow) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('📗 Book Renewed!'),
-        content: Text('Your book "${book['title']}" has been renewed for 15 additional days.'),
+        content: Text('Your book "${borrow.bookTitle}" has been renewed for 15 additional days.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),

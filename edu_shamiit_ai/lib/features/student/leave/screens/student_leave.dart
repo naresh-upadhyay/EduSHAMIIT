@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentLeave extends ConsumerStatefulWidget {
   const StudentLeave({super.key});
@@ -18,36 +19,37 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
   DateTime? _startDate;
   DateTime? _endDate;
   final _reasonController = TextEditingController();
+  bool _isSubmitting = false;
 
-  final List<Map<String, dynamic>> _leaveHistory = [
-    {
-      'type': 'Family Event',
-      'start': DateTime(2025, 4, 12),
-      'end': DateTime(2025, 4, 14),
-      'reason': 'Attend my sister\'s wedding.',
-      'status': 'PENDING',
-      'icon': '✨',
-    },
-    {
-      'type': 'Sick Leave',
-      'start': DateTime(2025, 2, 8),
-      'end': DateTime(2025, 2, 9),
-      'reason': 'Suffering from viral fever.',
-      'status': 'APPROVED',
-      'icon': '🤒',
-    },
-    {
-      'type': 'Urgent Work',
-      'start': DateTime(2025, 1, 12),
-      'end': DateTime(2025, 1, 12),
-      'reason': 'Important family matter.',
-      'status': 'APPROVED',
-      'icon': '📦',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(leaveProvider.notifier).fetchLeaveApplications();
+    });
+  }
+
+  String _getLeaveIcon(String type) {
+    switch (type) {
+      case 'Sick Leave': return '🤒';
+      case 'Casual Leave': return '🏠';
+      case 'Urgent Work': return '📦';
+      case 'Family Event': return '✨';
+      default: return '📝';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final leaveState = ref.watch(leaveProvider);
+    final applications = leaveState.applications;
+    
+    // Calculate stats
+    final totalUsed = applications.length;
+    final pendingCount = applications.where((a) => a.status == 'pending').length;
+    final approvedCount = applications.where((a) => a.status == 'approved').length;
+    final balance = 15 - approvedCount; // Assuming 15 days quota
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       body: Column(
@@ -101,11 +103,11 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                     children: [
                       _buildStatItem('15', 'Total Quota', StudentColors.primary),
                       _buildDivider(),
-                      _buildStatItem('06', 'Used', StudentColors.success),
+                      _buildStatItem('${totalUsed.toString().padLeft(2, '0')}', 'Used', StudentColors.success),
                       _buildDivider(),
-                      _buildStatItem('01', 'Pending', StudentColors.warning),
+                      _buildStatItem('${pendingCount.toString().padLeft(2, '0')}', 'Pending', StudentColors.warning),
                       _buildDivider(),
-                      _buildStatItem('08', 'Balance', StudentColors.primary),
+                      _buildStatItem('${balance.toString().padLeft(2, '0')}', 'Balance', StudentColors.primary),
                     ],
                   ),
                 ),
@@ -336,7 +338,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                             width: double.infinity,
                             height: 48,
                             child: ElevatedButton(
-                              onPressed: _submitLeave,
+                              onPressed: _isSubmitting ? null : _submitLeave,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: StudentColors.primary,
                                 foregroundColor: Colors.white,
@@ -344,14 +346,23 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
-                              child: const Text(
-                                '✨ Apply for Leave',
-                                style: TextStyle(
-                                  fontFamily: AppFonts.heading,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : const Text(
+                                      '✨ Apply for Leave',
+                                      style: TextStyle(
+                                        fontFamily: AppFonts.heading,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                             ),
                           ),
                         ],
@@ -361,16 +372,25 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
 
                   const SizedBox(height: 16),
 
-                  // Upcoming Leave Cards
-                  ..._leaveHistory.where((l) => l['status'] == 'PENDING').map((leave) => _buildLeaveCard(leave)),
+                  // Show loading or leave cards
+                  if (leaveState.isLoading && applications.isEmpty)
+                    const Center(child: CircularProgressIndicator())
+                  else ...[
+                    // Pending Leave Cards
+                    ...applications.where((l) => l.status == 'pending').map((leave) => _buildLeaveCardFromModel(leave)),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Approved Leaves (also shown in upcoming tab)
-                  ..._leaveHistory.where((l) => l['status'] == 'APPROVED').map((leave) => _buildLeaveCard(leave)),
+                    // Approved Leaves
+                    ...applications.where((l) => l.status == 'approved').map((leave) => _buildLeaveCardFromModel(leave)),
+                  ],
                 ] else ...[
                   // Past Leaves Tab
-                  ..._buildPastLeaveCards(),
+                  if (leaveState.isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else ...[
+                    ...applications.where((l) => l.status == 'rejected' || l.status == 'cancelled').map((leave) => _buildLeaveCardFromModel(leave)),
+                  ],
                 ],
               ],
             ),
@@ -437,9 +457,10 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
     );
   }
 
-  Widget _buildLeaveCard(Map<String, dynamic> leave) {
-    final isPending = leave['status'] == 'PENDING';
-    final isApproved = leave['status'] == 'APPROVED';
+  Widget _buildLeaveCardFromModel(LeaveApplication leave) {
+    final isPending = leave.status == 'pending';
+    final isApproved = leave.status == 'approved';
+    final icon = _getLeaveIcon(leave.leaveType);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -468,7 +489,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                   color: isPending ? StudentColors.primaryLight : isApproved ? StudentColors.successBg : StudentColors.errorBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Center(child: Text(leave['icon'], style: const TextStyle(fontSize: 20))),
+                child: Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -476,7 +497,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      leave['type'],
+                      leave.leaveType,
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 12,
@@ -485,7 +506,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${leave['start'].day}/${leave['start'].month}/${leave['start'].year} – ${leave['end'].day}/${leave['end'].month}/${leave['end'].year}',
+                      '${leave.startDate} – ${leave.endDate}',
                       style: const TextStyle(
                         fontSize: 10,
                         color: StudentColors.text3,
@@ -501,7 +522,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  leave['status'],
+                  leave.status.toUpperCase(),
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
@@ -511,7 +532,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
               ),
             ],
           ),
-          if (!isPending) ...[
+          if (isApproved) ...[
             const SizedBox(height: 8),
             const Divider(height: 1),
             const SizedBox(height: 8),
@@ -519,7 +540,9 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: () => _editLeave(leave),
+                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Edit feature coming soon')),
+                    ),
                     style: TextButton.styleFrom(
                       backgroundColor: StudentColors.border,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -530,7 +553,9 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextButton(
-                    onPressed: () => _cancelLeave(leave),
+                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Cancel feature coming soon')),
+                    ),
                     style: TextButton.styleFrom(
                       backgroundColor: StudentColors.errorBg,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -546,80 +571,6 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
     );
   }
 
-  List<Widget> _buildPastLeaveCards() {
-    return [
-      _buildSimplePastCard('🤒', 'Medical Leave', 'Dec 15, 2024 • 1 day', 'COMPLETED'),
-      _buildSimplePastCard('🏠', 'Casual Leave', 'Nov 20 – Nov 22, 2024 • 3 days', 'COMPLETED'),
-      _buildSimplePastCard('📦', 'Urgent Work', 'Oct 5, 2024 • 1 day', 'REJECTED'),
-    ];
-  }
-
-  Widget _buildSimplePastCard(String icon, String type, String date, String status) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-          ),
-        ],
-        border: Border.all(color: StudentColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: StudentColors.border,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  type,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  date,
-                  style: const TextStyle(fontSize: 10, color: StudentColors.text3),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: StudentColors.border,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              status,
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: StudentColors.text3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _selectDate(bool isStart) async {
     final picked = await showDatePicker(
@@ -639,7 +590,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
     }
   }
 
-  void _submitLeave() {
+  Future<void> _submitLeave() async {
     if (_formKey.currentState!.validate()) {
       if (_startDate == null || _endDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -648,91 +599,48 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
         return;
       }
 
-      // Add new leave to history
-      setState(() {
-        _leaveHistory.insert(0, {
-          'type': _selectedLeaveType,
-          'start': _startDate!,
-          'end': _endDate!,
-          'reason': _reasonController.text,
-          'status': 'PENDING',
-          'icon': _getLeaveIcon(_selectedLeaveType),
-        });
-      });
+      setState(() => _isSubmitting = true);
 
-      // Show success dialog
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('✨ Leave Applied!'),
-          content: const Text('Your leave request has been submitted to your Class Teacher. You\'ll be notified once approved.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                context.pop(); // Go back to dashboard
-              },
-              child: const Text('Back to Home'),
-            ),
-          ],
-        ),
+      final success = await ref.read(leaveProvider.notifier).submitLeaveApplication(
+        type: _selectedLeaveType,
+        startDate: '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}',
+        endDate: '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}',
+        reason: _reasonController.text,
       );
 
-      _reasonController.clear();
-      setState(() {
-        _startDate = null;
-        _endDate = null;
-      });
-    }
-  }
+      setState(() => _isSubmitting = false);
 
-  String _getLeaveIcon(String type) {
-    switch (type) {
-      case 'Sick Leave': return '🤒';
-      case 'Casual Leave': return '🏠';
-      case 'Urgent Work': return '📦';
-      case 'Family Event': return '✨';
-      default: return '📝';
-    }
-  }
-
-  void _editLeave(Map<String, dynamic> leave) {
-    setState(() {
-      _selectedLeaveType = leave['type'];
-      _startDate = leave['start'];
-      _endDate = leave['end'];
-      _reasonController.text = leave['reason'];
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit the form above and submit to update')),
-    );
-  }
-
-  void _cancelLeave(Map<String, dynamic> leave) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancel Leave?'),
-        content: const Text('Are you sure you want to cancel this leave request?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('No'),
+      if (success && mounted) {
+        // Show success dialog
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('✨ Leave Applied!'),
+            content: const Text('Your leave request has been submitted to your Class Teacher. You\'ll be notified once approved.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.pop(); // Go back to dashboard
+                },
+                child: const Text('Back to Home'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                leave['status'] = 'CANCELLED';
-              });
-            },
-            child: const Text('Yes, Cancel', style: TextStyle(color: StudentColors.error)),
-          ),
-        ],
-      ),
-    );
+        );
+
+        _reasonController.clear();
+        setState(() {
+          _startDate = null;
+          _endDate = null;
+        });
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to submit leave application. Please try again.')),
+        );
+      }
+    }
   }
 
   @override

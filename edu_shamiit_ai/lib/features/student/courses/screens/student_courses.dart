@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/courses_provider.dart';
 
 class StudentCourses extends ConsumerStatefulWidget {
   const StudentCourses({super.key});
@@ -12,51 +13,10 @@ class StudentCourses extends ConsumerStatefulWidget {
 }
 
 class _StudentCoursesState extends ConsumerState<StudentCourses> {
-  final List<Map<String, dynamic>> _courses = [
-    {
-      'name': 'Mathematics',
-      'teacher': 'Mr. R. Sharma',
-      'chapters': '42 chapters',
-      'score': '95%',
-      'progress': 0.78,
-      'icon': '📐',
-      'color': const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-      'accentColor': StudentColors.primary,
-    },
-    {
-      'name': 'Physics',
-      'teacher': 'Dr. A. Verma',
-      'chapters': '38 chapters',
-      'score': '89%',
-      'progress': 0.72,
-      'icon': '⚛️',
-      'color': const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)]),
-      'accentColor': StudentColors.info,
-    },
-    {
-      'name': 'Chemistry',
-      'teacher': 'Dr. S. Mehta',
-      'chapters': '35 chapters',
-      'score': '91%',
-      'progress': 0.80,
-      'icon': '⚗️',
-      'color': const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFFCD34D)]),
-      'accentColor': StudentColors.warning,
-    },
-    {
-      'name': 'English',
-      'teacher': 'Ms. P. Gupta',
-      'chapters': '28 chapters',
-      'score': '92%',
-      'progress': 0.85,
-      'icon': '📖',
-      'color': const LinearGradient(colors: [Color(0xFF059669), Color(0xFF34D399)]),
-      'accentColor': StudentColors.success,
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final coursesState = ref.watch(coursesProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       body: Column(
@@ -89,12 +49,12 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white15,
+                    color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    '6 Subjects',
-                    style: TextStyle(fontSize: 10, color: Colors.white60, fontWeight: FontWeight.w600),
+                  child: Text(
+                    '${coursesState.courses.length} Subjects',
+                    style: const TextStyle(fontSize: 10, color: Colors.white60, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -102,17 +62,23 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: _courses.map((course) => _buildCourseCard(course)).toList(),
-            ),
+            child: coursesState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : coursesState.error != null
+                    ? Center(child: Text('Error: ${coursesState.error}'))
+                    : coursesState.courses.isEmpty
+                        ? const Center(child: Text('No courses available'))
+                        : ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: coursesState.courses.map((course) => _buildCourseCard(course)).toList(),
+                          ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCourseCard(Map<String, dynamic> course) {
+  Widget _buildCourseCard(CourseModel course) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -134,10 +100,10 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  gradient: course['color'] as Gradient,
+                  gradient: course.color,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Center(child: Text(course['icon']!, style: const TextStyle(fontSize: 18))),
+                child: Center(child: Text(course.icon, style: const TextStyle(fontSize: 18))),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -145,7 +111,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      course['name']!,
+                      course.name,
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 13,
@@ -154,7 +120,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${course['teacher']} · ${course['chapters']}',
+                      '${course.teacher} · ${course.chapters}',
                       style: const TextStyle(
                         fontSize: 10,
                         color: StudentColors.text3,
@@ -164,12 +130,12 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 ),
               ),
               Text(
-                course['score']!,
+                course.score,
                 style: TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: course['accentColor'] as Color,
+                  color: course.accentColor,
                 ),
               ),
             ],
@@ -179,9 +145,9 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
-              value: course['progress'] as double,
+              value: course.progress,
               backgroundColor: StudentColors.border,
-              valueColor: AlwaysStoppedAnimation(course['color'] as Color),
+              valueColor: AlwaysStoppedAnimation(course.accentColor),
               minHeight: 4,
             ),
           ),
@@ -189,7 +155,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
           Row(
             children: [
               Text(
-                '${(course['progress'] as double * 100).toInt()}% syllabus completed',
+                '${(course.progress * 100).toInt()}% syllabus completed',
                 style: const TextStyle(
                   fontSize: 9,
                   color: StudentColors.text3,
@@ -199,7 +165,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
               ElevatedButton(
                 onPressed: () => _showCourseDetail(course),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: course['accentColor'] as Color,
+                  backgroundColor: course.accentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -213,7 +179,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
     );
   }
 
-  void _showCourseDetail(Map<String, dynamic> course) {
+  void _showCourseDetail(CourseModel course) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -247,10 +213,10 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      gradient: course['color'] as Gradient,
+                      gradient: course.color,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Center(child: Text(course['icon']!, style: const TextStyle(fontSize: 22))),
+                    child: Center(child: Text(course.icon, style: const TextStyle(fontSize: 22))),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -258,7 +224,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          course['name']!,
+                          course.name,
                           style: const TextStyle(
                             fontFamily: AppFonts.heading,
                             fontSize: 18,
@@ -266,19 +232,19 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                           ),
                         ),
                         Text(
-                          '${course['teacher']} · ${course['chapters']}',
+                          '${course.teacher} · ${course.chapters}',
                           style: const TextStyle(fontSize: 11, color: StudentColors.text3),
                         ),
                       ],
                     ),
                   ),
                   Text(
-                    course['score']!,
+                    course.score,
                     style: TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
-                      color: course['accentColor'] as Color,
+                      color: course.accentColor,
                     ),
                   ),
                 ],
@@ -288,15 +254,15 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
-                  value: course['progress'] as double,
+                  value: course.progress,
                   backgroundColor: StudentColors.border,
-                  valueColor: AlwaysStoppedAnimation(course['color'] as Color),
+                  valueColor: AlwaysStoppedAnimation(course.accentColor),
                   minHeight: 6,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                '${(course['progress'] as double * 100).toInt()}% syllabus completed',
+                '${(course.progress * 100).toInt()}% syllabus completed',
                 style: const TextStyle(fontSize: 11, color: StudentColors.text3),
               ),
               const SizedBox(height: 20),
@@ -309,6 +275,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 ),
               ),
               const SizedBox(height: 12),
+              // Sample coverage items (would come from API in real implementation)
               _buildCoverageItem('Algebra', 1.0, StudentColors.success),
               _buildCoverageItem('Trigonometry', 1.0, StudentColors.success),
               _buildCoverageItem('Coordinate Geometry', 0.9, StudentColors.success),
@@ -333,11 +300,14 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('🎥 Starting video lecture...')),
-                    );
+                    final success = await ref.read(coursesProvider.notifier).startLearning(course.id);
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('🎥 Starting video lecture...')),
+                      );
+                    }
                   },
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('▶ Start Learning', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),

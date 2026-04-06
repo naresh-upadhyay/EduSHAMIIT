@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentMessaging extends ConsumerStatefulWidget {
   const StudentMessaging({super.key});
@@ -14,61 +15,44 @@ class StudentMessaging extends ConsumerStatefulWidget {
 class _StudentMessagingState extends ConsumerState<StudentMessaging> {
   int _selectedCategory = 0; // 0=All, 1=Teachers, 2=Students, 3=Groups
 
-  final List<Map<String, dynamic>> _chats = [
-    {
-      'icon': '👨‍🏫',
-      'name': 'Mr. R. Sharma',
-      'role': 'Mathematics Teacher',
-      'lastMessage': 'Sure, I\'ll cover integration by parts...',
-      'time': '3:25 PM',
-      'unread': 2,
-      'status': 'Online',
-      'gradient': const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-    },
-    {
-      'icon': '🎓',
-      'name': 'Principal Mrs. Verma',
-      'role': 'School Principal',
-      'lastMessage': 'Thank you for the report, Arjun.',
-      'time': 'Yesterday',
-      'unread': 0,
-      'status': 'Last seen 1h ago',
-      'gradient': const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFFDB2777)]),
-    },
-    {
-      'icon': '⚛️',
-      'name': 'Dr. A. Verma',
-      'role': 'Physics Teacher',
-      'lastMessage': 'The Optics practicals are rescheduled to...',
-      'time': 'Mon',
-      'unread': 0,
-      'status': 'Online',
-      'gradient': const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
-    },
-    {
-      'icon': '👤',
-      'name': 'Sneha Patel',
-      'role': 'Classmate · X-A',
-      'lastMessage': 'Did you complete the Chemistry assignment?',
-      'time': 'Sun',
-      'unread': 0,
-      'status': 'Online',
-      'gradient': const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFF97316)]),
-    },
-    {
-      'icon': '👥',
-      'name': 'Study Group — Physics',
-      'role': '8 members · 5 online',
-      'lastMessage': 'Vikram: Sharing my Optics notes here',
-      'time': 'Sat',
-      'unread': 5,
-      'status': '',
-      'gradient': const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)]),
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(messagingProvider.notifier).fetchMessages();
+    });
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+    
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dateTime.day}/${dateTime.month}';
+  }
+
+  Gradient _getGradientForSender(String senderId) {
+    // Generate consistent gradient based on sender ID
+    final hash = senderId.hashCode;
+    final gradients = [
+      const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
+      const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFFDB2777)]),
+      const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
+      const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFF97316)]),
+      const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)]),
+    ];
+    return gradients[hash.abs() % gradients.length];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final messagingState = ref.watch(messagingProvider);
+    final messages = messagingState.messages;
+    final unreadCount = messagingState.unreadCount;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
@@ -144,13 +128,34 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
 
           // Chat list
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(14),
-              itemCount: _chats.length,
-              itemBuilder: (context, index) {
-                return _buildChatTile(_chats[index]);
-              },
-            ),
+            child: messagingState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : messages.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.chat_bubble_outline, size: 64, color: StudentColors.text3),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No messages yet',
+                              style: TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: StudentColors.text3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(14),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          return _buildChatTile(messages[index]);
+                        },
+                      ),
           ),
         ],
       ),
@@ -177,9 +182,14 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
     );
   }
 
-  Widget _buildChatTile(Map<String, dynamic> chat) {
+  Widget _buildChatTile(MessageItem message) {
+    final gradient = _getGradientForSender(message.senderId);
+    final initial = message.senderName?.isNotEmpty == true 
+        ? message.senderName![0].toUpperCase() 
+        : 'U';
+    
     return GestureDetector(
-      onTap: () => _openChat(chat),
+      onTap: () => _openChat(message),
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
         padding: const EdgeInsets.all(12),
@@ -201,12 +211,12 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    gradient: chat['gradient'] as Gradient,
-                    borderRadius: BorderRadius.circular(50%),
+                    gradient: gradient,
+                    borderRadius: BorderRadius.circular(50),
                   ),
-                  child: Center(child: Text(chat['icon'], style: const TextStyle(fontSize: 18))),
+                  child: Center(child: Text(initial, style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold))),
                 ),
-                if (chat['status'] == 'Online')
+                if (!message.isRead)
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -214,7 +224,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                       width: 10,
                       height: 10,
                       decoration: const BoxDecoration(
-                        color: StudentColors.success,
+                        color: StudentColors.primary,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -227,7 +237,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    chat['name']!,
+                    message.senderName ?? 'Unknown User',
                     style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 13,
@@ -236,7 +246,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    chat['lastMessage']!,
+                    message.content,
                     style: const TextStyle(
                       fontSize: 10,
                       color: StudentColors.text3,
@@ -251,13 +261,13 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  chat['time']!,
+                  _formatTime(message.createdAt),
                   style: const TextStyle(
                     fontSize: 9,
                     color: StudentColors.text3,
                   ),
                 ),
-                if (chat['unread'] > 0) ...[
+                if (!message.isRead) ...[
                   const SizedBox(height: 4),
                   Container(
                     width: 18,
@@ -266,15 +276,8 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                       color: StudentColors.primary,
                       shape: BoxShape.circle,
                     ),
-                    child: Center(
-                      child: Text(
-                        '${chat['unread']}',
-                        style: const TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
+                    child: const Center(
+                      child: Icon(Icons.circle, size: 8, color: Colors.white),
                     ),
                   ),
                 ],
@@ -286,11 +289,14 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
     );
   }
 
-  void _openChat(Map<String, dynamic> chat) {
+  void _openChat(MessageItem message) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _ChatDetailScreen(chatData: chat),
+        builder: (context) => _ChatDetailScreen(
+          senderName: message.senderName ?? 'Unknown',
+          senderId: message.senderId,
+        ),
       ),
     );
   }
@@ -340,9 +346,10 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
 
 // Chat Detail Screen
 class _ChatDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> chatData;
+  final String senderName;
+  final String senderId;
 
-  const _ChatDetailScreen({required this.chatData});
+  const _ChatDetailScreen({required this.senderName, required this.senderId});
 
   @override
   State<_ChatDetailScreen> createState() => _ChatDetailScreenState();
@@ -350,24 +357,26 @@ class _ChatDetailScreen extends StatefulWidget {
 
 class _ChatDetailScreenState extends State<_ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [
+  
+  // Sample messages for demo (would be fetched from API in real app)
+  final List<Map<String, dynamic>> _sampleMessages = [
     {
-      'text': 'Hello Arjun! This is Mr. R. Sharma. How can I assist you with your studies today?',
+      'text': 'Hello! How can I assist you with your studies today?',
       'isMe': false,
       'time': '9:00 AM',
     },
     {
-      'text': 'Sir, can you explain integration by parts one more time?',
+      'text': 'Can you explain integration by parts one more time?',
       'isMe': true,
       'time': '3:20 PM',
     },
     {
-      'text': 'Sure Arjun! The formula is ∫u·dv = uv - ∫v·du. Pick u as the function that simplifies when differentiated. I will cover it again tomorrow in the Live Class.',
+      'text': 'Sure! The formula is ∫u·dv = uv - ∫v·du. Pick u as the function that simplifies when differentiated.',
       'isMe': false,
       'time': '3:25 PM',
     },
     {
-      'text': 'Thank you sir! 🙏',
+      'text': 'Thank you! 🙏',
       'isMe': true,
       'time': '3:26 PM',
     },
@@ -389,10 +398,10 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                gradient: widget.chatData['gradient'] as Gradient,
+                color: Colors.white24,
                 shape: BoxShape.circle,
               ),
-              child: Center(child: Text(widget.chatData['icon'], style: const TextStyle(fontSize: 16))),
+              child: Center(child: Text(widget.senderName[0], style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold))),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -400,7 +409,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.chatData['name']!,
+                    widget.senderName,
                     style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 13,
@@ -408,9 +417,9 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
                       color: Colors.white,
                     ),
                   ),
-                  Text(
-                    widget.chatData['status']!,
-                    style: const TextStyle(fontSize: 10, color: Colors.white70),
+                  const Text(
+                    'Online',
+                    style: TextStyle(fontSize: 10, color: Colors.white70),
                   ),
                 ],
               ),
@@ -433,9 +442,9 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(14),
-              itemCount: _messages.length,
+              itemCount: _sampleMessages.length,
               itemBuilder: (context, index) {
-                return _buildMessageBubble(_messages[index]);
+                return _buildMessageBubble(_sampleMessages[index]);
               },
             ),
           ),
@@ -548,13 +557,16 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
   void _sendMessage(String text) {
     if (text.trim().isEmpty) return;
     setState(() {
-      _messages.add({
+      _sampleMessages.add({
         'text': text,
         'isMe': true,
         'time': 'Just now',
       });
       _messageController.clear();
     });
+    
+    // In real app, would call:
+    // ref.read(messagingProvider.notifier).sendMessage(text, widget.senderId);
   }
 
   @override

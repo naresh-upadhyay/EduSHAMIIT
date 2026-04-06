@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentNotifications extends ConsumerStatefulWidget {
   const StudentNotifications({super.key});
@@ -12,56 +13,65 @@ class StudentNotifications extends ConsumerStatefulWidget {
 }
 
 class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
-  final List<Map<String, dynamic>> _notifications = [
-    {
-      'icon': '📝',
-      'title': 'Homework Due Today!',
-      'message': 'Integration Practice Set due at 5 PM',
-      'time': '2 mins ago',
-      'color': StudentColors.error,
-      'bgColor': StudentColors.errorBg,
-      'unread': true,
-    },
-    {
-      'icon': '💳',
-      'title': 'Fee Reminder',
-      'message': '₹12,500 due by April 5',
-      'time': '1 hour ago',
-      'color': StudentColors.warning,
-      'bgColor': StudentColors.warningBg,
-      'unread': true,
-    },
-    {
-      'icon': '📊',
-      'title': 'Results Published!',
-      'message': 'Term 2 results are now available',
-      'time': '3 hours ago',
-      'color': StudentColors.primary,
-      'bgColor': StudentColors.primaryLight,
-      'unread': false,
-    },
-    {
-      'icon': '🚌',
-      'title': 'Bus Update',
-      'message': 'Bus Route 7B will arrive 5 min late today',
-      'time': 'Today, 2:30 PM',
-      'color': StudentColors.info,
-      'bgColor': StudentColors.infoBg,
-      'unread': false,
-    },
-    {
-      'icon': '🏆',
-      'title': 'Achievement Unlocked!',
-      'message': 'You earned the "Academic Excellence" badge',
-      'time': 'Yesterday',
-      'color': StudentColors.success,
-      'bgColor': StudentColors.successBg,
-      'unread': false,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(notificationsProvider.notifier).fetchNotifications();
+    });
+  }
+
+  Color _getColorForType(String type) {
+    switch (type) {
+      case 'homework':
+        return StudentColors.error;
+      case 'fee':
+        return StudentColors.warning;
+      case 'result':
+        return StudentColors.primary;
+      case 'transport':
+        return StudentColors.info;
+      case 'achievement':
+        return StudentColors.success;
+      default:
+        return StudentColors.primary;
+    }
+  }
+
+  String _getIconForType(String type) {
+    switch (type) {
+      case 'homework':
+        return '📝';
+      case 'fee':
+        return '💳';
+      case 'result':
+        return '📊';
+      case 'transport':
+        return '🚌';
+      case 'achievement':
+        return '🏆';
+      default:
+        return '📢';
+    }
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+    
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} mins ago';
+    if (diff.inHours < 24) return '${diff.inHours} hours ago';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final notificationsState = ref.watch(notificationsProvider);
+    final notifications = notificationsState.notifications;
+    final unreadCount = notificationsState.unreadCount;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FF),
       body: Column(
@@ -93,15 +103,14 @@ class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
                 const Spacer(),
                 TextButton(
                   onPressed: () {
-                    setState(() {
-                      for (var n in _notifications) {
-                        n['unread'] = false;
-                      }
-                    });
+                    // Mark all as read
+                    for (final notif in notifications.where((n) => !n.isRead)) {
+                      ref.read(notificationsProvider.notifier).markAsRead(notif.id);
+                    }
                   },
-                  child: const Text(
-                    'Mark all read',
-                    style: TextStyle(
+                  child: Text(
+                    unreadCount > 0 ? 'Mark all read ($unreadCount)' : 'All read',
+                    style: const TextStyle(
                       fontSize: 10,
                       color: Colors.white60,
                       fontWeight: FontWeight.w600,
@@ -113,93 +122,134 @@ class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
           ),
 
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _notifications.length,
-              itemBuilder: (context, index) {
-                final notif = _notifications[index];
-                return _buildNotificationCard(notif);
-              },
-            ),
+            child: notificationsState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : notifications.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.notifications_none, size: 64, color: StudentColors.text3),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No notifications',
+                              style: TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: StudentColors.text3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: notifications.length,
+                        itemBuilder: (context, index) {
+                          final notif = notifications[index];
+                          return _buildNotificationCard(notif);
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNotificationCard(Map<String, dynamic> notif) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-          ),
-        ],
-        border: Border(
-          left: BorderSide(
-            color: notif['unread'] as bool? ?? false ? notif['color'] as Color : Colors.transparent,
-            width: 3,
+  Widget _buildNotificationCard(NotificationItem notif) {
+    final color = _getColorForType(notif.type);
+    final icon = _getIconForType(notif.type);
+    final bgColor = color.withOpacity(0.1);
+    
+    return Dismissible(
+      key: Key(notif.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: StudentColors.primary,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.done, color: Colors.white),
+      ),
+      onDismissed: (_) {
+        ref.read(notificationsProvider.notifier).markAsRead(notif.id);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: StudentColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+            ),
+          ],
+          border: Border(
+            left: BorderSide(
+              color: notif.isRead ? Colors.transparent : color,
+              width: 3,
+            ),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: notif['bgColor'] as Color,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(child: Text(notif['icon']!, style: const TextStyle(fontSize: 16))),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  notif['title']!,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  notif['message']!,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: StudentColors.text3,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  notif['time']!,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: StudentColors.text3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (notif['unread'] as bool? ?? false)
+        child: Row(
+          children: [
             Container(
-              width: 8,
-              height: 8,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: notif['color'] as Color,
-                shape: BoxShape.circle,
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(child: Text(icon, style: const TextStyle(fontSize: 16))),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notif.title,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    notif.message,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: StudentColors.text3,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _formatTime(notif.createdAt),
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: StudentColors.text3,
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+            if (!notif.isRead)
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

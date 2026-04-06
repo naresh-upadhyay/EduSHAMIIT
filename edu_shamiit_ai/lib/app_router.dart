@@ -14,7 +14,7 @@ import 'package:edu_shamiit_ai/features/student/results/screens/student_results.
 import 'package:edu_shamiit_ai/features/student/homework/screens/student_homework.dart';
 import 'package:edu_shamiit_ai/features/student/attendance/screens/student_attendance.dart';
 import 'package:edu_shamiit_ai/features/student/fees/screens/student_fees.dart';
-import 'package:edu_shamiit_ai/features/student/leave/screens/student_leave_application.dart';
+import 'package:edu_shamiit_ai/features/student/leave/screens/student_leave.dart';
 import 'package:edu_shamiit_ai/features/student/profile/screens/student_profile.dart';
 import 'package:edu_shamiit_ai/features/student/library/screens/student_library.dart';
 import 'package:edu_shamiit_ai/features/student/courses/screens/student_courses.dart';
@@ -69,7 +69,7 @@ final goRouter = GoRouter(
     ),
     GoRoute(
       path: '/ai-chat',
-      builder: (_, __) => const AIChatScreen(),
+      builder: (_, __) => const AiChatScreen(),
     ),
 
     // STUDENT ROUTES
@@ -127,7 +127,7 @@ final goRouter = GoRouter(
     ),
     GoRoute(
       path: '/student/leave-application',
-      builder: (_, __) => const StudentLeaveApplication(),
+      builder: (_, __) => const StudentLeave(),
     ),
     GoRoute(
       path: '/student/library',

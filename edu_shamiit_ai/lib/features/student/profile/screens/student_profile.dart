@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/profile_provider.dart';
 
 class StudentProfile extends ConsumerStatefulWidget {
   const StudentProfile({super.key});
@@ -12,43 +13,10 @@ class StudentProfile extends ConsumerStatefulWidget {
 }
 
 class _StudentProfileState extends ConsumerState<StudentProfile> {
-  final Map<String, dynamic> _studentData = {
-    'name': 'Arjun Kumar',
-    'class': 'X-A',
-    'rollNo': '18',
-    'session': '2024–25',
-    'avgScore': '91.4%',
-    'attendance': '94%',
-    'rank': '3rd',
-    'badges': '18',
-    'gender': 'Male',
-    'dob': 'October 12, 2009',
-    'bloodGroup': 'O+ (Positive)',
-    'email': 'arjun.kumar@eduverse.in',
-    'phone': '+91-9876543210',
-    'admissionNo': 'EV/2024/1082',
-    'nationality': 'Indian',
-    'religion': 'Hindu',
-    'category': 'General',
-    'address': '42, Rajpur Road, Dehradun',
-    'house': '🔵 Blue House',
-    'fatherName': 'Rajesh Kumar',
-    'fatherOccupation': 'Senior Manager, SBI',
-    'fatherPhone': '+91-9876543210',
-    'motherName': 'Sunita Kumar',
-    'motherOccupation': 'Teacher, DPS School',
-    'motherPhone': '+91-9876543211',
-  };
-
-  final List<Map<String, dynamic>> _documents = [
-    {'name': 'Birth Certificate', 'status': '✅ Verified'},
-    {'name': 'Aadhaar Card', 'status': '✅ Verified'},
-    {'name': 'Previous Marksheet', 'status': '✅ Verified'},
-    {'name': 'Domicile Certificate', 'status': '⏳ Pending Upload'},
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final profileState = ref.watch(profileProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FF),
       body: Column(
@@ -104,7 +72,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _studentData['name']!,
+                  profileState.profile?.name ?? 'Loading...',
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 18,
@@ -114,7 +82,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Class ${_studentData['class']} · Roll No. ${_studentData['rollNo']} · Session ${_studentData['session']}',
+                  'Class ${profileState.profile?.className ?? ''} · Roll No. ${profileState.profile?.rollNo ?? ''} · Session ${profileState.profile?.session ?? ''}',
                   style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white54,
@@ -124,10 +92,10 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                 // Stats Row
                 Row(
                   children: [
-                    _buildStatItem(_studentData['avgScore']!, 'Avg Score'),
-                    _buildStatItem(_studentData['attendance']!, 'Attend.'),
-                    _buildStatItem(_studentData['rank']!, 'Rank'),
-                    _buildStatItem(_studentData['badges']!, 'Badges'),
+                    _buildStatItem(profileState.profile?.avgScore ?? '-', 'Avg Score'),
+                    _buildStatItem(profileState.profile?.attendance ?? '-', 'Attend.'),
+                    _buildStatItem(profileState.profile?.rank ?? '-', 'Rank'),
+                    _buildStatItem(profileState.profile?.badges ?? '-', 'Badges'),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -136,50 +104,54 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildSectionTitle('Personal Info'),
-                _buildInfoCard([
-                  ['Gender', _studentData['gender']!],
-                  ['Date of Birth', _studentData['dob']!],
-                  ['Blood Group', _studentData['bloodGroup']!],
-                  ['Email', _studentData['email']!],
-                  ['Phone', _studentData['phone']!],
-                  ['Admission No.', _studentData['admissionNo']!],
-                  ['Nationality', _studentData['nationality']!],
-                  ['Religion', _studentData['religion']!],
-                  ['Category', _studentData['category']!],
-                  ['Address', _studentData['address']!],
-                  ['House', _studentData['house']!],
-                ]),
+            child: profileState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : profileState.error != null
+                    ? Center(child: Text('Error: ${profileState.error}'))
+                    : ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          _buildSectionTitle('Personal Info'),
+                          _buildInfoCard([
+                            ['Gender', profileState.profile?.gender ?? '-'],
+                            ['Date of Birth', profileState.profile?.dob ?? '-'],
+                            ['Blood Group', profileState.profile?.bloodGroup ?? '-'],
+                            ['Email', profileState.profile?.email ?? '-'],
+                            ['Phone', profileState.profile?.phone ?? '-'],
+                            ['Admission No.', profileState.profile?.admissionNo ?? '-'],
+                            ['Nationality', profileState.profile?.nationality ?? '-'],
+                            ['Religion', profileState.profile?.religion ?? '-'],
+                            ['Category', profileState.profile?.category ?? '-'],
+                            ['Address', profileState.profile?.address ?? '-'],
+                            ['House', profileState.profile?.house ?? '-'],
+                          ]),
 
-                const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                _buildSectionTitle('Father/Guardian'),
-                _buildInfoCard([
-                  ['Name', _studentData['fatherName']!],
-                  ['Occupation', _studentData['fatherOccupation']!],
-                  ['Phone', _studentData['fatherPhone']!],
-                ]),
+                          _buildSectionTitle('Father/Guardian'),
+                          _buildInfoCard([
+                            ['Name', profileState.profile?.fatherName ?? '-'],
+                            ['Occupation', profileState.profile?.fatherOccupation ?? '-'],
+                            ['Phone', profileState.profile?.fatherPhone ?? '-'],
+                          ]),
 
-                const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                _buildSectionTitle('Mother'),
-                _buildInfoCard([
-                  ['Name', _studentData['motherName']!],
-                  ['Occupation', _studentData['motherOccupation']!],
-                  ['Phone', _studentData['motherPhone']!],
-                ]),
+                          _buildSectionTitle('Mother'),
+                          _buildInfoCard([
+                            ['Name', profileState.profile?.motherName ?? '-'],
+                            ['Occupation', profileState.profile?.motherOccupation ?? '-'],
+                            ['Phone', profileState.profile?.motherPhone ?? '-'],
+                          ]),
 
-                const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                _buildSectionTitle('📎 Documents'),
-                _buildDocumentsCard(),
+                          _buildSectionTitle('📎 Documents'),
+                          _buildDocumentsCard(profileState.profile?.documents ?? []),
 
-                const SizedBox(height: 50),
-              ],
-            ),
+                          const SizedBox(height: 50),
+                        ],
+                      ),
           ),
         ],
       ),
@@ -284,7 +256,18 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
     );
   }
 
-  Widget _buildDocumentsCard() {
+  Widget _buildDocumentsCard(List<DocumentModel> documents) {
+    if (documents.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: StudentColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Text('No documents uploaded yet.'),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: StudentColors.surface,
@@ -297,13 +280,13 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
         ],
       ),
       child: Column(
-        children: _documents.asMap().entries.map((entry) {
+        children: documents.asMap().entries.map((entry) {
           final index = entry.key;
           final doc = entry.value;
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              border: index < _documents.length - 1
+              border: index < documents.length - 1
                   ? const Border(bottom: BorderSide(color: StudentColors.border))
                   : null,
             ),
@@ -311,18 +294,18 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  doc['name']!,
+                  doc.name,
                   style: const TextStyle(
                     fontSize: 11,
                     color: StudentColors.text3,
                   ),
                 ),
                 Text(
-                  doc['status']!,
+                  doc.status,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: doc['status']!.contains('Verified')
+                    color: doc.status.contains('Verified')
                         ? StudentColors.success
                         : StudentColors.warning,
                   ),
@@ -336,6 +319,10 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
   }
 
   void _showEditProfileSheet(BuildContext context) {
+    final profileState = ref.read(profileProvider);
+    final profile = profileState.profile;
+    if (profile == null) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -374,14 +361,14 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
               ),
               const SizedBox(height: 20),
 
-              _buildEditField('Full Name', _studentData['name']!),
-              _buildEditField('Email', _studentData['email']!),
-              _buildEditField('Phone', _studentData['phone']!),
-              _buildEditField('Address', _studentData['address']!),
-              _buildEditField("Father's Name", _studentData['fatherName']!),
-              _buildEditField("Father's Phone", _studentData['fatherPhone']!),
-              _buildEditField("Mother's Name", _studentData['motherName']!),
-              _buildEditField("Mother's Phone", _studentData['motherPhone']!),
+              _buildEditField('Full Name', profile.name),
+              _buildEditField('Email', profile.email),
+              _buildEditField('Phone', profile.phone),
+              _buildEditField('Address', profile.address),
+              _buildEditField("Father's Name", profile.fatherName),
+              _buildEditField("Father's Phone", profile.fatherPhone),
+              _buildEditField("Mother's Name", profile.motherName),
+              _buildEditField("Mother's Phone", profile.motherPhone),
 
               const SizedBox(height: 16),
 
@@ -436,23 +423,18 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                 ),
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: StudentColors.successBg,
-                  borderRadius: BorderRadius.circular(10),
+              if (profile.documents.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: StudentColors.successBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Uploaded: ${profile.documents.map((d) => d.name).join(', ')}',
+                    style: const TextStyle(fontSize: 9, color: StudentColors.success, fontWeight: FontWeight.w600),
+                  ),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.attach_file, color: StudentColors.success, size: 14),
-                    SizedBox(width: 6),
-                    Text(
-                      'Uploaded: Birth Certificate, Aadhaar Card, Previous Marksheet',
-                      style: TextStyle(fontSize: 9, color: StudentColors.success, fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              ),
 
               const SizedBox(height: 20),
 
@@ -461,7 +443,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -519,7 +501,6 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
           style: const TextStyle(
             fontSize: 11,
             color: StudentColors.text3,
-            marginBottom: 3,
           ),
         ),
         const SizedBox(height: 3),

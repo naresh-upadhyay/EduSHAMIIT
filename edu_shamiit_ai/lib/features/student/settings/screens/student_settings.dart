@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/settings_provider.dart';
 
 class StudentSettings extends ConsumerStatefulWidget {
   const StudentSettings({super.key});
@@ -12,16 +13,11 @@ class StudentSettings extends ConsumerStatefulWidget {
 }
 
 class _StudentSettingsState extends ConsumerState<StudentSettings> {
-  // Toggle states
-  bool _pushNotifications = true;
-  bool _smsAlerts = true;
-  bool _emailReports = false;
-  bool _aiPersonalization = true;
-  bool _biometricLogin = true;
-  bool _darkMode = false;
-
   @override
   Widget build(BuildContext context) {
+    final settingsState = ref.watch(settingsProvider);
+    final settings = settingsState.settings;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       body: Column(
@@ -55,131 +51,147 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Notifications Section
-                _buildSectionTitle('Notifications'),
-                _buildSettingsCard([
-                  _buildToggleRow(
-                    icon: '🔔',
-                    iconBg: StudentColors.primaryLight,
-                    title: 'Push Notifications',
-                    subtitle: 'Homework, Results, Fees',
-                    value: _pushNotifications,
-                    onChanged: (v) => setState(() => _pushNotifications = v),
-                  ),
-                  _buildToggleRow(
-                    icon: '📱',
-                    iconBg: StudentColors.warningBg,
-                    title: 'SMS Alerts',
-                    subtitle: 'For critical updates only',
-                    value: _smsAlerts,
-                    onChanged: (v) => setState(() => _smsAlerts = v),
-                  ),
-                  _buildToggleRow(
-                    icon: '📧',
-                    iconBg: StudentColors.errorBg,
-                    title: 'Email Reports',
-                    subtitle: 'Weekly progress summary',
-                    value: _emailReports,
-                    onChanged: (v) => setState(() => _emailReports = v),
-                  ),
-                ]),
+            child: settingsState.isLoading && settings == null
+                ? const Center(child: CircularProgressIndicator())
+                : settingsState.error != null && settings == null
+                    ? Center(child: Text('Error: ${settingsState.error}'))
+                    : ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          // Notifications Section
+                          _buildSectionTitle('Notifications'),
+                          _buildSettingsCard([
+                            _buildToggleRow(
+                              icon: '🔔',
+                              iconBg: StudentColors.primaryLight,
+                              title: 'Push Notifications',
+                              subtitle: 'Homework, Results, Fees',
+                              value: settings?.pushNotifications ?? true,
+                              onChanged: (v) => ref
+                                  .read(settingsProvider.notifier)
+                                  .updateSetting('pushNotifications', v),
+                            ),
+                            _buildToggleRow(
+                              icon: '📱',
+                              iconBg: StudentColors.warningBg,
+                              title: 'SMS Alerts',
+                              subtitle: 'For critical updates only',
+                              value: settings?.smsAlerts ?? true,
+                              onChanged: (v) => ref
+                                  .read(settingsProvider.notifier)
+                                  .updateSetting('smsAlerts', v),
+                            ),
+                            _buildToggleRow(
+                              icon: '📧',
+                              iconBg: StudentColors.errorBg,
+                              title: 'Email Reports',
+                              subtitle: 'Weekly progress summary',
+                              value: settings?.emailReports ?? false,
+                              onChanged: (v) => ref
+                                  .read(settingsProvider.notifier)
+                                  .updateSetting('emailReports', v),
+                            ),
+                          ]),
 
-                const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                // AI & Privacy Section
-                _buildSectionTitle('AI & Privacy'),
-                _buildSettingsCard([
-                  _buildToggleRow(
-                    icon: '🤖',
-                    iconBg: StudentColors.primaryLight,
-                    title: 'AI Personalization',
-                    subtitle: 'AI learns your study style',
-                    value: _aiPersonalization,
-                    onChanged: (v) => setState(() => _aiPersonalization = v),
-                  ),
-                  _buildToggleRow(
-                    icon: '🔐',
-                    iconBg: StudentColors.successBg,
-                    title: 'Biometric Login',
-                    subtitle: 'Face ID / Fingerprint',
-                    value: _biometricLogin,
-                    onChanged: (v) => setState(() => _biometricLogin = v),
-                  ),
-                ]),
+                          // AI & Privacy Section
+                          _buildSectionTitle('AI & Privacy'),
+                          _buildSettingsCard([
+                            _buildToggleRow(
+                              icon: '🤖',
+                              iconBg: StudentColors.primaryLight,
+                              title: 'AI Personalization',
+                              subtitle: 'AI learns your study style',
+                              value: settings?.aiPersonalization ?? true,
+                              onChanged: (v) => ref
+                                  .read(settingsProvider.notifier)
+                                  .updateSetting('aiPersonalization', v),
+                            ),
+                            _buildToggleRow(
+                              icon: '🔐',
+                              iconBg: StudentColors.successBg,
+                              title: 'Biometric Login',
+                              subtitle: 'Face ID / Fingerprint',
+                              value: settings?.biometricLogin ?? true,
+                              onChanged: (v) => ref
+                                  .read(settingsProvider.notifier)
+                                  .updateSetting('biometricLogin', v),
+                            ),
+                          ]),
 
-                const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                // Appearance Section
-                _buildSectionTitle('Appearance'),
-                _buildSettingsCard([
-                  _buildToggleRow(
-                    icon: '🌙',
-                    iconBg: const Color(0xFF1E293B),
-                    title: 'Dark Mode',
-                    subtitle: '',
-                    value: _darkMode,
-                    onChanged: (v) => setState(() => _darkMode = v),
-                  ),
-                  _buildNavigationRow(
-                    icon: '🌐',
-                    iconBg: StudentColors.infoBg,
-                    title: 'Language',
-                    subtitle: 'English',
-                    onTap: () => _showLanguageDialog(),
-                  ),
-                ]),
+                          // Appearance Section
+                          _buildSectionTitle('Appearance'),
+                          _buildSettingsCard([
+                            _buildToggleRow(
+                              icon: '🌙',
+                              iconBg: const Color(0xFF1E293B),
+                              title: 'Dark Mode',
+                              subtitle: '',
+                              value: settings?.darkMode ?? false,
+                              onChanged: (v) => ref
+                                  .read(settingsProvider.notifier)
+                                  .updateSetting('darkMode', v),
+                            ),
+                            _buildNavigationRow(
+                              icon: '🌐',
+                              iconBg: StudentColors.infoBg,
+                              title: 'Language',
+                              subtitle: settings?.language ?? 'English',
+                              onTap: () => _showLanguageDialog(context),
+                            ),
+                          ]),
 
-                const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                // Account Section
-                _buildSectionTitle('Account'),
-                _buildSettingsCard([
-                  _buildNavigationRow(
-                    icon: '🔑',
-                    iconBg: StudentColors.warningBg,
-                    title: 'Change Password',
-                    subtitle: '',
-                    onTap: () => _showChangePasswordDialog(),
-                  ),
-                  _buildNavigationRow(
-                    icon: '🚪',
-                    iconBg: StudentColors.errorBg,
-                    title: 'Logout',
-                    subtitle: '',
-                    titleColor: StudentColors.error,
-                    onTap: () => _showLogoutDialog(),
-                  ),
-                ]),
+                          // Account Section
+                          _buildSectionTitle('Account'),
+                          _buildSettingsCard([
+                            _buildNavigationRow(
+                              icon: '🔑',
+                              iconBg: StudentColors.warningBg,
+                              title: 'Change Password',
+                              subtitle: '',
+                              onTap: () => _showChangePasswordDialog(context),
+                            ),
+                            _buildNavigationRow(
+                              icon: '🚪',
+                              iconBg: StudentColors.errorBg,
+                              title: 'Logout',
+                              subtitle: '',
+                              titleColor: StudentColors.error,
+                              onTap: () => _showLogoutDialog(context),
+                            ),
+                          ]),
 
-                const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                // Version info
-                Center(
-                  child: Column(
-                    children: [
-                      const Text(
-                        'EduVerse v3.2.1',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: StudentColors.text3,
-                        ),
+                          // Version info
+                          Center(
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'EduVerse v3.2.1',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: StudentColors.text3,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  '© 2025 EduVerse Technologies',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: StudentColors.text3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        '© 2025 EduVerse Technologies',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: StudentColors.text3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -361,7 +373,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
     );
   }
 
-  void _showLanguageDialog() {
+  void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -394,6 +406,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
       title: Text(language),
       onTap: () {
         Navigator.pop(context);
+        ref.read(settingsProvider.notifier).updateSetting('language', language);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Language changed to $language')),
         );
@@ -401,7 +414,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
     );
   }
 
-  void _showChangePasswordDialog() {
+  void _showChangePasswordDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -440,10 +453,12 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
+              // In real implementation, get values from text fields
+              final success = await ref.read(settingsProvider.notifier).changePassword('', '');
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Password changed successfully!')),
+                SnackBar(content: Text(success ? '✅ Password changed successfully!' : '❌ Failed to change password')),
               );
             },
             child: const Text('Update'),
@@ -453,7 +468,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
     );
   }
 
-  void _showLogoutDialog() {
+  void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -466,9 +481,12 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: StudentColors.error),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.go('/login');
+              final success = await ref.read(settingsProvider.notifier).logout();
+              if (success && mounted) {
+                context.go('/login');
+              }
             },
             child: const Text('Logout', style: TextStyle(color: Colors.white)),
           ),

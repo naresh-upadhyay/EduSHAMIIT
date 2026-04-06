@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentLeaderboard extends ConsumerStatefulWidget {
   const StudentLeaderboard({super.key});
@@ -14,32 +15,57 @@ class StudentLeaderboard extends ConsumerStatefulWidget {
 class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
   int _selectedTab = 0; // 0=Class Rank, 1=School Rank
 
-  final List<Map<String, dynamic>> _classRanks = [
-    {'rank': 1, 'name': 'Rahul Verma', 'score': '94.2%', 'xp': '3,120 XP', 'avatar': 'R'},
-    {'rank': 2, 'name': 'Priya Mehta', 'score': '92.8%', 'xp': '2,680 XP', 'avatar': 'P'},
-    {'rank': 3, 'name': 'Arjun Kumar (You)', 'score': '91.4%', 'xp': '2,450 XP', 'avatar': 'A', 'isUser': true},
-    {'rank': 4, 'name': 'Sneha Patel', 'score': '89.6%', 'xp': '2,120 XP', 'avatar': 'S'},
-    {'rank': 5, 'name': 'Vikram Singh', 'score': '88.2%', 'xp': '1,980 XP', 'avatar': 'V'},
-    {'rank': 6, 'name': 'Ananya Gupta', 'score': '87.0%', 'xp': '1,850 XP', 'avatar': 'A'},
-    {'rank': 7, 'name': 'Amit Tiwari', 'score': '86.1%', 'xp': '1,780 XP', 'avatar': 'A'},
-    {'rank': 8, 'name': 'Kavya Nair', 'score': '85.5%', 'xp': '1,720 XP', 'avatar': 'K'},
-  ];
-
-  final List<Map<String, dynamic>> _schoolRanks = [
-    {'rank': 14, 'name': 'Divya Sharma (X-B)', 'score': '92.5%', 'xp': '2,600 XP', 'avatar': 'D'},
-    {'rank': 15, 'name': 'Rahul Verma (X-C)', 'score': '92.1%', 'xp': '2,550 XP', 'avatar': 'R'},
-    {'rank': 16, 'name': 'Nikhil Singh (X-A)', 'score': '91.8%', 'xp': '2,500 XP', 'avatar': 'N'},
-    {'rank': 17, 'name': 'Aditi Rao (X-B)', 'score': '91.6%', 'xp': '2,480 XP', 'avatar': 'A'},
-    {'rank': 18, 'name': 'Arjun Kumar (You)', 'score': '91.4%', 'xp': '2,450 XP', 'avatar': 'A', 'isUser': true},
-    {'rank': 19, 'name': 'Kunal Das (X-C)', 'score': '91.2%', 'xp': '2,400 XP', 'avatar': 'K'},
-    {'rank': 20, 'name': 'Megha Iyer (X-A)', 'score': '90.8%', 'xp': '2,350 XP', 'avatar': 'M'},
-    {'rank': 21, 'name': 'Siddharth Roy (X-D)', 'score': '90.3%', 'xp': '2,280 XP', 'avatar': 'S'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(leaderboardProvider.notifier).fetchLeaderboard();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ranks = _selectedTab == 0 ? _classRanks : _schoolRanks;
-    final userRank = ranks.firstWhere((r) => r['isUser'] == true);
+    final leaderboardState = ref.watch(leaderboardProvider);
+    final entries = leaderboardState.entries;
+    final userRank = leaderboardState.userRank;
+    final userCgpa = leaderboardState.userCgpa;
+
+    if (leaderboardState.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (entries.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4FF),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.leaderboard, size: 64, color: StudentColors.text3),
+              const SizedBox(height: 16),
+              Text(
+                'No leaderboard data',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: StudentColors.text3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Find user entry
+    final userEntry = entries.firstWhere(
+      (e) => e.studentId == 'current_user', // Would need to match actual user ID
+      orElse: () => entries.first,
+    );
+
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
@@ -73,7 +99,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white15,
+                    color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -102,12 +128,12 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               children: [
                 // Your Position Card
-                _buildYourPositionCard(userRank),
+                _buildYourPositionCard(userEntry, userRank, userCgpa),
                 
                 const SizedBox(height: 12),
                 
                 // Top 3 Podium
-                _buildTop3Podium(ranks),
+                _buildTop3Podium(entries),
                 
                 const SizedBox(height: 16),
                 
@@ -117,12 +143,12 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                 const SizedBox(height: 12),
                 
                 // Rank List
-                ...ranks.where((r) => r['rank'] > 3 && r['isUser'] != true).map((student) => _buildRankCard(student)),
+                ...entries.where((e) => e.rank > 3 && e.studentId != 'current_user').map((student) => _buildRankCard(student)),
                 
                 const SizedBox(height: 16),
                 
                 // AI Motivation
-                _buildAIMotivation(),
+                _buildAIMotivation(userEntry, userRank, entries),
                 
                 const SizedBox(height: 50),
               ],
@@ -159,7 +185,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
     );
   }
 
-  Widget _buildYourPositionCard(Map<String, dynamic> userRank) {
+  Widget _buildYourPositionCard(LeaderboardEntry userEntry, int userRank, double userCgpa) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -177,7 +203,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
           Row(
             children: [
               Text(
-                '#${userRank['rank']}',
+                '#$userRank',
                 style: const TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 32,
@@ -191,7 +217,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      userRank['name']!,
+                      userEntry.studentName,
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 14,
@@ -201,7 +227,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Class X-A · ${userRank['score']} · ${userRank['xp']}',
+                      'XP: ${userEntry.xpPoints} · Streak: ${userEntry.learningStreak} days',
                       style: const TextStyle(fontSize: 11, color: Colors.white70),
                     ),
                   ],
@@ -210,13 +236,13 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
               Column(
                 children: [
                   const Text(
-                    '🥉',
+                    '🏆',
                     style: TextStyle(fontSize: 22),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Top 5%',
-                    style: TextStyle(fontSize: 9, color: Colors.white70),
+                  Text(
+                    'CGPA: ${userCgpa.toStringAsFixed(1)}',
+                    style: const TextStyle(fontSize: 9, color: Colors.white70),
                   ),
                 ],
               ),
@@ -227,9 +253,9 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
     );
   }
 
-  Widget _buildTop3Podium(List<Map<String, dynamic>> ranks) {
-    final top3 = ranks.where((r) => r['rank'] <= 3).toList()
-      ..sort((a, b) => a['rank'].compareTo(b['rank']));
+  Widget _buildTop3Podium(List<LeaderboardEntry> entries) {
+    final sortedEntries = List<LeaderboardEntry>.from(entries)..sort((a, b) => a.rank.compareTo(b.rank));
+    final top3 = sortedEntries.take(3).toList();
     
     // Reorder for podium: 2nd, 1st, 3rd
     final podiumOrder = [1, 0, 2];
@@ -239,7 +265,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
       children: podiumOrder.map((idx) {
         if (idx >= top3.length) return const SizedBox.shrink();
         final student = top3[idx];
-        final isUser = student['isUser'] == true;
+        final isUser = student.studentId == 'current_user';
         final heights = [100.0, 120.0, 80.0]; // 2nd, 1st, 3rd
         final colors = [
           const Color(0xFFC0C0C0), // Silver
@@ -267,12 +293,12 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
               children: [
                 const SizedBox(height: 8),
                 Text(
-                  student['rank'] == 1 ? '🥇' : student['rank'] == 2 ? '🥈' : '🥉',
+                  student.rank == 1 ? '🥇' : student.rank == 2 ? '🥈' : '🥉',
                   style: const TextStyle(fontSize: 22),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  student['name']!,
+                  student.studentName,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -285,7 +311,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  student['score']!,
+                  '${student.xpPoints} XP',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -293,7 +319,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                   ),
                 ),
                 Text(
-                  student['xp']!,
+                  'Streak: ${student.learningStreak}🔥',
                   style: const TextStyle(fontSize: 9, color: StudentColors.text3),
                 ),
                 const Spacer(),
@@ -310,7 +336,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                   ),
                   child: Center(
                     child: Text(
-                      '#${student['rank']}',
+                      '#${student.rank}',
                       style: TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 16,
@@ -405,7 +431,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
     );
   }
 
-  Widget _buildRankCard(Map<String, dynamic> student) {
+  Widget _buildRankCard(LeaderboardEntry student) {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(10),
@@ -422,7 +448,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
       child: Row(
         children: [
           Text(
-            '${student['rank']}',
+            '${student.rank}',
             style: const TextStyle(
               fontFamily: AppFonts.heading,
               fontSize: 12,
@@ -436,9 +462,9 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
             height: 28,
             decoration: BoxDecoration(
               color: const Color(0xFFF3E8FF),
-              borderRadius: BorderRadius.circular(50%),
+              borderRadius: BorderRadius.circular(50),
             ),
-            child: Center(child: Text(student['avatar'], style: const TextStyle(fontSize: 12))),
+            child: Center(child: Text(student.studentName[0], style: const TextStyle(fontSize: 12))),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -446,14 +472,14 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  student['name']!,
+                  student.studentName,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  '${student['score']} · ${student['xp']}',
+                  '${student.xpPoints} XP · ${student.learningStreak} day streak',
                   style: const TextStyle(
                     fontSize: 9,
                     color: StudentColors.text3,
@@ -467,7 +493,47 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
     );
   }
 
-  Widget _buildAIMotivation() {
+  Widget _buildAIMotivation(LeaderboardEntry userEntry, int userRank, List<LeaderboardEntry> allEntries) {
+    // Calculate gap to next rank
+    final higherEntries = allEntries.where((e) => e.rank < userRank).toList();
+    if (higherEntries.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)]),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFDDD6FE)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: StudentColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                '🤖 AI MOTIVATION',
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Great job! You\'re in the top ranks. Maintain your streak and keep climbing! 🏆',
+              style: TextStyle(
+                fontSize: 11,
+                color: Color(0xFF4338CA),
+                height: 1.6,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final nextRankEntry = higherEntries.reduce((a, b) => a.rank < b.rank ? a : b);
+    final gap = nextRankEntry.xpPoints - userEntry.xpPoints;
+    
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -490,9 +556,9 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'You\'re just 1.4% behind Priya Mehta! Focus on Physics (+5%) and you can reach #2 by next term. Keep your streak going! 🔥',
-            style: TextStyle(
+          Text(
+            'You\'re just $gap XP behind ${nextRankEntry.studentName}! Focus on your studies and you can reach #${nextRankEntry.rank} by next term. Keep your ${userEntry.learningStreak} day streak going! 🔥',
+            style: const TextStyle(
               fontSize: 11,
               color: Color(0xFF4338CA),
               height: 1.6,
