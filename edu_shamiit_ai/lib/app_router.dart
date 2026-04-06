@@ -37,6 +37,16 @@ import 'package:edu_shamiit_ai/features/teacher/gradebook/screens/teacher_gradeb
 import 'package:edu_shamiit_ai/features/teacher/my_classes/screens/teacher_my_classes.dart';
 import 'package:edu_shamiit_ai/features/teacher/notices/screens/teacher_notices.dart';
 import 'package:edu_shamiit_ai/features/teacher/profile/screens/teacher_profile.dart';
+import 'package:edu_shamiit_ai/features/teacher/grading/screens/teacher_grading.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/teacher_exams.dart';
+import 'package:edu_shamiit_ai/features/teacher/paper_builder/screens/teacher_paper_builder.dart';
+import 'package:edu_shamiit_ai/features/teacher/leave/screens/teacher_leave.dart';
+import 'package:edu_shamiit_ai/features/teacher/salary/screens/teacher_salary.dart';
+import 'package:edu_shamiit_ai/features/teacher/submissions/screens/teacher_submissions.dart';
+import 'package:edu_shamiit_ai/features/teacher/notifications/screens/teacher_notifications.dart';
+import 'package:edu_shamiit_ai/features/teacher/live_classes/screens/teacher_live_classes.dart';
+import 'package:edu_shamiit_ai/features/teacher/materials/screens/teacher_materials.dart';
+import 'package:edu_shamiit_ai/features/teacher/student_directory/screens/teacher_student_directory.dart';
 
 final goRouter = GoRouter(
   initialLocation: '/splash',
@@ -202,6 +212,46 @@ final goRouter = GoRouter(
     GoRoute(
       path: '/teacher/profile',
       builder: (_, __) => const TeacherProfile(),
+    ),
+    GoRoute(
+      path: '/teacher/grading',
+      builder: (_, __) => const TeacherGrading(),
+    ),
+    GoRoute(
+      path: '/teacher/exams',
+      builder: (_, __) => const TeacherExams(),
+    ),
+    GoRoute(
+      path: '/teacher/paper-builder',
+      builder: (_, __) => const TeacherPaperBuilder(),
+    ),
+    GoRoute(
+      path: '/teacher/leave',
+      builder: (_, __) => const TeacherLeave(),
+    ),
+    GoRoute(
+      path: '/teacher/salary',
+      builder: (_, __) => const TeacherSalary(),
+    ),
+    GoRoute(
+      path: '/teacher/submissions',
+      builder: (_, __) => const TeacherSubmissions(),
+    ),
+    GoRoute(
+      path: '/teacher/notifications',
+      builder: (_, __) => const TeacherNotifications(),
+    ),
+    GoRoute(
+      path: '/teacher/live-classes',
+      builder: (_, __) => const TeacherLiveClasses(),
+    ),
+    GoRoute(
+      path: '/teacher/materials',
+      builder: (_, __) => const TeacherMaterials(),
+    ),
+    GoRoute(
+      path: '/teacher/student-directory',
+      builder: (_, __) => const TeacherStudentDirectory(),
     ),
   ],
 );
