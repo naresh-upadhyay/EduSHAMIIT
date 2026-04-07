@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -143,7 +143,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         border: Border.all(color: const Color(0xFFFCA5A5), width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
           ),
         ],
@@ -291,7 +291,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 4,
           ),
         ],
@@ -360,7 +360,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 4,
           ),
         ],
@@ -511,7 +511,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.9),
+                      color: Colors.red.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -681,11 +681,11 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
 
           // Comments header
           const Divider(color: Colors.white10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: Row(
               children: [
-                const Text(
+                Text(
                   '💬 Comments',
                   style: TextStyle(
                     fontSize: 12,
@@ -693,13 +693,13 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Text(
+                SizedBox(width: 4),
+                Text(
                   '248',
                   style: TextStyle(fontSize: 12, color: Colors.white38, fontWeight: FontWeight.w500),
                 ),
-                const Spacer(),
-                const Text(
+                Spacer(),
+                Text(
                   'Sort by ▾',
                   style: TextStyle(fontSize: 10, color: StudentColors.info, fontWeight: FontWeight.w600),
                 ),
@@ -722,8 +722,8 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
           // Comment input
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1E293B),
               border: Border(top: BorderSide(color: Colors.white10)),
             ),
             child: Row(
@@ -731,8 +731,8 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                 Container(
                   width: 28,
                   height: 28,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
                     shape: BoxShape.circle,
                   ),
                   child: const Center(child: Text('🧑', style: TextStyle(fontSize: 12))),
@@ -749,7 +749,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                       fillColor: const Color(0xFF0F172A),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide(color: Colors.white10),
+                        borderSide: const BorderSide(color: Colors.white10),
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     ),
@@ -762,8 +762,8 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                   child: Container(
                     width: 32,
                     height: 32,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF38BDF8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF38BDF8),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.send, size: 13, color: Color(0xFF0F172A)),

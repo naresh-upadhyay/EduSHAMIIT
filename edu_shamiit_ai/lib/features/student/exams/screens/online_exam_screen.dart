@@ -139,7 +139,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _showExitWarning();
       },
       child: Scaffold(
@@ -185,8 +185,8 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F172A),
       ),
       child: Row(
         children: [
@@ -196,7 +196,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.arrow_back, color: Colors.white, size: 18),
@@ -234,10 +234,10 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: isWarning
-                  ? Colors.red.withOpacity(0.2)
-                  : Colors.white.withOpacity(0.1),
+                  ? Colors.red.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.1),
               border: Border.all(
-                color: isWarning ? Colors.red : Colors.white.withOpacity(0.3),
+                color: isWarning ? Colors.red : Colors.white.withValues(alpha: 0.3),
               ),
               borderRadius: BorderRadius.circular(10),
             ),
@@ -331,7 +331,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: (_reviewMarked[_currentQuestion] ?? false)
-                              ? Colors.amber.withOpacity(0.2)
+                              ? Colors.amber.withValues(alpha: 0.2)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
@@ -460,10 +460,10 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
             ),
             child: Column(
               children: [
-                Expanded(
+                const Expanded(
                   child: TextField(
                     maxLines: null,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Type your detailed answer here...',
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
@@ -624,7 +624,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
         border: Border(top: BorderSide(color: Colors.grey.shade200)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

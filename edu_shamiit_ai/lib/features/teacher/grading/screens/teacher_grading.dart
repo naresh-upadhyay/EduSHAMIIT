@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
-import 'package:intl/intl.dart';
 
 class TeacherGrading extends StatefulWidget {
   const TeacherGrading({super.key});
@@ -47,7 +46,7 @@ class _TeacherGradingState extends State<TeacherGrading> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading assignments: $e');
+      debugPrint('Error loading assignments: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -237,9 +236,9 @@ class _TeacherGradingState extends State<TeacherGrading> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -279,7 +278,7 @@ class _TeacherGradingState extends State<TeacherGrading> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -304,7 +303,7 @@ class _TeacherGradingState extends State<TeacherGrading> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0EA5E9).withOpacity(0.1),
+                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -322,11 +321,11 @@ class _TeacherGradingState extends State<TeacherGrading> {
           // Stats row
           Row(
             children: [
-              _buildMiniStat('${submitted}', 'Graded', Colors.green),
+              _buildMiniStat('$submitted', 'Graded', Colors.green),
               const SizedBox(width: 12),
-              _buildMiniStat('${pending}', 'Pending', Colors.orange),
+              _buildMiniStat('$pending', 'Pending', Colors.orange),
               const SizedBox(width: 12),
-              _buildMiniStat('${total}', 'Total', Colors.blue),
+              _buildMiniStat('$total', 'Total', Colors.blue),
               const Spacer(),
               Text(
                 _getRelativeDate(assignment.dueDate),

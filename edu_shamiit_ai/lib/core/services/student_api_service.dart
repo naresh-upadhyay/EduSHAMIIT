@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
-import 'package:edu_shamiit_ai/core/services/supabase_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 /// Student API service for communicating with FastAPI backend
@@ -13,8 +13,9 @@ class StudentApiService {
   final http.Client _client = http.Client();
 
   /// Get headers with authorization
-  Map<String, String> get _headers {
-    final token = SupabaseService.accessToken;
+  Future<Map<String, String>> get _headers async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -32,7 +33,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/profile'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -53,7 +54,7 @@ class StudentApiService {
       final response = await _client
           .put(
             Uri.parse('${AppConfig.apiBaseUrl}/student/profile'),
-            headers: _headers,
+            headers: await _headers,
             body: jsonEncode(data),
           )
           .timeout(AppConfig.apiTimeout);
@@ -83,7 +84,7 @@ class StudentApiService {
                 if (year != null) 'year': year,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -113,7 +114,7 @@ class StudentApiService {
                 'year': year,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -149,7 +150,7 @@ class StudentApiService {
                 if (subject != null) 'subject': subject,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -177,7 +178,7 @@ class StudentApiService {
           .post(
             Uri.parse(
                 '${AppConfig.apiBaseUrl}/student/homework/$homeworkId/submit'),
-            headers: _headers,
+            headers: await _headers,
             body: jsonEncode({
               'submission_text': submissionText,
               'file_url': fileUrl,
@@ -201,7 +202,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/exams/upcoming'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -225,7 +226,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/exams/schedule'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -255,7 +256,7 @@ class StudentApiService {
                 if (subject != null) 'subject': subject,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -279,7 +280,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/online'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -303,12 +304,12 @@ class StudentApiService {
       final response = await _client
           .post(
             Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/submit'),
-            headers: _headers,
+            headers: await _headers,
             body: jsonEncode({
               'answers': answers.map((k, v) => MapEntry(k.toString(), v)),
             }),
           )
-          .timeout(Duration(minutes: 5)); // Longer timeout for exam submission
+          .timeout(const Duration(minutes: 5)); // Longer timeout for exam submission
 
       return response.statusCode == 200;
     } catch (e) {
@@ -332,7 +333,7 @@ class StudentApiService {
                 if (status != null) 'status': status,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -356,7 +357,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/fees/summary'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -385,7 +386,7 @@ class StudentApiService {
             Uri.parse('${AppConfig.apiBaseUrl}/student/timetable').replace(
               queryParameters: {'day': day},
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -408,7 +409,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/timetable/week'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -446,7 +447,7 @@ class StudentApiService {
                 if (status != null) 'status': status,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -471,7 +472,7 @@ class StudentApiService {
           .post(
             Uri.parse(
                 '${AppConfig.apiBaseUrl}/student/live-classes/$classId/join'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -502,7 +503,7 @@ class StudentApiService {
                 if (category != null) 'category': category,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -537,7 +538,7 @@ class StudentApiService {
                 if (unreadOnly != null) 'unread_only': unreadOnly.toString(),
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -562,7 +563,7 @@ class StudentApiService {
           .put(
             Uri.parse(
                 '${AppConfig.apiBaseUrl}/student/notifications/$notificationId/read'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -578,7 +579,7 @@ class StudentApiService {
       final response = await _client
           .put(
             Uri.parse('${AppConfig.apiBaseUrl}/student/notifications/read-all'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -604,7 +605,7 @@ class StudentApiService {
                 if (filter != null) 'filter': filter,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -628,7 +629,7 @@ class StudentApiService {
           .post(
             Uri.parse(
                 '${AppConfig.apiBaseUrl}/student/events/$eventId/register'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -654,7 +655,7 @@ class StudentApiService {
                 if (earnedOnly != null) 'earned_only': earnedOnly.toString(),
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -690,7 +691,7 @@ class StudentApiService {
                 if (limit != null) 'limit': limit.toString(),
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -724,7 +725,7 @@ class StudentApiService {
                 if (status != null) 'status': status,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -754,7 +755,7 @@ class StudentApiService {
       final response = await _client
           .post(
             Uri.parse('${AppConfig.apiBaseUrl}/student/leave/apply'),
-            headers: _headers,
+            headers: await _headers,
             body: jsonEncode({
               'leave_type': leaveType,
               'start_date': startDate.toIso8601String(),
@@ -791,7 +792,7 @@ class StudentApiService {
                   'available_only': availableOnly.toString(),
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -815,7 +816,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/library/issued'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -849,7 +850,7 @@ class StudentApiService {
                 if (subject != null) 'subject': subject,
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -886,7 +887,7 @@ class StudentApiService {
                 if (limit != null) 'limit': limit.toString(),
               },
             ),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -913,7 +914,7 @@ class StudentApiService {
       final response = await _client
           .post(
             Uri.parse('${AppConfig.apiBaseUrl}/student/messages/send'),
-            headers: _headers,
+            headers: await _headers,
             body: jsonEncode({
               'recipient_id': recipientId,
               'content': content,
@@ -938,7 +939,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/transport/route'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
@@ -966,7 +967,7 @@ class StudentApiService {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/performance'),
-            headers: _headers,
+            headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 

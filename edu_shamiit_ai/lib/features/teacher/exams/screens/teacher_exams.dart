@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -205,11 +205,11 @@ class _TeacherExamsState extends State<TeacherExams> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isUpcoming ? typeColor.withOpacity(0.3) : const Color(0xFFE2E8F0),
+          color: isUpcoming ? typeColor.withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -233,7 +233,7 @@ class _TeacherExamsState extends State<TeacherExams> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: typeColor.withOpacity(0.1),
+                  color: typeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -296,7 +296,7 @@ class _TeacherExamsState extends State<TeacherExams> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -324,7 +324,7 @@ class _TeacherExamsState extends State<TeacherExams> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(decoration: const InputDecoration(labelText: 'Title')),
+              const TextField(decoration: InputDecoration(labelText: 'Title')),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Type'),
@@ -334,9 +334,9 @@ class _TeacherExamsState extends State<TeacherExams> {
                 onChanged: (value) {},
               ),
               const SizedBox(height: 12),
-              TextField(decoration: const InputDecoration(labelText: 'Subject')),
+              const TextField(decoration: InputDecoration(labelText: 'Subject')),
               const SizedBox(height: 12),
-              TextField(decoration: const InputDecoration(labelText: 'Duration (e.g., 2 hours)')),
+              const TextField(decoration: InputDecoration(labelText: 'Duration (e.g., 2 hours)')),
             ],
           ),
         ),

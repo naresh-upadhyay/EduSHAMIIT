@@ -7,16 +7,15 @@ ThemeData getTeacherTheme() {
     useMaterial3: true,
     primaryColor: TeacherColors.primary,
     scaffoldBackgroundColor: TeacherColors.background,
-    colorScheme: ColorScheme.light(
+    colorScheme: const ColorScheme.light(
       primary: TeacherColors.primary,
       secondary: TeacherColors.accent,
       surface: TeacherColors.surface,
-      background: TeacherColors.background,
       error: TeacherColors.error,
     ),
 
     // Text Theme
-    textTheme: TextTheme(
+    textTheme: const TextTheme(
       displayLarge: TextStyle(
         fontFamily: AppFonts.heading,
         fontSize: 32,

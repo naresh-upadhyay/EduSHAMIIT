@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -125,12 +125,12 @@ class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
             child: notificationsState.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : notifications.isEmpty
-                    ? Center(
+                    ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.notifications_none, size: 64, color: StudentColors.text3),
-                            const SizedBox(height: 16),
+                            Icon(Icons.notifications_none, size: 64, color: StudentColors.text3),
+                            SizedBox(height: 16),
                             Text(
                               'No notifications',
                               style: TextStyle(
@@ -160,7 +160,7 @@ class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
   Widget _buildNotificationCard(NotificationItem notif) {
     final color = _getColorForType(notif.type);
     final icon = _getIconForType(notif.type);
-    final bgColor = color.withOpacity(0.1);
+    final bgColor = color.withValues(alpha: 0.1);
     
     return Dismissible(
       key: Key(notif.id),
@@ -185,7 +185,7 @@ class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],

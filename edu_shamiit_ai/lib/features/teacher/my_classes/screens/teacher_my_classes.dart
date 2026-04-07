@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -136,7 +136,7 @@ class _TeacherMyClassesState extends State<TeacherMyClasses> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -150,7 +150,7 @@ class _TeacherMyClassesState extends State<TeacherMyClasses> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: const Color(0xFF06B6D4).withOpacity(0.1),
+              color: const Color(0xFF06B6D4).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(

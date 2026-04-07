@@ -63,12 +63,10 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 
     double totalScore = 0;
     double maxScore = 0;
-    int totalExams = 0;
 
     for (var result in _examResults) {
       totalScore += result.marksObtained;
       maxScore += result.maxMarks;
-      totalExams++;
     }
 
     double avgPercentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
@@ -202,13 +200,13 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
     }
 
     if (_examResults.isEmpty) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.insert_chart_outlined, size: 48, color: Colors.grey),
-              const SizedBox(height: 16),
+              Icon(Icons.insert_chart_outlined, size: 48, color: Colors.grey),
+              SizedBox(height: 16),
               Text(
                 'No exam results available',
                 style: TextStyle(color: StudentColors.text3, fontSize: 16),
@@ -258,7 +256,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Row(
@@ -294,7 +292,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.white : Colors.white.withOpacity(0.15),
+                            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -328,7 +326,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: StudentColors.primary.withOpacity(0.1),
+                          color: StudentColors.primary.withValues(alpha: 0.1),
                           blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
@@ -336,7 +334,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                     ),
                     child: Column(
                       children: [
-                        Text(
+                        const Text(
                           'Academic Performance',
                           style: TextStyle(color: StudentColors.text3, fontSize: 11),
                         ),
@@ -387,7 +385,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   const SizedBox(height: 16),
 
                   // Subject-wise section
-                  Row(
+                  const Row(
                     children: [
                       Text(
                         'Subject-wise Analytics',
@@ -411,7 +409,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -451,7 +449,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                                       const SizedBox(height: 2),
                                       Text(
                                         'Score: ${subject['score']}/${subject['max']}',
-                                        style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                                        style: const TextStyle(color: StudentColors.text3, fontSize: 10),
                                       ),
                                     ],
                                   ),
@@ -556,7 +554,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
         const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(color: StudentColors.text3, fontSize: 9),
+          style: const TextStyle(color: StudentColors.text3, fontSize: 9),
         ),
       ],
     );
@@ -633,7 +631,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               'Select Academic Year',
               style: TextStyle(
                 fontFamily: AppFonts.heading,
@@ -700,7 +698,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           children: [
             const Text('📄', style: TextStyle(fontSize: 50)),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Report Card Ready!',
               style: TextStyle(
                 fontFamily: AppFonts.heading,
@@ -710,7 +708,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Your consolidated academic ledger for 2026 has been generated',
               style: TextStyle(color: StudentColors.text3, fontSize: 12),
               textAlign: TextAlign.center,
@@ -722,16 +720,16 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                 color: const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
+              child: const Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('📥 ReportCard_2026_Arjun.pdf', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Color(0xFF059669))),
+                      Text('📥 ReportCard_2026_Arjun.pdf', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Color(0xFF059669))),
                       Text('Size: 312 KB', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text('Format: PDF', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
                 ],
               ),

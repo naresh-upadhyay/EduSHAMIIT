@@ -16,11 +16,6 @@ class _StudentAchievementsState extends State<StudentAchievements> {
   final StudentApiService _apiService = StudentApiService();
   List<Achievement> _achievements = [];
   List<Achievement> _lockedAchievements = [];
-  int _totalXp = 0;
-  int _classRank = 0;
-  int _schoolRank = 0;
-  bool _isLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -29,7 +24,6 @@ class _StudentAchievementsState extends State<StudentAchievements> {
   }
 
   Future<void> _loadAchievements() async {
-    setState(() => _isLoading = true);
     try {
       // Fetch earned achievements
       final earned = await _apiService.getAchievements(earnedOnly: true);
@@ -37,20 +31,12 @@ class _StudentAchievementsState extends State<StudentAchievements> {
       final all = await _apiService.getAchievements();
       final locked = all.where((a) => a.isLocked).toList();
       
-      // Calculate total XP
-      final totalXp = earned.fold<int>(0, (sum, a) => sum + a.xpReward);
-      
       setState(() {
         _achievements = earned;
         _lockedAchievements = locked;
-        _totalXp = totalXp;
-        _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      // silently fail — UI shows cached or empty state
     }
   }
 
@@ -142,7 +128,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                       const Spacer(),
                       Text(
                         '${_achievements.length} earned',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           color: StudentColors.text3,
                         ),
@@ -171,7 +157,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                       const Spacer(),
                       Text(
                         '${_lockedAchievements.length} locked',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           color: StudentColors.text3,
                         ),
@@ -227,7 +213,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
@@ -259,7 +245,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                 'Class Rank',
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(height: 12),
@@ -277,7 +263,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                 'School Rank',
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -304,7 +290,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],
@@ -339,7 +325,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                   const SizedBox(height: 4),
                   Text(
                     achievement.description,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
                       color: StudentColors.text3,
                       height: 1.3,
@@ -348,7 +334,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                   const SizedBox(height: 4),
                   Text(
                     '📅 $earnedAtStr · +${achievement.xpReward} XP',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 9,
                       color: StudentColors.text3,
                     ),
@@ -371,7 +357,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -406,7 +392,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                 const SizedBox(height: 4),
                 Text(
                   achievement.description,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     color: StudentColors.text3,
                   ),
@@ -415,10 +401,10 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                 // Show progress bar (simulated for locked achievements)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
+                  child: const LinearProgressIndicator(
                     value: 0.3, // Placeholder progress
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+                    backgroundColor: Color(0xFFF1F5F9),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
                     minHeight: 4,
                   ),
                 ),
@@ -481,7 +467,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: gradient.colors.first.withOpacity(0.3),
+                            color: gradient.colors.first.withValues(alpha: 0.3),
                             blurRadius: 20,
                           ),
                         ],
@@ -504,7 +490,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: gradient.colors.first.withOpacity(0.1),
+                        color: gradient.colors.first.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
@@ -520,7 +506,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
                     Text(
                       achievement.description,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         color: StudentColors.text2,
                         height: 1.6,
@@ -586,7 +572,7 @@ class _StudentAchievementsState extends State<StudentAchievements> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 10,
               color: StudentColors.text3,
             ),

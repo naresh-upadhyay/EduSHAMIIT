@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -163,7 +163,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
+          color: Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -214,7 +214,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -274,7 +274,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -384,7 +384,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
-                value: 'Domicile Certificate',
+                initialValue: 'Domicile Certificate',
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: StudentColors.surface,

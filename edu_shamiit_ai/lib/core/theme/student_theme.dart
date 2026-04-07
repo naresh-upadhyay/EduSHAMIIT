@@ -7,16 +7,15 @@ ThemeData getStudentTheme() {
     useMaterial3: true,
     primaryColor: StudentColors.primary,
     scaffoldBackgroundColor: StudentColors.background,
-    colorScheme: ColorScheme.light(
+    colorScheme: const ColorScheme.light(
       primary: StudentColors.primary,
       secondary: StudentColors.accent,
       surface: StudentColors.surface,
-      background: StudentColors.background,
       error: StudentColors.error,
     ),
 
     // Text Theme
-    textTheme: TextTheme(
+    textTheme: const TextTheme(
       displayLarge: TextStyle(
         fontFamily: AppFonts.heading,
         fontSize: 32,
@@ -127,11 +126,11 @@ ThemeData getStudentTheme() {
       fillColor: StudentColors.surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: StudentColors.border),
+        borderSide: const BorderSide(color: StudentColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: StudentColors.border),
+        borderSide: const BorderSide(color: StudentColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

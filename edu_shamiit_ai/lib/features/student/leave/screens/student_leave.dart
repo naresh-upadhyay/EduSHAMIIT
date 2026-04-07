@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -94,7 +94,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: StudentColors.primary.withOpacity(0.1),
+                        color: StudentColors.primary.withValues(alpha: 0.1),
                         blurRadius: 20,
                       ),
                     ],
@@ -103,11 +103,11 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                     children: [
                       _buildStatItem('15', 'Total Quota', StudentColors.primary),
                       _buildDivider(),
-                      _buildStatItem('${totalUsed.toString().padLeft(2, '0')}', 'Used', StudentColors.success),
+                      _buildStatItem(totalUsed.toString().padLeft(2, '0'), 'Used', StudentColors.success),
                       _buildDivider(),
-                      _buildStatItem('${pendingCount.toString().padLeft(2, '0')}', 'Pending', StudentColors.warning),
+                      _buildStatItem(pendingCount.toString().padLeft(2, '0'), 'Pending', StudentColors.warning),
                       _buildDivider(),
-                      _buildStatItem('${balance.toString().padLeft(2, '0')}', 'Balance', StudentColors.primary),
+                      _buildStatItem(balance.toString().padLeft(2, '0'), 'Balance', StudentColors.primary),
                     ],
                   ),
                 ),
@@ -155,7 +155,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 15,
                         ),
                       ],
@@ -177,7 +177,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                           ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            value: _selectedLeaveType,
+                            initialValue: _selectedLeaveType,
                             decoration: InputDecoration(
                               filled: true,
                               fillColor: StudentColors.surface,
@@ -470,7 +470,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],

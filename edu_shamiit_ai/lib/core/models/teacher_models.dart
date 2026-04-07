@@ -21,7 +21,7 @@ class TeacherProfile {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  TeacherProfile({
+  const TeacherProfile({
     required this.id,
     required this.userId,
     required this.fullName,
@@ -141,7 +141,7 @@ class TeacherDashboard {
   final List<TeacherTask> pendingTasks;
   final List<QuickAccessItem> quickAccess;
 
-  TeacherDashboard({
+  const TeacherDashboard({
     required this.user,
     required this.stats,
     required this.todaySchedule,
@@ -190,7 +190,7 @@ class TeacherStats {
   final int? pendingGrading;
   final double? avgCompletionRate;
 
-  TeacherStats({
+  const TeacherStats({
     required this.attendancePct,
     required this.avgScore,
     required this.classesCount,
@@ -236,7 +236,7 @@ class TeacherScheduleItem {
   final String room;
   final bool isNow;
 
-  TeacherScheduleItem({
+  const TeacherScheduleItem({
     required this.subject,
     required this.icon,
     required this.class_,
@@ -282,7 +282,7 @@ class TeacherTask {
   final String status;
   final int count;
 
-  TeacherTask({
+  const TeacherTask({
     required this.id,
     required this.title,
     required this.class_,
@@ -324,7 +324,7 @@ class QuickAccessItem {
   final String icon;
   final String route;
 
-  QuickAccessItem({
+  const QuickAccessItem({
     required this.title,
     required this.icon,
     required this.route,
@@ -364,7 +364,7 @@ class StudentDirectoryEntry {
   final double? avgMarks;
   final String? profileImageUrl;
 
-  StudentDirectoryEntry({
+  const StudentDirectoryEntry({
     required this.id,
     required this.name,
     required this.rollNo,
@@ -433,7 +433,7 @@ class TeacherAttendanceRecord {
   final String? markedBy;
   final DateTime? createdAt;
 
-  TeacherAttendanceRecord({
+  const TeacherAttendanceRecord({
     required this.id,
     required this.studentId,
     required this.studentName,
@@ -500,7 +500,7 @@ class TeacherHomeworkAssignment {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  TeacherHomeworkAssignment({
+  const TeacherHomeworkAssignment({
     required this.id,
     required this.title,
     required this.description,
@@ -585,7 +585,7 @@ class HomeworkSubmission {
   final String? gradedBy;
   final DateTime? gradedAt;
 
-  HomeworkSubmission({
+  const HomeworkSubmission({
     required this.id,
     required this.homeworkId,
     required this.studentId,
@@ -657,7 +657,7 @@ class TeacherExam {
   final String? roomNumber;
   final DateTime? createdAt;
 
-  TeacherExam({
+  const TeacherExam({
     required this.id,
     required this.title,
     required this.subject,
@@ -727,7 +727,7 @@ class GradeRecord {
   final String? gradedBy;
   final String trend; // up, down, stable
 
-  GradeRecord({
+  const GradeRecord({
     required this.id,
     required this.studentId,
     required this.studentName,
@@ -804,7 +804,7 @@ class TeacherTimetablePeriod {
   final String? teacherId;
   final String? teacherName;
 
-  TeacherTimetablePeriod({
+  const TeacherTimetablePeriod({
     required this.id,
     required this.dayOfWeek,
     required this.periodNumber,
@@ -865,7 +865,7 @@ class TeacherLeave {
   final DateTime? approvedAt;
   final DateTime createdAt;
 
-  TeacherLeave({
+  const TeacherLeave({
     required this.id,
     required this.teacherId,
     required this.teacherName,
@@ -942,7 +942,7 @@ class TeacherLiveClass {
   final String? recordingUrl;
   final DateTime? createdAt;
 
-  TeacherLiveClass({
+  const TeacherLiveClass({
     required this.id,
     required this.title,
     required this.class_,
@@ -1013,7 +1013,7 @@ class TeachingMaterial {
   final int downloadCount;
   final double? rating;
 
-  TeachingMaterial({
+  const TeachingMaterial({
     required this.id,
     required this.title,
     required this.description,
@@ -1085,7 +1085,7 @@ class SalarySlip {
   final String? slipUrl;
   final DateTime createdAt;
 
-  SalarySlip({
+  const SalarySlip({
     required this.id,
     required this.teacherId,
     required this.teacherName,
@@ -1160,7 +1160,7 @@ class PaperQuestion {
   final String createdBy;
   final DateTime createdAt;
 
-  PaperQuestion({
+  const PaperQuestion({
     required this.id,
     required this.questionText,
     required this.subject,
@@ -1234,7 +1234,7 @@ class TeacherNotice {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  TeacherNotice({
+  const TeacherNotice({
     required this.id,
     required this.title,
     required this.content,
@@ -1304,7 +1304,7 @@ class TeacherNotification {
   final DateTime createdAt;
   final DateTime? readAt;
 
-  TeacherNotification({
+  const TeacherNotification({
     required this.id,
     required this.title,
     required this.message,
@@ -1358,7 +1358,7 @@ class TeacherMyClass {
   final String? roomNumber;
   final DateTime? createdAt;
 
-  TeacherMyClass({
+  const TeacherMyClass({
     required this.id,
     required this.name,
     required this.section,

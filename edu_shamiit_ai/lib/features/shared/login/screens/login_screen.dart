@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 
@@ -40,19 +39,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    print('Login button pressed!');
+    debugPrint('Login button pressed!');
     
     // Check form validation
     if (!_formKey.currentState!.validate()) {
-      print('Form validation failed!');
+      debugPrint('Form validation failed!');
       return;
     }
-    print('Form validation passed.');
+    debugPrint('Form validation passed.');
 
     final email = _studentIdController.text.trim();
     final password = _passwordController.text;
     
-    print('Attempting login with email: $email');
+    debugPrint('Attempting login with email: $email');
 
     try {
       final authNotifier = ref.read(authProvider.notifier);
@@ -64,11 +63,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
-      print('Login result: $success');
+      debugPrint('Login result: $success');
 
       if (success) {
         final role = ref.read(roleProvider).role;
-        print('User role: $role');
+        debugPrint('User role: $role');
         if (role == UserRole.teacher) {
           context.go('/teacher/dashboard');
         } else {
@@ -78,7 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // Get error from auth state
         final authState = ref.read(authProvider);
         final errorMessage = authState.error ?? 'Login failed. Please check your credentials.';
-        print('Login failed: $errorMessage');
+        debugPrint('Login failed: $errorMessage');
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -91,7 +90,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       }
     } catch (e) {
-      print('Login exception: $e');
+      debugPrint('Login exception: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -130,15 +129,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   width: 70,
                   height: 70,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4F46E5).withOpacity(0.2),
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -195,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'Login as',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -277,7 +276,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF4F46E5).withOpacity(0.4),
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.4),
                               blurRadius: 12,
                               offset: const Offset(0, 6),
                             ),
@@ -316,7 +315,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'AI monitors your learning journey every second',
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                       ),
                     ),
                   ],
@@ -362,12 +361,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF4F46E5).withOpacity(0.25)
-              : Colors.white.withOpacity(0.06),
+              ? const Color(0xFF4F46E5).withValues(alpha: 0.25)
+              : Colors.white.withValues(alpha: 0.06),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF4F46E5).withOpacity(0.6)
-                : Colors.white.withOpacity(0.08),
+                ? const Color(0xFF4F46E5).withValues(alpha: 0.6)
+                : Colors.white.withValues(alpha: 0.08),
             width: 1.5,
           ),
           borderRadius: BorderRadius.circular(14),
@@ -380,8 +379,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               label,
               style: TextStyle(
                 color: isSelected
-                    ? Colors.white.withOpacity(0.7)
-                    : Colors.white.withOpacity(0.7),
+                    ? Colors.white.withValues(alpha: 0.7)
+                    : Colors.white.withValues(alpha: 0.7),
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 fontSize: 9.5,
               ),
@@ -397,7 +396,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
+        color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -407,7 +406,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.4),
+              color: Colors.white.withValues(alpha: 0.4),
               fontSize: 10,
             ),
           ),
@@ -429,7 +428,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontWeight: FontWeight.w500,
             fontSize: 11,
           ),
@@ -447,17 +446,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           },
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: Colors.white.withOpacity(0.08),
+            fillColor: Colors.white.withValues(alpha: 0.08),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),

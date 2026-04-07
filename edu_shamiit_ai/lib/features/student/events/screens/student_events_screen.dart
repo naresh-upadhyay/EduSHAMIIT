@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -143,7 +143,7 @@ class _StudentEventsState extends State<StudentEvents> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Row(
@@ -215,7 +215,7 @@ class _StudentEventsState extends State<StudentEvents> {
                         const SizedBox(height: 16),
                         Text(
                           'No $_selectedTab events',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 14,
                             color: StudentColors.text3,
                           ),
@@ -248,7 +248,7 @@ class _StudentEventsState extends State<StudentEvents> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
           ),
         ],
@@ -291,7 +291,7 @@ class _StudentEventsState extends State<StudentEvents> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
@@ -317,7 +317,7 @@ class _StudentEventsState extends State<StudentEvents> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
@@ -353,7 +353,7 @@ class _StudentEventsState extends State<StudentEvents> {
                   event['description'] as String,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     color: StudentColors.text3,
                     height: 1.4,
@@ -467,7 +467,7 @@ class _StudentEventsState extends State<StudentEvents> {
         const SizedBox(width: 4),
         Text(
           text,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 10,
             color: StudentColors.text3,
           ),
@@ -568,7 +568,7 @@ class _StudentEventsState extends State<StudentEvents> {
                     const SizedBox(height: 8),
                     Text(
                       event['description'] as String,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         color: StudentColors.text2,
                         height: 1.6,
@@ -627,7 +627,7 @@ class _StudentEventsState extends State<StudentEvents> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
                   ),

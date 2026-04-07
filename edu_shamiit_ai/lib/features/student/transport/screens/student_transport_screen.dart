@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -74,9 +74,9 @@ class _StudentTransportState extends State<StudentTransport> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: StudentColors.error.withOpacity(0.2),
+                        color: StudentColors.error.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: StudentColors.error.withOpacity(0.5)),
+                        border: Border.all(color: StudentColors.error.withValues(alpha: 0.5)),
                       ),
                       child: Row(
                         children: [
@@ -179,7 +179,7 @@ class _StudentTransportState extends State<StudentTransport> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -247,7 +247,7 @@ class _StudentTransportState extends State<StudentTransport> {
                       'ETA at your stop',
                       style: TextStyle(
                         fontSize: 9,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -261,7 +261,7 @@ class _StudentTransportState extends State<StudentTransport> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
@@ -287,7 +287,7 @@ class _StudentTransportState extends State<StudentTransport> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -324,7 +324,7 @@ class _StudentTransportState extends State<StudentTransport> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -360,7 +360,7 @@ class _StudentTransportState extends State<StudentTransport> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -438,7 +438,7 @@ class _StudentTransportState extends State<StudentTransport> {
                   const SizedBox(height: 2),
                   Text(
                     stop['time'] as String,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10,
                       color: StudentColors.text3,
                     ),
@@ -497,7 +497,7 @@ class _StudentTransportState extends State<StudentTransport> {
                     ),
                   ),
                   const Spacer(),
-                  Text(
+                  const Text(
                     'Bus HR-29-3847 · Route 7B',
                     style: TextStyle(
                       fontSize: 11,
@@ -555,7 +555,7 @@ class _StudentTransportState extends State<StudentTransport> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                   ),
                 ],
@@ -579,11 +579,11 @@ class _StudentTransportState extends State<StudentTransport> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Arriving at Rajpur Stop',
                           style: TextStyle(
                             fontSize: 14,
@@ -591,7 +591,7 @@ class _StudentTransportState extends State<StudentTransport> {
                             color: StudentColors.text,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
                           '1.2 km away · 38 students onboard',
                           style: TextStyle(
@@ -605,7 +605,7 @@ class _StudentTransportState extends State<StudentTransport> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: StudentColors.success.withOpacity(0.1),
+                      color: StudentColors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(

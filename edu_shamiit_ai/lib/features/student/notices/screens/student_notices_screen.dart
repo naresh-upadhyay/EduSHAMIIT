@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -210,7 +210,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],
@@ -230,7 +230,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -246,7 +246,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -262,7 +262,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -291,7 +291,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
               notice.content,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 11,
                 color: StudentColors.text2,
                 height: 1.4,
@@ -300,7 +300,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             const SizedBox(height: 6),
             Text(
               '📅 ${_formatDate(notice.createdAt)}',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 9,
                 color: StudentColors.text3,
               ),
@@ -349,7 +349,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
+                          color: color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
@@ -374,7 +374,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                     const SizedBox(height: 16),
                     Text(
                       notice.content,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         color: StudentColors.text2,
                         height: 1.7,
@@ -393,7 +393,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                           const SizedBox(width: 8),
                           Text(
                             'Published: ${_formatDate(notice.createdAt)}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               color: StudentColors.text3,
                             ),

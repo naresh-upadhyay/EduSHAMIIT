@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import '../models/teacher_models.dart';
-import 'supabase_service.dart';
 
 /// Service for teacher-related API calls
 class TeacherApiService {
@@ -16,7 +16,8 @@ class TeacherApiService {
 
   /// Get headers with authorization
   Future<Map<String, String>> _getHeaders() async {
-    final token = SupabaseService.accessToken;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
     return {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
@@ -142,10 +143,12 @@ class TeacherApiService {
   }) async {
     try {
       final params = {'class': classId};
-      if (startDate != null)
+      if (startDate != null) {
         params['start_date'] = startDate.toIso8601String().split('T')[0];
-      if (endDate != null)
+      }
+      if (endDate != null) {
         params['end_date'] = endDate.toIso8601String().split('T')[0];
+      }
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
@@ -439,10 +442,12 @@ class TeacherApiService {
       final params = <String, String>{};
       if (classId != null) params['class'] = classId;
       if (examType != null) params['type'] = examType;
-      if (startDate != null)
+      if (startDate != null) {
         params['start_date'] = startDate.toIso8601String().split('T')[0];
-      if (endDate != null)
+      }
+      if (endDate != null) {
         params['end_date'] = endDate.toIso8601String().split('T')[0];
+      }
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
@@ -608,10 +613,12 @@ class TeacherApiService {
     try {
       final params = <String, String>{};
       if (status != null) params['status'] = status;
-      if (startDate != null)
+      if (startDate != null) {
         params['start_date'] = startDate.toIso8601String().split('T')[0];
-      if (endDate != null)
+      }
+      if (endDate != null) {
         params['end_date'] = endDate.toIso8601String().split('T')[0];
+      }
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');

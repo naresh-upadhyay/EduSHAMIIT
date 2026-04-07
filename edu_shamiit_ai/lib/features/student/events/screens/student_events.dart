@@ -19,7 +19,6 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
   final List<String> _filters = ['Upcoming', 'Registered', 'Past'];
   List<Event> _events = [];
   bool _isLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -30,11 +29,9 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
   Future<void> _loadEvents() async {
     setState(() {
       _isLoading = true;
-      _error = null;
     });
 
     try {
-      // Map filter to API filter parameter
       final filterMap = {
         'Upcoming': 'upcoming',
         'Registered': 'registered',
@@ -50,7 +47,6 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
         _isLoading = false;
       });
     }
@@ -133,7 +129,7 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(
@@ -220,7 +216,7 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -274,7 +270,7 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
                   const SizedBox(height: 8),
                   Text(
                     event.description,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10.5,
                       color: StudentColors.text3,
                       height: 1.5,
@@ -442,13 +438,13 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
           children: [
             const Text('🎉', style: TextStyle(fontSize: 60)),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Registration Successful!',
               style: TextStyle(
                 fontFamily: AppFonts.heading,
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF059669),
+                color: Color(0xFF059669),
               ),
             ),
             const SizedBox(height: 8),

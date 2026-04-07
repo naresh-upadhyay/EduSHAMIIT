@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -19,7 +19,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
   List<PaperQuestion> _questions = [];
   bool _isLoading = true;
   String? _error;
-  List<PaperQuestion> _selectedQuestions = [];
+  final List<PaperQuestion> _selectedQuestions = [];
 
   @override
   void initState() {
@@ -213,7 +213,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -250,7 +250,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: difficultyColor.withOpacity(0.1),
+              color: difficultyColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(typeIcon, color: difficultyColor, size: 20),
@@ -278,7 +278,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: difficultyColor.withOpacity(0.1),
+                        color: difficultyColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(

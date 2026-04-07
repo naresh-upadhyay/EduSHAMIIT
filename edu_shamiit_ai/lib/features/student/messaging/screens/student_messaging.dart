@@ -13,7 +13,7 @@ class StudentMessaging extends ConsumerStatefulWidget {
 }
 
 class _StudentMessagingState extends ConsumerState<StudentMessaging> {
-  int _selectedCategory = 0; // 0=All, 1=Teachers, 2=Students, 3=Groups
+  final int _selectedCategory = 0; // 0=All, 1=Teachers, 2=Students, 3=Groups
 
   @override
   void initState() {
@@ -51,7 +51,6 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
   Widget build(BuildContext context) {
     final messagingState = ref.watch(messagingProvider);
     final messages = messagingState.messages;
-    final unreadCount = messagingState.unreadCount;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -102,7 +101,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                 fillColor: StudentColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: StudentColors.border),
+                  borderSide: const BorderSide(color: StudentColors.border),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
@@ -131,12 +130,12 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
             child: messagingState.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : messages.isEmpty
-                    ? Center(
+                    ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.chat_bubble_outline, size: 64, color: StudentColors.text3),
-                            const SizedBox(height: 16),
+                            Icon(Icons.chat_bubble_outline, size: 64, color: StudentColors.text3),
+                            SizedBox(height: 16),
                             Text(
                               'No messages yet',
                               style: TextStyle(
@@ -198,7 +197,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 4,
             ),
           ],
@@ -272,7 +271,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                   Container(
                     width: 18,
                     height: 18,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: StudentColors.primary,
                       shape: BoxShape.circle,
                     ),
@@ -306,7 +305,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Create Study Group'),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
@@ -315,7 +314,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                 hintText: 'e.g. Physics Revision Squad',
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             TextField(
               decoration: InputDecoration(
                 labelText: 'Description (Optional)',
@@ -397,7 +396,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white24,
                 shape: BoxShape.circle,
               ),
@@ -473,7 +472,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 8,
                 ),
               ],
@@ -509,7 +508,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
   Widget _buildComposeBar() {
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: StudentColors.surface,
         border: Border(top: BorderSide(color: StudentColors.border)),
       ),
@@ -542,7 +541,7 @@ class _ChatDetailScreenState extends State<_ChatDetailScreen> {
             child: Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: StudentColors.primary,
                 shape: BoxShape.circle,
               ),

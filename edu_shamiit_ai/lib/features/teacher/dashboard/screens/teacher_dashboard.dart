@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -158,7 +158,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                             style: TextStyle(
                               fontFamily: AppFonts.body,
                               fontSize: 14,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -236,7 +236,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
           style: TextStyle(
             fontFamily: AppFonts.body,
             fontSize: 12,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -278,7 +278,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -349,7 +349,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
         border: isNow ? Border.all(color: StudentColors.success, width: 2) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -369,7 +369,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
               ),
               Text(
                 item.endTime,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: AppFonts.body,
                   fontSize: 12,
                   color: StudentColors.text3,
@@ -408,7 +408,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                 const SizedBox(height: 4),
                 Text(
                   'Class ${item.class_} • Room ${item.room}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: AppFonts.body,
                     fontSize: 13,
                     color: StudentColors.text3,
@@ -478,7 +478,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -503,7 +503,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                 const SizedBox(height: 4),
                 Text(
                   '${task.class_} • ${task.count} submissions',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: AppFonts.body,
                     fontSize: 13,
                     color: StudentColors.text3,
@@ -539,7 +539,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
         color: StudentColors.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

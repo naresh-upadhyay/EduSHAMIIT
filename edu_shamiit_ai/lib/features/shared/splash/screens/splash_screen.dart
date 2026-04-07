@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -63,10 +63,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                       width: 90,
                       height: 90,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(28),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           width: 1,
                         ),
                       ),
@@ -128,7 +128,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                       child: LinearProgressIndicator(
                         value: _loadingAnimation.value,
                         minHeight: 3,
-                        backgroundColor: Colors.white.withOpacity(0.1),
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
                         valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
                       ),
                     );
@@ -176,7 +176,7 @@ class SpinningRingPainter extends CustomPainter {
     final innerPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0xFF4F46E5).withOpacity(0.3);
+      ..color = const Color(0xFF4F46E5).withValues(alpha: 0.3);
     canvas.drawCircle(center, radius - 4, innerPaint);
   }
   @override

@@ -76,8 +76,6 @@ class _TeacherAttendanceState extends State<TeacherAttendance> {
     await _loadStudents();
   }
 
-  int get _presentCount => _students.where((s) => s.id != '').length; // We'll track attendance in a separate map
-  int get _absentCount => _students.length - _presentCount;
 
   final Map<String, bool> _attendanceMap = {};
 
@@ -277,9 +275,9 @@ class _TeacherAttendanceState extends State<TeacherAttendance> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -332,7 +330,7 @@ class _TeacherAttendanceState extends State<TeacherAttendance> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFF0EA5E9).withOpacity(0.1),
+              color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(

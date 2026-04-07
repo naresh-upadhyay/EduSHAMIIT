@@ -237,7 +237,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Text(
@@ -265,9 +265,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+                            color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
                             borderRadius: BorderRadius.circular(14),
-                            border: isSelected ? Border.all(color: Colors.white.withOpacity(0.3)) : null,
+                            border: isSelected ? Border.all(color: Colors.white.withValues(alpha: 0.3)) : null,
                           ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -277,7 +277,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+                                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -287,7 +287,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                                   fontFamily: AppFonts.heading,
                                   fontSize: 16,
                                   fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+                                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
                                 ),
                               ),
                             ],
@@ -332,7 +332,6 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
   }
 
   Widget _buildClassCard(Map<String, dynamic> item) {
-    final bgColor = _getSubjectColor(item['subject']);
     final isNow = item['now'] == true;
 
     return Container(
@@ -344,7 +343,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
         border: isNow ? Border.all(color: const Color(0xFFBBF7D0), width: 1.5) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -371,7 +370,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               ),
               Text(
                 item['end'],
-                style: TextStyle(color: StudentColors.text3, fontSize: 9),
+                style: const TextStyle(color: StudentColors.text3, fontSize: 9),
               ),
             ],
           ),
@@ -398,7 +397,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                 const SizedBox(height: 2),
                 Text(
                   item['teacher'],
-                  style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                  style: const TextStyle(color: StudentColors.text3, fontSize: 10),
                 ),
               ],
             ),

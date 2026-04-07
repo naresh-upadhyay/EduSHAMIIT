@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/features/shared/splash/screens/splash_screen.dart';
 import 'package:edu_shamiit_ai/features/shared/login/screens/login_screen.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -187,7 +187,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -197,7 +197,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
           // Avatar
           CircleAvatar(
             radius: 24,
-            backgroundColor: statusColor.withOpacity(0.1),
+            backgroundColor: statusColor.withValues(alpha: 0.1),
             child: Text(
               submission.studentName.split(' ').map((n) => n[0]).take(2).join(),
               style: TextStyle(
@@ -245,7 +245,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(

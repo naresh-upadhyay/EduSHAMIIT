@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -118,7 +118,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
             children: [
               const Icon(Icons.error_outline, size: 64, color: StudentColors.error),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 'Failed to load fees',
                 style: TextStyle(
                   fontFamily: AppFonts.heading,
@@ -129,7 +129,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
               const SizedBox(height: 8),
               Text(
                 _error!,
-                style: TextStyle(color: StudentColors.text3),
+                style: const TextStyle(color: StudentColors.text3),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -191,7 +191,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF065F46).withOpacity(0.15),
+                        color: const Color(0xFF065F46).withValues(alpha: 0.15),
                         blurRadius: 20,
                         offset: const Offset(0, 4),
                       ),
@@ -200,7 +200,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Outstanding Balance',
                         style: TextStyle(color: StudentColors.text3, fontSize: 11),
                       ),
@@ -369,7 +369,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -381,7 +381,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
@@ -403,7 +403,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                 const SizedBox(height: 2),
                 Text(
                   dueDateStr,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: StudentColors.text3,
                     fontSize: 10,
                   ),
@@ -521,7 +521,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               '💳 Select Payment Method',
               style: TextStyle(
                 fontFamily: AppFonts.heading,
@@ -571,7 +571,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                    style: const TextStyle(color: StudentColors.text3, fontSize: 10),
                   ),
                 ],
               ),
@@ -599,13 +599,13 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
           children: [
             const Text('✅', style: TextStyle(fontSize: 60)),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Payment Successful!',
               style: TextStyle(
                 fontFamily: AppFonts.heading,
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF059669),
+                color: Color(0xFF059669),
               ),
             ),
             const SizedBox(height: 8),

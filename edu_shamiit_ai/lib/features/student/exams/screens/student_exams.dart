@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -237,9 +237,9 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -276,7 +276,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF134E4A).withOpacity(0.15),
+            color: const Color(0xFF134E4A).withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -284,7 +284,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
       ),
       child: Column(
         children: [
-          Text(
+          const Text(
             'Next Exam',
             style: TextStyle(
               fontSize: 11,
@@ -293,10 +293,10 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Row(
+          const Row(
             children: [
-              const Text('📐', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
+              Text('📐', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 6),
               Text(
                 'Mathematics — Final',
                 style: TextStyle(
@@ -349,7 +349,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             label,
             style: TextStyle(
               fontSize: 9,
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -370,10 +370,10 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Text('🤖', style: TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
+              Text('🤖', style: TextStyle(fontSize: 14)),
+              SizedBox(width: 6),
               Text(
                 'AI Exam Prep Tip',
                 style: TextStyle(
@@ -390,7 +390,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             'Based on your performance, focus on Integration & Calculus. These topics have 65% weightage in finals. Practice 10 problems daily.',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.75),
+              color: Colors.white.withValues(alpha: 0.75),
               height: 1.6,
             ),
           ),
@@ -400,7 +400,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Row(
@@ -431,7 +431,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
       children: [
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: AppFonts.heading,
             fontSize: 14,
             fontWeight: FontWeight.w700,
@@ -451,7 +451,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 1),
           ),
@@ -484,7 +484,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                   exam['month'],
                   style: TextStyle(
                     fontSize: 9,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -504,7 +504,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                     Expanded(
                       child: Text(
                         exam['title'],
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: AppFonts.heading,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -517,7 +517,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '🕘 ${exam['time']} • ${exam['duration']}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
                   ),
@@ -558,10 +558,10 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Text('📝', style: TextStyle(fontSize: 14)),
-              const SizedBox(width: 6),
+              Text('📝', style: TextStyle(fontSize: 14)),
+              SizedBox(width: 6),
               Text(
                 'Online Exam Portal',
                 style: TextStyle(
@@ -578,7 +578,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             'Take MCQ-based exams online with a timer. Upload handwritten answers for subjective sections.',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.75),
+              color: Colors.white.withValues(alpha: 0.75),
               height: 1.5,
             ),
           ),
@@ -614,9 +614,9 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                     ),
                     child: const Center(
                       child: Text(
@@ -651,7 +651,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF4F46E5).withOpacity(0.5),
+              color: const Color(0xFF4F46E5).withValues(alpha: 0.5),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -812,7 +812,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: Text(
+                child: const Text(
                   'Cancel',
                   style: TextStyle(
                     color: StudentColors.text3,

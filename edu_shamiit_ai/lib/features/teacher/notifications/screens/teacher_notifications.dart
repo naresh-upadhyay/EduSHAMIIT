@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -226,10 +226,10 @@ class _TeacherNotificationsState extends State<TeacherNotifications> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: notification.isRead ? Colors.white : typeColor.withOpacity(0.05),
+          color: notification.isRead ? Colors.white : typeColor.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: notification.isRead ? const Color(0xFFE2E8F0) : typeColor.withOpacity(0.3),
+            color: notification.isRead ? const Color(0xFFE2E8F0) : typeColor.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -239,7 +239,7 @@ class _TeacherNotificationsState extends State<TeacherNotifications> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.1),
+                color: typeColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: typeColor, size: 20),

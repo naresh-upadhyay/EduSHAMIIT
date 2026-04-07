@@ -79,7 +79,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -95,12 +95,12 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             child: examState.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : exams.isEmpty
-                    ? Center(
+                    ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.event_note, size: 64, color: StudentColors.text3),
-                            const SizedBox(height: 16),
+                            Icon(Icons.event_note, size: 64, color: StudentColors.text3),
+                            SizedBox(height: 16),
                             Text(
                               'No exams scheduled',
                               style: TextStyle(
@@ -167,8 +167,8 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
     final examDate = DateTime.tryParse(nextExam.examDate);
     final daysUntil = examDate != null ? examDate.difference(DateTime.now()).inDays : 0;
     final displayDays = daysUntil > 0 ? daysUntil : 0;
-    final displayHours = 14; // Placeholder
-    final displayMins = 32; // Placeholder
+    const displayHours = 14; // Placeholder
+    const displayMins = 32; // Placeholder
     
     return Container(
       padding: const EdgeInsets.all(16),
@@ -177,7 +177,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF134E4A).withOpacity(0.15),
+            color: const Color(0xFF134E4A).withValues(alpha: 0.15),
             blurRadius: 20,
           ),
         ],
@@ -270,7 +270,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             'Based on your performance, focus on Integration & Calculus. These topics have 65% weightage in finals. Practice 10 problems daily.',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.75),
+              color: Colors.white.withValues(alpha: 0.75),
               height: 1.6,
             ),
           ),
@@ -278,7 +278,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
           ElevatedButton(
             onPressed: () {},
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.15),
+              backgroundColor: Colors.white.withValues(alpha: 0.15),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -311,7 +311,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -373,7 +373,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
             decoration: BoxDecoration(
-              color: (statusColors[exam.status] ?? StudentColors.border).withOpacity(0.1),
+              color: (statusColors[exam.status] ?? StudentColors.border).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -414,7 +414,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             'Take MCQ-based exams online with a timer. Upload handwritten answers for subjective sections.',
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.75),
+              color: Colors.white.withValues(alpha: 0.75),
               height: 1.5,
             ),
           ),
@@ -457,7 +457,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _ExamInstructionsScreen(),
+        builder: (context) => const _ExamInstructionsScreen(),
       ),
     );
   }
@@ -476,7 +476,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: 'Mathematics',
+              initialValue: 'Mathematics',
               items: ['Mathematics', 'Physics', 'Chemistry', 'English'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (v) {},
             ),
@@ -487,16 +487,16 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
                 border: Border.all(color: StudentColors.border),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
+              child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('📸', style: TextStyle(fontSize: 32)),
-                  const SizedBox(height: 4),
-                  const Text(
+                  Text('📸', style: TextStyle(fontSize: 32)),
+                  SizedBox(height: 4),
+                  Text(
                     'Tap to Upload',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
-                  const Text(
+                  Text(
                     'JPG, PNG, PDF up to 10MB',
                     style: TextStyle(fontSize: 9, color: StudentColors.text3),
                   ),
@@ -573,16 +573,16 @@ class _ExamInstructionsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 15,
                       ),
                     ],
                   ),
-                  child: Column(
+                  child: const Column(
                     children: [
-                      const Text('📏', style: TextStyle(fontSize: 48)),
-                      const SizedBox(height: 12),
-                      const Text(
+                      Text('📏', style: TextStyle(fontSize: 48)),
+                      SizedBox(height: 12),
+                      Text(
                         'Physics Term 2 — Final',
                         style: TextStyle(
                           fontFamily: AppFonts.heading,
@@ -590,8 +590,8 @@ class _ExamInstructionsScreen extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
+                      SizedBox(height: 4),
+                      Text(
                         'Duration: 90 Minutes · Total Marks: 100',
                         style: TextStyle(
                           fontSize: 12,
@@ -612,7 +612,7 @@ class _ExamInstructionsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 15,
                       ),
                     ],
@@ -648,12 +648,12 @@ class _ExamInstructionsScreen extends StatelessWidget {
                     border: Border.all(color: const Color(0xFFFEF3C7)),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      const Text('🤖', style: TextStyle(fontSize: 20)),
-                      const SizedBox(width: 10),
+                      Text('🤖', style: TextStyle(fontSize: 20)),
+                      SizedBox(width: 10),
                       Expanded(
-                        child: const Text(
+                        child: Text(
                           'AI Integrity Check: We\'ve detected a stable connection. You are ready to begin. Good luck!',
                           style: TextStyle(
                             fontSize: 10.5,
@@ -721,7 +721,7 @@ class _ExamInstructionsScreen extends StatelessWidget {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => _ExamTakingScreen(),
+        builder: (context) => const _ExamTakingScreen(),
       ),
     );
   }
@@ -788,11 +788,11 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
             decoration: const BoxDecoration(color: Color(0xFF0F172A)),
             child: Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Physics Term 2 — Final Exam',
                         style: TextStyle(
                           fontFamily: AppFonts.heading,
@@ -801,7 +801,7 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
                           color: Colors.white,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Arjun Kumar | STU-2024-1082',
                         style: TextStyle(fontSize: 9, color: Colors.white54),
                       ),
@@ -811,9 +811,9 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _timeLeft < 300 ? Colors.red : Colors.red.withOpacity(0.15),
+                    color: _timeLeft < 300 ? Colors.red : Colors.red.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _timeLeft < 300 ? Colors.red : Colors.red.withOpacity(0.4)),
+                    border: Border.all(color: _timeLeft < 300 ? Colors.red : Colors.red.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -839,7 +839,7 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
           // Question Palette
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: StudentColors.surface,
               border: Border(bottom: BorderSide(color: StudentColors.border)),
             ),
@@ -873,10 +873,15 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
                     bool isReviewed = _reviewed[index];
 
                     Color bgColor;
-                    if (isCurrent) bgColor = StudentColors.primary;
-                    else if (isReviewed) bgColor = StudentColors.warning;
-                    else if (isAnswered) bgColor = StudentColors.success;
-                    else bgColor = const Color(0xFFF1F5F9);
+                    if (isCurrent) {
+                      bgColor = StudentColors.primary;
+                    } else if (isReviewed) {
+                      bgColor = StudentColors.warning;
+                    } else if (isAnswered) {
+                      bgColor = StudentColors.success;
+                    } else {
+                      bgColor = const Color(0xFFF1F5F9);
+                    }
 
                     return GestureDetector(
                       onTap: () => setState(() => _currentQuestion = index),
@@ -920,7 +925,7 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 8,
                     ),
                   ],
@@ -981,7 +986,7 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
           // Bottom Bar
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: StudentColors.surface,
               border: Border(top: BorderSide(color: StudentColors.border)),
             ),
@@ -1185,18 +1190,18 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: StudentColors.success.withOpacity(0.1),
+                          color: StudentColors.success.withValues(alpha: 0.1),
                           blurRadius: 20,
                         ),
                       ],
                     ),
                     child: Column(
                       children: [
-                        Row(
+                        const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Submission ID', style: TextStyle(fontSize: 12, color: StudentColors.text3)),
-                            const Text('EV-EX-2024-8742', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
+                            Text('Submission ID', style: TextStyle(fontSize: 12, color: StudentColors.text3)),
+                            Text('EV-EX-2024-8742', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -1233,10 +1238,10 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
                                   color: const Color(0xFFEFF6FF),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                child: Column(
+                                child: const Column(
                                   children: [
-                                    const Text('+250', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8))),
-                                    const Text('XP Earned', style: TextStyle(fontSize: 10, color: Color(0xFF1E40AF))),
+                                    Text('+250', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1D4ED8))),
+                                    Text('XP Earned', style: TextStyle(fontSize: 10, color: Color(0xFF1E40AF))),
                                   ],
                                 ),
                               ),
@@ -1251,11 +1256,11 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
                             border: Border.all(color: StudentColors.success, style: BorderStyle.solid),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Row(
+                          child: const Row(
                             children: [
-                              const Text('🤖', style: TextStyle(fontSize: 20)),
-                              const SizedBox(width: 8),
-                              const Expanded(
+                              Text('🤖', style: TextStyle(fontSize: 20)),
+                              SizedBox(width: 8),
+                              Expanded(
                                 child: Text(
                                   'AI Verdict: Integrity maintained. No screen switches detected. Results will be published on April 10.',
                                   style: TextStyle(fontSize: 11, color: Color(0xFF065F46), height: 1.5),

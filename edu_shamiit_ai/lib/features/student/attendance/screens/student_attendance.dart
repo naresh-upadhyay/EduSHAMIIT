@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -42,9 +42,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             children: [
               const Icon(Icons.error_outline, size: 64, color: StudentColors.error),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 'Failed to load attendance',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -269,7 +269,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -368,7 +368,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

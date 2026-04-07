@@ -58,11 +58,6 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
-  }
-
   String _getRelativeDate(DateTime date) {
     final now = DateTime.now();
     final diff = date.difference(now);
@@ -231,11 +226,11 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isOverdue ? Colors.red.withOpacity(0.3) : const Color(0xFFE2E8F0),
+          color: isOverdue ? Colors.red.withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -260,7 +255,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFBE185D).withOpacity(0.1),
+                  color: const Color(0xFFBE185D).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

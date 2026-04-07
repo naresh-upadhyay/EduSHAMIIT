@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
-import 'package:edu_shamiit_ai/core/services/supabase_service.dart';
 
 /// API service for communicating with Python FastAPI backend
 class ApiService {
@@ -12,8 +12,9 @@ class ApiService {
   final http.Client _client = http.Client();
 
   /// Get headers with authorization
-  Map<String, String> get _headers {
-    final token = SupabaseService.accessToken;
+  Future<Map<String, String>> get _headers async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -28,7 +29,7 @@ class ApiService {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint')
           .replace(queryParameters: query);
       final response = await _client
-          .get(uri, headers: _headers)
+          .get(uri, headers: await _headers)
           .timeout(AppConfig.apiTimeout);
       return _handleResponse(response);
     } catch (e) {
@@ -44,7 +45,7 @@ class ApiService {
       final response = await _client
           .post(
             uri,
-            headers: _headers,
+            headers: await _headers,
             body: jsonEncode(data),
           )
           .timeout(AppConfig.apiTimeout);
@@ -62,7 +63,7 @@ class ApiService {
       final response = await _client
           .put(
             uri,
-            headers: _headers,
+            headers: await _headers,
             body: jsonEncode(data),
           )
           .timeout(AppConfig.apiTimeout);
@@ -77,7 +78,7 @@ class ApiService {
     try {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
       final response = await _client
-          .delete(uri, headers: _headers)
+          .delete(uri, headers: await _headers)
           .timeout(AppConfig.apiTimeout);
       return _handleResponse(response);
     } catch (e) {

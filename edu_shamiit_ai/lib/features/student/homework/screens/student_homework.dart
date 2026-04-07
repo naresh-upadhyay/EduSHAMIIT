@@ -19,7 +19,6 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   final List<String> _tabs = ['Pending', 'Submitted', 'Graded'];
   List<HomeworkAssignment> _homework = [];
   bool _isLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -30,11 +29,9 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   Future<void> _loadHomework() async {
     setState(() {
       _isLoading = true;
-      _error = null;
     });
 
     try {
-      // Map tab names to API status filters
       final statusMap = {
         'Pending': 'pending',
         'Submitted': 'submitted',
@@ -50,7 +47,6 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
         _isLoading = false;
       });
     }
@@ -159,7 +155,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(
@@ -223,7 +219,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                             const SizedBox(height: 12),
                             Text(
                               'No ${_tabs[_selectedTab].toLowerCase()} homework',
-                              style: TextStyle(color: StudentColors.text3, fontSize: 14),
+                              style: const TextStyle(color: StudentColors.text3, fontSize: 14),
                             ),
                           ],
                         ),
@@ -261,7 +257,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -283,7 +279,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: dueColor.withOpacity(0.1),
+                  color: dueColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -299,7 +295,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               if (hw.maxMarks != null)
                 Text(
                   '${hw.maxMarks} marks',
-                  style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                  style: const TextStyle(color: StudentColors.text3, fontSize: 10),
                 ),
             ],
           ),
@@ -315,7 +311,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
           const SizedBox(height: 5),
           Text(
             hw.description,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               color: StudentColors.text3,
               height: 1.5,
@@ -352,7 +348,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               else if (hw.status == 'graded' && hw.marksObtained != null)
                 Text(
                   'Score: ${hw.marksObtained}/${hw.maxMarks} (${hw.grade ?? ''})',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: StudentColors.success,
@@ -445,7 +441,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
+            const Text(
               '📤 Submit Homework',
               style: TextStyle(
                 fontFamily: AppFonts.heading,
@@ -473,15 +469,15 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                   borderRadius: BorderRadius.circular(16),
                   color: const Color(0xFFF8FAFC),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
-                    const Text('📁', style: TextStyle(fontSize: 36)),
-                    const SizedBox(height: 8),
-                    const Text(
+                    Text('📁', style: TextStyle(fontSize: 36)),
+                    SizedBox(height: 8),
+                    Text(
                       'Tap to upload file',
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       'PDF, DOC, JPG up to 10MB',
                       style: TextStyle(color: StudentColors.text3, fontSize: 10),
@@ -506,6 +502,8 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
                   try {
                     // Submit homework to API
                     final success = await _apiService.submitHomework(
@@ -513,20 +511,20 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                       submissionText: null, // Would get from text field
                     );
                     if (mounted) {
-                      Navigator.pop(context);
+                      navigator.pop();
                       if (success) {
-                        _showSuccessModal(context);
+                        _showSuccessModal(this.context);
                         _loadHomework(); // Refresh the list
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           const SnackBar(content: Text('Failed to submit homework')),
                         );
                       }
                     }
                   } catch (e) {
                     if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      navigator.pop();
+                      messenger.showSnackBar(
                         SnackBar(content: Text('Error: $e')),
                       );
                     }
@@ -572,13 +570,13 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
           children: [
             const Text('✅', style: TextStyle(fontSize: 60)),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Submitted Successfully!',
               style: TextStyle(
                 fontFamily: AppFonts.heading,
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF059669),
+                color: Color(0xFF059669),
               ),
             ),
             const SizedBox(height: 8),

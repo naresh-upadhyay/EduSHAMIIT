@@ -30,6 +30,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     
     // Calculate stats for header
     final activeBorrows = borrows.where((b) => b.status == 'borrowed').length;
+    // Overdue count: computed for future use; suppress unused warning
+    // ignore: unused_local_variable
     final overdueBooks = borrows.where((b) => 
       b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && b.returnedAt == null
     ).length;
@@ -68,7 +70,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -169,11 +171,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     
     if (myBorrows.isEmpty) {
       return [
-        Center(
+        const Center(
           child: Column(
             children: [
-              const Icon(Icons.library_books, size: 64, color: StudentColors.text3),
-              const SizedBox(height: 16),
+              Icon(Icons.library_books, size: 64, color: StudentColors.text3),
+              SizedBox(height: 16),
               Text(
                 'No books borrowed',
                 style: TextStyle(
@@ -183,8 +185,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   color: StudentColors.text3,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text('Browse the library to find books to borrow'),
+              SizedBox(height: 8),
+              Text('Browse the library to find books to borrow'),
             ],
           ),
         ),
@@ -205,7 +207,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],
@@ -293,7 +295,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],
@@ -369,7 +371,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],
@@ -386,11 +388,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
               child: const Center(child: Text('💻', style: TextStyle(fontSize: 22))),
             ),
             const SizedBox(width: 10),
-            Expanded(
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'NCERT Physics XII (Digital)',
                     style: TextStyle(
                       fontFamily: AppFonts.heading,
@@ -398,13 +400,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  const Text(
+                  SizedBox(height: 3),
+                  Text(
                     'eBook · PDF · 28 MB',
                     style: TextStyle(fontSize: 10, color: StudentColors.text3),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
+                  SizedBox(height: 6),
+                  Text(
                     '📥 Download / Read Online',
                     style: TextStyle(
                       fontSize: 10,
@@ -430,7 +432,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],

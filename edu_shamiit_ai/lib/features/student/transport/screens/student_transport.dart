@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -125,13 +125,13 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
     }
 
     if (_transportRoute == null) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.directions_bus, size: 48, color: Colors.grey),
-              const SizedBox(height: 16),
+              Icon(Icons.directions_bus, size: 48, color: Colors.grey),
+              SizedBox(height: 16),
               Text(
                 'No transport route assigned',
                 style: TextStyle(color: StudentColors.text3, fontSize: 16),
@@ -298,7 +298,7 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -337,7 +337,7 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -401,7 +401,7 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -416,7 +416,7 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -568,7 +568,7 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
             const SizedBox(height: 16),
             const Text('🔔', style: TextStyle(fontSize: 50)),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Bus Alert Set!',
               style: TextStyle(
                 fontFamily: AppFonts.heading,

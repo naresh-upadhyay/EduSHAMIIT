@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,8 +52,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 Container(
                   width: 32,
                   height: 32,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
                       colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
                     ),
                     shape: BoxShape.circle,
@@ -171,7 +171,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           // Input
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: StudentColors.surface,
               border: Border(top: BorderSide(color: StudentColors.border)),
             ),
@@ -197,8 +197,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
                       colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
                     ),
                     shape: BoxShape.circle,
@@ -228,8 +228,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               width: 28,
               height: 28,
               margin: const EdgeInsets.only(right: 6),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
                   colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
                 ),
                 shape: BoxShape.circle,
@@ -251,7 +251,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     ? null
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                           blurRadius: 8,
                         ),
                       ],
@@ -307,8 +307,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             width: 28,
             height: 28,
             margin: const EdgeInsets.only(right: 6),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
                 colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
               ),
               shape: BoxShape.circle,
@@ -327,7 +327,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 8,
                 ),
               ],
@@ -351,7 +351,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       width: 7,
       height: 7,
       margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: StudentColors.text3,
         shape: BoxShape.circle,
       ),
@@ -402,7 +402,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Chat exported!')),
+        const SnackBar(content: Text('Chat exported!')),
       );
       // In a real app, you would share or save the chatHistory string
       debugPrint(chatHistory);

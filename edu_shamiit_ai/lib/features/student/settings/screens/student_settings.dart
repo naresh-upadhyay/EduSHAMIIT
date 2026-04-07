@@ -169,18 +169,18 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
                           const SizedBox(height: 24),
 
                           // Version info
-                          Center(
+                          const Center(
                             child: Column(
                               children: [
-                                const Text(
+                                Text(
                                   'EduVerse v3.2.1',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: StudentColors.text3,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                const Text(
+                                SizedBox(height: 2),
+                                Text(
                                   '© 2025 EduVerse Technologies',
                                   style: TextStyle(
                                     fontSize: 10,
@@ -221,7 +221,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -376,7 +376,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
   void _showLanguageDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Select Language'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -389,7 +389,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
         ],
@@ -417,7 +417,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
   void _showChangePasswordDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Change Password'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -449,15 +449,16 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(dialogCtx);
               // In real implementation, get values from text fields
               final success = await ref.read(settingsProvider.notifier).changePassword('', '');
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(content: Text(success ? '✅ Password changed successfully!' : '❌ Failed to change password')),
               );
             },
@@ -471,21 +472,22 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Logout?'),
         content: const Text('Are you sure you want to logout from EduVerse?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: StudentColors.error),
             onPressed: () async {
-              Navigator.pop(context);
+              final router = GoRouter.of(context);
+              Navigator.pop(dialogCtx);
               final success = await ref.read(settingsProvider.notifier).logout();
-              if (success && mounted) {
-                context.go('/login');
+              if (success) {
+                router.go('/login');
               }
             },
             child: const Text('Logout', style: TextStyle(color: Colors.white)),

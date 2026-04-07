@@ -152,7 +152,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
             radius: 40,
             backgroundColor: Colors.white,
             child: Text(
-              '${_profile!.fullName.split(' ').map((n) => n[0]).take(2).join()}',
+              _profile!.fullName.split(' ').map((n) => n[0]).take(2).join(),
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
@@ -175,14 +175,14 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
             _profile!.subject,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -219,7 +219,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -257,7 +257,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -341,7 +341,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   void _showEditProfileDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Edit Profile'),
         content: SingleChildScrollView(
           child: Column(
@@ -373,12 +373,13 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
               // Update profile logic
               await _loadProfile();
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('✅ Profile updated successfully!')),
               );

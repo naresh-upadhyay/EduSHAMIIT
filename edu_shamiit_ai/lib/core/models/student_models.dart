@@ -1,4 +1,5 @@
 /// Data models for student-related entities
+library;
 
 /// Student profile model
 class StudentProfile {

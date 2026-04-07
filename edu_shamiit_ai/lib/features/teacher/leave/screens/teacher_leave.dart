@@ -204,7 +204,7 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -228,7 +228,7 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -317,7 +317,7 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
                 ),
                 readOnly: true,
                 onTap: () async {
-                  final date = await showDatePicker(
+                  final _ = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now(),
                     firstDate: DateTime.now(),
@@ -326,9 +326,9 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              TextField(
+              const TextField(
                 maxLines: 3,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Reason',
                   hintText: 'Enter reason for leave...',
                 ),

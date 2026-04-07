@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -37,14 +37,14 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
     }
 
     if (entries.isEmpty) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF0F4FF),
+      return const Scaffold(
+        backgroundColor: Color(0xFFF0F4FF),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.leaderboard, size: 64, color: StudentColors.text3),
-              const SizedBox(height: 16),
+              Icon(Icons.leaderboard, size: 64, color: StudentColors.text3),
+              SizedBox(height: 16),
               Text(
                 'No leaderboard data',
                 style: TextStyle(
@@ -99,7 +99,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -283,7 +283,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
               boxShadow: isUser
                   ? [
                       BoxShadow(
-                        color: StudentColors.primary.withOpacity(0.15),
+                        color: StudentColors.primary.withValues(alpha: 0.15),
                         blurRadius: 8,
                       ),
                     ]
@@ -312,7 +312,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                 const SizedBox(height: 2),
                 Text(
                   '${student.xpPoints} XP',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: StudentColors.primary,
@@ -330,7 +330,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                     gradient: LinearGradient(
                       colors: isUser
                           ? [StudentColors.primaryLight, const Color(0xFFE0E7FF)]
-                          : [colors[idx].withOpacity(0.2), colors[idx].withOpacity(0.1)],
+                          : [colors[idx].withValues(alpha: 0.2), colors[idx].withValues(alpha: 0.1)],
                     ),
                     borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
                   ),
@@ -362,7 +362,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -440,7 +440,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 4,
           ),
         ],

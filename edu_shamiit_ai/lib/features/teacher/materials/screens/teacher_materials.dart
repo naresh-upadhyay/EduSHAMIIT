@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -226,7 +226,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -239,7 +239,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: typeColor.withOpacity(0.1),
+              color: typeColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: typeColor, size: 28),
@@ -312,9 +312,9 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(decoration: const InputDecoration(labelText: 'Title')),
+              const TextField(decoration: InputDecoration(labelText: 'Title')),
               const SizedBox(height: 12),
-              TextField(maxLines: 3, decoration: const InputDecoration(labelText: 'Description')),
+              const TextField(maxLines: 3, decoration: InputDecoration(labelText: 'Description')),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Class'),

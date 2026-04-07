@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
@@ -86,7 +87,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      print('[AuthProvider] Calling ${AppConfig.apiBaseUrl}/auth/login');
+      debugPrint('[AuthProvider] Calling ${AppConfig.apiBaseUrl}/auth/login');
 
       final uri = Uri.parse('${AppConfig.apiBaseUrl}/auth/login');
       final response = await http.post(
@@ -95,8 +96,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         body: jsonEncode({'email': email, 'password': password}),
       ).timeout(AppConfig.apiTimeout);
 
-      print('[AuthProvider] Response status: ${response.statusCode}');
-      print('[AuthProvider] Response body: ${response.body}');
+      debugPrint('[AuthProvider] Response status: ${response.statusCode}');
+      debugPrint('[AuthProvider] Response body: ${response.body}');
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -128,7 +129,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(error: detail, isLoading: false);
       return false;
     } catch (e) {
-      print('[AuthProvider] Exception: $e');
+      debugPrint('[AuthProvider] Exception: $e');
       state = state.copyWith(
         error: 'Connection error: ${e.toString()}',
         isLoading: false,

@@ -203,11 +203,11 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isOngoing ? statusColor.withOpacity(0.5) : const Color(0xFFE2E8F0),
+          color: isOngoing ? statusColor.withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
         ),
         boxShadow: isOngoing
-            ? [BoxShadow(color: statusColor.withOpacity(0.2), blurRadius: 12)]
-            : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)],
+            ? [BoxShadow(color: statusColor.withValues(alpha: 0.2), blurRadius: 12)]
+            : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +229,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -311,7 +311,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(decoration: const InputDecoration(labelText: 'Title')),
+              const TextField(decoration: InputDecoration(labelText: 'Title')),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Class'),
@@ -321,7 +321,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
                 onChanged: (value) {},
               ),
               const SizedBox(height: 12),
-              TextField(decoration: const InputDecoration(labelText: 'Subject')),
+              const TextField(decoration: InputDecoration(labelText: 'Subject')),
               const SizedBox(height: 12),
               TextField(
                 decoration: const InputDecoration(
@@ -330,7 +330,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
                 ),
                 readOnly: true,
                 onTap: () async {
-                  final date = await showDatePicker(
+                  final _ = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now().add(const Duration(hours: 1)),
                     firstDate: DateTime.now(),

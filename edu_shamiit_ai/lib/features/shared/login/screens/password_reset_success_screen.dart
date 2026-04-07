@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 
@@ -71,7 +71,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF059669).withOpacity(0.3),
+                            color: const Color(0xFF059669).withValues(alpha: 0.3),
                             blurRadius: 30,
                             offset: const Offset(0, 10),
                           ),
@@ -108,7 +108,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                     'Your password has been updated successfully.\nYou can now sign in with your new password.',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -149,10 +149,10 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     child: Row(
@@ -167,7 +167,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                           child: Text(
                             'For security, never share your password with anyone.',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 12,
                             ),
                           ),

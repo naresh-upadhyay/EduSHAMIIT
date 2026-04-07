@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
@@ -238,7 +237,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                             style: TextStyle(
                               fontFamily: AppFonts.body,
                               fontSize: 11,
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -261,7 +260,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: const Icon(
@@ -304,7 +303,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                               ),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 width: 2,
                               ),
                             ),
@@ -322,7 +321,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -343,7 +342,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                               'Keep it going!',
                               style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.white.withOpacity(0.5),
+                                color: Colors.white.withValues(alpha: 0.5),
                               ),
                             ),
                           ],
@@ -363,7 +362,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                               'days',
                               style: TextStyle(
                                 fontSize: 9,
-                                color: Colors.white.withOpacity(0.5),
+                                color: Colors.white.withValues(alpha: 0.5),
                               ),
                             ),
                           ],
@@ -407,7 +406,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           label,
           style: TextStyle(
             fontSize: 9,
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
           ),
         ),
       ],
@@ -450,7 +449,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -463,7 +462,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: Color(int.parse(item['bg'], radix: 16)).withOpacity(0.8),
+                        color: Color(int.parse(item['bg'], radix: 16)).withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Center(
@@ -518,7 +517,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -616,9 +615,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                 ),
                 Text(
                   'Room ${item['room']} · ${item['teacher']}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
-                    color: const Color(0xFF94A3B8),
+                    color: Color(0xFF94A3B8),
                   ),
                 ),
               ],
@@ -699,7 +698,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -752,7 +751,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isUrgent ? const Color(0xFFEF4444).withOpacity(0.2) : Colors.transparent,
+            color: isUrgent ? const Color(0xFFEF4444).withValues(alpha: 0.2) : Colors.transparent,
           ),
         ),
         child: Row(
@@ -785,9 +784,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                   const SizedBox(height: 2),
                   Text(
                     hw['subject'],
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 10,
-                      color: const Color(0xFF94A3B8),
+                      color: Color(0xFF94A3B8),
                     ),
                   ),
                 ],
@@ -814,7 +813,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         color: const Color(0xFFFFFFFF),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -847,7 +846,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
-              child: Text(emoji, style: TextStyle(fontSize: 16)),
+              child: Text(emoji, style: const TextStyle(fontSize: 16)),
             ),
           ),
           const SizedBox(height: 3),

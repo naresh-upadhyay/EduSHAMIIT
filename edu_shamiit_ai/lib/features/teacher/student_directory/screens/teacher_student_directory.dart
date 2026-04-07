@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -224,7 +224,7 @@ class _TeacherStudentDirectoryState extends State<TeacherStudentDirectory> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
           ),
         ],
@@ -234,7 +234,7 @@ class _TeacherStudentDirectoryState extends State<TeacherStudentDirectory> {
           // Avatar
           CircleAvatar(
             radius: 24,
-            backgroundColor: const Color(0xFF10B981).withOpacity(0.1),
+            backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.1),
             child: Text(
               student.name.split(' ').map((n) => n[0]).take(2).join(),
               style: const TextStyle(
