@@ -1,31 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
 
-class TeacherProfile extends StatefulWidget {
-  const TeacherProfile({super.key});
+class TeacherProfileScreen extends StatefulWidget {
+  const TeacherProfileScreen({super.key});
 
   @override
-  State<TeacherProfile> createState() => _TeacherProfileState();
+  State<TeacherProfileScreen> createState() => _TeacherProfileScreenState();
 }
 
-class _TeacherProfileState extends State<TeacherProfile> {
-  final Map<String, dynamic> _teacher = {
-    'name': 'Dr. Priya Sharma',
-    'id': 'TCH-2024-001',
-    'email': 'priya.sharma@edushamiit.edu',
-    'phone': '+91 98765 43210',
-    'subject': 'Mathematics',
-    'qualification': 'Ph.D. in Applied Mathematics',
-    'experience': '12 years',
-    'classes': ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B'],
-    'totalStudents': 191,
-    'joinDate': 'April 2018',
-    'address': 'Civil Lines, New Delhi',
-    'salary': '₹85,000/month',
-    'rating': 4.8,
-    'reviews': 156,
-  };
+class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
+  final TeacherApiService _apiService = TeacherApiService();
+  
+  models.TeacherProfile? _profile;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final profile = await _apiService.getProfile();
+      setState(() {
+        _profile = profile;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +55,7 @@ class _TeacherProfileState extends State<TeacherProfile> {
             padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)],
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
               ),
             ),
             child: Row(
@@ -49,7 +66,7 @@ class _TeacherProfileState extends State<TeacherProfile> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'My Profile',
+                  'Profile',
                   style: TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 20,
@@ -60,47 +77,61 @@ class _TeacherProfileState extends State<TeacherProfile> {
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.white),
-                  onPressed: () {},
+                  onPressed: () => _showEditProfileDialog(),
                 ),
               ],
             ),
           ),
 
-          // Profile content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Profile card
-                  _buildProfileCard(),
-                  const SizedBox(height: 16),
+          // Loading state
+          if (_isLoading)
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
+            ),
 
-                  // Quick stats
-                  _buildQuickStats(),
-                  const SizedBox(height: 16),
-
-                  // Personal information
-                  _buildSectionTitle('Personal Information'),
-                  _buildInfoCard(_buildPersonalInfo()),
-                  const SizedBox(height: 16),
-
-                  // Professional information
-                  _buildSectionTitle('Professional Details'),
-                  _buildInfoCard(_buildProfessionalInfo()),
-                  const SizedBox(height: 16),
-
-                  // Classes
-                  _buildSectionTitle('My Classes'),
-                  _buildClassesCard(),
-                  const SizedBox(height: 16),
-
-                  // Actions
-                  _buildActionButtons(),
-                ],
+          // Error state
+          if (_error != null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadProfile,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+
+          // Profile content
+          if (!_isLoading && _error == null && _profile != null)
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    // Profile card
+                    _buildProfileCard(),
+                    const SizedBox(height: 16),
+                    // Stats
+                    _buildStatsRow(),
+                    const SizedBox(height: 16),
+                    // Info sections
+                    _buildInfoSection('Personal Information', _buildPersonalInfo()),
+                    const SizedBox(height: 16),
+                    _buildInfoSection('Professional Information', _buildProfessionalInfo()),
+                    const SizedBox(height: 16),
+                    _buildInfoSection('Contact Information', _buildContactInfo()),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -108,112 +139,108 @@ class _TeacherProfileState extends State<TeacherProfile> {
 
   Widget _buildProfileCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)],
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
         ),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         children: [
-          // Avatar
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white38, width: 3),
-            ),
-            child: const Center(
-              child: Text(
-                'PS',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF0EA5E9),
-                ),
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: Colors.white,
+            child: Text(
+              '${_profile!.fullName.split(' ').map((n) => n[0]).take(2).join()}',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF6366F1),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          // Name and title
           Text(
-            _teacher['name'] as String,
+            _profile!.fullName,
             style: const TextStyle(
               fontFamily: AppFonts.heading,
               fontSize: 22,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            _teacher['subject'] as String,
+            _profile!.subject,
             style: TextStyle(
               fontSize: 14,
               color: Colors.white.withOpacity(0.8),
             ),
           ),
           const SizedBox(height: 8),
-          // Rating
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.star, color: Colors.amber, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                '${_teacher['rating']} (${_teacher['reviews']} reviews)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.9),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${_profile!.qualification} • ${_profile!.experienceYears}y exp',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildStatsRow() {
     return Row(
       children: [
-        Expanded(child: _buildStatCard('${_teacher['classes'].length}', 'Classes', Colors.blue)),
+        Expanded(child: _buildStatItem('📚', '${_profile!.classes.length}', 'Classes')),
         const SizedBox(width: 12),
-        Expanded(child: _buildStatCard('${_teacher['totalStudents']}', 'Students', Colors.green)),
+        Expanded(child: _buildStatItem('⭐', '${_profile!.xpPoints}', 'XP')),
         const SizedBox(width: 12),
-        Expanded(child: _buildStatCard(_teacher['experience'] as String, 'Experience', Colors.purple)),
+        Expanded(child: _buildStatItem('🔥', '${_profile!.streak}', 'Streak')),
       ],
     );
   }
 
-  Widget _buildStatCard(String value, String label, Color color) {
+  Widget _buildStatItem(String emoji, String value, String label) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+          ),
+        ],
       ),
       child: Column(
         children: [
+          Text(emoji, style: const TextStyle(fontSize: 24)),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: AppFonts.heading,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
-              color: color,
+              color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               color: Colors.grey[600],
             ),
           ),
@@ -222,20 +249,22 @@ class _TeacherProfileState extends State<TeacherProfile> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 16,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0EA5E9),
-              borderRadius: BorderRadius.circular(2),
-            ),
+  Widget _buildInfoSection(String title, List<Widget> children) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
           ),
-          const SizedBox(width: 8),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
             title,
             style: const TextStyle(
@@ -245,179 +274,119 @@ class _TeacherProfileState extends State<TeacherProfile> {
               color: Color(0xFF0F172A),
             ),
           ),
+          const SizedBox(height: 12),
+          ...children,
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard(Widget child) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: child,
-    );
+  List<Widget> _buildPersonalInfo() {
+    return [
+      _buildInfoRow('Name', _profile!.fullName),
+      _buildInfoRow('Email', _profile!.email),
+      _buildInfoRow('Phone', _profile!.phone ?? 'Not provided'),
+      _buildInfoRow('Experience', '${_profile!.experienceYears} years'),
+    ];
   }
 
-  Widget _buildPersonalInfo() {
-    return Column(
-      children: [
-        _buildInfoRow('Teacher ID', _teacher['id'] as String),
-        const SizedBox(height: 12),
-        _buildInfoRow('Email', _teacher['email'] as String),
-        const SizedBox(height: 12),
-        _buildInfoRow('Phone', _teacher['phone'] as String),
-        const SizedBox(height: 12),
-        _buildInfoRow('Address', _teacher['address'] as String),
-      ],
-    );
+  List<Widget> _buildProfessionalInfo() {
+    return [
+      _buildInfoRow('Subject', _profile!.subject),
+      _buildInfoRow('Qualification', _profile!.qualification),
+      _buildInfoRow('Classes', _profile!.classes.join(', ')),
+      _buildInfoRow('Join Date', _profile!.joiningDate?.toString().split(' ')[0] ?? 'Not provided'),
+    ];
   }
 
-  Widget _buildProfessionalInfo() {
-    return Column(
-      children: [
-        _buildInfoRow('Qualification', _teacher['qualification'] as String),
-        const SizedBox(height: 12),
-        _buildInfoRow('Experience', _teacher['experience'] as String),
-        const SizedBox(height: 12),
-        _buildInfoRow('Join Date', _teacher['joinDate'] as String),
-        const SizedBox(height: 12),
-        _buildInfoRow('Salary', _teacher['salary'] as String),
-      ],
-    );
+  List<Widget> _buildContactInfo() {
+    return [
+      _buildInfoRow('Bio', _profile!.bio ?? 'Not provided'),
+      _buildInfoRow('Streak', '${_profile!.streak} days'),
+    ];
   }
 
   Widget _buildInfoRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildClassesCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: ( _teacher['classes'] as List<String>).map((cls) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0EA5E9).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
             child: Text(
-              cls,
-              style: const TextStyle(
+              label,
+              style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF0EA5E9),
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
               ),
             ),
-          );
-        }).toList(),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildActionButtons() {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.edit, color: Colors.white),
-            label: const Text(
-              'Edit Profile',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+  void _showEditProfileDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Profile'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: TextEditingController(text: _profile!.fullName),
+                decoration: const InputDecoration(labelText: 'Full Name'),
               ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0EA5E9),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 12),
+              TextField(
+                controller: TextEditingController(text: _profile!.email),
+                decoration: const InputDecoration(labelText: 'Email'),
+                keyboardType: TextInputType.emailAddress,
               ),
-            ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: TextEditingController(text: _profile!.phone),
+                decoration: const InputDecoration(labelText: 'Phone'),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: TextEditingController(text: _profile!.bio ?? ''),
+                decoration: const InputDecoration(labelText: 'Bio'),
+                maxLines: 2,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.download, color: Color(0xFF0EA5E9)),
-            label: const Text(
-              'Download ID Card',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0EA5E9),
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              side: const BorderSide(color: Color(0xFF0EA5E9)),
-            ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Update profile logic
+              await _loadProfile();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('✅ Profile updated successfully!')),
+              );
+            },
+            child: const Text('Save'),
           ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: TextButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text(
-              'Logout',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.red,
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

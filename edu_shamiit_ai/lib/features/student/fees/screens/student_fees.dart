@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 class StudentFees extends ConsumerStatefulWidget {
   const StudentFees({super.key});
@@ -12,10 +14,13 @@ class StudentFees extends ConsumerStatefulWidget {
 }
 
 class _StudentFeesState extends ConsumerState<StudentFees> {
+  final StudentApiService _apiService = StudentApiService();
   String _selectedFilter = 'Pending';
   final List<String> _filters = ['Pending', 'Paid', 'All', 'Receipts'];
-  Map<String, dynamic>? _feesData;
+  List<FeeRecord> _feeRecords = [];
+  double _totalOutstanding = 0;
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -24,45 +29,76 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
   }
 
   Future<void> _loadFees() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-
     setState(() {
-      _feesData = {
-        "total_outstanding": 12500.0,
-        "due_date": "April 5, 2025",
-        "fees": [
-          {
-            "icon": "📚",
-            "type": "Tuition Fee — Q4",
-            "due_date": "Due: April 5, 2025",
-            "amount": 8500.0,
-            "status": "pending",
-            "statusColor": const Color(0xFFEF4444),
-            "bgColor": const Color(0xFFFEF2F2),
-          },
-          {
-            "icon": "🚌",
-            "type": "Transport Fee — Mar",
-            "due_date": "Due: March 31, 2025",
-            "amount": 2000.0,
-            "status": "partial",
-            "statusColor": const Color(0xFFD97706),
-            "bgColor": const Color(0xFFFFF7ED),
-          },
-          {
-            "icon": "🏫",
-            "type": "Lab Fee — Annual",
-            "due_date": "Paid: Jan 15, 2025",
-            "amount": 2000.0,
-            "status": "paid",
-            "statusColor": const Color(0xFF059669),
-            "bgColor": const Color(0xFFF0FDF4),
-          },
-        ],
-      };
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      // Map filter to API status
+      final statusMap = {
+        'Pending': 'pending',
+        'Paid': 'paid',
+        'All': null,
+        'Receipts': 'paid',
+      };
+      
+      final status = statusMap[_selectedFilter];
+      final records = await _apiService.getFeeRecords(status: status);
+      
+      // Calculate total outstanding
+      final totalOutstanding = records
+          .where((f) => f.status == 'pending' || f.status == 'partial')
+          .fold<double>(0, (sum, f) => sum + f.dueAmount);
+      
+      setState(() {
+        _feeRecords = records;
+        _totalOutstanding = totalOutstanding;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<FeeRecord> get _filteredFees {
+    switch (_selectedFilter) {
+      case 'Pending':
+        return _feeRecords.where((f) => f.status == 'pending').toList();
+      case 'Paid':
+      case 'Receipts':
+        return _feeRecords.where((f) => f.status == 'paid').toList();
+      case 'All':
+      default:
+        return _feeRecords;
+    }
+  }
+
+  String _getFeeIcon(String month) {
+    if (month.toLowerCase().contains('transport') || month.toLowerCase().contains('bus')) {
+      return '🚌';
+    } else if (month.toLowerCase().contains('lab')) {
+      return '🔬';
+    } else if (month.toLowerCase().contains('library')) {
+      return '📚';
+    }
+    return '📋';
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return StudentColors.error;
+      case 'partial':
+        return StudentColors.warning;
+      case 'paid':
+        return StudentColors.success;
+      default:
+        return StudentColors.primary;
+    }
   }
 
   @override
@@ -73,7 +109,40 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
       );
     }
 
-    final data = _feesData!;
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0FDF9),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: StudentColors.error),
+              const SizedBox(height: 16),
+              Text(
+                'Failed to load fees',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(color: StudentColors.text3),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadFees,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0FDF9),
@@ -137,7 +206,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '₹ ${data['total_outstanding'].toStringAsFixed(0)}',
+                        '₹ ${_totalOutstanding.toStringAsFixed(0)}',
                         style: const TextStyle(
                           fontFamily: AppFonts.heading,
                           fontSize: 32,
@@ -147,14 +216,15 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '⚠️ Due by ${data['due_date']}',
-                            style: const TextStyle(fontSize: 10, color: Color(0xFFEF4444)),
-                          ),
-                        ],
-                      ),
+                      if (_feeRecords.any((f) => f.status == 'pending'))
+                        Row(
+                          children: [
+                            Text(
+                              '⚠️ Due by ${_feeRecords.firstWhere((f) => f.status == 'pending').dueDate.day}/${_feeRecords.firstWhere((f) => f.status == 'pending').dueDate.month}',
+                              style: const TextStyle(fontSize: 10, color: Color(0xFFEF4444)),
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -215,7 +285,18 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                 const SizedBox(height: 12),
 
                 // Fees list
-                ...(data['fees'] as List).map((fee) => _buildFeeCard(fee)),
+                if (_filteredFees.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text(
+                        'No fee records found',
+                        style: TextStyle(color: StudentColors.text3),
+                      ),
+                    ),
+                  )
+                else
+                  ..._filteredFees.map((fee) => _buildFeeCard(fee)),
 
                 const SizedBox(height: 12),
 
@@ -245,7 +326,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Tuition fee deadline is in 9 days. Enable Auto-Pay to avoid late fees. EMI option also available!',
+                        'Pay your pending fees before the due date to avoid late charges. EMI options available!',
                         style: TextStyle(fontSize: 11, color: Color(0xFF065F46), height: 1.6),
                       ),
                     ],
@@ -268,9 +349,17 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
     );
   }
 
-  Widget _buildFeeCard(Map<String, dynamic> fee) {
-    final isPaid = fee['status'] == 'paid';
-    final isPartial = fee['status'] == 'partial';
+  Widget _buildFeeCard(FeeRecord fee) {
+    final statusColor = _getStatusColor(fee.status);
+    final icon = _getFeeIcon(fee.month);
+    final dueDateStr = fee.status == 'paid' && fee.paidDate != null
+        ? 'Paid: ${fee.paidDate!.day}/${fee.paidDate!.month}'
+        : 'Due: ${fee.dueDate.day}/${fee.dueDate.month}';
+    final statusBgColor = fee.status == 'paid'
+        ? const Color(0xFFECFDF5)
+        : fee.status == 'partial'
+            ? const Color(0xFFFFF7ED)
+            : const Color(0xFFFEF2F2);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -292,11 +381,11 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: fee['bgColor'],
+              color: statusColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
-              child: Text(fee['icon'], style: const TextStyle(fontSize: 16)),
+              child: Text(icon, style: const TextStyle(fontSize: 16)),
             ),
           ),
           const SizedBox(width: 10),
@@ -305,7 +394,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  fee['type'],
+                  fee.month,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
@@ -313,7 +402,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  fee['due_date'],
+                  dueDateStr,
                   style: TextStyle(
                     color: StudentColors.text3,
                     fontSize: 10,
@@ -326,35 +415,31 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '₹ ${fee['amount'].toStringAsFixed(0)}',
+                '₹ ${fee.amount.toStringAsFixed(0)}',
                 style: TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: fee['statusColor'],
+                  color: statusColor,
                 ),
               ),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: fee['status'] == 'paid'
-                      ? const Color(0xFFECFDF5)
-                      : fee['status'] == 'partial'
-                          ? const Color(0xFFFFF7ED)
-                          : const Color(0xFFFEF2F2),
+                  color: statusBgColor,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  fee['status'] == 'paid'
+                  fee.status == 'paid'
                       ? 'PAID ✓'
-                      : fee['status'] == 'partial'
+                      : fee.status == 'partial'
                           ? 'PARTIAL'
                           : 'PENDING',
                   style: TextStyle(
                     fontSize: 8,
                     fontWeight: FontWeight.w700,
-                    color: fee['statusColor'],
+                    color: statusColor,
                   ),
                 ),
               ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
 class TeacherTimetable extends StatefulWidget {
   const TeacherTimetable({super.key});
@@ -10,61 +12,44 @@ class TeacherTimetable extends StatefulWidget {
 }
 
 class _TeacherTimetableState extends State<TeacherTimetable> {
+  final TeacherApiService _apiService = TeacherApiService();
+  
   String _selectedDay = 'Monday';
   final List<String> _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  List<TeacherTimetablePeriod> _periods = [];
+  bool _isLoading = true;
+  String? _error;
 
-  final List<Map<String, dynamic>> _classes = [
-    {
-      'id': '1',
-      'subject': 'Mathematics',
-      'topic': 'Trigonometry',
-      'class': 'X-A',
-      'time': '08:00 AM - 08:45 AM',
-      'room': 'Room 101',
-      'students': 42,
-    },
-    {
-      'id': '2',
-      'subject': 'Mathematics',
-      'topic': 'Statistics',
-      'class': 'X-B',
-      'time': '09:00 AM - 09:45 AM',
-      'room': 'Room 102',
-      'students': 38,
-    },
-    {
-      'id': '3',
-      'subject': 'Physics',
-      'topic': 'Optics',
-      'class': 'IX-A',
-      'time': '10:00 AM - 10:45 AM',
-      'room': 'Lab 1',
-      'students': 35,
-    },
-    {
-      'id': '4',
-      'subject': 'Mathematics',
-      'topic': 'Algebra',
-      'class': 'X-C',
-      'time': '11:00 AM - 11:45 AM',
-      'room': 'Room 103',
-      'students': 40,
-    },
-    {
-      'id': '5',
-      'subject': 'Free Period',
-      'topic': 'Planning & Preparation',
-      'class': '-',
-      'time': '12:00 PM - 12:45 PM',
-      'room': 'Staff Room',
-      'students': 0,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadTimetable();
+  }
+
+  Future<void> _loadTimetable() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final periods = await _apiService.getTimetable(dayOfWeek: _selectedDay);
+      setState(() {
+        _periods = periods;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF0F9FF),
       body: Column(
         children: [
           // Header
@@ -83,18 +68,13 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'My Timetable',
+                  'Timetable',
                   style: TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.calendar_today, color: Colors.white),
-                  onPressed: () {},
                 ),
               ],
             ),
@@ -111,16 +91,19 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
                 final day = _days[index];
                 final isSelected = _selectedDay == day;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedDay = day),
+                  onTap: () {
+                    setState(() => _selectedDay = day);
+                    _loadTimetable();
+                  },
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE0F2FE),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      day.substring(0, 3),
+                      day,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -133,33 +116,58 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
             ),
           ),
 
-          // Classes list
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _classes.length,
-              itemBuilder: (context, index) {
-                return _buildClassCard(_classes[index]);
-              },
+          // Loading state
+          if (_isLoading)
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
             ),
-          ),
+
+          // Error state
+          if (_error != null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadTimetable,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Periods list
+          if (!_isLoading && _error == null)
+            Expanded(
+              child: _periods.isEmpty
+                  ? const Center(child: Text('No classes scheduled for this day'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _periods.length,
+                      itemBuilder: (context, index) {
+                        return _buildPeriodCard(_periods[index]);
+                      },
+                    ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildClassCard(Map<String, dynamic> classInfo) {
-    final isFreePeriod = classInfo['subject'] == 'Free Period';
-    
+  Widget _buildPeriodCard(TeacherTimetablePeriod period) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isFreePeriod ? const Color(0xFFF0FDF4) : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isFreePeriod ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
-        ),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -169,97 +177,71 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
       ),
       child: Row(
         children: [
-          // Time column
+          // Time
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                classInfo['time'].toString().split(' - ')[0],
+                period.startTime,
                 style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0369A1),
+                  fontFamily: AppFonts.heading,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
                 ),
               ),
-              const SizedBox(height: 4),
               Text(
-                classInfo['time'].toString().split(' - ')[1],
+                period.endTime,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 12,
                   color: Colors.grey[600],
                 ),
               ),
             ],
           ),
           const SizedBox(width: 16),
-          // Subject info
+          // Period indicator
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0EA5E9),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  classInfo['subject'] as String,
+                  period.subject,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF0F172A),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  classInfo['topic'] as String,
+                  'Class ${period.class_} • Period ${period.periodNumber}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
                     color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.people, size: 12, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      classInfo['students'] == 0 
-                          ? '-' 
-                          : '${classInfo['students']} students',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
+                if (period.roomNumber != null)
+                  Text(
+                    'Room ${period.roomNumber}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
                     ),
-                    const SizedBox(width: 8),
-                    Icon(Icons.meeting_room, size: 12, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      classInfo['room'] as String,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
               ],
             ),
           ),
-          // Class badge
-          if (!isFreePeriod)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0EA5E9).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                classInfo['class'] as String,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0EA5E9),
-                ),
-              ),
-            ),
         ],
       ),
     );

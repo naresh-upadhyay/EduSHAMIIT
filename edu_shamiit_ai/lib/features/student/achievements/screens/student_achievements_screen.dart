@@ -2,96 +2,87 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
-class StudentAchievements extends StatelessWidget {
+class StudentAchievements extends StatefulWidget {
   const StudentAchievements({super.key});
 
-  final List<Map<String, dynamic>> _achievements = const [
-    {
-      'id': '1',
-      'title': 'Academic Excellence',
-      'description': 'Scored 90%+ in Term 2 exams.',
-      'icon': '🏆',
-      'gradient': LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
-      'earnedAt': 'March 15, 2025',
-      'xp': 500,
-      'rarity': 'Rare (only 8 students)',
-    },
-    {
-      'id': '2',
-      'title': '18-Day Streak',
-      'description': 'Logged in 18 consecutive days.',
-      'icon': '🔥',
-      'gradient': LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFF59E0B)]),
-      'earnedAt': 'Active now',
-      'xp': 180,
-      'rarity': 'Common',
-    },
-    {
-      'id': '3',
-      'title': 'Zero Late Submissions',
-      'description': 'All homework on time this term.',
-      'icon': '✅',
-      'gradient': LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
-      'earnedAt': 'March 1, 2025',
-      'xp': 200,
-      'rarity': 'Uncommon',
-    },
-    {
-      'id': '4',
-      'title': 'Perfect Attendance',
-      'description': '100% attendance for 1 month.',
-      'icon': '📅',
-      'gradient': LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)]),
-      'earnedAt': 'February 28, 2025',
-      'xp': 300,
-      'rarity': 'Rare',
-    },
-    {
-      'id': '5',
-      'title': 'Science Fair Winner',
-      'description': '1st place in school science fair.',
-      'icon': '🔬',
-      'gradient': LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
-      'earnedAt': 'January 20, 2025',
-      'xp': 1000,
-      'rarity': 'Epic',
-    },
-    {
-      'id': '6',
-      'title': 'Top 5% Rank',
-      'description': 'Achieved top 5% in class ranking.',
-      'icon': '🎖️',
-      'gradient': LinearGradient(colors: [Color(0xFFEC4899), Color(0xFFF43F5E)]),
-      'earnedAt': 'January 15, 2025',
-      'xp': 500,
-      'rarity': 'Rare',
-    },
-  ];
+  @override
+  State<StudentAchievements> createState() => _StudentAchievementsState();
+}
 
-  final List<Map<String, dynamic>> _lockedAchievements = const [
-    {
-      'id': '7',
-      'title': 'Science Olympiad',
-      'description': 'Score 85%+ to unlock.',
-      'icon': '🔒',
-      'progress': 60,
-    },
-    {
-      'id': '8',
-      'title': 'Math Wizard',
-      'description': 'Score 95%+ in Math.',
-      'icon': '🔒',
-      'progress': 95,
-    },
-    {
-      'id': '9',
-      'title': '30-Day Streak',
-      'description': 'Login 30 days in a row.',
-      'icon': '🔒',
-      'progress': 60,
-    },
-  ];
+class _StudentAchievementsState extends State<StudentAchievements> {
+  final StudentApiService _apiService = StudentApiService();
+  List<Achievement> _achievements = [];
+  List<Achievement> _lockedAchievements = [];
+  int _totalXp = 0;
+  int _classRank = 0;
+  int _schoolRank = 0;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAchievements();
+  }
+
+  Future<void> _loadAchievements() async {
+    setState(() => _isLoading = true);
+    try {
+      // Fetch earned achievements
+      final earned = await _apiService.getAchievements(earnedOnly: true);
+      // Fetch all achievements (including locked)
+      final all = await _apiService.getAchievements();
+      final locked = all.where((a) => a.isLocked).toList();
+      
+      // Calculate total XP
+      final totalXp = earned.fold<int>(0, (sum, a) => sum + a.xpReward);
+      
+      setState(() {
+        _achievements = earned;
+        _lockedAchievements = locked;
+        _totalXp = totalXp;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  LinearGradient _getGradientForAchievement(Achievement achievement) {
+    switch (achievement.category.toLowerCase()) {
+      case 'academic':
+        return const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]);
+      case 'streak':
+        return const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFF59E0B)]);
+      case 'attendance':
+        return const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)]);
+      case 'science':
+        return const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]);
+      default:
+        return const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]);
+    }
+  }
+
+  String _getIconForAchievement(Achievement achievement) {
+    switch (achievement.category.toLowerCase()) {
+      case 'academic':
+        return '🏆';
+      case 'streak':
+        return '🔥';
+      case 'attendance':
+        return '📅';
+      case 'science':
+        return '🔬';
+      default:
+        return '✅';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -296,7 +287,13 @@ class StudentAchievements extends StatelessWidget {
     );
   }
 
-  Widget _buildAchievementCard(Map<String, dynamic> achievement, BuildContext ctx) {
+  Widget _buildAchievementCard(Achievement achievement, BuildContext ctx) {
+    final icon = _getIconForAchievement(achievement);
+    final gradient = _getGradientForAchievement(achievement);
+    final earnedAtStr = achievement.earnedAt != null 
+        ? '${achievement.earnedAt!.day}/${achievement.earnedAt!.month}/${achievement.earnedAt!.year}'
+        : 'Recently';
+    
     return GestureDetector(
       onTap: () => _showAchievementDetail(achievement, ctx),
       child: Container(
@@ -314,29 +311,24 @@ class StudentAchievements extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Icon
             Container(
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                gradient: achievement['gradient'] as LinearGradient,
+                gradient: gradient,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Center(
-                child: Text(
-                  achievement['icon'] as String,
-                  style: const TextStyle(fontSize: 26),
-                ),
+                child: Text(icon, style: const TextStyle(fontSize: 26)),
               ),
             ),
             const SizedBox(width: 14),
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    achievement['title'] as String,
+                    achievement.title,
                     style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 14,
@@ -346,7 +338,7 @@ class StudentAchievements extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    achievement['description'] as String,
+                    achievement.description,
                     style: TextStyle(
                       fontSize: 11,
                       color: StudentColors.text3,
@@ -355,7 +347,7 @@ class StudentAchievements extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '📅 ${achievement['earnedAt']} · +${achievement['xp']} XP',
+                    '📅 $earnedAtStr · +${achievement.xpReward} XP',
                     style: TextStyle(
                       fontSize: 9,
                       color: StudentColors.text3,
@@ -370,7 +362,7 @@ class StudentAchievements extends StatelessWidget {
     );
   }
 
-  Widget _buildLockedAchievementCard(Map<String, dynamic> achievement) {
+  Widget _buildLockedAchievementCard(Achievement achievement) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -386,7 +378,6 @@ class StudentAchievements extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Locked icon
           Container(
             width: 52,
             height: 52,
@@ -395,20 +386,16 @@ class StudentAchievements extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Center(
-              child: Text(
-                '🔒',
-                style: TextStyle(fontSize: 22),
-              ),
+              child: Text('🔒', style: TextStyle(fontSize: 22)),
             ),
           ),
           const SizedBox(width: 14),
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  achievement['title'] as String,
+                  achievement.title,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 14,
@@ -418,26 +405,26 @@ class StudentAchievements extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  achievement['description'] as String,
+                  achievement.description,
                   style: TextStyle(
                     fontSize: 11,
                     color: StudentColors.text3,
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Progress bar
+                // Show progress bar (simulated for locked achievements)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: (achievement['progress'] as int) / 100,
+                    value: 0.3, // Placeholder progress
                     backgroundColor: const Color(0xFFF1F5F9),
                     valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
                     minHeight: 4,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  '${achievement['progress']}% complete',
+                const Text(
+                  'In progress...',
                   style: TextStyle(
                     fontSize: 9,
                     color: StudentColors.text3,
@@ -451,7 +438,13 @@ class StudentAchievements extends StatelessWidget {
     );
   }
 
-  void _showAchievementDetail(Map<String, dynamic> achievement, BuildContext ctx) {
+  void _showAchievementDetail(Achievement achievement, BuildContext ctx) {
+    final icon = _getIconForAchievement(achievement);
+    final gradient = _getGradientForAchievement(achievement);
+    final earnedAtStr = achievement.earnedAt != null 
+        ? '${achievement.earnedAt!.day}/${achievement.earnedAt!.month}/${achievement.earnedAt!.year}'
+        : 'Recently';
+    
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
@@ -464,7 +457,6 @@ class StudentAchievements extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Handle
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Container(
@@ -481,30 +473,26 @@ class StudentAchievements extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    // Large icon
                     Container(
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        gradient: achievement['gradient'] as LinearGradient,
+                        gradient: gradient,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: (achievement['gradient'] as LinearGradient).colors.first.withOpacity(0.3),
+                            color: gradient.colors.first.withOpacity(0.3),
                             blurRadius: 20,
                           ),
                         ],
                       ),
                       child: Center(
-                        child: Text(
-                          achievement['icon'] as String,
-                          style: const TextStyle(fontSize: 40),
-                        ),
+                        child: Text(icon, style: const TextStyle(fontSize: 40)),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      achievement['title'] as String,
+                      achievement.title,
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 24,
@@ -516,21 +504,21 @@ class StudentAchievements extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: (achievement['gradient'] as LinearGradient).colors.first.withOpacity(0.1),
+                        color: gradient.colors.first.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
-                        '⭐ ${achievement['rarity']}',
+                        '⭐ ${achievement.category}',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: (achievement['gradient'] as LinearGradient).colors.first,
+                          color: gradient.colors.first,
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      achievement['description'] as String,
+                      achievement.description,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -539,23 +527,14 @@ class StudentAchievements extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // Stats
                     Row(
                       children: [
                         Expanded(
-                          child: _buildDetailBox(
-                            '📅',
-                            'Earned',
-                            achievement['earnedAt'] as String,
-                          ),
+                          child: _buildDetailBox('📅', 'Earned', earnedAtStr),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _buildDetailBox(
-                            '⭐',
-                            'XP Earned',
-                            '+${achievement['xp']} XP',
-                          ),
+                          child: _buildDetailBox('⭐', 'XP Earned', '+${achievement.xpReward} XP'),
                         ),
                       ],
                     ),
@@ -563,7 +542,6 @@ class StudentAchievements extends StatelessWidget {
                 ),
               ),
             ),
-            // Close button
             Padding(
               padding: const EdgeInsets.all(20),
               child: SizedBox(

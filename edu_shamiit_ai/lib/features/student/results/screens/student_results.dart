@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 class StudentResults extends ConsumerStatefulWidget {
   const StudentResults({super.key});
@@ -12,13 +14,14 @@ class StudentResults extends ConsumerStatefulWidget {
 }
 
 class _StudentResultsState extends ConsumerState<StudentResults> {
-  String _selectedCategory = 'Class Test';
-  final List<String> _categories = [
-    'Class Test', 'Lab Test', 'Assignment', 'Mid-Term', 'End-Term', 'Overall'
-  ];
+  final StudentApiService _apiService = StudentApiService();
+  
+  String _selectedCategory = 'All';
+  final List<String> _categories = ['All', 'Mid-Term', 'End-Term', 'Class Test'];
 
-  Map<String, dynamic>? _resultsData;
+  List<ExamResult> _examResults = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -27,29 +30,129 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   }
 
   Future<void> _loadResults() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-
     setState(() {
-      _resultsData = {
-        "overall": {
-          "avg_score": 91.4,
-          "grade": "A+",
-          "class_rank": "3rd",
-          "total_marks": "548/600",
-          "improvement": "+4.2%"
-        },
-        "subjects": [
-          {"name": "Mathematics", "icon": "📐", "score": 95, "max": 100, "grade": "A+", "color": const Color(0xFF4F46E5)},
-          {"name": "Physics", "icon": "⚛️", "score": 89, "max": 100, "grade": "A", "color": const Color(0xFF3B82F6)},
-          {"name": "Chemistry", "icon": "⚗️", "score": 91, "max": 100, "grade": "A", "color": const Color(0xFF10B981)},
-          {"name": "English", "icon": "📖", "score": 90, "max": 100, "grade": "A", "color": const Color(0xFFEF4444)},
-          {"name": "Computer Sci.", "icon": "💻", "score": 93, "max": 100, "grade": "A+", "color": const Color(0xFF10B981)},
-          {"name": "History", "icon": "📜", "score": 90, "max": 100, "grade": "A", "color": const Color(0xFF8B5CF6)},
-        ]
-      };
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      final results = await _apiService.getExamResults();
+      setState(() {
+        _examResults = results;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  // Calculate overall statistics from exam results
+  Map<String, dynamic> _calculateOverallStats() {
+    if (_examResults.isEmpty) {
+      return {
+        "avg_score": 0.0,
+        "grade": "N/A",
+        "class_rank": "-",
+        "total_marks": "0/0",
+        "improvement": "0%"
+      };
+    }
+
+    double totalScore = 0;
+    double maxScore = 0;
+    int totalExams = 0;
+
+    for (var result in _examResults) {
+      totalScore += result.marksObtained;
+      maxScore += result.maxMarks;
+      totalExams++;
+    }
+
+    double avgPercentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+    String grade = _getGradeFromPercentage(avgPercentage);
+
+    return {
+      "avg_score": avgPercentage.toStringAsFixed(1),
+      "grade": grade,
+      "class_rank": _examResults.isNotEmpty ? "${_examResults.length + 1}th" : "-",
+      "total_marks": "${totalScore.toInt()}/${maxScore.toInt()}",
+      "improvement": "+0%"
+    };
+  }
+
+  String _getGradeFromPercentage(double percentage) {
+    if (percentage >= 90) return "A+";
+    if (percentage >= 80) return "A";
+    if (percentage >= 70) return "B";
+    if (percentage >= 60) return "C";
+    if (percentage >= 50) return "D";
+    return "F";
+  }
+
+  // Get subject-wise results (aggregated by subject)
+  List<Map<String, dynamic>> _getSubjectWiseResults() {
+    Map<String, Map<String, dynamic>> subjectMap = {};
+
+    for (var result in _examResults) {
+      // Filter by exam title if category is selected (using examTitle instead of examType)
+      if (_selectedCategory != 'All' && !result.examTitle.toLowerCase().contains(_selectedCategory.toLowerCase())) {
+        continue;
+      }
+
+      if (!subjectMap.containsKey(result.subject)) {
+        subjectMap[result.subject] = {
+          "name": result.subject,
+          "icon": _getSubjectIcon(result.subject),
+          "score": 0.0,
+          "max": 0,
+          "grade": "N/A",
+          "color": _getSubjectColor(result.subject),
+          "count": 0
+        };
+      }
+
+      subjectMap[result.subject]!['score'] += result.marksObtained;
+      subjectMap[result.subject]!['max'] += result.maxMarks;
+      subjectMap[result.subject]!['count'] += 1;
+    }
+
+    return subjectMap.values.map((subject) {
+      double avgScore = subject['max'] > 0 ? subject['score'] / subject['count'] : 0;
+      subject['score'] = avgScore;
+      subject['grade'] = _getGradeFromPercentage((avgScore / subject['max']) * 100);
+      return subject;
+    }).toList();
+  }
+
+  String _getSubjectIcon(String subject) {
+    const icons = {
+      'Mathematics': '📐',
+      'Physics': '⚛️',
+      'Chemistry': '⚗️',
+      'English': '📖',
+      'Computer Science': '💻',
+      'History': '📜',
+      'Biology': '🧬',
+      'Geography': '🌍',
+    };
+    return icons[subject] ?? '📚';
+  }
+
+  Color _getSubjectColor(String subject) {
+    const colors = {
+      'Mathematics': Color(0xFF4F46E5),
+      'Physics': Color(0xFF3B82F6),
+      'Chemistry': Color(0xFF10B981),
+      'English': Color(0xFFEF4444),
+      'Computer Science': Color(0xFF10B981),
+      'History': Color(0xFF8B5CF6),
+      'Biology': Color(0xFF06B6D4),
+      'Geography': Color(0xFF84CC16),
+    };
+    return colors[subject] ?? const Color(0xFF6B7280);
   }
 
   Color _getGradeColor(String grade) {
@@ -57,6 +160,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
     if (grade == 'A') return const Color(0xFF10B981);
     if (grade == 'B') return const Color(0xFF3B82F6);
     if (grade == 'C') return const Color(0xFFF59E0B);
+    if (grade == 'D') return const Color(0xFFF59E0B);
     return const Color(0xFFEF4444);
   }
 
@@ -65,6 +169,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
     if (grade == 'A') return const Color(0xFFECFDF5);
     if (grade == 'B') return const Color(0xFFEFF6FF);
     if (grade == 'C') return const Color(0xFFFFF7ED);
+    if (grade == 'D') return const Color(0xFFFFF7ED);
     return const Color(0xFFFEF2F2);
   }
 
@@ -76,8 +181,46 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
       );
     }
 
-    final overall = _resultsData!['overall'];
-    final subjects = _resultsData!['subjects'] as List;
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error loading results: $_error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadResults,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_examResults.isEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.insert_chart_outlined, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                'No exam results available',
+                style: TextStyle(color: StudentColors.text3, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final overall = _calculateOverallStats();
+    final subjects = _getSubjectWiseResults();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),

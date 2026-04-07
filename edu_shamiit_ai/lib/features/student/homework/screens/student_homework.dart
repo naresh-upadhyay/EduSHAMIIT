@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 class StudentHomework extends ConsumerStatefulWidget {
   const StudentHomework({super.key});
@@ -12,10 +14,12 @@ class StudentHomework extends ConsumerStatefulWidget {
 }
 
 class _StudentHomeworkState extends ConsumerState<StudentHomework> {
+  final StudentApiService _apiService = StudentApiService();
   int _selectedTab = 0;
   final List<String> _tabs = ['Pending', 'Submitted', 'Graded'];
-  List<dynamic> _homework = [];
+  List<HomeworkAssignment> _homework = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -24,72 +28,100 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   }
 
   Future<void> _loadHomework() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-
     setState(() {
-      _homework = [
-        {
-          "id": "hw-1",
-          "title": "Integration Practice Set — Ch.7",
-          "subject": "Mathematics",
-          "icon": "📐",
-          "problems": "5 problems",
-          "due": "Due TODAY 5:00 PM",
-          "dueColor": const Color(0xFFEF4444),
-          "description": "Solve all 5 problems from page 128-130. Show full working.",
-          "details": "<b>Problems:</b><br>1. ∫(x²+3x)dx<br>2. ∫sin(2x)cos(x)dx<br>3. ∫e^x·sin(x)dx<br>4. ∫1/(x²+4)dx<br>5. ∫x·ln(x)dx<br><br><b>Instructions:</b> Show full working for each problem. Use substitution or integration by parts where necessary. Pages 128-130 of NCERT.",
-          "reference": "📖 Reference: NCERT Ch.7 Pages 128-130",
-          "status": "pending",
-          "borderColor": const Color(0xFFEF4444),
-          "bgColor": const Color(0xFFEEF2FF),
-          "badgeBg": const Color(0xFFFEE2E2),
-          "badgeText": "Mathematics",
-          "badgeColor": const Color(0xFFEF4444),
-        },
-        {
-          "id": "hw-2",
-          "title": "Titration Lab Report — Acid-Base",
-          "subject": "Chemistry",
-          "icon": "⚗️",
-          "problems": "Lab Report",
-          "due": "Due: Tomorrow",
-          "dueColor": const Color(0xFFD97706),
-          "description": "Write a detailed lab report with aim, theory, observations, and conclusion.",
-          "details": "<b>Format Required:</b><br>1. Aim of the experiment<br>2. Theory (acid-base neutralization)<br>3. Apparatus & chemicals used<br>4. Procedure with step-by-step instructions<br>5. Observations table (3 readings)<br>6. Calculations with formula<br>7. Result & Conclusion<br>8. Precautions (min 4)",
-          "reference": "📄 Template: LabReport_Template.docx",
-          "status": "pending",
-          "borderColor": const Color(0xFFF59E0B),
-          "bgColor": const Color(0xFFFEF3C7),
-          "badgeBg": const Color(0xFFFEF3C7),
-          "badgeText": "Chemistry",
-          "badgeColor": const Color(0xFFD97706),
-        },
-        {
-          "id": "hw-3",
-          "title": "Essay: The Role of AI in Education",
-          "subject": "English",
-          "icon": "📖",
-          "problems": "500 Words · Essay",
-          "due": "Due: March 30",
-          "dueColor": const Color(0xFF059669),
-          "description": "Write a 500-word essay with pros, cons and personal perspective.",
-          "details": "<b>Requirements:</b><br>• Word count: 500 words minimum<br>• Structure: Introduction, Body (3 paragraphs), Conclusion<br>• Cover: Pros of AI in education, Cons/risks, Your personal perspective<br>• Include at least 2 real-world examples<br>• Use formal academic language<br>• Cite sources if using external references",
-          "reference": "📝 Rubric: Grammar 20%, Content 40%, Structure 20%, Originality 20%",
-          "status": "pending",
-          "borderColor": const Color(0xFF4F46E5),
-          "bgColor": const Color(0xFFEEF2FF),
-          "badgeBg": const Color(0xFFEEF2FF),
-          "badgeText": "English",
-          "badgeColor": const Color(0xFF4F46E5),
-        },
-      ];
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      // Map tab names to API status filters
+      final statusMap = {
+        'Pending': 'pending',
+        'Submitted': 'submitted',
+        'Graded': 'graded',
+      };
+      
+      final status = statusMap[_tabs[_selectedTab]];
+      final homework = await _apiService.getHomeworkAssignments(status: status);
+      
+      setState(() {
+        _homework = homework;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
-  List<dynamic> get _filteredHomework {
-    return _homework.where((hw) => hw['status'] == _tabs[_selectedTab].toLowerCase()).toList();
+  List<HomeworkAssignment> get _filteredHomework {
+    final currentStatus = _tabs[_selectedTab].toLowerCase();
+    return _homework.where((hw) => hw.status.toLowerCase() == currentStatus).toList();
+  }
+
+  // Helper method to get status display text
+  String _getStatusText(HomeworkAssignment hw) {
+    final now = DateTime.now();
+    final dueDate = hw.dueDate;
+    
+    if (hw.status == 'graded') {
+      return 'Graded';
+    } else if (hw.status == 'submitted') {
+      return 'Submitted';
+    } else if (hw.status == 'late') {
+      return 'Late';
+    } else {
+      // Pending - show due date
+      final difference = dueDate.difference(now).inDays;
+      if (difference == 0) {
+        return 'Due TODAY';
+      } else if (difference == 1) {
+        return 'Due Tomorrow';
+      } else if (difference < 0) {
+        return 'Overdue';
+      } else {
+        return 'Due: ${dueDate.day}/${dueDate.month}';
+      }
+    }
+  }
+
+  // Helper method to get due date color
+  Color _getDueColor(HomeworkAssignment hw) {
+    if (hw.status == 'graded') return StudentColors.success;
+    if (hw.status == 'submitted') return StudentColors.primary;
+    if (hw.status == 'late') return StudentColors.error;
+    
+    final now = DateTime.now();
+    final difference = hw.dueDate.difference(now).inDays;
+    if (difference == 0) return StudentColors.error;
+    if (difference <= 2) return StudentColors.warning;
+    return StudentColors.success;
+  }
+
+  // Helper method to get subject icon
+  String _getSubjectIcon(String subject) {
+    switch (subject.toLowerCase()) {
+      case 'mathematics':
+        return '📐';
+      case 'physics':
+        return '⚡';
+      case 'chemistry':
+        return '⚗️';
+      case 'biology':
+        return '🧬';
+      case 'english':
+        return '📖';
+      case 'history':
+        return '📜';
+      case 'geography':
+        return '🌍';
+      case 'computer science':
+        return '💻';
+      default:
+        return '📚';
+    }
   }
 
   @override
@@ -216,7 +248,11 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
     );
   }
 
-  Widget _buildHomeworkCard(Map<String, dynamic> hw) {
+  Widget _buildHomeworkCard(HomeworkAssignment hw) {
+    final dueText = _getStatusText(hw);
+    final dueColor = _getDueColor(hw);
+    final subjectIcon = _getSubjectIcon(hw.subject);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -232,7 +268,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
         ],
         border: Border(
           left: BorderSide(
-            color: hw['borderColor'] ?? StudentColors.primary,
+            color: dueColor,
             width: 4,
           ),
         ),
@@ -242,31 +278,34 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
         children: [
           Row(
             children: [
+              Text(subjectIcon, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: hw['badgeBg'],
+                  color: dueColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  hw['badgeText'],
+                  hw.subject,
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: hw['badgeColor'],
+                    color: dueColor,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                hw['problems'],
-                style: TextStyle(color: StudentColors.text3, fontSize: 10),
-              ),
+              if (hw.maxMarks != null)
+                Text(
+                  '${hw.maxMarks} marks',
+                  style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                ),
             ],
           ),
           const SizedBox(height: 5),
           Text(
-            hw['title'],
+            hw.title,
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13,
@@ -275,7 +314,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
           ),
           const SizedBox(height: 5),
           Text(
-            hw['description'],
+            hw.description,
             style: TextStyle(
               fontSize: 11,
               color: StudentColors.text3,
@@ -287,28 +326,47 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                hw['due'],
+                dueText,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: hw['dueColor'],
+                  color: dueColor,
                 ),
               ),
-              ElevatedButton(
-                onPressed: () => _showSubmitModal(context, hw),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: StudentColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              if (hw.status == 'pending' || hw.status == 'late')
+                ElevatedButton(
+                  onPressed: () => _showSubmitModal(context, hw),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: StudentColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    '📤 Submit',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                  ),
+                )
+              else if (hw.status == 'graded' && hw.marksObtained != null)
+                Text(
+                  'Score: ${hw.marksObtained}/${hw.maxMarks} (${hw.grade ?? ''})',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: StudentColors.success,
+                  ),
+                )
+              else
+                const Text(
+                  'Submitted ✓',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: StudentColors.primary,
                   ),
                 ),
-                child: const Text(
-                  '📤 Submit',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-                ),
-              ),
             ],
           ),
         ],
@@ -365,7 +423,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
     );
   }
 
-  void _showSubmitModal(BuildContext context, Map<String, dynamic> hw) {
+  void _showSubmitModal(BuildContext context, HomeworkAssignment hw) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -395,6 +453,15 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                 fontWeight: FontWeight.w800,
                 color: StudentColors.text,
               ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              hw.title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             GestureDetector(
@@ -438,9 +505,32 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showSuccessModal(context);
+                onPressed: () async {
+                  try {
+                    // Submit homework to API
+                    final success = await _apiService.submitHomework(
+                      homeworkId: hw.id,
+                      submissionText: null, // Would get from text field
+                    );
+                    if (mounted) {
+                      Navigator.pop(context);
+                      if (success) {
+                        _showSuccessModal(context);
+                        _loadHomework(); // Refresh the list
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to submit homework')),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: StudentColors.primary,

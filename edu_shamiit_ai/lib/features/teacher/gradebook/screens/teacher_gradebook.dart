@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
 class TeacherGradebook extends StatefulWidget {
   const TeacherGradebook({super.key});
@@ -10,26 +12,70 @@ class TeacherGradebook extends StatefulWidget {
 }
 
 class _TeacherGradebookState extends State<TeacherGradebook> {
+  final TeacherApiService _apiService = TeacherApiService();
+  
   String _selectedClass = 'X-A';
   String _selectedAssessment = 'All';
-  final List<String> _classes = ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B'];
+  List<String> _classes = [];
   final List<String> _assessments = ['All', 'Term 1', 'Term 2', 'Unit Test 1', 'Unit Test 2'];
+  List<GradeRecord> _grades = [];
+  bool _isLoading = true;
+  String? _error;
 
-  final List<Map<String, dynamic>> _students = [
-    {'id': '1', 'name': 'Aarav Sharma', 'rollNo': '1', 'marks': 95, 'grade': 'A1', 'trend': 'up'},
-    {'id': '2', 'name': 'Vivaan Patel', 'rollNo': '2', 'marks': 88, 'grade': 'A1', 'trend': 'stable'},
-    {'id': '3', 'name': 'Aditya Singh', 'rollNo': '3', 'marks': 76, 'grade': 'A2', 'trend': 'down'},
-    {'id': '4', 'name': 'Sai Reddy', 'rollNo': '4', 'marks': 82, 'grade': 'A1', 'trend': 'up'},
-    {'id': '5', 'name': 'Arjun Kumar', 'rollNo': '5', 'marks': 71, 'grade': 'A2', 'trend': 'stable'},
-    {'id': '6', 'name': 'Ishaan Gupta', 'rollNo': '6', 'marks': 65, 'grade': 'B1', 'trend': 'up'},
-    {'id': '7', 'name': 'Reyansh Yadav', 'rollNo': '7', 'marks': 58, 'grade': 'B2', 'trend': 'down'},
-    {'id': '8', 'name': 'Ayaan Khan', 'rollNo': '8', 'marks': 92, 'grade': 'A1', 'trend': 'stable'},
-    {'id': '9', 'name': 'Vihaan Joshi', 'rollNo': '9', 'marks': 45, 'grade': 'C1', 'trend': 'down'},
-    {'id': '10', 'name': 'Dhruv Mehta', 'rollNo': '10', 'marks': 78, 'grade': 'A2', 'trend': 'up'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Load classes
+      final classes = await _apiService.getMyClasses();
+      setState(() {
+        _classes = classes.map((c) => '${c.name}-${c.section}').toList();
+        if (_classes.isNotEmpty && !_classes.contains(_selectedClass)) {
+          _selectedClass = _classes.first;
+        }
+      });
+
+      // Load grades
+      await _loadGrades();
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadGrades() async {
+    try {
+      final assessmentType = _selectedAssessment == 'All' ? null : _selectedAssessment;
+      final grades = await _apiService.getGradeRecords(
+        classId: _selectedClass,
+        assessmentType: assessmentType,
+      );
+      setState(() {
+        _grades = grades;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   double get _averageMarks {
-    return _students.fold<double>(0, (sum, s) => sum + (s['marks'] as int)) / _students.length;
+    if (_grades.isEmpty) return 0.0;
+    return _grades.fold<double>(0, (sum, g) => sum + g.marksObtained) / _grades.length;
   }
 
   String get _averageGrade {
@@ -90,51 +136,92 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
           ),
 
           // Filters
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildDropdown('Class', _selectedClass, _classes, (value) {
-                    setState(() => _selectedClass = value!);
-                  }),
+          if (_classes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildDropdown('Class', _selectedClass, _classes, (value) {
+                      setState(() => _selectedClass = value!);
+                      _loadGrades();
+                    }),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildDropdown('Assessment', _selectedAssessment, _assessments, (value) {
+                      setState(() => _selectedAssessment = value!);
+                      _loadGrades();
+                    }),
+                  ),
+                ],
+              ),
+            ),
+
+          // Loading state
+          if (_isLoading)
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+
+          // Error state
+          if (_error != null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadData,
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdown('Assessment', _selectedAssessment, _assessments, (value) {
-                    setState(() => _selectedAssessment = value!);
-                  }),
+              ),
+            ),
+
+          // Stats overview and student list
+          if (!_isLoading && _error == null && _grades.isNotEmpty)
+            ...[
+              // Stats overview
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(child: _buildStatChip('Average', '${_averageMarks.toInt()}%', Colors.blue)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatChip('Grade', _averageGrade, _getGradeColor(_averageGrade))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildStatChip('Students', '${_grades.length}', Colors.purple)),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Stats overview
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(child: _buildStatChip('Average', '${_averageMarks.toInt()}%', Colors.blue)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildStatChip('Grade', _averageGrade, _getGradeColor(_averageGrade))),
-                const SizedBox(width: 8),
-                Expanded(child: _buildStatChip('Students', '${_students.length}', Colors.purple)),
-              ],
-            ),
-          ),
+              const SizedBox(height: 16),
 
-          const SizedBox(height: 16),
+              // Student grades list
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _grades.length,
+                  itemBuilder: (context, index) {
+                    return _buildStudentGradeTile(_grades[index]);
+                  },
+                ),
+              ),
+            ],
 
-          // Student grades list
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _students.length,
-              itemBuilder: (context, index) {
-                return _buildStudentGradeTile(_students[index]);
-              },
+          // Empty state
+          if (!_isLoading && _error == null && _grades.isEmpty)
+            const Expanded(
+              child: Center(
+                child: Text('No grades found for this selection'),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -206,10 +293,9 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
     );
   }
 
-  Widget _buildStudentGradeTile(Map<String, dynamic> student) {
-    final grade = student['grade'] as String;
-    final gradeColor = _getGradeColor(grade);
-    final trend = student['trend'] as String;
+  Widget _buildStudentGradeTile(GradeRecord grade) {
+    final gradeColor = _getGradeColor(grade.grade);
+    final trend = grade.trend;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -231,7 +317,7 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
             ),
             child: Center(
               child: Text(
-                student['rollNo'] as String,
+                grade.rollNo,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF4F46E5),
@@ -246,7 +332,7 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  student['name'] as String,
+                  grade.studentName,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -278,7 +364,7 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${student['marks']}%',
+                '${grade.marksObtained.toInt()}%',
                 style: const TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 16,
@@ -293,7 +379,7 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  grade,
+                  grade.grade,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,

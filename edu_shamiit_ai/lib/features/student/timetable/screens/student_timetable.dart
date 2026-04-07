@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 class StudentTimetable extends ConsumerStatefulWidget {
   const StudentTimetable({super.key});
@@ -12,117 +14,194 @@ class StudentTimetable extends ConsumerStatefulWidget {
 }
 
 class _StudentTimetableState extends ConsumerState<StudentTimetable> {
-  int _selectedDay = 2; // Wednesday (0-indexed from Monday)
+  final StudentApiService _apiService = StudentApiService();
+  
+  int _selectedDay = DateTime.now().weekday - 1; // Current day (0=Monday)
   final List<Map<String, dynamic>> _dayData = [
-    {'name': 'MON', 'date': '24', 'full': 'Monday'},
-    {'name': 'TUE', 'date': '25', 'full': 'Tuesday'},
-    {'name': 'WED', 'date': '26', 'full': 'Wednesday'},
-    {'name': 'THU', 'date': '27', 'full': 'Thursday'},
-    {'name': 'FRI', 'date': '28', 'full': 'Friday'},
-    {'name': 'SAT', 'date': '29', 'full': 'Saturday'},
+    {'name': 'MON', 'date': '', 'full': 'Monday'},
+    {'name': 'TUE', 'date': '', 'full': 'Tuesday'},
+    {'name': 'WED', 'date': '', 'full': 'Wednesday'},
+    {'name': 'THU', 'date': '', 'full': 'Thursday'},
+    {'name': 'FRI', 'date': '', 'full': 'Friday'},
+    {'name': 'SAT', 'date': '', 'full': 'Saturday'},
   ];
 
-  final Map<int, List<Map<String, dynamic>>> _schedules = {
-    0: [ // Monday
-      {'start': '8:00', 'end': '9:00', 'subject': 'Mathematics', 'teacher': 'Mr. R. Sharma', 'room': '301', 'color': const Color(0xFF4F46E5), 'icon': '📐'},
-      {'start': '9:00', 'end': '10:00', 'subject': 'Physics', 'teacher': 'Dr. A. Verma', 'room': 'Lab 2', 'color': const Color(0xFF059669), 'icon': '⚛️', 'now': true},
-      {'isBreak': true, 'type': 'break', 'label': '☕ Break', 'time': '10:00 – 10:20'},
-      {'start': '10:20', 'end': '11:20', 'subject': 'English', 'teacher': 'Ms. P. Gupta', 'room': '204', 'color': const Color(0xFFEF4444), 'icon': '📖'},
-      {'start': '11:20', 'end': '12:20', 'subject': 'Chemistry', 'teacher': 'Dr. S. Mehta', 'room': 'Lab 1', 'color': const Color(0xFFF59E0B), 'icon': '⚗️'},
-      {'isBreak': true, 'type': 'lunch', 'label': '🍱 Lunch', 'time': '12:20 – 1:00'},
-      {'start': '1:00', 'end': '2:00', 'subject': 'History', 'teacher': 'Mrs. K. Rao', 'room': '102', 'color': const Color(0xFF8B5CF6), 'icon': '📜'},
-      {'start': '2:00', 'end': '3:00', 'subject': 'Computer Sci.', 'teacher': 'Mr. V. Jain', 'room': 'Lab 3', 'color': const Color(0xFF10B981), 'icon': '💻'},
-    ],
-    1: [ // Tuesday
-      {'start': '8:00', 'end': '9:00', 'subject': 'Physics', 'teacher': 'Dr. A. Verma', 'room': '301', 'color': const Color(0xFF059669), 'icon': '⚛️'},
-      {'start': '9:00', 'end': '10:00', 'subject': 'Mathematics', 'teacher': 'Mr. R. Sharma', 'room': '204', 'color': const Color(0xFF4F46E5), 'icon': '📐'},
-      {'isBreak': true, 'type': 'break', 'label': '☕ Break', 'time': '10:00 – 10:20'},
-      {'start': '10:20', 'end': '11:20', 'subject': 'Chemistry', 'teacher': 'Dr. S. Mehta', 'room': 'Lab 1', 'color': const Color(0xFFF59E0B), 'icon': '⚗️'},
-      {'start': '11:20', 'end': '12:20', 'subject': 'English', 'teacher': 'Ms. P. Gupta', 'room': '204', 'color': const Color(0xFFEF4444), 'icon': '📖'},
-      {'isBreak': true, 'type': 'lunch', 'label': '🍱 Lunch', 'time': '12:20 – 1:00'},
-      {'start': '1:00', 'end': '2:00', 'subject': 'Physical Ed.', 'teacher': 'Coach Singh', 'room': 'Ground', 'color': const Color(0xFF06B6D4), 'icon': '⚽'},
-      {'start': '2:00', 'end': '3:00', 'subject': 'Art', 'teacher': 'Ms. Devi', 'room': 'Art Room', 'color': const Color(0xFFF472B6), 'icon': '🎨'},
-    ],
-    2: [ // Wednesday
-      {'start': '8:00', 'end': '9:00', 'subject': 'Mathematics', 'teacher': 'Mr. R. Sharma', 'room': '301', 'color': const Color(0xFF4F46E5), 'icon': '📐'},
-      {'start': '9:00', 'end': '10:00', 'subject': 'Physics', 'teacher': 'Dr. A. Verma', 'room': 'Lab 2', 'color': const Color(0xFF059669), 'icon': '⚛️', 'now': true},
-      {'isBreak': true, 'type': 'break', 'label': '☕ Break', 'time': '10:00 – 10:20'},
-      {'start': '10:20', 'end': '11:20', 'subject': 'English', 'teacher': 'Ms. P. Gupta', 'room': '204', 'color': const Color(0xFFEF4444), 'icon': '📖'},
-      {'start': '11:20', 'end': '12:20', 'subject': 'Chemistry', 'teacher': 'Dr. S. Mehta', 'room': 'Lab 1', 'color': const Color(0xFFF59E0B), 'icon': '⚗️'},
-      {'isBreak': true, 'type': 'lunch', 'label': '🍱 Lunch', 'time': '12:20 – 1:00'},
-      {'start': '1:00', 'end': '2:00', 'subject': 'History', 'teacher': 'Mrs. K. Rao', 'room': '102', 'color': const Color(0xFF8B5CF6), 'icon': '📜'},
-      {'start': '2:00', 'end': '3:00', 'subject': 'Computer Sci.', 'teacher': 'Mr. V. Jain', 'room': 'Lab 3', 'color': const Color(0xFF10B981), 'icon': '💻'},
-    ],
-    3: [ // Thursday
-      {'start': '8:00', 'end': '9:00', 'subject': 'Chemistry', 'teacher': 'Dr. S. Mehta', 'room': 'Lab 1', 'color': const Color(0xFFF59E0B), 'icon': '⚗️'},
-      {'start': '9:00', 'end': '10:00', 'subject': 'English', 'teacher': 'Ms. P. Gupta', 'room': '204', 'color': const Color(0xFFEF4444), 'icon': '📖'},
-      {'isBreak': true, 'type': 'break', 'label': '☕ Break', 'time': '10:00 – 10:20'},
-      {'start': '10:20', 'end': '11:20', 'subject': 'Mathematics', 'teacher': 'Mr. R. Sharma', 'room': '301', 'color': const Color(0xFF4F46E5), 'icon': '📐'},
-      {'start': '11:20', 'end': '12:20', 'subject': 'Physics', 'teacher': 'Dr. A. Verma', 'room': 'Lab 2', 'color': const Color(0xFF059669), 'icon': '⚛️'},
-      {'isBreak': true, 'type': 'lunch', 'label': '🍱 Lunch', 'time': '12:20 – 1:00'},
-      {'start': '1:00', 'end': '2:00', 'subject': 'Biology', 'teacher': 'Dr. Patel', 'room': 'Lab 4', 'color': const Color(0xFF22C55E), 'icon': '🧬'},
-      {'start': '2:00', 'end': '3:00', 'subject': 'Music', 'teacher': 'Mr. Rahman', 'room': 'Music Room', 'color': const Color(0xFFEC4899), 'icon': '🎵'},
-    ],
-    4: [ // Friday
-      {'start': '8:00', 'end': '9:00', 'subject': 'English', 'teacher': 'Ms. P. Gupta', 'room': '204', 'color': const Color(0xFFEF4444), 'icon': '📖'},
-      {'start': '9:00', 'end': '10:00', 'subject': 'Mathematics', 'teacher': 'Mr. R. Sharma', 'room': '301', 'color': const Color(0xFF4F46E5), 'icon': '📐'},
-      {'isBreak': true, 'type': 'break', 'label': '☕ Break', 'time': '10:00 – 10:20'},
-      {'start': '10:20', 'end': '11:20', 'subject': 'Physics', 'teacher': 'Dr. A. Verma', 'room': 'Lab 2', 'color': const Color(0xFF059669), 'icon': '⚛️'},
-      {'start': '11:20', 'end': '12:20', 'subject': 'Social Studies', 'teacher': 'Mrs. Reddy', 'room': '102', 'color': const Color(0xFF6366F1), 'icon': '🌍'},
-      {'isBreak': true, 'type': 'lunch', 'label': '🍱 Lunch', 'time': '12:20 – 1:00'},
-      {'start': '1:00', 'end': '2:00', 'subject': 'Computer Sci.', 'teacher': 'Mr. V. Jain', 'room': 'Lab 3', 'color': const Color(0xFF10B981), 'icon': '💻'},
-      {'start': '2:00', 'end': '3:00', 'subject': 'Library', 'teacher': 'Ms. Bookwalter', 'room': 'Library', 'color': const Color(0xFF8B5CF6), 'icon': '📚'},
-    ],
-    5: [ // Saturday
-      {'start': '8:00', 'end': '9:00', 'subject': 'Mathematics', 'teacher': 'Mr. R. Sharma', 'room': '301', 'color': const Color(0xFF4F46E5), 'icon': '📐'},
-      {'start': '9:00', 'end': '10:00', 'subject': 'Science Lab', 'teacher': 'Dr. Verma', 'room': 'Lab 2', 'color': const Color(0xFF059669), 'icon': '🔬'},
-      {'isBreak': true, 'type': 'break', 'label': '☕ Break', 'time': '10:00 – 10:20'},
-      {'start': '10:20', 'end': '11:20', 'subject': 'Language', 'teacher': 'Ms. Kumar', 'room': '204', 'color': const Color(0xFF06B6D4), 'icon': '🗣️'},
-      {'start': '11:20', 'end': '12:20', 'subject': 'Moral Science', 'teacher': 'Mr. Sharma', 'room': '102', 'color': const Color(0xFFF59E0B), 'icon': '🙏'},
-      {'isBreak': true, 'type': 'lunch', 'label': '🍱 Lunch', 'time': '12:20 – 1:00'},
-      {'start': '1:00', 'end': '2:00', 'subject': 'Extra Curricular', 'teacher': 'Various', 'room': 'Various', 'color': const Color(0xFFEC4899), 'icon': '🎭'},
-    ],
-  };
-
-  List<dynamic> _schedule = [];
+  List<TimetablePeriod> _timetablePeriods = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
+    _updateDates();
     _loadSchedule();
   }
 
-  void _loadSchedule() {
+  void _updateDates() {
+    final now = DateTime.now();
+    for (int i = 0; i < _dayData.length; i++) {
+      final dayDate = now.subtract(Duration(days: (now.weekday - 1 - i) % 7));
+      _dayData[i]['date'] = dayDate.day.toString();
+    }
+  }
+
+  Future<void> _loadSchedule() async {
     setState(() {
-      _schedule = _schedules[_selectedDay] ?? [];
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      // Get full week timetable
+      final periods = await _apiService.getTimetable(day: 'all');
+      setState(() {
+        _timetablePeriods = periods;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _getScheduleForDay(int dayIndex) {
+    // dayIndex: 0=Sunday, 1=Monday, etc.
+    final dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    final dayName = dayIndex < dayNames.length ? dayNames[dayIndex] : '';
+    final dayPeriods = _timetablePeriods.where((p) => p.day == dayName).toList();
+    dayPeriods.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    final schedule = <Map<String, dynamic>>[];
+    
+    for (int i = 0; i < dayPeriods.length; i++) {
+      final period = dayPeriods[i];
+      schedule.add({
+        'start': _formatTimeString(period.startTime),
+        'end': _formatTimeString(period.endTime),
+        'subject': period.subject,
+        'teacher': period.teacherName,
+        'room': period.roomNumber,
+        'color': _getSubjectColor(period.subject),
+        'icon': _getSubjectIcon(period.subject),
+        'isBreak': false,
+      });
+
+      // Add break after this period if there's a gap
+      if (i < dayPeriods.length - 1) {
+        final nextPeriod = dayPeriods[i + 1];
+        // Parse time strings to calculate gap
+        final endTimeParts = period.endTime.split(':');
+        final nextStartTimeParts = nextPeriod.startTime.split(':');
+        final endHour = int.tryParse(endTimeParts[0]) ?? 0;
+        final endMinute = int.tryParse(endTimeParts.length > 1 ? endTimeParts[1] : '0') ?? 0;
+        final nextStartHour = int.tryParse(nextStartTimeParts[0]) ?? 0;
+        final nextStartMinute = int.tryParse(nextStartTimeParts.length > 1 ? nextStartTimeParts[1] : '0') ?? 0;
+        final gapMinutes = (nextStartHour * 60 + nextStartMinute) - (endHour * 60 + endMinute);
+        
+        if (gapMinutes >= 20) {
+          final isLunch = endHour >= 12;
+          schedule.add({
+            'isBreak': true,
+            'type': isLunch ? 'lunch' : 'break',
+            'label': isLunch ? '🍱 Lunch' : '☕ Break',
+            'time': '${_formatTimeString(period.endTime)} – ${_formatTimeString(nextPeriod.startTime)}',
+          });
+        }
+      }
+    }
+
+    return schedule;
+  }
+
+  String _formatTimeString(String timeStr) {
+    // timeStr is like "09:00" or "9:00 AM"
+    final parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      final hour = int.tryParse(parts[0]) ?? 0;
+      final minute = parts[1].split(' ')[0];
+      final ampm = parts.length > 2 ? parts[2] : (parts[1].contains('AM') ? 'AM' : (parts[1].contains('PM') ? 'PM' : ''));
+      if (ampm.isNotEmpty) {
+        return '$hour:$minute $ampm';
+      }
+      return '$hour:${minute.padLeft(2, '0')}';
+    }
+    return timeStr;
+  }
+
+  String _getSubjectIcon(String subject) {
+    const icons = {
+      'Mathematics': '📐',
+      'Physics': '⚛️',
+      'Chemistry': '⚗️',
+      'English': '📖',
+      'Computer Science': '💻',
+      'Computer Sci.': '💻',
+      'History': '📜',
+      'Biology': '🧬',
+      'Physical Education': '⚽',
+      'Art': '🎨',
+      'Music': '🎵',
+      'Library': '📚',
+      'Science Lab': '🔬',
+    };
+    return icons[subject] ?? '📚';
   }
 
   Color _getSubjectColor(String subject) {
     final colors = {
-      'Mathematics': const Color(0xFFEEF2FF),
-      'Physics': const Color(0xFFEFF6FF),
-      'Chemistry': const Color(0xFFFFF7ED),
-      'English': const Color(0xFFFFF0F0),
-      'History': const Color(0xFFF0FDF4),
-      'Computer Sci.': const Color(0xFFEFF6FF),
-      'Computer Science': const Color(0xFFEFF6FF),
-      'Biology': const Color(0xFFECFDF5),
-      'Physical Ed.': const Color(0xFFE0F2FE),
-      'Art': const Color(0xFFFCE7F3),
-      'Music': const Color(0xFFFCE7F3),
-      'Social Studies': const Color(0xFFE0E7FF),
-      'Science Lab': const Color(0xFFEFF6FF),
-      'Language': const Color(0xFFE0F2FE),
-      'Moral Science': const Color(0xFFFFF7ED),
-      'Extra Curricular': const Color(0xFFFCE7F3),
-      'Library': const Color(0xFFF3E8FF),
+      'Mathematics': const Color(0xFF4F46E5),
+      'Physics': const Color(0xFF059669),
+      'Chemistry': const Color(0xFFF59E0B),
+      'English': const Color(0xFFEF4444),
+      'Computer Science': const Color(0xFF10B981),
+      'Computer Sci.': const Color(0xFF10B981),
+      'History': const Color(0xFF8B5CF6),
+      'Biology': const Color(0xFF22C55E),
+      'Physical Education': const Color(0xFF06B6D4),
+      'Art': const Color(0xFFF472B6),
+      'Music': const Color(0xFFEC4899),
+      'Library': const Color(0xFF8B5CF6),
+      'Science Lab': const Color(0xFF059669),
+      'Language': const Color(0xFF06B6D4),
+      'Moral Science': const Color(0xFFF59E0B),
+      'Extra Curricular': const Color(0xFFEC4899),
+      'Social Studies': const Color(0xFF6366F1),
     };
-    return colors[subject] ?? const Color(0xFFF8FAFC);
+    return colors[subject] ?? const Color(0xFF6B7280);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error loading timetable: $_error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadSchedule,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final schedule = _getScheduleForDay(_selectedDay);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
       body: Column(
@@ -182,7 +261,6 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                       return GestureDetector(
                         onTap: () {
                           setState(() => _selectedDay = index);
-                          _loadSchedule();
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -225,17 +303,19 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
           const SizedBox(height: 8),
           // Schedule list
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _schedule.length,
-              itemBuilder: (context, index) {
-                final item = _schedule[index];
-                if (item['isBreak'] == true) {
-                  return _buildBreakCard(item);
-                }
-                return _buildClassCard(item);
-              },
-            ),
+            child: schedule.isEmpty
+                ? const Center(child: Text('No classes scheduled for this day'))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: schedule.length,
+                    itemBuilder: (context, index) {
+                      final item = schedule[index];
+                      if (item['isBreak'] == true) {
+                        return _buildBreakCard(item);
+                      }
+                      return _buildClassCard(item);
+                    },
+                  ),
           ),
         ],
       ),

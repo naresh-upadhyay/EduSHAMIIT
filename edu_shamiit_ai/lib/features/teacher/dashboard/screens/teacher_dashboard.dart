@@ -4,18 +4,22 @@ import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
+import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
 import 'package:edu_shamiit_ai/shared/widgets/ai_fab.dart';
 
-class TeacherDashboard extends ConsumerStatefulWidget {
-  const TeacherDashboard({super.key});
+class TeacherDashboardScreen extends ConsumerStatefulWidget {
+  const TeacherDashboardScreen({super.key});
 
   @override
-  ConsumerState<TeacherDashboard> createState() => _TeacherDashboardState();
+  ConsumerState<TeacherDashboardScreen> createState() => _TeacherDashboardScreenState();
 }
 
-class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
-  Map<String, dynamic>? _dashboardData;
+class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen> {
+  final TeacherApiService _apiService = TeacherApiService();
+  models.TeacherDashboard? _dashboardData;
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -24,82 +28,55 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
   }
 
   Future<void> _loadDashboard() async {
-    // TODO: Call real API from backend
-    await Future.delayed(const Duration(milliseconds: 500));
-
     setState(() {
-      _dashboardData = {
-        "user": {
-          "full_name": "Dr. Priya Sharma",
-          "subject": "Physics",
-          "classes": ["X-A", "X-B", "XI-Science"],
-          "xp_points": 3200,
-          "streak": 25,
-          "avatar_url": "",
-        },
-        "stats": {
-          "attendance_pct": 96.0,
-          "avg_score": 88.5,
-          "classes_count": 3,
-          "students_count": 120,
-        },
-        "today_schedule": [
-          {
-            "subject": "Physics",
-            "icon": "⚛️",
-            "class": "X-A",
-            "start_time": "08:00",
-            "end_time": "08:45",
-            "room": "101",
-            "is_now": true
-          },
-          {
-            "subject": "Physics",
-            "icon": "⚛️",
-            "class": "X-B",
-            "start_time": "09:00",
-            "end_time": "09:45",
-            "room": "102",
-            "is_now": false
-          },
-        ],
-        "pending_tasks": [
-          {
-            "id": "uuid-task-1",
-            "title": "Grade Physics Test",
-            "class": "X-A",
-            "icon": "📝",
-            "due_date": "2026-04-05",
-            "status": "pending",
-            "count": 45
-          },
-          {
-            "id": "uuid-task-2",
-            "title": "Submit Lesson Plans",
-            "class": "All",
-            "icon": "📋",
-            "due_date": "2026-04-07",
-            "status": "pending",
-            "count": 3
-          },
-        ],
-        "quick_access": [
-          {"title": "Timetable", "icon": "📅", "route": "/teacher/timetable"},
-          {"title": "Gradebook", "icon": "📊", "route": "/teacher/gradebook"},
-          {"title": "My Classes", "icon": "👥", "route": "/teacher/my-classes"},
-          {"title": "Homework", "icon": "📝", "route": "/teacher/homework"},
-          {"title": "Notices", "icon": "📢", "route": "/teacher/notices"},
-          {"title": "Attendance", "icon": "✅", "route": "/teacher/attendance"},
-        ],
-      };
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      final dashboard = await _apiService.getDashboard();
+      setState(() {
+        _dashboardData = dashboard;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadDashboard,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_dashboardData == null) {
+      return const Scaffold(
+        body: Center(child: Text('No data available')),
+      );
     }
 
     return Scaffold(
@@ -143,8 +120,8 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
   }
 
   Widget _buildHeader() {
-    final user = _dashboardData!['user'];
-    final stats = _dashboardData!['stats'];
+    final user = _dashboardData!.user;
+    final stats = _dashboardData!.stats;
 
     return SliverAppBar(
       expandedHeight: 200,
@@ -167,7 +144,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Welcome, ${user['full_name']}! 👋',
+                            'Welcome, ${user.fullName}! 👋',
                             style: const TextStyle(
                               fontFamily: AppFonts.heading,
                               fontSize: 22,
@@ -177,7 +154,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${user['subject']} • ${user['classes'].length} Classes',
+                            '${user.subject} • ${user.classes.length} Classes',
                             style: TextStyle(
                               fontFamily: AppFonts.body,
                               fontSize: 14,
@@ -225,10 +202,10 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('📊', '${stats['attendance_pct']}%', 'Attendance'),
-                      _buildStatItem('📝', '${stats['avg_score']}', 'Avg Score'),
-                      _buildStatItem('👥', '${stats['students_count']}', 'Students'),
-                      _buildStatItem('⭐', '${user['xp_points']}', 'XP'),
+                      _buildStatItem('📊', '${stats.attendancePct}%', 'Attendance'),
+                      _buildStatItem('📝', '${stats.avgScore}', 'Avg Score'),
+                      _buildStatItem('👥', '${stats.studentsCount}', 'Students'),
+                      _buildStatItem('⭐', '${user.xpPoints}', 'XP'),
                     ],
                   ),
                 ],
@@ -267,7 +244,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
   }
 
   Widget _buildQuickAccessGrid() {
-    final quickAccess = _dashboardData!['quick_access'] as List;
+    final quickAccess = _dashboardData!.quickAccess;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,7 +271,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
           itemBuilder: (context, index) {
             final item = quickAccess[index];
             return GestureDetector(
-              onTap: () => context.push(item['route']),
+              onTap: () => context.push(item.route),
               child: Container(
                 decoration: BoxDecoration(
                   color: StudentColors.surface,
@@ -310,10 +287,10 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(item['icon'], style: const TextStyle(fontSize: 28)),
+                    Text(item.icon, style: const TextStyle(fontSize: 28)),
                     const SizedBox(height: 6),
                     Text(
-                      item['title'],
+                      item.title,
                       style: const TextStyle(
                         fontFamily: AppFonts.body,
                         fontSize: 11,
@@ -332,7 +309,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
   }
 
   Widget _buildTodaySchedule() {
-    final schedule = _dashboardData!['today_schedule'] as List;
+    final schedule = _dashboardData!.todaySchedule;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,8 +337,8 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
     );
   }
 
-  Widget _buildScheduleCard(Map<String, dynamic> item) {
-    final isNow = item['is_now'] == true;
+  Widget _buildScheduleCard(models.TeacherScheduleItem item) {
+    final isNow = item.isNow;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -383,7 +360,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
           Column(
             children: [
               Text(
-                item['start_time'],
+                item.startTime,
                 style: const TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 14,
@@ -391,7 +368,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
                 ),
               ),
               Text(
-                item['end_time'],
+                item.endTime,
                 style: TextStyle(
                   fontFamily: AppFonts.body,
                   fontSize: 12,
@@ -416,10 +393,10 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
               children: [
                 Row(
                   children: [
-                    Text(item['icon'], style: const TextStyle(fontSize: 16)),
+                    Text(item.icon, style: const TextStyle(fontSize: 16)),
                     const SizedBox(width: 6),
                     Text(
-                      item['subject'],
+                      item.subject,
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 15,
@@ -430,7 +407,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Class ${item['class']} • Room ${item['room']}',
+                  'Class ${item.class_} • Room ${item.room}',
                   style: TextStyle(
                     fontFamily: AppFonts.body,
                     fontSize: 13,
@@ -462,7 +439,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
   }
 
   Widget _buildPendingTasks() {
-    final tasks = _dashboardData!['pending_tasks'] as List;
+    final tasks = _dashboardData!.pendingTasks;
 
     if (tasks.isEmpty) return const SizedBox.shrink();
 
@@ -492,7 +469,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
     );
   }
 
-  Widget _buildTaskCard(Map<String, dynamic> task) {
+  Widget _buildTaskCard(models.TeacherTask task) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -509,14 +486,14 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
       ),
       child: Row(
         children: [
-          Text(task['icon'], style: const TextStyle(fontSize: 28)),
+          Text(task.icon, style: const TextStyle(fontSize: 28)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task['title'],
+                  task.title,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 15,
@@ -525,7 +502,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${task['class']} • ${task['count']} submissions',
+                  '${task.class_} • ${task.count} submissions',
                   style: TextStyle(
                     fontFamily: AppFonts.body,
                     fontSize: 13,
@@ -542,7 +519,7 @@ class _TeacherDashboardState extends ConsumerState<TeacherDashboard> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              'Due: ${task['due_date']}',
+              'Due: ${task.dueDate}',
               style: const TextStyle(
                 color: StudentColors.warning,
                 fontSize: 12,

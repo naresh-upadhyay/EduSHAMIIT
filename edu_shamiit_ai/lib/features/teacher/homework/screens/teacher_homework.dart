@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
 class TeacherHomework extends StatefulWidget {
   const TeacherHomework({super.key});
@@ -10,53 +12,49 @@ class TeacherHomework extends StatefulWidget {
 }
 
 class _TeacherHomeworkState extends State<TeacherHomework> {
+  final TeacherApiService _apiService = TeacherApiService();
+  
   String _selectedTab = 'Active';
   final List<String> _tabs = ['Active', 'Pending', 'Completed'];
+  List<TeacherHomeworkAssignment> _homework = [];
+  bool _isLoading = true;
+  String? _error;
 
-  final List<Map<String, dynamic>> _homework = [
-    {
-      'id': '1',
-      'title': 'Trigonometry Problems Ch-8',
-      'description': 'Solve problems 1-20 from Chapter 8',
-      'class': 'X-A',
-      'subject': 'Mathematics',
-      'dueDate': DateTime.now().add(const Duration(days: 2)),
-      'submitted': 32,
-      'total': 42,
-      'status': 'active',
-    },
-    {
-      'id': '2',
-      'title': 'Quadratic Equations',
-      'description': 'Complete exercises from page 45-48',
-      'class': 'X-B',
-      'subject': 'Mathematics',
-      'dueDate': DateTime.now().subtract(const Duration(days: 1)),
-      'submitted': 35,
-      'total': 38,
-      'status': 'pending',
-    },
-    {
-      'id': '3',
-      'title': 'Statistics Project',
-      'description': 'Create a project on data analysis',
-      'class': 'X-C',
-      'subject': 'Mathematics',
-      'dueDate': DateTime.now().subtract(const Duration(days: 5)),
-      'submitted': 40,
-      'total': 40,
-      'status': 'completed',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadHomework();
+  }
 
-  List<Map<String, dynamic>> get _filteredHomework {
+  Future<void> _loadHomework() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final status = _selectedTab.toLowerCase();
+      final homework = await _apiService.getHomeworkAssignments(status: status);
+      setState(() {
+        _homework = homework;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<TeacherHomeworkAssignment> get _filteredHomework {
     switch (_selectedTab) {
       case 'Pending':
-        return _homework.where((h) => h['status'] == 'pending').toList();
+        return _homework.where((h) => h.status == 'pending').toList();
       case 'Completed':
-        return _homework.where((h) => h['status'] == 'completed').toList();
+        return _homework.where((h) => h.status == 'completed').toList();
       default:
-        return _homework.where((h) => h['status'] == 'active').toList();
+        return _homework.where((h) => h.status == 'active').toList();
     }
   }
 
@@ -125,7 +123,10 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
                 final tab = _tabs[index];
                 final isSelected = _selectedTab == tab;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedTab = tab),
+                  onTap: () {
+                    setState(() => _selectedTab = tab);
+                    _loadHomework();
+                  },
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -147,33 +148,60 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
             ),
           ),
 
-          // Homework list
-          Expanded(
-            child: _filteredHomework.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('📭', style: TextStyle(fontSize: 48)),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No $_selectedTab homework',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
+          // Loading state
+          if (_isLoading)
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+
+          // Error state
+          if (_error != null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadHomework,
+                      child: const Text('Retry'),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredHomework.length,
-                    itemBuilder: (context, index) {
-                      return _buildHomeworkCard(_filteredHomework[index]);
-                    },
-                  ),
-          ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Homework list
+          if (!_isLoading && _error == null)
+            Expanded(
+              child: _filteredHomework.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('📭', style: TextStyle(fontSize: 48)),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No $_selectedTab homework',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _filteredHomework.length,
+                      itemBuilder: (context, index) {
+                        return _buildHomeworkCard(_filteredHomework[index]);
+                      },
+                    ),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -192,9 +220,9 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
     );
   }
 
-  Widget _buildHomeworkCard(Map<String, dynamic> homework) {
-    final isOverdue = _getRelativeDate(homework['dueDate'] as DateTime) == 'Overdue';
-    final submissionRate = (homework['submitted'] as int) / (homework['total'] as int) * 100;
+  Widget _buildHomeworkCard(TeacherHomeworkAssignment homework) {
+    final isOverdue = homework.isOverdue;
+    final submissionRate = homework.submissionRate;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -220,7 +248,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
             children: [
               Expanded(
                 child: Text(
-                  homework['title'] as String,
+                  homework.title,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 15,
@@ -236,7 +264,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  homework['class'] as String,
+                  homework.class_,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -249,7 +277,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
           const SizedBox(height: 8),
           // Description
           Text(
-            homework['description'] as String,
+            homework.description,
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],
@@ -264,7 +292,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
               Icon(Icons.calendar_today, size: 12, color: isOverdue ? Colors.red : Colors.grey[600]),
               const SizedBox(width: 4),
               Text(
-                _getRelativeDate(homework['dueDate'] as DateTime),
+                _getRelativeDate(homework.dueDate),
                 style: TextStyle(
                   fontSize: 11,
                   color: isOverdue ? Colors.red : Colors.grey[600],
@@ -275,7 +303,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
               Icon(Icons.people, size: 12, color: Colors.grey[600]),
               const SizedBox(width: 4),
               Text(
-                '${homework['submitted']}/${homework['total']} submitted',
+                '${homework.submittedCount}/${homework.totalCount} submitted',
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -298,7 +326,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${submissionRate.toInt()}% submitted',
+            '${(submissionRate).toInt()}% submitted',
             style: TextStyle(
               fontSize: 10,
               color: Colors.grey[600],
@@ -310,7 +338,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
             children: [
               Expanded(
                 child: TextButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _showEditHomeworkDialog(homework),
                   icon: const Icon(Icons.edit, size: 14),
                   label: const Text(
                     'Edit',
@@ -320,7 +348,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
               ),
               Expanded(
                 child: TextButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _viewSubmissions(homework),
                   icon: const Icon(Icons.check_circle, size: 14),
                   label: const Text(
                     'Review',
@@ -336,61 +364,142 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
   }
 
   void _showCreateHomeworkDialog() {
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    String? selectedClass;
+    String? selectedSubject;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Create Homework'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Title',
+                    hintText: 'e.g., Trigonometry Problems',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Enter homework details...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Class',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B']
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (value) {
+                    setDialogState(() => selectedClass = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Subject',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English']
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (value) {
+                    setDialogState(() => selectedSubject = value);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Due Date',
+                    hintText: 'Select date',
+                    prefixIcon: const Icon(Icons.calendar_today),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  readOnly: true,
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now().add(const Duration(days: 1)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 90)),
+                    );
+                    if (date != null) {
+                      setDialogState(() {
+                        // Update the text field
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _createHomework(
+                  title: titleController.text,
+                  description: descController.text,
+                  classId: selectedClass ?? 'X-A',
+                  subject: selectedSubject ?? 'Mathematics',
+                  dueDate: DateTime.now().add(const Duration(days: 2)),
+                );
+              },
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditHomeworkDialog(TeacherHomeworkAssignment homework) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Homework'),
+        title: const Text('Edit Homework'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                decoration: InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'e.g., Trigonometry Problems',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                controller: TextEditingController(text: homework.title),
+                decoration: const InputDecoration(labelText: 'Title'),
               ),
               const SizedBox(height: 12),
               TextField(
+                controller: TextEditingController(text: homework.description),
                 maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Enter homework details...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Class',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B']
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (value) {},
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Due Date',
-                  hintText: 'Select date',
-                  prefixIcon: const Icon(Icons.calendar_today),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                readOnly: true,
-                onTap: () {
-                  // Would show date picker in real app
-                },
+                decoration: const InputDecoration(labelText: 'Description'),
               ),
             ],
           ),
@@ -401,16 +510,98 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Homework created successfully!')),
-              );
+              await _updateHomework(homework);
             },
-            child: const Text('Create'),
+            child: const Text('Update'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteHomework(homework);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _createHomework({
+    required String title,
+    required String description,
+    required String classId,
+    required String subject,
+    required DateTime dueDate,
+  }) async {
+    try {
+      await _apiService.createHomework(
+        title: title,
+        description: description,
+        classId: classId,
+        subject: subject,
+        dueDate: dueDate,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Homework created successfully!')),
+        );
+        _loadHomework();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _updateHomework(TeacherHomeworkAssignment homework) async {
+    try {
+      await _apiService.updateHomework(
+        homeworkId: homework.id,
+        updates: {'status': 'completed'},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Homework updated successfully!')),
+        );
+        _loadHomework();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteHomework(TeacherHomeworkAssignment homework) async {
+    try {
+      await _apiService.deleteHomework(homework.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Homework deleted successfully!')),
+        );
+        _loadHomework();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e')),
+        );
+      }
+    }
+  }
+
+  void _viewSubmissions(TeacherHomeworkAssignment homework) {
+    // Navigate to submissions screen or show dialog
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Viewing submissions for: ${homework.title}')),
     );
   }
 }

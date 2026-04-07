@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
 class TeacherPaperBuilder extends StatefulWidget {
   const TeacherPaperBuilder({super.key});
@@ -10,30 +12,66 @@ class TeacherPaperBuilder extends StatefulWidget {
 }
 
 class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
-  String _selectedClass = 'X-A';
-  String _selectedSubject = 'Mathematics';
-  final List<String> _classes = ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B'];
-  final List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
+  final TeacherApiService _apiService = TeacherApiService();
+  
+  String _selectedSubject = 'All';
+  final List<String> _subjects = ['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
+  List<PaperQuestion> _questions = [];
+  bool _isLoading = true;
+  String? _error;
+  List<PaperQuestion> _selectedQuestions = [];
 
-  final List<Map<String, dynamic>> _questionBank = [
-    {'id': '1', 'question': 'What is the formula for sin(A+B)?', 'type': 'Short Answer', 'marks': 2, 'chapter': 'Trigonometry'},
-    {'id': '2', 'question': 'Prove that the sum of angles in a triangle is 180°', 'type': 'Long Answer', 'marks': 5, 'chapter': 'Geometry'},
-    {'id': '3', 'question': 'Solve: x² + 5x + 6 = 0', 'type': 'Problem Solving', 'marks': 3, 'chapter': 'Algebra'},
-    {'id': '4', 'question': 'Define Newton\'s Second Law of Motion', 'type': 'Short Answer', 'marks': 2, 'chapter': 'Laws of Motion'},
-    {'id': '5', 'question': 'Calculate the area of a circle with radius 7cm', 'type': 'Problem Solving', 'marks': 3, 'chapter': 'Mensuration'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadQuestions();
+  }
 
-  final List<Map<String, dynamic>> _selectedQuestions = [];
+  Future<void> _loadQuestions() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-  int get _totalMarks => _selectedQuestions.fold<int>(0, (sum, q) => sum + (q['marks'] as int));
-
-  Map<String, int> get _questionTypeCount {
-    final counts = <String, int>{};
-    for (var q in _selectedQuestions) {
-      final type = q['type'] as String;
-      counts[type] = (counts[type] ?? 0) + 1;
+    try {
+      final subject = _selectedSubject == 'All' ? null : _selectedSubject.toLowerCase();
+      final questions = await _apiService.getQuestionBank(subject: subject);
+      setState(() {
+        _questions = questions;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
-    return counts;
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'mcq':
+        return Icons.radio_button_checked;
+      case 'short':
+        return Icons.short_text;
+      case 'long':
+        return Icons.notes;
+      default:
+        return Icons.question_mark;
+    }
+  }
+
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        return Colors.green;
+      case 'medium':
+        return Colors.orange;
+      case 'hard':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
@@ -47,7 +85,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
             padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
               ),
             ),
             child: Row(
@@ -67,275 +105,139 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
                   ),
                 ),
                 const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.save, color: Colors.white),
-                  onPressed: () => _savePaper(),
-                ),
+                if (_selectedQuestions.isNotEmpty)
+                  TextButton(
+                    onPressed: () => _generatePaper(),
+                    child: Text(
+                      'Generate (${_selectedQuestions.length})',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
               ],
             ),
           ),
 
-          // Filters
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildDropdown('Class', _selectedClass, _classes, (value) {
-                    setState(() => _selectedClass = value!);
-                  }),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdown('Subject', _selectedSubject, _subjects, (value) {
-                    setState(() => _selectedSubject = value!);
-                  }),
-                ),
-              ],
-            ),
-          ),
-
-          // Paper summary
-          if (_selectedQuestions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    _buildSummaryItem('${_selectedQuestions.length}', 'Questions'),
-                    const SizedBox(width: 16),
-                    _buildSummaryItem('$_totalMarks', 'Marks'),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Wrap(
-                        spacing: 8,
-                        children: _questionTypeCount.entries.map((e) {
-                          return Chip(
-                            label: Text('${e.key}: ${e.value}', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                            backgroundColor: const Color(0xFF4F46E5),
-                            padding: EdgeInsets.zero,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          );
-                        }).toList(),
+          // Subject filter
+          SizedBox(
+            height: 44,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: _subjects.length,
+              itemBuilder: (context, index) {
+                final subject = _subjects[index];
+                final isSelected = _selectedSubject == subject;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedSubject = subject);
+                    _loadQuestions();
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      subject,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : const Color(0xFF6366F1),
                       ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Loading state
+          if (_isLoading)
+            const Expanded(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+
+          // Error state
+          if (_error != null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadQuestions,
+                      child: const Text('Retry'),
                     ),
                   ],
                 ),
               ),
             ),
 
-          const SizedBox(height: 16),
-
-          // Main content
-          Expanded(
-            child: Row(
-              children: [
-                // Question bank
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            const Text(
-                              'Question Bank',
-                              style: TextStyle(
-                                fontFamily: AppFonts.heading,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 18),
-                              onPressed: () => _showAddQuestionDialog(),
-                              tooltip: 'Add Question',
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _questionBank.length,
-                          itemBuilder: (context, index) {
-                            return _buildQuestionItem(_questionBank[index]);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Divider
-                Container(
-                  width: 1,
-                  color: const Color(0xFFE2E8F0),
-                  margin: const EdgeInsets.symmetric(vertical: 16),
-                ),
-
-                // Selected questions
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'Selected Questions',
-                          style: TextStyle(
-                            fontFamily: AppFonts.heading,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: _selectedQuestions.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text('📄', style: TextStyle(fontSize: 48)),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No questions selected',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Click questions to add them',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[500],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: _selectedQuestions.length,
-                                itemBuilder: (context, index) {
-                                  return _buildSelectedQuestionItem(_selectedQuestions[index], index);
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          // Questions list
+          if (!_isLoading && _error == null)
+            Expanded(
+              child: _questions.isEmpty
+                  ? const Center(child: Text('No questions found in question bank'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _questions.length,
+                      itemBuilder: (context, index) {
+                        return _buildQuestionCard(_questions[index]);
+                      },
+                    ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildDropdown(String label, String value, List<String> options, Function(String?) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              isExpanded: true,
-              items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
-              onChanged: onChanged,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              icon: const Icon(Icons.arrow_drop_down, size: 20),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryItem(String value, String label) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: AppFonts.heading,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF4F46E5),
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuestionItem(Map<String, dynamic> question) {
-    final isSelected = _selectedQuestions.any((q) => q['id'] == question['id']);
-
+  Widget _buildQuestionCard(PaperQuestion question) {
+    final isSelected = _selectedQuestions.contains(question);
+    final typeIcon = _getTypeIcon(question.questionType);
+    final difficultyColor = _getDifficultyColor(question.difficulty ?? 'medium');
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF4F46E5).withOpacity(0.1) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? const Color(0xFF4F46E5).withOpacity(0.3) : const Color(0xFFE2E8F0),
+          color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+          ),
+        ],
       ),
       child: Row(
         children: [
+          // Checkbox
           GestureDetector(
             onTap: () {
-              if (isSelected) {
-                setState(() {
-                  _selectedQuestions.removeWhere((q) => q['id'] == question['id']);
-                });
-              } else {
-                setState(() {
+              setState(() {
+                if (isSelected) {
+                  _selectedQuestions.remove(question);
+                } else {
                   _selectedQuestions.add(question);
-                });
-              }
+                }
+              });
             },
             child: Container(
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF4F46E5) : Colors.transparent,
+                color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
+                border: Border.all(color: const Color(0xFF6366F1)),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFF4F46E5)),
               ),
               child: isSelected
                   ? const Icon(Icons.check, size: 16, color: Colors.white)
@@ -343,14 +245,27 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
             ),
           ),
           const SizedBox(width: 12),
+          // Icon
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: difficultyColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(typeIcon, color: difficultyColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          // Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  question['question'] as String,
+                  question.questionText,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontFamily: AppFonts.heading,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF0F172A),
                   ),
@@ -363,26 +278,29 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.1),
+                        color: difficultyColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        question['type'] as String,
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF4F46E5)),
+                        question.difficulty ?? 'Medium',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: difficultyColor,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
                     Text(
-                      '${question['marks']} marks',
+                      '${question.marks} marks',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
                     Text(
-                      '• ${question['chapter']}',
+                      question.chapter ?? '',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey[500],
@@ -398,152 +316,41 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
     );
   }
 
-  Widget _buildSelectedQuestionItem(Map<String, dynamic> question, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Text(
-            '${index + 1}.',
-            style: const TextStyle(
-              fontFamily: AppFonts.heading,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF4F46E5),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  question['question'] as String,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF0F172A),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${question['marks']} marks • ${question['type']}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 16),
-            onPressed: () {
-              setState(() {
-                _selectedQuestions.removeAt(index);
-              });
-            },
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
+  void _generatePaper() async {
+    if (_selectedQuestions.isEmpty) return;
 
-  void _showAddQuestionDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Question'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Question',
-                  hintText: 'Enter your question...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Question Type',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: ['Short Answer', 'Long Answer', 'Problem Solving', 'Multiple Choice']
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                    .toList(),
-                onChanged: (value) {},
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Marks',
-                  hintText: 'Enter marks',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.star),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Chapter',
-                  hintText: 'e.g., Trigonometry',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Question added to bank!')),
-              );
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
-  }
 
-  void _savePaper() {
-    if (_selectedQuestions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Please select at least one question')),
+    try {
+      final totalMarks = _selectedQuestions.fold<int>(0, (sum, q) => sum + q.marks);
+      
+      await _apiService.generatePaper(
+        title: 'Test Paper - ${DateTime.now().toString().split(' ')[0]}',
+        subject: _selectedSubject == 'All' ? 'Mathematics' : _selectedSubject.toLowerCase(),
+        classId: 'X-A',
+        totalMarks: totalMarks,
+        duration: '1 hour',
       );
-      return;
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Paper generated successfully!')),
+        );
+        setState(() {
+          _selectedQuestions.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error: $e')),
+        );
+      }
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ Paper saved successfully!')),
-    );
   }
 }

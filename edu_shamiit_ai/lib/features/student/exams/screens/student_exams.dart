@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 import 'dart:async';
 
 /// Student Exams Screen - Shows upcoming exams, countdown timer, AI prep tips, and exam schedule
@@ -13,65 +15,20 @@ class StudentExamsScreen extends StatefulWidget {
 }
 
 class _StudentExamsScreenState extends State<StudentExamsScreen> {
+  final StudentApiService _apiService = StudentApiService();
+  
   // Countdown timer
   Timer? _timer;
   Duration _timeRemaining = const Duration(days: 5, hours: 14, minutes: 32);
   
-  // Mock exam data
-  final List<Map<String, dynamic>> _exams = [
-    {
-      'id': 'exam-1',
-      'title': 'Mathematics',
-      'subtitle': 'Final Examination',
-      'icon': '📐',
-      'date': '28',
-      'month': 'MAR',
-      'time': '9:00 – 12:00 AM',
-      'duration': '3 hrs',
-      'venue': 'Hall A',
-      'type': 'offline',
-    },
-    {
-      'id': 'exam-2',
-      'title': 'Physics',
-      'subtitle': 'Final Examination',
-      'icon': '⚛️',
-      'date': '30',
-      'month': 'MAR',
-      'time': '9:00 – 12:00 AM',
-      'duration': '3 hrs',
-      'venue': 'Hall B',
-      'type': 'offline',
-    },
-    {
-      'id': 'exam-3',
-      'title': 'Chemistry',
-      'subtitle': 'Final Examination',
-      'icon': '⚗️',
-      'date': '01',
-      'month': 'APR',
-      'time': '9:00 – 12:00 AM',
-      'duration': '3 hrs',
-      'venue': 'Lab 2',
-      'type': 'offline',
-    },
-    {
-      'id': 'exam-4',
-      'title': 'English',
-      'subtitle': 'Final Examination',
-      'icon': '📖',
-      'date': '03',
-      'month': 'APR',
-      'time': '10:00 AM – 1:00 PM',
-      'duration': '3 hrs',
-      'venue': 'Hall A',
-      'type': 'offline',
-    },
-  ];
+  List<ExamSchedule> _examSchedules = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
+    _loadExams();
     _startTimer();
   }
 
@@ -79,6 +36,37 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadExams() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final exams = await _apiService.getExamSchedule();
+      setState(() {
+        _examSchedules = exams;
+        _isLoading = false;
+      });
+      
+      // Update countdown timer based on first upcoming exam
+      if (exams.isNotEmpty) {
+        final nextExam = exams.firstWhere(
+          (e) => e.dateTime.isAfter(DateTime.now()),
+          orElse: () => exams.first,
+        );
+        setState(() {
+          _timeRemaining = nextExam.dateTime.difference(DateTime.now());
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
+    }
   }
 
   void _startTimer() {
@@ -93,8 +81,72 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
     });
   }
 
+  String _getSubjectIcon(String subject) {
+    const icons = {
+      'Mathematics': '📐',
+      'Physics': '⚛️',
+      'Chemistry': '⚗️',
+      'English': '📖',
+      'Computer Science': '💻',
+      'History': '📜',
+      'Biology': '🧬',
+    };
+    return icons[subject] ?? '📚';
+  }
+
+  List<Map<String, dynamic>> _getExamsList() {
+    return _examSchedules.map((exam) {
+      final date = exam.dateTime;
+      // duration is a String like "2 hours" or "90 minutes"
+      final duration = exam.duration;
+      return {
+        'id': exam.id,
+        'title': exam.subject,
+        'subtitle': exam.examType,
+        'icon': _getSubjectIcon(exam.subject),
+        'date': date.day.toString().padLeft(2, '0'),
+        'month': _getMonthAbbreviation(date.month),
+        'time': '${date.hour}:${date.minute.toString().padLeft(2, '0')}',
+        'duration': duration,
+        'venue': exam.venue,
+        'type': 'offline',
+      };
+    }).toList();
+  }
+
+  String _getMonthAbbreviation(int month) {
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    return months[month - 1];
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error loading exams: $_error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadExams,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0FDF9),
       body: Column(
@@ -125,7 +177,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                   const SizedBox(height: 8),
 
                   // Exam List
-                  ..._exams.map((exam) => _buildExamCard(exam)),
+                  ..._getExamsList().map((exam) => _buildExamCard(exam)),
 
                   const SizedBox(height: 16),
 

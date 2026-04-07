@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:intl/intl.dart';
 
 class TeacherGrading extends StatefulWidget {
   const TeacherGrading({super.key});
@@ -10,43 +13,53 @@ class TeacherGrading extends StatefulWidget {
 }
 
 class _TeacherGradingState extends State<TeacherGrading> {
+  final TeacherApiService _apiService = TeacherApiService();
+
   String _selectedClass = 'X-A';
   String _selectedSubject = 'Mathematics';
   final List<String> _classes = ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B'];
-  final List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
-
-  final List<Map<String, dynamic>> _assignments = [
-    {
-      'id': '1',
-      'title': 'Chapter 8 Trigonometry Test',
-      'totalMarks': 50,
-      'submitted': 38,
-      'graded': 25,
-      'dueDate': DateTime.now().subtract(const Duration(days: 2)),
-      'status': 'grading',
-    },
-    {
-      'id': '2',
-      'title': 'Quadratic Equations Quiz',
-      'totalMarks': 30,
-      'submitted': 42,
-      'graded': 42,
-      'dueDate': DateTime.now().subtract(const Duration(days: 5)),
-      'status': 'completed',
-    },
-    {
-      'id': '3',
-      'title': 'Statistics Project',
-      'totalMarks': 100,
-      'submitted': 35,
-      'graded': 10,
-      'dueDate': DateTime.now().subtract(const Duration(days: 1)),
-      'status': 'grading',
-    },
+  final List<String> _subjects = [
+    'Mathematics',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'English'
   ];
 
-  List<Map<String, dynamic>> get _pendingSubmissions {
-    return _assignments.where((a) => a['status'] == 'grading').toList();
+  bool _isLoading = false;
+  List<TeacherHomeworkAssignment> _assignments = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAssignments();
+  }
+
+  Future<void> _loadAssignments() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final assignments = await _apiService.getHomeworkAssignments(
+        classId: _selectedClass,
+      );
+      setState(() {
+        _assignments = assignments;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading assignments: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to load assignments. Please try again.')),
+        );
+      }
+    }
+  }
+
+  List<TeacherHomeworkAssignment> get _pendingSubmissions {
+    return _assignments.where((a) => a.status != 'completed').toList();
   }
 
   String _getRelativeDate(DateTime date) {
@@ -101,14 +114,18 @@ class _TeacherGradingState extends State<TeacherGrading> {
             child: Row(
               children: [
                 Expanded(
-                  child: _buildDropdown('Class', _selectedClass, _classes, (value) {
+                  child: _buildDropdown('Class', _selectedClass, _classes,
+                      (value) {
                     setState(() => _selectedClass = value!);
+                    _loadAssignments();
                   }),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildDropdown('Subject', _selectedSubject, _subjects, (value) {
+                  child: _buildDropdown('Subject', _selectedSubject, _subjects,
+                      (value) {
                     setState(() => _selectedSubject = value!);
+                    _loadAssignments();
                   }),
                 ),
               ],
@@ -123,19 +140,19 @@ class _TeacherGradingState extends State<TeacherGrading> {
                 Expanded(
                     child: _buildStatChip(
                         'Pending',
-                        '${_pendingSubmissions.fold<int>(0, (sum, a) => sum + (a['submitted'] as int) - (a['graded'] as int))}',
+                        '${_pendingSubmissions.fold<int>(0, (sum, a) => sum + (a.totalCount - a.submittedCount))}',
                         Colors.orange)),
                 const SizedBox(width: 8),
                 Expanded(
                     child: _buildStatChip(
                         'Graded',
-                        '${_assignments.fold<int>(0, (sum, a) => sum + (a['graded'] as int))}',
+                        '${_assignments.fold<int>(0, (sum, a) => sum + a.submittedCount)}',
                         Colors.green)),
                 const SizedBox(width: 8),
                 Expanded(
                     child: _buildStatChip(
                         'Total',
-                        '${_assignments.fold<int>(0, (sum, a) => sum + (a['submitted'] as int))}',
+                        '${_assignments.fold<int>(0, (sum, a) => sum + a.totalCount)}',
                         Colors.blue)),
               ],
             ),
@@ -145,37 +162,41 @@ class _TeacherGradingState extends State<TeacherGrading> {
 
           // Assignments list
           Expanded(
-            child: _pendingSubmissions.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('📝', style: TextStyle(fontSize: 48)),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No pending grading',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _pendingSubmissions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('📝', style: TextStyle(fontSize: 48)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No pending grading',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _pendingSubmissions.length,
-                    itemBuilder: (context, index) {
-                      return _buildAssignmentCard(_pendingSubmissions[index]);
-                    },
-                  ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _pendingSubmissions.length,
+                        itemBuilder: (context, index) {
+                          return _buildAssignmentCard(
+                              _pendingSubmissions[index]);
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDropdown(String label, String value, List<String> options, Function(String?) onChanged) {
+  Widget _buildDropdown(String label, String value, List<String> options,
+      Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -199,7 +220,9 @@ class _TeacherGradingState extends State<TeacherGrading> {
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+              items: options
+                  .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                  .toList(),
               onChanged: onChanged,
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               icon: const Icon(Icons.arrow_drop_down, size: 20),
@@ -241,11 +264,11 @@ class _TeacherGradingState extends State<TeacherGrading> {
     );
   }
 
-  Widget _buildAssignmentCard(Map<String, dynamic> assignment) {
-    final submitted = assignment['submitted'] as int;
-    final graded = assignment['graded'] as int;
-    final pending = submitted - graded;
-    final progress = submitted > 0 ? graded / submitted : 0.0;
+  Widget _buildAssignmentCard(TeacherHomeworkAssignment assignment) {
+    final submitted = assignment.submittedCount;
+    final total = assignment.totalCount;
+    final pending = total - submitted;
+    final progress = total > 0 ? submitted.toDouble() / total : 0.0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -269,7 +292,7 @@ class _TeacherGradingState extends State<TeacherGrading> {
             children: [
               Expanded(
                 child: Text(
-                  assignment['title'] as String,
+                  assignment.title,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 15,
@@ -285,7 +308,7 @@ class _TeacherGradingState extends State<TeacherGrading> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${assignment['totalMarks']} marks',
+                  '${assignment.maxMarks} marks',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -299,14 +322,14 @@ class _TeacherGradingState extends State<TeacherGrading> {
           // Stats row
           Row(
             children: [
-              _buildMiniStat('${graded}', 'Graded', Colors.green),
+              _buildMiniStat('${submitted}', 'Graded', Colors.green),
               const SizedBox(width: 12),
               _buildMiniStat('${pending}', 'Pending', Colors.orange),
               const SizedBox(width: 12),
-              _buildMiniStat('${submitted}', 'Total', Colors.blue),
+              _buildMiniStat('${total}', 'Total', Colors.blue),
               const Spacer(),
               Text(
-                _getRelativeDate(assignment['dueDate'] as DateTime),
+                _getRelativeDate(assignment.dueDate),
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -321,7 +344,8 @@ class _TeacherGradingState extends State<TeacherGrading> {
             child: LinearProgressIndicator(
               value: progress,
               backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0EA5E9)),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Color(0xFF0EA5E9)),
               minHeight: 6,
             ),
           ),

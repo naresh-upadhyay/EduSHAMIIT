@@ -1,445 +1,1087 @@
-import 'package:edu_shamiit_ai/core/services/api_service.dart';
-import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
+import '../models/teacher_models.dart';
+import 'supabase_service.dart';
 
-/// API service for teacher-specific endpoints
+/// Service for teacher-related API calls
 class TeacherApiService {
   static final TeacherApiService _instance = TeacherApiService._internal();
   factory TeacherApiService() => _instance;
   TeacherApiService._internal();
 
-  final ApiService _apiService = ApiService();
+  final http.Client _client = http.Client();
 
-  // ============================================
-  // HOMEWORK ENDPOINTS
-  // ============================================
+  String get _baseUrl => AppConfig.apiBaseUrl;
 
-  /// Get homework assignments for a class
-  Future<List<Homework>> getHomework({
-    String? classId,
-    String? subject,
+  /// Get headers with authorization
+  Future<Map<String, String>> _getHeaders() async {
+    final token = SupabaseService.accessToken;
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  // ========== Dashboard API ==========
+
+  /// Get teacher dashboard data
+  Future<TeacherDashboard> getDashboard() async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/dashboard'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return TeacherDashboard.fromJson(data);
+      } else {
+        throw Exception('Failed to load dashboard: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching dashboard: $e');
+    }
+  }
+
+  // ========== Profile API ==========
+
+  /// Get teacher profile
+  Future<TeacherProfile> getProfile() async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/profile'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return TeacherProfile.fromJson(data);
+      } else {
+        throw Exception('Failed to load profile: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching profile: $e');
+    }
+  }
+
+  /// Update teacher profile
+  Future<TeacherProfile> updateProfile(Map<String, dynamic> updates) async {
+    try {
+      final response = await _client.patch(
+        Uri.parse('$_baseUrl/api/teacher/profile'),
+        headers: await _getHeaders(),
+        body: json.encode(updates),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return TeacherProfile.fromJson(data);
+      } else {
+        throw Exception('Failed to update profile: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error updating profile: $e');
+    }
+  }
+
+  // ========== Attendance API ==========
+
+  /// Get students for a class (for attendance marking)
+  Future<List<StudentDirectoryEntry>> getStudentsForClass(String classId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/attendance/students?class=$classId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => StudentDirectoryEntry.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load students: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching students: $e');
+    }
+  }
+
+  /// Mark attendance for a class
+  Future<void> markAttendance({
+    required String classId,
+    required String date,
+    required List<Map<String, dynamic>> attendanceRecords,
   }) async {
     try {
-      final response = await _apiService.get('/api/teacher/homework', query: {
-        if (classId != null) 'class_id': classId,
-        if (subject != null) 'subject': subject,
-      });
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/attendance/mark'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'class_id': classId,
+          'date': date,
+          'records': attendanceRecords,
+        }),
+      );
 
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List)
-            .map((json) => Homework.fromJson(json))
-            .toList();
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to mark attendance: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching homework: $e');
-      return [];
+      throw Exception('Error marking attendance: $e');
     }
   }
 
-  /// Get submissions for a specific homework
-  Future<List<HomeworkSubmission>> getHomeworkSubmissions(String homeworkId) async {
+  /// Get attendance history for a class
+  Future<List<TeacherAttendanceRecord>> getAttendanceHistory({
+    required String classId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     try {
-      final response = await _apiService.get('/api/teacher/homework/$homeworkId/submissions');
+      final params = {'class': classId};
+      if (startDate != null) params['start_date'] = startDate.toIso8601String().split('T')[0];
+      if (endDate != null) params['end_date'] = endDate.toIso8601String().split('T')[0];
 
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List)
-            .map((json) => HomeworkSubmission.fromJson(json))
-            .toList();
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/attendance/history?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherAttendanceRecord.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load attendance history: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching submissions: $e');
-      return [];
+      throw Exception('Error fetching attendance history: $e');
     }
   }
 
-  /// Grade a homework submission
-  Future<bool> gradeSubmission({
+  // ========== Homework API ==========
+
+  /// Get homework assignments for teacher
+  Future<List<TeacherHomeworkAssignment>> getHomeworkAssignments({
+    String? classId,
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (classId != null) params['class'] = classId;
+      if (status != null) params['status'] = status;
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
+
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/homework?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherHomeworkAssignment.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load homework: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching homework: $e');
+    }
+  }
+
+  /// Create homework assignment
+  Future<TeacherHomeworkAssignment> createHomework({
+    required String title,
+    required String description,
+    required String classId,
+    required String subject,
+    required DateTime dueDate,
+    String? instructions,
+    int? maxMarks,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/homework'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'title': title,
+          'description': description,
+          'class': classId,
+          'subject': subject,
+          'due_date': dueDate.toIso8601String().split('T')[0],
+          'instructions': instructions,
+          'max_marks': maxMarks,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return TeacherHomeworkAssignment.fromJson(data);
+      } else {
+        throw Exception('Failed to create homework: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error creating homework: $e');
+    }
+  }
+
+  /// Update homework assignment
+  Future<TeacherHomeworkAssignment> updateHomework({
+    required String homeworkId,
+    Map<String, dynamic>? updates,
+  }) async {
+    try {
+      final response = await _client.patch(
+        Uri.parse('$_baseUrl/api/teacher/homework/$homeworkId'),
+        headers: await _getHeaders(),
+        body: json.encode(updates ?? {}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return TeacherHomeworkAssignment.fromJson(data);
+      } else {
+        throw Exception('Failed to update homework: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error updating homework: $e');
+    }
+  }
+
+  /// Delete homework assignment
+  Future<void> deleteHomework(String homeworkId) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/api/teacher/homework/$homeworkId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete homework: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting homework: $e');
+    }
+  }
+
+  /// Get homework submissions
+  Future<List<HomeworkSubmission>> getHomeworkSubmissions({
+    required String homeworkId,
+    String? status,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (status != null) params['status'] = status;
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/homework/$homeworkId/submissions?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => HomeworkSubmission.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load submissions: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching submissions: $e');
+    }
+  }
+
+  /// Grade homework submission
+  Future<HomeworkSubmission> gradeSubmission({
     required String submissionId,
     required double marks,
-    required String grade,
+    String? feedback,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/submissions/$submissionId/grade'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'marks': marks,
+          'feedback': feedback,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return HomeworkSubmission.fromJson(data);
+      } else {
+        throw Exception('Failed to grade submission: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error grading submission: $e');
+    }
+  }
+
+  // ========== Gradebook API ==========
+
+  /// Get grade records for a class
+  Future<List<GradeRecord>> getGradeRecords({
+    required String classId,
+    String? assessmentType,
+    String? studentId,
+  }) async {
+    try {
+      final params = <String, String>{'class': classId};
+      if (assessmentType != null) params['assessment_type'] = assessmentType;
+      if (studentId != null) params['student_id'] = studentId;
+
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/gradebook?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => GradeRecord.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load grades: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching grades: $e');
+    }
+  }
+
+  /// Add grade record
+  Future<GradeRecord> addGrade({
+    required String studentId,
+    required String assessmentName,
+    required String assessmentType,
+    required double marksObtained,
+    required int totalMarks,
+    required String classId,
+    required String subject,
     String? remarks,
   }) async {
     try {
-      final response = await _apiService.post(
-        '/api/teacher/submissions/$submissionId/grade',
-        {
-          'marks': marks,
-          'grade': grade,
-          if (remarks != null) 'remarks': remarks,
-        },
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/gradebook'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'student_id': studentId,
+          'assessment_name': assessmentName,
+          'assessment_type': assessmentType,
+          'marks_obtained': marksObtained,
+          'total_marks': totalMarks,
+          'class': classId,
+          'subject': subject,
+          'remarks': remarks,
+        }),
       );
-      return response['success'] == true;
-    } catch (e) {
-      print('Error grading submission: $e');
-      return false;
-    }
-  }
 
-  // ============================================
-  // EXAM ENDPOINTS
-  // ============================================
-
-  /// Get exams by status
-  Future<List<Exam>> getExams({String? status}) async {
-    try {
-      final response = await _apiService.get('/api/teacher/exams', query: {
-        if (status != null) 'status': status,
-      });
-
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List).map((json) => Exam.fromJson(json)).toList();
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return GradeRecord.fromJson(data);
+      } else {
+        throw Exception('Failed to add grade: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching exams: $e');
-      return [];
+      throw Exception('Error adding grade: $e');
     }
   }
 
-  /// Get exam analytics
-  Future<ExamAnalytics?> getExamAnalytics(String examId) async {
+  /// Update grade record
+  Future<GradeRecord> updateGrade({
+    required String gradeId,
+    required Map<String, dynamic> updates,
+  }) async {
     try {
-      final response = await _apiService.get('/api/teacher/exams/$examId/analytics');
+      final response = await _client.patch(
+        Uri.parse('$_baseUrl/api/teacher/gradebook/$gradeId'),
+        headers: await _getHeaders(),
+        body: json.encode(updates),
+      );
 
-      if (response['success'] == true && response['data'] != null) {
-        return ExamAnalytics.fromJson(response['data']);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return GradeRecord.fromJson(data);
+      } else {
+        throw Exception('Failed to update grade: ${response.statusCode}');
       }
-      return null;
     } catch (e) {
-      print('Error fetching exam analytics: $e');
-      return null;
+      throw Exception('Error updating grade: $e');
     }
   }
 
-  // ============================================
-  // LEAVE ENDPOINTS
-  // ============================================
+  // ========== Exam API ==========
+
+  /// Get exams for teacher
+  Future<List<TeacherExam>> getExams({
+    String? classId,
+    String? examType,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (classId != null) params['class'] = classId;
+      if (examType != null) params['type'] = examType;
+      if (startDate != null) params['start_date'] = startDate.toIso8601String().split('T')[0];
+      if (endDate != null) params['end_date'] = endDate.toIso8601String().split('T')[0];
+
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/exams?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherExam.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load exams: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching exams: $e');
+    }
+  }
+
+  /// Create exam
+  Future<TeacherExam> createExam({
+    required String title,
+    required String subject,
+    required String classId,
+    required DateTime examDate,
+    required String duration,
+    required int totalMarks,
+    required String examType,
+    String? syllabus,
+    String? roomNumber,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/exams'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'title': title,
+          'subject': subject,
+          'class': classId,
+          'exam_date': examDate.toIso8601String().split('T')[0],
+          'duration': duration,
+          'total_marks': totalMarks,
+          'exam_type': examType,
+          'syllabus': syllabus,
+          'room_number': roomNumber,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return TeacherExam.fromJson(data);
+      } else {
+        throw Exception('Failed to create exam: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error creating exam: $e');
+    }
+  }
+
+  // ========== Timetable API ==========
+
+  /// Get timetable for teacher
+  Future<List<TeacherTimetablePeriod>> getTimetable({
+    String? classId,
+    String? dayOfWeek,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (classId != null) params['class'] = classId;
+      if (dayOfWeek != null) params['day'] = dayOfWeek;
+
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/timetable?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherTimetablePeriod.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load timetable: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching timetable: $e');
+    }
+  }
+
+  // ========== Leave API ==========
 
   /// Get teacher's leave applications
-  Future<List<LeaveApplication>> getLeaveApplications() async {
+  Future<List<TeacherLeave>> getLeaveApplications({
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
     try {
-      final response = await _apiService.get('/api/teacher/leave');
+      final params = <String, String>{};
+      if (status != null) params['status'] = status;
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
 
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List)
-            .map((json) => LeaveApplication.fromJson(json))
-            .toList();
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/leave?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherLeave.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load leave applications: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching leave applications: $e');
-      return [];
-    }
-  }
-
-  /// Get leave balance
-  Future<LeaveBalance?> getLeaveBalance() async {
-    try {
-      final response = await _apiService.get('/api/teacher/leave/balance');
-
-      if (response['success'] == true && response['data'] != null) {
-        return LeaveBalance.fromJson(response['data']);
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching leave balance: $e');
-      return null;
+      throw Exception('Error fetching leave applications: $e');
     }
   }
 
   /// Apply for leave
-  Future<bool> applyLeave({
+  Future<TeacherLeave> applyLeave({
     required String leaveType,
     required DateTime startDate,
     required DateTime endDate,
     required String reason,
   }) async {
     try {
-      final response = await _apiService.post('/api/teacher/leave/apply', {
-        'leave_type': leaveType,
-        'start_date': startDate.toIso8601String().split('T')[0],
-        'end_date': endDate.toIso8601String().split('T')[0],
-        'reason': reason,
-      });
-      return response['success'] == true;
-    } catch (e) {
-      print('Error applying for leave: $e');
-      return false;
-    }
-  }
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/leave'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'leave_type': leaveType,
+          'start_date': startDate.toIso8601String().split('T')[0],
+          'end_date': endDate.toIso8601String().split('T')[0],
+          'reason': reason,
+        }),
+      );
 
-  // ============================================
-  // SALARY ENDPOINTS
-  // ============================================
-
-  /// Get teacher's salary information
-  Future<Salary?> getSalary({String? month}) async {
-    try {
-      final response = await _apiService.get('/api/teacher/salary', query: {
-        if (month != null) 'month': month,
-      });
-
-      if (response['success'] == true && response['data'] != null) {
-        return Salary.fromJson(response['data']);
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return TeacherLeave.fromJson(data);
+      } else {
+        throw Exception('Failed to apply for leave: ${response.statusCode}');
       }
-      return null;
     } catch (e) {
-      print('Error fetching salary: $e');
-      return null;
+      throw Exception('Error applying for leave: $e');
     }
   }
 
-  // ============================================
-  // STUDENT DIRECTORY ENDPOINTS
-  // ============================================
+  // ========== Live Classes API ==========
 
-  /// Get students by class
-  Future<List<Student>> getStudentsByClass(String className) async {
-    try {
-      final response = await _apiService.get('/api/teacher/students', query: {
-        'class': className,
-      });
-
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List).map((json) => Student.fromJson(json)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error fetching students: $e');
-      return [];
-    }
-  }
-
-  /// Get class performance analytics
-  Future<ClassPerformance?> getClassPerformance(String className) async {
-    try {
-      final response = await _apiService.get('/api/teacher/classes/$className/performance');
-
-      if (response['success'] == true && response['data'] != null) {
-        return ClassPerformance.fromJson(response['data']);
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching class performance: $e');
-      return null;
-    }
-  }
-
-  // ============================================
-  // LIVE CLASSES ENDPOINTS
-  // ============================================
-
-  /// Get live classes
-  Future<List<LiveClass>> getLiveClasses({String? status}) async {
-    try {
-      final response = await _apiService.get('/api/teacher/live-classes', query: {
-        if (status != null) 'status': status,
-      });
-
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List).map((json) => LiveClass.fromJson(json)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error fetching live classes: $e');
-      return [];
-    }
-  }
-
-  /// Start a live class
-  Future<String?> startLiveClass(String classId) async {
-    try {
-      final response = await _apiService.post('/api/teacher/live-classes/$classId/start', {});
-      if (response['success'] == true) {
-        return response['meeting_link'] as String?;
-      }
-      return null;
-    } catch (e) {
-      print('Error starting live class: $e');
-      return null;
-    }
-  }
-
-  // ============================================
-  // STUDY MATERIALS ENDPOINTS
-  // ============================================
-
-  /// Get study materials
-  Future<List<StudyMaterial>> getStudyMaterials({
-    String? classId,
-    String? materialType,
+  /// Get live classes for teacher
+  Future<List<TeacherLiveClass>> getLiveClasses({
+    String? status,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     try {
-      final response = await _apiService.get('/api/teacher/materials', query: {
-        if (classId != null) 'class_id': classId,
-        if (materialType != null) 'type': materialType,
-      });
+      final params = <String, String>{};
+      if (status != null) params['status'] = status;
+      if (startDate != null) params['start_date'] = startDate.toIso8601String().split('T')[0];
+      if (endDate != null) params['end_date'] = endDate.toIso8601String().split('T')[0];
 
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List)
-            .map((json) => StudyMaterial.fromJson(json))
-            .toList();
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/live-classes?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherLiveClass.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load live classes: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching study materials: $e');
-      return [];
+      throw Exception('Error fetching live classes: $e');
     }
   }
 
-  /// Upload study material
-  Future<bool> uploadStudyMaterial({
+  /// Schedule live class
+  Future<TeacherLiveClass> scheduleLiveClass({
+    required String title,
+    required String classId,
+    required String subject,
+    required DateTime scheduledAt,
+    String? meetingLink,
+    String? meetingId,
+    String? meetingPassword,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/live-classes'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'title': title,
+          'class': classId,
+          'subject': subject,
+          'scheduled_at': scheduledAt.toIso8601String(),
+          'meeting_link': meetingLink,
+          'meeting_id': meetingId,
+          'meeting_password': meetingPassword,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return TeacherLiveClass.fromJson(data);
+      } else {
+        throw Exception('Failed to schedule live class: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error scheduling live class: $e');
+    }
+  }
+
+  // ========== Teaching Materials API ==========
+
+  /// Get teaching materials
+  Future<List<TeachingMaterial>> getTeachingMaterials({
+    String? classId,
+    String? subject,
+    String? materialType,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (classId != null) params['class'] = classId;
+      if (subject != null) params['subject'] = subject;
+      if (materialType != null) params['type'] = materialType;
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
+
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/materials?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeachingMaterial.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load materials: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching materials: $e');
+    }
+  }
+
+  /// Upload teaching material
+  Future<TeachingMaterial> uploadMaterial({
     required String title,
     required String description,
-    required String materialType,
-    required String targetClass,
+    required String classId,
     required String subject,
+    required String materialType,
+    required String fileUrl,
+    String? thumbnailUrl,
   }) async {
     try {
-      final response = await _apiService.post('/api/teacher/materials', {
-        'title': title,
-        'description': description,
-        'material_type': materialType,
-        'target_class': targetClass,
-        'subject': subject,
-      });
-      return response['success'] == true;
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/materials'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'title': title,
+          'description': description,
+          'class': classId,
+          'subject': subject,
+          'material_type': materialType,
+          'file_url': fileUrl,
+          'thumbnail_url': thumbnailUrl,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return TeachingMaterial.fromJson(data);
+      } else {
+        throw Exception('Failed to upload material: ${response.statusCode}');
+      }
     } catch (e) {
-      print('Error uploading material: $e');
-      return false;
+      throw Exception('Error uploading material: $e');
     }
   }
 
-  // ============================================
-  // NOTIFICATIONS ENDPOINTS
-  // ============================================
+  // ========== Student Directory API ==========
 
-  /// Get notifications
-  Future<List<Notification>> getNotifications({String? type}) async {
+  /// Get student directory
+  Future<List<StudentDirectoryEntry>> getStudentDirectory({
+    String? classId,
+    String? search,
+    int page = 1,
+    int limit = 50,
+  }) async {
     try {
-      final response = await _apiService.get('/api/notifications', query: {
-        if (type != null) 'type': type,
-      });
+      final params = <String, String>{};
+      if (classId != null) params['class'] = classId;
+      if (search != null) params['search'] = search;
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
 
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List)
-            .map((json) => Notification.fromJson(json))
-            .toList();
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/students?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => StudentDirectoryEntry.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load students: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching notifications: $e');
-      return [];
+      throw Exception('Error fetching students: $e');
+    }
+  }
+
+  /// Get student details
+  Future<StudentDirectoryEntry> getStudentDetails(String studentId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/students/$studentId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return StudentDirectoryEntry.fromJson(data);
+      } else {
+        throw Exception('Failed to load student: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching student: $e');
+    }
+  }
+
+  // ========== My Classes API ==========
+
+  /// Get teacher's classes
+  Future<List<TeacherMyClass>> getMyClasses() async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/my-classes'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherMyClass.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load classes: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching classes: $e');
+    }
+  }
+
+  // ========== Notices API ==========
+
+  /// Get notices for teacher
+  Future<List<TeacherNotice>> getNotices({
+    String? noticeType,
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (noticeType != null) params['type'] = noticeType;
+      if (status != null) params['status'] = status;
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
+
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/notices?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherNotice.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load notices: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching notices: $e');
+    }
+  }
+
+  /// Create notice
+  Future<TeacherNotice> createNotice({
+    required String title,
+    required String content,
+    required String noticeType,
+    String? targetAudience,
+    DateTime? publishDate,
+    DateTime? expiryDate,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/notices'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'title': title,
+          'content': content,
+          'notice_type': noticeType,
+          'target_audience': targetAudience,
+          'publish_date': publishDate?.toIso8601String().split('T')[0],
+          'expiry_date': expiryDate?.toIso8601String().split('T')[0],
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return TeacherNotice.fromJson(data);
+      } else {
+        throw Exception('Failed to create notice: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error creating notice: $e');
+    }
+  }
+
+  // ========== Notifications API ==========
+
+  /// Get notifications for teacher
+  Future<List<TeacherNotification>> getNotifications({
+    String? type,
+    bool? isRead,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final params = <String, String>{};
+      if (type != null) params['type'] = type;
+      if (isRead != null) params['is_read'] = isRead.toString();
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
+
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/notifications?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => TeacherNotification.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load notifications: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching notifications: $e');
     }
   }
 
   /// Mark notification as read
-  Future<bool> markNotificationAsRead(String notificationId) async {
+  Future<void> markNotificationAsRead(String notificationId) async {
     try {
-      final response = await _apiService.put(
-        '/api/notifications/$notificationId/read',
-        {},
+      final response = await _client.patch(
+        Uri.parse('$_baseUrl/api/teacher/notifications/$notificationId/read'),
+        headers: await _getHeaders(),
       );
-      return response['success'] == true;
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to mark notification as read: ${response.statusCode}');
+      }
     } catch (e) {
-      print('Error marking notification as read: $e');
-      return false;
+      throw Exception('Error marking notification: $e');
     }
   }
 
-  // ============================================
-  // GRADING ENDPOINTS
-  // ============================================
+  /// Mark all notifications as read
+  Future<void> markAllNotificationsAsRead() async {
+    try {
+      final response = await _client.patch(
+        Uri.parse('$_baseUrl/api/teacher/notifications/read-all'),
+        headers: await _getHeaders(),
+      );
 
-  /// Get papers to grade
-  Future<List<HomeworkSubmission>> getPapersToGrade({
-    String? classId,
-    String? subject,
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to mark all as read: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error marking all notifications: $e');
+    }
+  }
+
+  // ========== Salary API ==========
+
+  /// Get salary slips
+  Future<List<SalarySlip>> getSalarySlips({
+    int? year,
+    int page = 1,
+    int limit = 12,
   }) async {
     try {
-      final response = await _apiService.get('/api/teacher/grading/papers', query: {
-        if (classId != null) 'class_id': classId,
-        if (subject != null) 'subject': subject,
-      });
+      final params = <String, String>{};
+      if (year != null) params['year'] = year.toString();
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
 
-      if (response['success'] == true && response['data'] is List) {
-        return (response['data'] as List)
-            .map((json) => HomeworkSubmission.fromJson(json))
-            .toList();
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/salary?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => SalarySlip.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load salary slips: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching papers to grade: $e');
-      return [];
+      throw Exception('Error fetching salary slips: $e');
     }
   }
 
-  /// Get grading statistics
-  Future<Map<String, dynamic>?> getGradingStats() async {
+  /// Get specific salary slip
+  Future<SalarySlip> getSalarySlip(String slipId) async {
     try {
-      final response = await _apiService.get('/api/teacher/grading/stats');
-      if (response['success'] == true) {
-        return response['data'];
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/salary/$slipId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return SalarySlip.fromJson(data);
+      } else {
+        throw Exception('Failed to load salary slip: ${response.statusCode}');
       }
-      return null;
     } catch (e) {
-      print('Error fetching grading stats: $e');
-      return null;
+      throw Exception('Error fetching salary slip: $e');
     }
   }
 
-  // ============================================
-  // PAPER BUILDER ENDPOINTS
-  // ============================================
+  // ========== Paper Builder API ==========
 
   /// Get question bank
-  Future<List<Map<String, dynamic>>> getQuestionBank({
+  Future<List<PaperQuestion>> getQuestionBank({
     String? subject,
-    String? topic,
+    String? classId,
     String? questionType,
+    String? difficulty,
+    String? chapter,
+    String? topic,
+    int page = 1,
+    int limit = 50,
   }) async {
     try {
-      final response = await _apiService.get('/api/teacher/question-bank', query: {
-        if (subject != null) 'subject': subject,
-        if (topic != null) 'topic': topic,
-        if (questionType != null) 'type': questionType,
-      });
+      final params = <String, String>{};
+      if (subject != null) params['subject'] = subject;
+      if (classId != null) params['class'] = classId;
+      if (questionType != null) params['type'] = questionType;
+      if (difficulty != null) params['difficulty'] = difficulty;
+      if (chapter != null) params['chapter'] = chapter;
+      if (topic != null) params['topic'] = topic;
+      params['page'] = page.toString();
+      params['limit'] = limit.toString();
 
-      if (response['success'] == true && response['data'] is List) {
-        return List<Map<String, dynamic>>.from(response['data']);
+      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/api/teacher/question-bank?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((item) => PaperQuestion.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load questions: ${response.statusCode}');
       }
-      return [];
     } catch (e) {
-      print('Error fetching question bank: $e');
-      return [];
+      throw Exception('Error fetching questions: $e');
     }
   }
 
-  /// Create exam paper
-  Future<bool> createExamPaper({
-    required String title,
+  /// Add question to bank
+  Future<PaperQuestion> addQuestion({
+    required String questionText,
     required String subject,
-    required String targetClass,
-    required DateTime startDate,
-    required DateTime endDate,
-    required int durationMinutes,
-    required List<String> questionIds,
+    required String classId,
+    required String questionType,
+    required int marks,
+    String? difficulty,
+    String? chapter,
+    String? topic,
+    List<String>? options,
+    String? correctAnswer,
+    String? explanation,
   }) async {
     try {
-      final response = await _apiService.post('/api/teacher/exams', {
-        'title': title,
-        'subject': subject,
-        'target_class': targetClass,
-        'start_date': startDate.toIso8601String(),
-        'end_date': endDate.toIso8601String(),
-        'duration_minutes': durationMinutes,
-        'question_ids': questionIds,
-      });
-      return response['success'] == true;
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/question-bank'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'question_text': questionText,
+          'subject': subject,
+          'class': classId,
+          'question_type': questionType,
+          'marks': marks,
+          'difficulty': difficulty,
+          'chapter': chapter,
+          'topic': topic,
+          'options': options,
+          'correct_answer': correctAnswer,
+          'explanation': explanation,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return PaperQuestion.fromJson(data);
+      } else {
+        throw Exception('Failed to add question: ${response.statusCode}');
+      }
     } catch (e) {
-      print('Error creating exam paper: $e');
-      return false;
+      throw Exception('Error adding question: $e');
+    }
+  }
+
+  /// Generate paper from question bank
+  Future<Map<String, dynamic>> generatePaper({
+    required String title,
+    required String subject,
+    required String classId,
+    required int totalMarks,
+    required String duration,
+    Map<String, int>? questionDistribution, // e.g., {'mcq': 10, 'short': 5, 'long': 3}
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/teacher/paper-builder/generate'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'title': title,
+          'subject': subject,
+          'class': classId,
+          'total_marks': totalMarks,
+          'duration': duration,
+          'question_distribution': questionDistribution,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to generate paper: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error generating paper: $e');
     }
   }
 }

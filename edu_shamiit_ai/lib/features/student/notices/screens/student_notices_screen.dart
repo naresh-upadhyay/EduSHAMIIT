@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 class StudentNotices extends ConsumerStatefulWidget {
   const StudentNotices({super.key});
@@ -12,70 +14,59 @@ class StudentNotices extends ConsumerStatefulWidget {
 }
 
 class _StudentNoticesState extends ConsumerState<StudentNotices> {
+  final StudentApiService _apiService = StudentApiService();
   String _selectedCategory = 'All';
   final List<String> _categories = ['All', 'Urgent', 'General', 'Events'];
+  List<Notice> _notices = [];
+  bool _isLoading = true;
+  String? _error;
 
-  final List<Map<String, dynamic>> _notices = [
-    {
-      'id': '1',
-      'title': 'Exam Hall Ticket Collection',
-      'content': 'Collect your hall tickets from the school office between 9:00 AM — 3:00 PM. This is mandatory for all students appearing in the final examination starting March 28, 2025. Students without hall tickets will NOT be permitted to enter the exam hall. Please carry your school ID card for verification.',
-      'category': 'Urgent',
-      'isUrgent': true,
-      'publishedAt': DateTime.now().subtract(const Duration(hours: 2)),
-      'author': 'Principal',
-    },
-    {
-      'id': '2',
-      'title': 'Fee Payment Deadline Extended',
-      'content': 'Fee submission deadline has been extended to April 5, 2025 for all students. Students must pay via the EduShamiit app or school counter. Late fees have been waived until this date. After April 5, a penalty of ₹50/day will apply. EMI options are also available through the app.',
-      'category': 'Urgent',
-      'isUrgent': true,
-      'publishedAt': DateTime.now().subtract(const Duration(days: 1)),
-      'author': 'Accounts Department',
-    },
-    {
-      'id': '3',
-      'title': 'Annual Sports Day Registration',
-      'content': 'Register for Sports Day events by March 29. Events include 100m Sprint, Long Jump, Relay Race, Cricket & Badminton. Contact the Sports Department for more details.',
-      'category': 'Events',
-      'isUrgent': false,
-      'publishedAt': DateTime.now().subtract(const Duration(days: 3)),
-      'author': 'Sports Dept.',
-    },
-    {
-      'id': '4',
-      'title': 'Science Exhibition — 2025',
-      'content': 'Submit project proposals by April 1. Top 3 winners get scholarships. Open to all classes. Project categories: Working Model, Chart, PowerPoint Presentation.',
-      'category': 'Events',
-      'isUrgent': false,
-      'publishedAt': DateTime.now().subtract(const Duration(days: 5)),
-      'author': 'Science Dept.',
-    },
-    {
-      'id': '5',
-      'title': 'Summer Uniform — Mandatory',
-      'content': 'All students must switch to summer uniform starting April 1st. Summer uniform includes white half-sleeve shirt, grey trousers/skirt, and school ID. Winter blazers are no longer required.',
-      'category': 'General',
-      'isUrgent': false,
-      'publishedAt': DateTime.now().subtract(const Duration(days: 1)),
-      'author': 'Administration',
-    },
-    {
-      'id': '6',
-      'title': 'Parent-Teacher Meeting Date',
-      'content': 'PTM scheduled for March 30, 2025 (Saturday) from 10:00 AM - 1:00 PM. Parents are requested to attend to discuss Term 2 results and academic progress. Bring the student diary.',
-      'category': 'General',
-      'isUrgent': false,
-      'publishedAt': DateTime.now().subtract(const Duration(days: 2)),
-      'author': 'Principal',
-    },
-  ];
-
-  List<Map<String, dynamic>> get _filteredNotices {
-    if (_selectedCategory == 'All') return _notices;
-    return _notices.where((n) => n['category'] == _selectedCategory).toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadNotices();
   }
+
+  Future<void> _loadNotices() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Map category to API category filter
+      final categoryMap = {
+        'Urgent': 'urgent',
+        'General': 'general',
+        'Events': 'event',
+      };
+      
+      final category = _selectedCategory == 'All' ? null : categoryMap[_selectedCategory];
+      final notices = await _apiService.getNotices(category: category);
+      
+      setState(() {
+        _notices = notices;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Notice> get _filteredNotices {
+    if (_selectedCategory == 'All') return _notices;
+    final categoryMap = {
+      'Urgent': 'urgent',
+      'General': 'general',
+      'Events': 'event',
+    };
+    return _notices.where((n) => n.category == categoryMap[_selectedCategory]).toList();
+  }
+
+  int get _urgentCount => _notices.where((n) => n.category == 'urgent').length;
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -139,7 +130,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${_notices.where((n) => n['isUrgent']).length}',
+                    '$_urgentCount',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -186,22 +177,28 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
 
           // Notices List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredNotices.length,
-              itemBuilder: (context, index) {
-                final notice = _filteredNotices[index];
-                return _buildNoticeCard(notice);
-              },
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(child: Text('Error: $_error'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _filteredNotices.length,
+                        itemBuilder: (context, index) {
+                          return _buildNoticeCard(_filteredNotices[index]);
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNoticeCard(Map<String, dynamic> notice) {
-    final color = _getColorForCategory(notice['category'] as String);
+  Widget _buildNoticeCard(Notice notice) {
+    final color = _getColorForCategory(notice.category);
+    final isUrgent = notice.category == 'urgent';
+    final isEvent = notice.category == 'event';
+    final isGeneral = notice.category == 'general';
     
     return GestureDetector(
       onTap: () => _showNoticeDetail(notice),
@@ -229,51 +226,51 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
           children: [
             Row(
               children: [
-                if (notice['isUrgent'] == true)
+                if (isUrgent)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
+                    child: const Text(
                       '🚨 URGENT',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: color,
+                        color: Colors.red,
                       ),
                     ),
                   ),
-                if (notice['category'] == 'Events')
+                if (isEvent)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
+                    child: const Text(
                       '🎉 EVENT',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: color,
+                        color: StudentColors.warning,
                       ),
                     ),
                   ),
-                if (notice['category'] == 'General')
+                if (isGeneral)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
+                    child: const Text(
                       '📋 GENERAL',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: color,
+                        color: StudentColors.primary,
                       ),
                     ),
                   ),
@@ -281,7 +278,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             ),
             const SizedBox(height: 6),
             Text(
-              notice['title'] as String,
+              notice.title,
               style: const TextStyle(
                 fontFamily: AppFonts.heading,
                 fontSize: 13,
@@ -291,7 +288,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             ),
             const SizedBox(height: 4),
             Text(
-              notice['content'] as String,
+              notice.content,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -302,7 +299,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             ),
             const SizedBox(height: 6),
             Text(
-              '📅 ${_formatDate(notice['publishedAt'] as DateTime)} · By ${notice['author']}',
+              '📅 ${_formatDate(notice.createdAt)}',
               style: TextStyle(
                 fontSize: 9,
                 color: StudentColors.text3,
@@ -314,8 +311,9 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
     );
   }
 
-  void _showNoticeDetail(Map<String, dynamic> notice) {
-    final color = _getColorForCategory(notice['category'] as String);
+  void _showNoticeDetail(Notice notice) {
+    final color = _getColorForCategory(notice.category);
+    final isUrgent = notice.category == 'urgent';
     
     showModalBottomSheet(
       context: context,
@@ -347,25 +345,25 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (notice['isUrgent'] == true)
+                    if (isUrgent)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(
+                        child: const Text(
                           '🚨 URGENT',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: color,
+                            color: Colors.red,
                           ),
                         ),
                       ),
                     const SizedBox(height: 12),
                     Text(
-                      notice['title'] as String,
+                      notice.title,
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 20,
@@ -375,7 +373,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      notice['content'] as String,
+                      notice.content,
                       style: TextStyle(
                         fontSize: 13,
                         color: StudentColors.text2,
@@ -394,28 +392,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                           const Icon(Icons.calendar_today, size: 16, color: StudentColors.text3),
                           const SizedBox(width: 8),
                           Text(
-                            'Published: ${_formatDate(notice['publishedAt'] as DateTime)}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: StudentColors.text3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: StudentColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.person, size: 16, color: StudentColors.text3),
-                          const SizedBox(width: 8),
-                          Text(
-                            'By ${notice['author']}',
+                            'Published: ${_formatDate(notice.createdAt)}',
                             style: TextStyle(
                               fontSize: 11,
                               color: StudentColors.text3,

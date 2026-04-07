@@ -183,7 +183,7 @@ final goRouter = GoRouter(
     // TEACHER ROUTES
     GoRoute(
       path: '/teacher/dashboard',
-      builder: (_, __) => const TeacherDashboard(),
+      builder: (_, __) => const TeacherDashboardScreen(),
     ),
     GoRoute(
       path: '/teacher/timetable',
@@ -211,7 +211,7 @@ final goRouter = GoRouter(
     ),
     GoRoute(
       path: '/teacher/profile',
-      builder: (_, __) => const TeacherProfile(),
+      builder: (_, __) => const TeacherProfileScreen(),
     ),
     GoRoute(
       path: '/teacher/grading',
@@ -227,7 +227,7 @@ final goRouter = GoRouter(
     ),
     GoRoute(
       path: '/teacher/leave',
-      builder: (_, __) => const TeacherLeave(),
+      builder: (_, __) => const TeacherLeaveScreen(),
     ),
     GoRoute(
       path: '/teacher/salary',

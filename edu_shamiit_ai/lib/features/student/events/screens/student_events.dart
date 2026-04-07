@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 class StudentEvents extends ConsumerStatefulWidget {
   const StudentEvents({super.key});
@@ -12,10 +14,12 @@ class StudentEvents extends ConsumerStatefulWidget {
 }
 
 class _StudentEventsState extends ConsumerState<StudentEvents> {
+  final StudentApiService _apiService = StudentApiService();
   String _selectedFilter = 'Upcoming';
   final List<String> _filters = ['Upcoming', 'Registered', 'Past'];
-  List<dynamic> _events = [];
+  List<Event> _events = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -24,54 +28,74 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
   }
 
   Future<void> _loadEvents() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-
     setState(() {
-      _events = [
-        {
-          "id": "event-1",
-          "title": "🏃 Annual Sports Day",
-          "date": "April 5, 2025",
-          "time": "8:00 AM",
-          "venue": "Sports Ground",
-          "description": "100m Sprint, Long Jump, Relay Race, Cricket & Badminton.",
-          "gradient": const [Color(0xFF4F46E5), Color(0xFF06B6D4)],
-          "status": "registered",
-          "registered": true,
-        },
-        {
-          "id": "event-2",
-          "title": "🔬 Science Exhibition 2025",
-          "date": "April 10, 2025",
-          "venue": "School Hall",
-          "description": "Top 3 winners get scholarships. Open to all classes.",
-          "gradient": const [Color(0xFF059669), Color(0xFFF59E0B)],
-          "status": "upcoming",
-          "registered": false,
-        },
-        {
-          "id": "event-3",
-          "title": "🎤 Inter-School Debate",
-          "date": "April 15, 2025",
-          "venue": "Auditorium",
-          "description": "Annual debate competition with schools from across the city.",
-          "gradient": const [Color(0xFFD97706), Color(0xFFB45309)],
-          "status": "upcoming",
-          "registered": false,
-        },
-      ];
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      // Map filter to API filter parameter
+      final filterMap = {
+        'Upcoming': 'upcoming',
+        'Registered': 'registered',
+        'Past': 'past',
+      };
+      
+      final filter = filterMap[_selectedFilter];
+      final events = await _apiService.getEvents(filter: filter);
+      
+      setState(() {
+        _events = events;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
-  List<dynamic> get _filteredEvents {
-    if (_selectedFilter == 'Upcoming') {
-      return _events.where((e) => e['status'] == 'upcoming' || e['status'] == 'registered').toList();
-    } else if (_selectedFilter == 'Registered') {
-      return _events.where((e) => e['registered'] == true).toList();
+  List<Event> get _filteredEvents {
+    final now = DateTime.now();
+    switch (_selectedFilter) {
+      case 'Upcoming':
+        return _events.where((e) => e.startDate.isAfter(now) || e.isRegistered).toList();
+      case 'Registered':
+        return _events.where((e) => e.isRegistered).toList();
+      case 'Past':
+        return _events.where((e) => e.endDate.isBefore(now) && !e.isRegistered).toList();
+      default:
+        return _events;
     }
-    return _events;
+  }
+
+  // Get gradient colors based on event type
+  List<Color> _getGradientColors(String type) {
+    switch (type.toLowerCase()) {
+      case 'sports':
+        return [const Color(0xFF4F46E5), const Color(0xFF06B6D4)];
+      case 'academic':
+        return [const Color(0xFF059669), const Color(0xFFF59E0B)];
+      case 'cultural':
+        return [const Color(0xFFD97706), const Color(0xFFB45309)];
+      default:
+        return [const Color(0xFF3B82F6), const Color(0xFF8B5CF6)];
+    }
+  }
+
+  // Get event icon based on type
+  String _getEventIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'sports':
+        return '🏃';
+      case 'academic':
+        return '🔬';
+      case 'cultural':
+        return '🎤';
+      default:
+        return '📅';
+    }
   }
 
   @override
@@ -183,9 +207,12 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
     );
   }
 
-  Widget _buildEventCard(Map<String, dynamic> event) {
-    final gradient = event['gradient'] as List<Color>;
-    final isRegistered = event['registered'] == true;
+  Widget _buildEventCard(Event event) {
+    final gradient = _getGradientColors(event.type);
+    final isRegistered = event.isRegistered;
+    final icon = _getEventIcon(event.type);
+    final startDateStr = '${event.startDate.day}/${event.startDate.month}/${event.startDate.year}';
+    final startTimeStr = '${event.startDate.hour}:${event.startDate.minute.toString().padLeft(2, '0')}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -215,7 +242,7 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
                     bottom: 10,
                     left: 10,
                     child: Text(
-                      event['title'],
+                      '$icon ${event.title}',
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 15,
@@ -237,18 +264,16 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
                 children: [
                   Row(
                     children: [
-                      _buildInfoChip('📅 ${event['date']}'),
-                      if (event['time'] != null) ...[
-                        const SizedBox(width: 6),
-                        _buildInfoChip('⏰ ${event['time']}'),
-                      ],
+                      _buildInfoChip('📅 $startDateStr'),
                       const SizedBox(width: 6),
-                      _buildInfoChip('📍 ${event['venue']}'),
+                      _buildInfoChip('⏰ $startTimeStr'),
+                      const SizedBox(width: 6),
+                      _buildInfoChip('📍 ${event.location}'),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    event['description'],
+                    event.description,
                     style: TextStyle(
                       fontSize: 10.5,
                       color: StudentColors.text3,
@@ -279,7 +304,7 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
                       else
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () => _showRegistrationSuccess(context),
+                            onPressed: () => _registerForEvent(event.id),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF059669),
                               foregroundColor: Colors.white,
@@ -315,6 +340,28 @@ class _StudentEventsState extends ConsumerState<StudentEvents> {
         ),
       ),
     );
+  }
+
+  Future<void> _registerForEvent(String eventId) async {
+    try {
+      final success = await _apiService.registerForEvent(eventId);
+      if (mounted) {
+        if (success) {
+          _showRegistrationSuccess(context);
+          _loadEvents(); // Refresh the list
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to register for event')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildInfoChip(String text) {

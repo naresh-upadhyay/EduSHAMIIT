@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 
 class StudentTransport extends ConsumerStatefulWidget {
   const StudentTransport({super.key});
@@ -12,8 +14,11 @@ class StudentTransport extends ConsumerStatefulWidget {
 }
 
 class _StudentTransportState extends ConsumerState<StudentTransport> {
-  Map<String, dynamic>? _transportData;
+  final StudentApiService _apiService = StudentApiService();
+  
+  TransportRoute? _transportRoute;
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -22,28 +27,73 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
   }
 
   Future<void> _loadTransport() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
-
     setState(() {
-      _transportData = {
-        "route": "Route 7B",
-        "stop": "Rajpur Stop",
-        "seat": "Seat 14",
-        "bus_number": "HR-29-3847",
-        "eta": 8,
-        "students_onboard": 38,
-        "stops_left": 4,
-        "live": true,
-        "stops": [
-          {"name": "School Gate", "time": "3:30 PM", "status": "done", "icon": "🏫"},
-          {"name": "Civil Lines", "time": "✅ 3:42 PM", "status": "done", "icon": "📍"},
-          {"name": "Rajpur Stop (YOURS)", "time": "🔜 ~3:50 PM", "status": "current", "icon": "📍"},
-          {"name": "Shastri Nagar", "time": "⏳ 4:00 PM", "status": "pending", "icon": "📍"},
-        ],
-      };
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      final route = await _apiService.getTransportRoute();
+      setState(() {
+        _transportRoute = route;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  String _getRouteName() {
+    if (_transportRoute == null) return 'N/A';
+    return 'Route ${_transportRoute!.routeName}';
+  }
+
+  String _getStopName() {
+    if (_transportRoute == null) return 'N/A';
+    // Find the student's stop from the route
+    return _transportRoute!.studentStopName ?? 'N/A';
+  }
+
+  String _getSeatNumber() {
+    if (_transportRoute == null) return 'N/A';
+    return 'Seat ${_transportRoute!.seatNumber ?? 'N/A'}';
+  }
+
+  String _getBusNumber() {
+    if (_transportRoute == null) return 'N/A';
+    return _transportRoute!.vehicleNumber ?? 'N/A';
+  }
+
+  int _getEtaMinutes() {
+    if (_transportRoute == null || _transportRoute!.estimatedArrival == null) return 0;
+    final now = DateTime.now();
+    final arrival = _transportRoute!.estimatedArrival!;
+    return arrival.difference(now).inMinutes.clamp(0, 60);
+  }
+
+  List<Map<String, dynamic>> _getStopsList() {
+    if (_transportRoute == null) return [];
+    
+    final stops = <Map<String, dynamic>>[];
+    final routeStops = _transportRoute!.stops;
+    
+    for (int i = 0; i < routeStops.length; i++) {
+      final stop = routeStops[i];
+      final isStudentStop = stop.stopName == _transportRoute!.studentStopName;
+      final status = i < routeStops.length ~/ 2 ? 'done' : (isStudentStop ? 'current' : 'pending');
+      
+      stops.add({
+        'name': isStudentStop ? '${stop.stopName} (YOURS)' : stop.stopName,
+        'time': status == 'done' ? '✅ ${stop.arrivalTime}' : (status == 'current' ? '🔜 ~${stop.arrivalTime}' : '⏳ ${stop.arrivalTime}'),
+        'status': status,
+        'icon': i == 0 ? '🏫' : '📍',
+      });
+    }
+    
+    return stops;
   }
 
   @override
@@ -54,7 +104,55 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
       );
     }
 
-    final data = _transportData!;
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error loading transport: $_error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadTransport,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_transportRoute == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.directions_bus, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                'No transport route assigned',
+                style: TextStyle(color: StudentColors.text3, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final data = {
+      "route": _getRouteName(),
+      "stop": _getStopName(),
+      "seat": _getSeatNumber(),
+      "bus_number": _getBusNumber(),
+      "eta": _getEtaMinutes(),
+      "students_onboard": _transportRoute!.stops.length,
+      "stops_left": _getStopsList().where((s) => s['status'] != 'done').length,
+      "live": true,
+      "stops": _getStopsList(),
+    };
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F8FF),
@@ -254,8 +352,8 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
                       ),
                       const SizedBox(height: 8),
                       ...List.generate(
-                        (data['stops'] as List).length,
-                        (index) => _buildStopItem(data['stops'][index], index < (data['stops'] as List).length - 1),
+                        (data['stops'] as List?)?.length ?? 0,
+                        (index) => _buildStopItem((data['stops'] as List)[index], index < (data['stops'] as List).length - 1),
                       ),
                     ],
                   ),
