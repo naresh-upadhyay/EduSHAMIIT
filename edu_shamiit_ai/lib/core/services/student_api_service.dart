@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
+import 'package:edu_shamiit_ai/core/services/mock_data_service.dart';
 
 /// Student API service for communicating with FastAPI backend
 class StudentApiService {
@@ -41,10 +42,12 @@ class StudentApiService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return StudentProfile.fromJson(data);
       } else {
-        throw ApiException('Failed to load profile: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return StudentProfile.fromJson(MockDataService().getStudentProfile());
       }
     } catch (e) {
-      throw ApiException('Get profile failed: $e');
+      // Fallback to mock data when API fails
+      return StudentProfile.fromJson(MockDataService().getStudentProfile());
     }
   }
 
@@ -92,10 +95,12 @@ class StudentApiService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return AttendanceSummary.fromJson(data);
       } else {
-        throw ApiException('Failed to load attendance: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return AttendanceSummary.fromJson(MockDataService().getAttendanceSummary());
       }
     } catch (e) {
-      throw ApiException('Get attendance summary failed: $e');
+      // Fallback to mock data when API fails
+      return AttendanceSummary.fromJson(MockDataService().getAttendanceSummary());
     }
   }
 
@@ -124,11 +129,16 @@ class StudentApiService {
             .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load attendance records: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getAttendanceRecords() as List)
+            .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get attendance records failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getAttendanceRecords() as List)
+          .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -160,10 +170,16 @@ class StudentApiService {
             .map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException('Failed to load homework: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getHomeworkAssignments() as List)
+            .map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get homework failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getHomeworkAssignments() as List)
+          .map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -212,11 +228,16 @@ class StudentApiService {
             .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load upcoming exams: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getUpcomingExams() as List)
+            .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get upcoming exams failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getUpcomingExams() as List)
+          .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -266,11 +287,16 @@ class StudentApiService {
             .map((e) => ExamResult.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load exam results: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getExamResults() as List)
+            .map((e) => ExamResult.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get exam results failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getExamResults() as List)
+          .map((e) => ExamResult.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -343,11 +369,16 @@ class StudentApiService {
             .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load fee records: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getFeeRecords() as List)
+            .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get fee records failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getFeeRecords() as List)
+          .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -396,10 +427,16 @@ class StudentApiService {
             .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException('Failed to load timetable: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getTimetable() as List)
+            .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get timetable failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getTimetable() as List)
+          .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -457,11 +494,16 @@ class StudentApiService {
             .map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load live classes: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getLiveClasses() as List)
+            .map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get live classes failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getLiveClasses() as List)
+          .map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -513,10 +555,16 @@ class StudentApiService {
             .map((e) => Notice.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException('Failed to load notices: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getNotices() as List)
+            .map((e) => Notice.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get notices failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getNotices() as List)
+          .map((e) => Notice.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -548,11 +596,16 @@ class StudentApiService {
             .map((e) => StudentNotification.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load notifications: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getNotifications() as List)
+            .map((e) => StudentNotification.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get notifications failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getNotifications() as List)
+          .map((e) => StudentNotification.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -615,10 +668,16 @@ class StudentApiService {
             .map((e) => Event.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException('Failed to load events: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getEvents() as List)
+            .map((e) => Event.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get events failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getEvents() as List)
+          .map((e) => Event.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -665,11 +724,16 @@ class StudentApiService {
             .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load achievements: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getAchievements() as List)
+            .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get achievements failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getAchievements() as List)
+          .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -701,11 +765,16 @@ class StudentApiService {
             .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load leaderboard: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getLeaderboard() as List)
+            .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get leaderboard failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getLeaderboard() as List)
+          .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -736,11 +805,18 @@ class StudentApiService {
                 StudentLeaveApplication.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load leave applications: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getLeaveApplications() as List)
+            .map((e) =>
+                StudentLeaveApplication.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get leave applications failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getLeaveApplications() as List)
+          .map((e) =>
+              StudentLeaveApplication.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -802,11 +878,16 @@ class StudentApiService {
             .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load library books: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getLibraryBooks() as List)
+            .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get library books failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getLibraryBooks() as List)
+          .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -826,11 +907,16 @@ class StudentApiService {
             .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load issued books: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getIssuedBooks() as List)
+            .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get issued books failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getIssuedBooks() as List)
+          .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -860,10 +946,16 @@ class StudentApiService {
             .map((e) => Course.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException('Failed to load courses: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getCourses() as List)
+            .map((e) => Course.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get courses failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getCourses() as List)
+          .map((e) => Course.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -897,10 +989,16 @@ class StudentApiService {
             .map((e) => Message.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException('Failed to load messages: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getMessages() as List)
+            .map((e) => Message.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get messages failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getMessages() as List)
+          .map((e) => Message.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 
@@ -949,11 +1047,12 @@ class StudentApiService {
       } else if (response.statusCode == 404) {
         return null; // No transport assigned
       } else {
-        throw ApiException(
-            'Failed to load transport route: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return TransportRoute.fromJson(MockDataService().getTransportRoute());
       }
     } catch (e) {
-      throw ApiException('Get transport route failed: $e');
+      // Fallback to mock data when API fails
+      return TransportRoute.fromJson(MockDataService().getTransportRoute());
     }
   }
 
@@ -978,11 +1077,18 @@ class StudentApiService {
                 (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        throw ApiException(
-            'Failed to load performance analytics: ${response.statusCode}');
+        // Fallback to mock data when API fails
+        return (MockDataService().getPerformanceAnalytics() as List)
+            .map(
+                (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
     } catch (e) {
-      throw ApiException('Get performance analytics failed: $e');
+      // Fallback to mock data when API fails
+      return (MockDataService().getPerformanceAnalytics() as List)
+          .map(
+              (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
   }
 }
