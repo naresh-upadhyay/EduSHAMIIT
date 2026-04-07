@@ -29,10 +29,12 @@ class StudentApiService {
   /// Get student profile
   Future<StudentProfile> getProfile() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/profile'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/profile'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -48,11 +50,13 @@ class StudentApiService {
   /// Update student profile
   Future<bool> updateProfile(Map<String, dynamic> data) async {
     try {
-      final response = await _client.put(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/profile'),
-        headers: _headers,
-        body: jsonEncode(data),
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .put(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/profile'),
+            headers: _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(AppConfig.apiTimeout);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -70,15 +74,18 @@ class StudentApiService {
     String? year,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/attendance/summary').replace(
-          queryParameters: {
-            if (month != null) 'month': month,
-            if (year != null) 'year': year,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/attendance/summary')
+                .replace(
+              queryParameters: {
+                if (month != null) 'month': month,
+                if (year != null) 'year': year,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -97,21 +104,27 @@ class StudentApiService {
     required String year,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/attendance/records').replace(
-          queryParameters: {
-            'month': month,
-            'year': year,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/attendance/records')
+                .replace(
+              queryParameters: {
+                'month': month,
+                'year': year,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load attendance records: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load attendance records: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get attendance records failed: $e');
@@ -128,19 +141,23 @@ class StudentApiService {
     String? subject,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/homework').replace(
-          queryParameters: {
-            if (status != null) 'status': status,
-            if (subject != null) 'subject': subject,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/homework').replace(
+              queryParameters: {
+                if (status != null) 'status': status,
+                if (subject != null) 'subject': subject,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
         throw ApiException('Failed to load homework: ${response.statusCode}');
       }
@@ -156,14 +173,17 @@ class StudentApiService {
     String? fileUrl,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/homework/$homeworkId/submit'),
-        headers: _headers,
-        body: jsonEncode({
-          'submission_text': submissionText,
-          'file_url': fileUrl,
-        }),
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .post(
+            Uri.parse(
+                '${AppConfig.apiBaseUrl}/student/homework/$homeworkId/submit'),
+            headers: _headers,
+            body: jsonEncode({
+              'submission_text': submissionText,
+              'file_url': fileUrl,
+            }),
+          )
+          .timeout(AppConfig.apiTimeout);
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
@@ -178,16 +198,21 @@ class StudentApiService {
   /// Get upcoming exams
   Future<List<ExamSchedule>> getUpcomingExams() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/exams/upcoming'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/upcoming'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load upcoming exams: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load upcoming exams: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get upcoming exams failed: $e');
@@ -197,16 +222,21 @@ class StudentApiService {
   /// Get exam schedule
   Future<List<ExamSchedule>> getExamSchedule() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/exams/schedule'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/schedule'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load exam schedule: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load exam schedule: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get exam schedule failed: $e');
@@ -218,20 +248,25 @@ class StudentApiService {
     String? subject,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/results').replace(
-          queryParameters: {
-            if (subject != null) 'subject': subject,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/results').replace(
+              queryParameters: {
+                if (subject != null) 'subject': subject,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => ExamResult.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => ExamResult.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load exam results: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load exam results: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get exam results failed: $e');
@@ -241,15 +276,18 @@ class StudentApiService {
   /// Get online exam details
   Future<Map<String, dynamic>> getOnlineExamDetails(String examId) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/exams/$examId/online'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/online'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
-        throw ApiException('Failed to load exam details: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load exam details: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get online exam details failed: $e');
@@ -262,13 +300,15 @@ class StudentApiService {
     required Map<int, int> answers, // questionNumber -> selectedOption
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/exams/$examId/submit'),
-        headers: _headers,
-        body: jsonEncode({
-          'answers': answers.map((k, v) => MapEntry(k.toString(), v)),
-        }),
-      ).timeout(Duration(minutes: 5)); // Longer timeout for exam submission
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/submit'),
+            headers: _headers,
+            body: jsonEncode({
+              'answers': answers.map((k, v) => MapEntry(k.toString(), v)),
+            }),
+          )
+          .timeout(Duration(minutes: 5)); // Longer timeout for exam submission
 
       return response.statusCode == 200;
     } catch (e) {
@@ -285,20 +325,25 @@ class StudentApiService {
     String? status, // 'pending', 'paid', 'partial', 'overdue'
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/fees').replace(
-          queryParameters: {
-            if (status != null) 'status': status,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/fees').replace(
+              queryParameters: {
+                if (status != null) 'status': status,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => FeeRecord.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load fee records: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load fee records: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get fee records failed: $e');
@@ -308,15 +353,18 @@ class StudentApiService {
   /// Get fee summary
   Future<Map<String, dynamic>> getFeeSummary() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/fees/summary'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/fees/summary'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
-        throw ApiException('Failed to load fee summary: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load fee summary: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get fee summary failed: $e');
@@ -332,16 +380,20 @@ class StudentApiService {
     required String day, // 'monday', 'tuesday', etc. or 'today'
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/timetable').replace(
-          queryParameters: {'day': day},
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/timetable').replace(
+              queryParameters: {'day': day},
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
         throw ApiException('Failed to load timetable: ${response.statusCode}');
       }
@@ -353,20 +405,25 @@ class StudentApiService {
   /// Get full week timetable
   Future<Map<String, List<TimetablePeriod>>> getWeekTimetable() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/timetable/week'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/timetable/week'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         Map<String, List<TimetablePeriod>> result = {};
         data.forEach((key, value) {
-          result[key] = (value as List).map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>)).toList();
+          result[key] = (value as List)
+              .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
+              .toList();
         });
         return result;
       } else {
-        throw ApiException('Failed to load week timetable: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load week timetable: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get week timetable failed: $e');
@@ -382,20 +439,25 @@ class StudentApiService {
     String? status, // 'live', 'scheduled', 'completed', 'recorded'
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/live-classes').replace(
-          queryParameters: {
-            if (status != null) 'status': status,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/live-classes').replace(
+              queryParameters: {
+                if (status != null) 'status': status,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load live classes: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load live classes: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get live classes failed: $e');
@@ -405,10 +467,13 @@ class StudentApiService {
   /// Join live class
   Future<String?> joinLiveClass(String classId) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/live-classes/$classId/join'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .post(
+            Uri.parse(
+                '${AppConfig.apiBaseUrl}/student/live-classes/$classId/join'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -430,18 +495,22 @@ class StudentApiService {
     String? category, // 'urgent', 'general', 'exam', 'event'
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/notices').replace(
-          queryParameters: {
-            if (category != null) 'category': category,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/notices').replace(
+              queryParameters: {
+                if (category != null) 'category': category,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => Notice.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => Notice.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
         throw ApiException('Failed to load notices: ${response.statusCode}');
       }
@@ -460,21 +529,26 @@ class StudentApiService {
     bool? unreadOnly,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/notifications').replace(
-          queryParameters: {
-            if (type != null) 'type': type,
-            if (unreadOnly != null) 'unread_only': unreadOnly.toString(),
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/notifications').replace(
+              queryParameters: {
+                if (type != null) 'type': type,
+                if (unreadOnly != null) 'unread_only': unreadOnly.toString(),
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => StudentNotification.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => StudentNotification.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load notifications: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load notifications: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get notifications failed: $e');
@@ -484,10 +558,13 @@ class StudentApiService {
   /// Mark notification as read
   Future<bool> markNotificationAsRead(String notificationId) async {
     try {
-      final response = await _client.put(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/notifications/$notificationId/read'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .put(
+            Uri.parse(
+                '${AppConfig.apiBaseUrl}/student/notifications/$notificationId/read'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -498,10 +575,12 @@ class StudentApiService {
   /// Mark all notifications as read
   Future<bool> markAllNotificationsAsRead() async {
     try {
-      final response = await _client.put(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/notifications/read-all'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .put(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/notifications/read-all'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -518,18 +597,22 @@ class StudentApiService {
     String? filter, // 'upcoming', 'registered', 'past'
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/events').replace(
-          queryParameters: {
-            if (filter != null) 'filter': filter,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/events').replace(
+              queryParameters: {
+                if (filter != null) 'filter': filter,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => Event.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
         throw ApiException('Failed to load events: ${response.statusCode}');
       }
@@ -541,10 +624,13 @@ class StudentApiService {
   /// Register for event
   Future<bool> registerForEvent(String eventId) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/events/$eventId/register'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .post(
+            Uri.parse(
+                '${AppConfig.apiBaseUrl}/student/events/$eventId/register'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
@@ -561,20 +647,25 @@ class StudentApiService {
     bool? earnedOnly,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/achievements').replace(
-          queryParameters: {
-            if (earnedOnly != null) 'earned_only': earnedOnly.toString(),
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/achievements').replace(
+              queryParameters: {
+                if (earnedOnly != null) 'earned_only': earnedOnly.toString(),
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => Achievement.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load achievements: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load achievements: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get achievements failed: $e');
@@ -591,21 +682,26 @@ class StudentApiService {
     int? limit,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/leaderboard').replace(
-          queryParameters: {
-            if (scope != null) 'scope': scope,
-            if (limit != null) 'limit': limit.toString(),
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/leaderboard').replace(
+              queryParameters: {
+                if (scope != null) 'scope': scope,
+                if (limit != null) 'limit': limit.toString(),
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load leaderboard: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load leaderboard: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get leaderboard failed: $e');
@@ -621,20 +717,26 @@ class StudentApiService {
     String? status, // 'pending', 'approved', 'rejected'
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/leave').replace(
-          queryParameters: {
-            if (status != null) 'status': status,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/leave').replace(
+              queryParameters: {
+                if (status != null) 'status': status,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => StudentLeaveApplication.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) =>
+                StudentLeaveApplication.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load leave applications: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load leave applications: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get leave applications failed: $e');
@@ -649,16 +751,18 @@ class StudentApiService {
     required String reason,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/leave/apply'),
-        headers: _headers,
-        body: jsonEncode({
-          'leave_type': leaveType,
-          'start_date': startDate.toIso8601String(),
-          'end_date': endDate.toIso8601String(),
-          'reason': reason,
-        }),
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/leave/apply'),
+            headers: _headers,
+            body: jsonEncode({
+              'leave_type': leaveType,
+              'start_date': startDate.toIso8601String(),
+              'end_date': endDate.toIso8601String(),
+              'reason': reason,
+            }),
+          )
+          .timeout(AppConfig.apiTimeout);
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
@@ -677,22 +781,28 @@ class StudentApiService {
     bool? availableOnly,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/library/books').replace(
-          queryParameters: {
-            if (search != null) 'search': search,
-            if (category != null) 'category': category,
-            if (availableOnly != null) 'available_only': availableOnly.toString(),
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/library/books').replace(
+              queryParameters: {
+                if (search != null) 'search': search,
+                if (category != null) 'category': category,
+                if (availableOnly != null)
+                  'available_only': availableOnly.toString(),
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => LibraryBook.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load library books: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load library books: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get library books failed: $e');
@@ -702,16 +812,21 @@ class StudentApiService {
   /// Get issued books
   Future<List<LibraryBook>> getIssuedBooks() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/library/issued'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/library/issued'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => LibraryBook.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load issued books: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load issued books: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get issued books failed: $e');
@@ -727,18 +842,22 @@ class StudentApiService {
     String? subject,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/courses').replace(
-          queryParameters: {
-            if (subject != null) 'subject': subject,
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/courses').replace(
+              queryParameters: {
+                if (subject != null) 'subject': subject,
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => Course.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => Course.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
         throw ApiException('Failed to load courses: ${response.statusCode}');
       }
@@ -758,20 +877,24 @@ class StudentApiService {
     int? limit,
   }) async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/messages').replace(
-          queryParameters: {
-            if (teacherId != null) 'teacher_id': teacherId,
-            if (page != null) 'page': page.toString(),
-            if (limit != null) 'limit': limit.toString(),
-          },
-        ),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/messages').replace(
+              queryParameters: {
+                if (teacherId != null) 'teacher_id': teacherId,
+                if (page != null) 'page': page.toString(),
+                if (limit != null) 'limit': limit.toString(),
+              },
+            ),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => Message.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map((e) => Message.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
         throw ApiException('Failed to load messages: ${response.statusCode}');
       }
@@ -787,15 +910,17 @@ class StudentApiService {
     String? attachmentUrl,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/messages/send'),
-        headers: _headers,
-        body: jsonEncode({
-          'recipient_id': recipientId,
-          'content': content,
-          'attachment_url': attachmentUrl,
-        }),
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/messages/send'),
+            headers: _headers,
+            body: jsonEncode({
+              'recipient_id': recipientId,
+              'content': content,
+              'attachment_url': attachmentUrl,
+            }),
+          )
+          .timeout(AppConfig.apiTimeout);
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
@@ -810,10 +935,12 @@ class StudentApiService {
   /// Get transport route
   Future<TransportRoute?> getTransportRoute() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/transport/route'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/transport/route'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -821,7 +948,8 @@ class StudentApiService {
       } else if (response.statusCode == 404) {
         return null; // No transport assigned
       } else {
-        throw ApiException('Failed to load transport route: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load transport route: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get transport route failed: $e');
@@ -835,16 +963,22 @@ class StudentApiService {
   /// Get performance analytics
   Future<List<PerformanceAnalytics>> getPerformanceAnalytics() async {
     try {
-      final response = await _client.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/student/performance'),
-        headers: _headers,
-      ).timeout(AppConfig.apiTimeout);
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/performance'),
+            headers: _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List;
-        return data.map((e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>)).toList();
+        return data
+            .map(
+                (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else {
-        throw ApiException('Failed to load performance analytics: ${response.statusCode}');
+        throw ApiException(
+            'Failed to load performance analytics: ${response.statusCode}');
       }
     } catch (e) {
       throw ApiException('Get performance analytics failed: $e');

@@ -29,7 +29,7 @@ class TeacherApiService {
   Future<TeacherDashboard> getDashboard() async {
     try {
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/dashboard'),
+        Uri.parse('$_baseUrl/teacher/dashboard'),
         headers: await _getHeaders(),
       );
 
@@ -50,7 +50,7 @@ class TeacherApiService {
   Future<TeacherProfile> getProfile() async {
     try {
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/profile'),
+        Uri.parse('$_baseUrl/teacher/profile'),
         headers: await _getHeaders(),
       );
 
@@ -69,7 +69,7 @@ class TeacherApiService {
   Future<TeacherProfile> updateProfile(Map<String, dynamic> updates) async {
     try {
       final response = await _client.patch(
-        Uri.parse('$_baseUrl/api/teacher/profile'),
+        Uri.parse('$_baseUrl/teacher/profile'),
         headers: await _getHeaders(),
         body: json.encode(updates),
       );
@@ -88,16 +88,19 @@ class TeacherApiService {
   // ========== Attendance API ==========
 
   /// Get students for a class (for attendance marking)
-  Future<List<StudentDirectoryEntry>> getStudentsForClass(String classId) async {
+  Future<List<StudentDirectoryEntry>> getStudentsForClass(
+      String classId) async {
     try {
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/attendance/students?class=$classId'),
+        Uri.parse('$_baseUrl/teacher/attendance/students?class=$classId'),
         headers: await _getHeaders(),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((item) => StudentDirectoryEntry.fromJson(item)).toList();
+        return data
+            .map((item) => StudentDirectoryEntry.fromJson(item))
+            .toList();
       } else {
         throw Exception('Failed to load students: ${response.statusCode}');
       }
@@ -114,7 +117,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/attendance/mark'),
+        Uri.parse('$_baseUrl/teacher/attendance/mark'),
         headers: await _getHeaders(),
         body: json.encode({
           'class_id': classId,
@@ -139,20 +142,26 @@ class TeacherApiService {
   }) async {
     try {
       final params = {'class': classId};
-      if (startDate != null) params['start_date'] = startDate.toIso8601String().split('T')[0];
-      if (endDate != null) params['end_date'] = endDate.toIso8601String().split('T')[0];
+      if (startDate != null)
+        params['start_date'] = startDate.toIso8601String().split('T')[0];
+      if (endDate != null)
+        params['end_date'] = endDate.toIso8601String().split('T')[0];
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/attendance/history?$queryString'),
+        Uri.parse('$_baseUrl/teacher/attendance/history?$queryString'),
         headers: await _getHeaders(),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((item) => TeacherAttendanceRecord.fromJson(item)).toList();
+        return data
+            .map((item) => TeacherAttendanceRecord.fromJson(item))
+            .toList();
       } else {
-        throw Exception('Failed to load attendance history: ${response.statusCode}');
+        throw Exception(
+            'Failed to load attendance history: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error fetching attendance history: $e');
@@ -175,15 +184,18 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/homework?$queryString'),
+        Uri.parse('$_baseUrl/teacher/homework?$queryString'),
         headers: await _getHeaders(),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((item) => TeacherHomeworkAssignment.fromJson(item)).toList();
+        return data
+            .map((item) => TeacherHomeworkAssignment.fromJson(item))
+            .toList();
       } else {
         throw Exception('Failed to load homework: ${response.statusCode}');
       }
@@ -204,7 +216,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/homework'),
+        Uri.parse('$_baseUrl/teacher/homework'),
         headers: await _getHeaders(),
         body: json.encode({
           'title': title,
@@ -235,7 +247,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.patch(
-        Uri.parse('$_baseUrl/api/teacher/homework/$homeworkId'),
+        Uri.parse('$_baseUrl/teacher/homework/$homeworkId'),
         headers: await _getHeaders(),
         body: json.encode(updates ?? {}),
       );
@@ -255,7 +267,7 @@ class TeacherApiService {
   Future<void> deleteHomework(String homeworkId) async {
     try {
       final response = await _client.delete(
-        Uri.parse('$_baseUrl/api/teacher/homework/$homeworkId'),
+        Uri.parse('$_baseUrl/teacher/homework/$homeworkId'),
         headers: await _getHeaders(),
       );
 
@@ -275,10 +287,12 @@ class TeacherApiService {
     try {
       final params = <String, String>{};
       if (status != null) params['status'] = status;
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
+
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/homework/$homeworkId/submissions?$queryString'),
+        Uri.parse(
+            '$_baseUrl/teacher/homework/$homeworkId/submissions?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -301,7 +315,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/submissions/$submissionId/grade'),
+        Uri.parse('$_baseUrl/teacher/submissions/$submissionId/grade'),
         headers: await _getHeaders(),
         body: json.encode({
           'marks': marks,
@@ -333,9 +347,10 @@ class TeacherApiService {
       if (assessmentType != null) params['assessment_type'] = assessmentType;
       if (studentId != null) params['student_id'] = studentId;
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/gradebook?$queryString'),
+        Uri.parse('$_baseUrl/teacher/gradebook?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -363,7 +378,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/gradebook'),
+        Uri.parse('$_baseUrl/teacher/gradebook'),
         headers: await _getHeaders(),
         body: json.encode({
           'student_id': studentId,
@@ -395,7 +410,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.patch(
-        Uri.parse('$_baseUrl/api/teacher/gradebook/$gradeId'),
+        Uri.parse('$_baseUrl/teacher/gradebook/$gradeId'),
         headers: await _getHeaders(),
         body: json.encode(updates),
       );
@@ -424,12 +439,15 @@ class TeacherApiService {
       final params = <String, String>{};
       if (classId != null) params['class'] = classId;
       if (examType != null) params['type'] = examType;
-      if (startDate != null) params['start_date'] = startDate.toIso8601String().split('T')[0];
-      if (endDate != null) params['end_date'] = endDate.toIso8601String().split('T')[0];
+      if (startDate != null)
+        params['start_date'] = startDate.toIso8601String().split('T')[0];
+      if (endDate != null)
+        params['end_date'] = endDate.toIso8601String().split('T')[0];
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/exams?$queryString'),
+        Uri.parse('$_baseUrl/teacher/exams?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -458,7 +476,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/exams'),
+        Uri.parse('$_baseUrl/teacher/exams'),
         headers: await _getHeaders(),
         body: json.encode({
           'title': title,
@@ -496,15 +514,18 @@ class TeacherApiService {
       if (classId != null) params['class'] = classId;
       if (dayOfWeek != null) params['day'] = dayOfWeek;
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/timetable?$queryString'),
+        Uri.parse('$_baseUrl/teacher/timetable?$queryString'),
         headers: await _getHeaders(),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((item) => TeacherTimetablePeriod.fromJson(item)).toList();
+        return data
+            .map((item) => TeacherTimetablePeriod.fromJson(item))
+            .toList();
       } else {
         throw Exception('Failed to load timetable: ${response.statusCode}');
       }
@@ -527,9 +548,10 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/leave?$queryString'),
+        Uri.parse('$_baseUrl/teacher/leave?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -537,7 +559,8 @@ class TeacherApiService {
         final List<dynamic> data = json.decode(response.body);
         return data.map((item) => TeacherLeave.fromJson(item)).toList();
       } else {
-        throw Exception('Failed to load leave applications: ${response.statusCode}');
+        throw Exception(
+            'Failed to load leave applications: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error fetching leave applications: $e');
@@ -553,7 +576,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/leave'),
+        Uri.parse('$_baseUrl/teacher/leave'),
         headers: await _getHeaders(),
         body: json.encode({
           'leave_type': leaveType,
@@ -585,12 +608,15 @@ class TeacherApiService {
     try {
       final params = <String, String>{};
       if (status != null) params['status'] = status;
-      if (startDate != null) params['start_date'] = startDate.toIso8601String().split('T')[0];
-      if (endDate != null) params['end_date'] = endDate.toIso8601String().split('T')[0];
+      if (startDate != null)
+        params['start_date'] = startDate.toIso8601String().split('T')[0];
+      if (endDate != null)
+        params['end_date'] = endDate.toIso8601String().split('T')[0];
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/live-classes?$queryString'),
+        Uri.parse('$_baseUrl/teacher/live-classes?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -617,7 +643,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/live-classes'),
+        Uri.parse('$_baseUrl/teacher/live-classes'),
         headers: await _getHeaders(),
         body: json.encode({
           'title': title,
@@ -634,7 +660,8 @@ class TeacherApiService {
         final data = json.decode(response.body);
         return TeacherLiveClass.fromJson(data);
       } else {
-        throw Exception('Failed to schedule live class: ${response.statusCode}');
+        throw Exception(
+            'Failed to schedule live class: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error scheduling live class: $e');
@@ -659,9 +686,10 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/materials?$queryString'),
+        Uri.parse('$_baseUrl/teacher/materials?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -688,7 +716,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/materials'),
+        Uri.parse('$_baseUrl/teacher/materials'),
         headers: await _getHeaders(),
         body: json.encode({
           'title': title,
@@ -728,15 +756,18 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/students?$queryString'),
+        Uri.parse('$_baseUrl/teacher/students?$queryString'),
         headers: await _getHeaders(),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((item) => StudentDirectoryEntry.fromJson(item)).toList();
+        return data
+            .map((item) => StudentDirectoryEntry.fromJson(item))
+            .toList();
       } else {
         throw Exception('Failed to load students: ${response.statusCode}');
       }
@@ -749,7 +780,7 @@ class TeacherApiService {
   Future<StudentDirectoryEntry> getStudentDetails(String studentId) async {
     try {
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/students/$studentId'),
+        Uri.parse('$_baseUrl/teacher/students/$studentId'),
         headers: await _getHeaders(),
       );
 
@@ -770,7 +801,7 @@ class TeacherApiService {
   Future<List<TeacherMyClass>> getMyClasses() async {
     try {
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/my-classes'),
+        Uri.parse('$_baseUrl/teacher/my-classes'),
         headers: await _getHeaders(),
       );
 
@@ -801,9 +832,10 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/notices?$queryString'),
+        Uri.parse('$_baseUrl/teacher/notices?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -829,7 +861,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/notices'),
+        Uri.parse('$_baseUrl/teacher/notices'),
         headers: await _getHeaders(),
         body: json.encode({
           'title': title,
@@ -868,9 +900,10 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/notifications?$queryString'),
+        Uri.parse('$_baseUrl/teacher/notifications?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -889,12 +922,13 @@ class TeacherApiService {
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
       final response = await _client.patch(
-        Uri.parse('$_baseUrl/api/teacher/notifications/$notificationId/read'),
+        Uri.parse('$_baseUrl/teacher/notifications/$notificationId/read'),
         headers: await _getHeaders(),
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to mark notification as read: ${response.statusCode}');
+        throw Exception(
+            'Failed to mark notification as read: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error marking notification: $e');
@@ -905,7 +939,7 @@ class TeacherApiService {
   Future<void> markAllNotificationsAsRead() async {
     try {
       final response = await _client.patch(
-        Uri.parse('$_baseUrl/api/teacher/notifications/read-all'),
+        Uri.parse('$_baseUrl/teacher/notifications/read-all'),
         headers: await _getHeaders(),
       );
 
@@ -931,9 +965,10 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/salary?$queryString'),
+        Uri.parse('$_baseUrl/teacher/salary?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -952,7 +987,7 @@ class TeacherApiService {
   Future<SalarySlip> getSalarySlip(String slipId) async {
     try {
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/salary/$slipId'),
+        Uri.parse('$_baseUrl/teacher/salary/$slipId'),
         headers: await _getHeaders(),
       );
 
@@ -991,9 +1026,10 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
       final response = await _client.get(
-        Uri.parse('$_baseUrl/api/teacher/question-bank?$queryString'),
+        Uri.parse('$_baseUrl/teacher/question-bank?$queryString'),
         headers: await _getHeaders(),
       );
 
@@ -1024,7 +1060,7 @@ class TeacherApiService {
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/question-bank'),
+        Uri.parse('$_baseUrl/teacher/question-bank'),
         headers: await _getHeaders(),
         body: json.encode({
           'question_text': questionText,
@@ -1059,11 +1095,12 @@ class TeacherApiService {
     required String classId,
     required int totalMarks,
     required String duration,
-    Map<String, int>? questionDistribution, // e.g., {'mcq': 10, 'short': 5, 'long': 3}
+    Map<String, int>?
+        questionDistribution, // e.g., {'mcq': 10, 'short': 5, 'long': 3}
   }) async {
     try {
       final response = await _client.post(
-        Uri.parse('$_baseUrl/api/teacher/paper-builder/generate'),
+        Uri.parse('$_baseUrl/teacher/paper-builder/generate'),
         headers: await _getHeaders(),
         body: json.encode({
           'title': title,
