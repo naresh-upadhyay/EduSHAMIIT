@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -44,9 +44,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
 
     try {
       // Try to fetch from API first
-      final data = await ApiService().get('/student/dashboard');
+      final response = await ApiService().get('/student/dashboard');
       setState(() {
-        _dashboardData = data;
+        _dashboardData = response.containsKey('data') ? response['data'] : response;
         _isLoading = false;
       });
     } catch (e) {
@@ -242,7 +242,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            user['full_name'],
+                            user['full_name'] ?? 'Student',
                             style: const TextStyle(
                               fontFamily: AppFonts.heading,
                               fontSize: 17,
@@ -350,7 +350,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                         Column(
                           children: [
                             Text(
-                              '${user['learning_streak']}',
+                              '${user['learning_streak'] ?? 0}',
                               style: const TextStyle(
                                 fontFamily: AppFonts.heading,
                                 fontSize: 22,
@@ -375,10 +375,10 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('${stats['attendance_pct']}%', 'Attend.'),
-                      _buildStatItem('${stats['avg_score']}', 'Avg Score'),
-                      _buildStatItem('${stats['class_rank']}rd', 'Rank'),
-                      _buildStatItem('${stats['xp_points']}', 'XP Points'),
+                      _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.'),
+                      _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score'),
+                      _buildStatItem('${stats['class_rank'] ?? '-'}rd', 'Rank'),
+                      _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points'),
                     ],
                   ),
                 ],
@@ -462,7 +462,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: Color(int.parse(item['bg'], radix: 16)).withValues(alpha: 0.8),
+                        color: Color(int.parse(item['bg'] ?? 'EEF2FF', radix: 16)).withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Center(
