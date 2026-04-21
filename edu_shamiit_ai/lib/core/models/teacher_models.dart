@@ -1,5 +1,70 @@
 import 'package:flutter/foundation.dart';
 
+int _toInt(dynamic value, {int fallback = 0}) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
+}
+
+double _toDouble(dynamic value, {double fallback = 0}) {
+  if (value is double) return value;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value) ?? fallback;
+  return fallback;
+}
+
+String _toStr(dynamic value, {String fallback = ''}) {
+  if (value == null) return fallback;
+  final text = value.toString();
+  return text.trim().isEmpty ? fallback : text;
+}
+
+bool _toBool(dynamic value, {bool fallback = false}) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y'].contains(normalized)) return true;
+    if (['false', '0', 'no', 'n'].contains(normalized)) return false;
+  }
+  return fallback;
+}
+
+DateTime? _toDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  return DateTime.tryParse(value.toString());
+}
+
+String _normalizeTeacherRoute(dynamic value, {String fallback = '/teacher/dashboard'}) {
+  var route = _toStr(value, fallback: fallback);
+  if (route.isEmpty) return fallback;
+  if (!route.startsWith('/')) route = '/$route';
+
+  const aliases = {
+    '/dashboard': '/teacher/dashboard',
+    '/myclasses': '/teacher/my-classes',
+    '/attendance': '/teacher/attendance',
+    '/homework': '/teacher/homework',
+    '/results': '/teacher/gradebook',
+    '/gradebook': '/teacher/gradebook',
+    '/students': '/teacher/student-directory',
+    '/student-directory': '/teacher/student-directory',
+    '/timetable': '/teacher/timetable',
+    '/notices': '/teacher/notices',
+    '/leave': '/teacher/leave',
+    '/liveclasses': '/teacher/live-classes',
+    '/live-classes': '/teacher/live-classes',
+    '/materials': '/teacher/materials',
+    '/salary': '/teacher/salary',
+    '/profile': '/teacher/profile',
+    '/notifications': '/teacher/notifications',
+  };
+
+  return aliases[route] ?? route;
+}
+
 /// Teacher profile data model
 @immutable
 class TeacherProfile {
@@ -42,28 +107,37 @@ class TeacherProfile {
   });
 
   factory TeacherProfile.fromJson(Map<String, dynamic> json) {
+    final dynamic classesRaw =
+        json['classes'] ?? json['assigned_classes'] ?? json['class'];
+    final List<String> classList = classesRaw is List
+        ? classesRaw.map((e) => e.toString()).toList()
+        : classesRaw != null && classesRaw.toString().isNotEmpty
+            ? [classesRaw.toString()]
+            : <String>[];
+
     return TeacherProfile(
-      id: json['id'] as String? ?? '',
-      userId: json['user_id'] as String? ?? '',
-      fullName: json['full_name'] as String? ?? '',
+      id: (json['id'] ?? json['teacher_id'] ?? '').toString(),
+      userId: (json['user_id'] ?? json['id'] ?? '').toString(),
+      fullName: (json['full_name'] ?? json['name'] ?? '').toString(),
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String?,
-      profileImageUrl: json['profile_image_url'] as String?,
-      subject: json['subject'] as String? ?? '',
+      profileImageUrl:
+          (json['profile_image_url'] ?? json['avatar_url']) as String?,
+      subject: (json['subject'] ?? json['primary_subject'] ?? '').toString(),
       specialization: json['specialization'] as String?,
-      classes: (json['classes'] as List<dynamic>?)?.cast<String>() ?? [],
+      classes: classList,
       qualification: json['qualification'] as String? ?? '',
-      experienceYears: json['experience_years'] as int? ?? 0,
-      joiningDate: json['joining_date'] != null 
+      experienceYears: _toInt(json['experience_years']),
+      joiningDate: json['joining_date'] != null
           ? DateTime.parse(json['joining_date'] as String) 
           : null,
-      xpPoints: json['xp_points'] as int? ?? 0,
-      streak: json['streak'] as int? ?? 0,
+      xpPoints: _toInt(json['xp_points']),
+      streak: _toInt(json['streak'] ?? json['learning_streak']),
       bio: json['bio'] as String?,
-      createdAt: json['created_at'] != null 
+      createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String) 
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
+      updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String) 
           : DateTime.now(),
     );
@@ -150,10 +224,17 @@ class TeacherDashboard {
   });
 
   factory TeacherDashboard.fromJson(Map<String, dynamic> json) {
+    final userJson = (json['user'] ?? json['teacher'] ?? json['profile'])
+        as Map<String, dynamic>?;
+    final scheduleRaw =
+        (json['today_schedule'] ?? json['schedule']) as List<dynamic>?;
+    final quickAccessRaw = (json['quick_access'] as List<dynamic>?);
+
     return TeacherDashboard(
-      user: TeacherProfile.fromJson(json['user'] as Map<String, dynamic>),
-      stats: TeacherStats.fromJson(json['stats'] as Map<String, dynamic>),
-      todaySchedule: (json['today_schedule'] as List<dynamic>?)
+      user: TeacherProfile.fromJson(userJson ?? const {}),
+      stats: TeacherStats.fromJson(
+          (json['stats'] as Map<String, dynamic>?) ?? const {}),
+      todaySchedule: scheduleRaw
               ?.map((item) => TeacherScheduleItem.fromJson(item as Map<String, dynamic>))
               .toList() ??
           [],
@@ -161,10 +242,15 @@ class TeacherDashboard {
               ?.map((item) => TeacherTask.fromJson(item as Map<String, dynamic>))
               .toList() ??
           [],
-      quickAccess: (json['quick_access'] as List<dynamic>?)
+      quickAccess: quickAccessRaw
               ?.map((item) => QuickAccessItem.fromJson(item as Map<String, dynamic>))
               .toList() ??
-          [],
+          const [
+            QuickAccessItem(title: 'Attendance', icon: '✅', route: '/teacher/attendance'),
+            QuickAccessItem(title: 'Homework', icon: '📝', route: '/teacher/homework'),
+            QuickAccessItem(title: 'Gradebook', icon: '📊', route: '/teacher/gradebook'),
+            QuickAccessItem(title: 'Classes', icon: '📚', route: '/teacher/my-classes'),
+          ],
     );
   }
 
@@ -202,13 +288,14 @@ class TeacherStats {
 
   factory TeacherStats.fromJson(Map<String, dynamic> json) {
     return TeacherStats(
-      attendancePct: (json['attendance_pct'] as num?)?.toDouble() ?? 0.0,
-      avgScore: (json['avg_score'] as num?)?.toDouble() ?? 0.0,
-      classesCount: json['classes_count'] as int? ?? 0,
-      studentsCount: json['students_count'] as int? ?? 0,
-      totalHomework: json['total_homework'] as int?,
-      pendingGrading: json['pending_grading'] as int?,
-      avgCompletionRate: (json['avg_completion_rate'] as num?)?.toDouble(),
+      attendancePct: _toDouble(json['attendance_pct']),
+      avgScore: _toDouble(json['avg_score']),
+      classesCount: _toInt(json['classes_count'] ?? json['total_classes']),
+      studentsCount: _toInt(json['students_count'] ?? json['total_students']),
+      totalHomework: _toInt(json['total_homework']),
+      pendingGrading: _toInt(json['pending_grading'] ?? json['pending_tasks']),
+      avgCompletionRate:
+          (json['avg_completion_rate'] as num?)?.toDouble(),
     );
   }
 
@@ -247,13 +334,15 @@ class TeacherScheduleItem {
   });
 
   factory TeacherScheduleItem.fromJson(Map<String, dynamic> json) {
+    final subjectMap = json['subjects'] as Map<String, dynamic>?;
+
     return TeacherScheduleItem(
-      subject: json['subject'] as String? ?? '',
-      icon: json['icon'] as String? ?? '',
+      subject: (json['subject'] ?? subjectMap?['name'] ?? '').toString(),
+      icon: (json['icon'] ?? subjectMap?['icon'] ?? '📘').toString(),
       class_: json['class'] as String? ?? '',
       startTime: json['start_time'] as String? ?? '',
       endTime: json['end_time'] as String? ?? '',
-      room: json['room'] as String? ?? '',
+      room: (json['room'] ?? json['room_number'] ?? '').toString(),
       isNow: json['is_now'] as bool? ?? false,
     );
   }
@@ -332,9 +421,12 @@ class QuickAccessItem {
 
   factory QuickAccessItem.fromJson(Map<String, dynamic> json) {
     return QuickAccessItem(
-      title: json['title'] as String? ?? '',
-      icon: json['icon'] as String? ?? '',
-      route: json['route'] as String? ?? '',
+      title: _toStr(json['title']),
+      icon: _toStr(json['icon']),
+      route: _normalizeTeacherRoute(
+        json['route'] ?? json['path'] ?? json['url'],
+        fallback: '/teacher/dashboard',
+      ),
     );
   }
 
@@ -382,21 +474,27 @@ class StudentDirectoryEntry {
 
   factory StudentDirectoryEntry.fromJson(Map<String, dynamic> json) {
     return StudentDirectoryEntry(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      rollNo: json['roll_no'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
-      section: json['section'] as String?,
-      email: json['email'] as String?,
-      phone: json['phone'] as String?,
-      dateOfBirth: json['date_of_birth'] != null 
-          ? DateTime.parse(json['date_of_birth'] as String) 
-          : null,
-      parentName: json['parent_name'] as String?,
-      parentPhone: json['parent_phone'] as String?,
-      attendancePct: (json['attendance_pct'] as num?)?.toDouble(),
-      avgMarks: (json['avg_marks'] as num?)?.toDouble(),
-      profileImageUrl: json['profile_image_url'] as String?,
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? json['full_name'] ?? '').toString(),
+      rollNo: (json['roll_no'] ?? json['roll_number'] ?? '').toString(),
+      class_: _toStr(json['class'] ?? json['class_name']),
+      section: _toStr(json['section']).isEmpty ? null : _toStr(json['section']),
+      email: _toStr(json['email']).isEmpty ? null : _toStr(json['email']),
+      phone: _toStr(json['phone']).isEmpty ? null : _toStr(json['phone']),
+      dateOfBirth: _toDateTime(json['date_of_birth']),
+      parentName: _toStr(json['parent_name'] ?? json['father_name']).isEmpty
+          ? null
+          : _toStr(json['parent_name'] ?? json['father_name']),
+      parentPhone: _toStr(json['parent_phone'] ?? json['father_phone']).isEmpty
+          ? null
+          : _toStr(json['parent_phone'] ?? json['father_phone']),
+      attendancePct: json['attendance_pct'] == null
+          ? null
+          : _toDouble(json['attendance_pct']),
+      avgMarks: json['avg_marks'] == null ? null : _toDouble(json['avg_marks']),
+      profileImageUrl: _toStr(json['profile_image_url'] ?? json['avatar_url']).isEmpty
+          ? null
+          : _toStr(json['profile_image_url'] ?? json['avatar_url']),
     );
   }
 
@@ -448,20 +546,16 @@ class TeacherAttendanceRecord {
 
   factory TeacherAttendanceRecord.fromJson(Map<String, dynamic> json) {
     return TeacherAttendanceRecord(
-      id: json['id'] as String? ?? '',
-      studentId: json['student_id'] as String? ?? '',
-      studentName: json['student_name'] as String? ?? '',
-      rollNo: json['roll_no'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
-      date: json['date'] != null 
-          ? DateTime.parse(json['date'] as String) 
-          : DateTime.now(),
-      status: json['status'] as String? ?? 'absent',
-      period: json['period'] as String?,
-      markedBy: json['marked_by'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
-          : null,
+      id: _toStr(json['id']),
+      studentId: _toStr(json['student_id']),
+      studentName: _toStr(json['student_name']),
+      rollNo: _toStr(json['roll_no']),
+      class_: _toStr(json['class'] ?? json['class_name']),
+      date: _toDateTime(json['date']) ?? DateTime.now(),
+      status: _toStr(json['status'], fallback: 'absent'),
+      period: _toStr(json['period']).isEmpty ? null : _toStr(json['period']),
+      markedBy: _toStr(json['marked_by']).isEmpty ? null : _toStr(json['marked_by']),
+      createdAt: _toDateTime(json['created_at']),
     );
   }
 
@@ -520,27 +614,21 @@ class TeacherHomeworkAssignment {
 
   factory TeacherHomeworkAssignment.fromJson(Map<String, dynamic> json) {
     return TeacherHomeworkAssignment(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
-      subject: json['subject'] as String? ?? '',
-      dueDate: json['due_date'] != null 
-          ? DateTime.parse(json['due_date'] as String) 
-          : DateTime.now(),
-      status: json['status'] as String? ?? 'active',
-      submittedCount: json['submitted_count'] as int? ?? 0,
-      totalCount: json['total_count'] as int? ?? 0,
-      attachmentUrl: json['attachment_url'] as String?,
-      maxMarks: json['max_marks'] as int?,
-      instructions: json['instructions'] as String?,
-      createdBy: json['created_by'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
-          : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at'] as String) 
-          : DateTime.now(),
+      id: _toStr(json['id']),
+      title: _toStr(json['title']),
+      description: _toStr(json['description']),
+      class_: _toStr(json['class'] ?? json['class_name']),
+      subject: _toStr(json['subject']),
+      dueDate: _toDateTime(json['due_date']) ?? DateTime.now(),
+      status: _toStr(json['status'], fallback: 'active'),
+      submittedCount: _toInt(json['submitted_count']),
+      totalCount: _toInt(json['total_count']),
+      attachmentUrl: _toStr(json['attachment_url']).isEmpty ? null : _toStr(json['attachment_url']),
+      maxMarks: json['max_marks'] == null ? null : _toInt(json['max_marks']),
+      instructions: _toStr(json['instructions']).isEmpty ? null : _toStr(json['instructions']),
+      createdBy: _toStr(json['created_by']).isEmpty ? null : _toStr(json['created_by']),
+      createdAt: _toDateTime(json['created_at']) ?? DateTime.now(),
+      updatedAt: _toDateTime(json['updated_at']) ?? DateTime.now(),
     );
   }
 
@@ -603,23 +691,22 @@ class HomeworkSubmission {
 
   factory HomeworkSubmission.fromJson(Map<String, dynamic> json) {
     return HomeworkSubmission(
-      id: json['id'] as String? ?? '',
-      homeworkId: json['homework_id'] as String? ?? '',
-      studentId: json['student_id'] as String? ?? '',
-      studentName: json['student_name'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
-      submissionText: json['submission_text'] as String?,
-      attachmentUrl: json['attachment_url'] as String?,
-      submittedAt: json['submitted_at'] != null 
-          ? DateTime.parse(json['submitted_at'] as String) 
-          : DateTime.now(),
-      marksObtained: (json['marks_obtained'] as num?)?.toDouble(),
-      feedback: json['feedback'] as String?,
-      status: json['status'] as String? ?? 'submitted',
-      gradedBy: json['graded_by'] as String?,
-      gradedAt: json['graded_at'] != null 
-          ? DateTime.parse(json['graded_at'] as String) 
-          : null,
+      id: _toStr(json['id']),
+      homeworkId: _toStr(json['homework_id']),
+      studentId: _toStr(json['student_id']),
+      studentName: _toStr(json['student_name']),
+      class_: _toStr(json['class'] ?? json['class_name']),
+      submissionText:
+          _toStr(json['submission_text']).isEmpty ? null : _toStr(json['submission_text']),
+      attachmentUrl:
+          _toStr(json['attachment_url']).isEmpty ? null : _toStr(json['attachment_url']),
+      submittedAt: _toDateTime(json['submitted_at']) ?? DateTime.now(),
+      marksObtained:
+          json['marks_obtained'] == null ? null : _toDouble(json['marks_obtained']),
+      feedback: _toStr(json['feedback']).isEmpty ? null : _toStr(json['feedback']),
+      status: _toStr(json['status'], fallback: 'submitted'),
+      gradedBy: _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
+      gradedAt: _toDateTime(json['graded_at']),
     );
   }
 
@@ -673,17 +760,17 @@ class TeacherExam {
 
   factory TeacherExam.fromJson(Map<String, dynamic> json) {
     return TeacherExam(
-      id: json['id'] as String? ?? '',
+      id: (json['id'] ?? json['exam_id'] ?? '').toString(),
       title: json['title'] as String? ?? '',
       subject: json['subject'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
+      class_: (json['class'] ?? json['target_class'] ?? '').toString(),
       examDate: json['exam_date'] != null 
           ? DateTime.parse(json['exam_date'] as String) 
           : DateTime.now(),
       duration: json['duration'] as String? ?? '',
       totalMarks: json['total_marks'] as int? ?? 0,
       syllabus: json['syllabus'] as String?,
-      examType: json['exam_type'] as String? ?? 'term',
+      examType: (json['exam_type'] ?? json['exam_category'] ?? 'term').toString(),
       roomNumber: json['room_number'] as String?,
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
@@ -747,23 +834,21 @@ class GradeRecord {
 
   factory GradeRecord.fromJson(Map<String, dynamic> json) {
     return GradeRecord(
-      id: json['id'] as String? ?? '',
-      studentId: json['student_id'] as String? ?? '',
-      studentName: json['student_name'] as String? ?? '',
-      rollNo: json['roll_no'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
-      subject: json['subject'] as String? ?? '',
-      assessmentType: json['assessment_type'] as String? ?? '',
-      assessmentName: json['assessment_name'] as String? ?? '',
-      marksObtained: (json['marks_obtained'] as num?)?.toDouble() ?? 0.0,
-      totalMarks: json['total_marks'] as int? ?? 0,
-      grade: json['grade'] as String? ?? '',
-      remarks: json['remarks'] as String?,
-      gradedAt: json['graded_at'] != null 
-          ? DateTime.parse(json['graded_at'] as String) 
-          : null,
-      gradedBy: json['graded_by'] as String?,
-      trend: json['trend'] as String? ?? 'stable',
+      id: _toStr(json['id']),
+      studentId: _toStr(json['student_id']),
+      studentName: _toStr(json['student_name']),
+      rollNo: _toStr(json['roll_no']),
+      class_: _toStr(json['class'] ?? json['class_name']),
+      subject: _toStr(json['subject']),
+      assessmentType: _toStr(json['assessment_type']),
+      assessmentName: _toStr(json['assessment_name']),
+      marksObtained: _toDouble(json['marks_obtained']),
+      totalMarks: _toInt(json['total_marks']),
+      grade: _toStr(json['grade']),
+      remarks: _toStr(json['remarks']).isEmpty ? null : _toStr(json['remarks']),
+      gradedAt: _toDateTime(json['graded_at']),
+      gradedBy: _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
+      trend: _toStr(json['trend'], fallback: 'stable'),
     );
   }
 
@@ -819,16 +904,18 @@ class TeacherTimetablePeriod {
 
   factory TeacherTimetablePeriod.fromJson(Map<String, dynamic> json) {
     return TeacherTimetablePeriod(
-      id: json['id'] as String? ?? '',
-      dayOfWeek: json['day_of_week'] as String? ?? '',
-      periodNumber: json['period_number'] as String? ?? '',
-      startTime: json['start_time'] as String? ?? '',
-      endTime: json['end_time'] as String? ?? '',
-      subject: json['subject'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
-      roomNumber: json['room_number'] as String?,
-      teacherId: json['teacher_id'] as String?,
-      teacherName: json['teacher_name'] as String?,
+      id: _toStr(json['id']),
+      dayOfWeek: _toStr(json['day_of_week'] ?? json['day']),
+      periodNumber: _toStr(json['period_number'] ?? json['period']),
+      startTime: _toStr(json['start_time']),
+      endTime: _toStr(json['end_time']),
+      subject: _toStr(json['subject']),
+      class_: _toStr(json['class'] ?? json['class_name']),
+      roomNumber:
+          _toStr(json['room_number']).isEmpty ? null : _toStr(json['room_number']),
+      teacherId: _toStr(json['teacher_id']).isEmpty ? null : _toStr(json['teacher_id']),
+      teacherName:
+          _toStr(json['teacher_name']).isEmpty ? null : _toStr(json['teacher_name']),
     );
   }
 
@@ -959,9 +1046,9 @@ class TeacherLiveClass {
 
   factory TeacherLiveClass.fromJson(Map<String, dynamic> json) {
     return TeacherLiveClass(
-      id: json['id'] as String? ?? '',
+      id: (json['id'] ?? json['live_class_id'] ?? '').toString(),
       title: json['title'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
+      class_: (json['class'] ?? json['target_class'] ?? '').toString(),
       subject: json['subject'] as String? ?? '',
       scheduledAt: json['scheduled_at'] != null 
           ? DateTime.parse(json['scheduled_at'] as String) 
@@ -1030,19 +1117,25 @@ class TeachingMaterial {
   });
 
   factory TeachingMaterial.fromJson(Map<String, dynamic> json) {
+    final attachments = json['attachment_urls'];
+    String? attachmentUrl;
+    if (attachments is List && attachments.isNotEmpty) {
+      attachmentUrl = attachments.first.toString();
+    }
+
     return TeachingMaterial(
-      id: json['id'] as String? ?? '',
+      id: (json['id'] ?? json['material_id'] ?? '').toString(),
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      class_: json['class'] as String? ?? '',
+      class_: (json['class'] ?? json['target_class'] ?? '').toString(),
       subject: json['subject'] as String? ?? '',
-      materialType: json['material_type'] as String? ?? '',
-      fileUrl: json['file_url'] as String?,
+      materialType: (json['material_type'] ?? json['type'] ?? '').toString(),
+      fileUrl: (json['file_url'] ?? attachmentUrl) as String?,
       thumbnailUrl: json['thumbnail_url'] as String?,
       fileSize: json['file_size'] as int?,
       uploadedBy: json['uploaded_by'] as String? ?? '',
-      uploadedAt: json['uploaded_at'] != null 
-          ? DateTime.parse(json['uploaded_at'] as String) 
+      uploadedAt: (json['uploaded_at'] ?? json['created_at']) != null
+          ? DateTime.parse((json['uploaded_at'] ?? json['created_at']) as String)
           : DateTime.now(),
       downloadCount: json['download_count'] as int? ?? 0,
       rating: (json['rating'] as num?)?.toDouble(),
@@ -1103,11 +1196,11 @@ class SalarySlip {
 
   factory SalarySlip.fromJson(Map<String, dynamic> json) {
     return SalarySlip(
-      id: json['id'] as String? ?? '',
-      teacherId: json['teacher_id'] as String? ?? '',
-      teacherName: json['teacher_name'] as String? ?? '',
-      month: json['month'] as int? ?? 1,
-      year: json['year'] as int? ?? DateTime.now().year,
+      id: (json['id'] ?? '').toString(),
+      teacherId: (json['teacher_id'] ?? '').toString(),
+      teacherName: (json['teacher_name'] ?? '').toString(),
+      month: _toInt(json['month'], fallback: 1),
+      year: _toInt(json['year'], fallback: DateTime.now().year),
       basicSalary: (json['basic_salary'] as num?)?.toDouble() ?? 0.0,
       allowances: (json['allowances'] as num?)?.toDouble() ?? 0.0,
       deductions: (json['deductions'] as num?)?.toDouble() ?? 0.0,
@@ -1251,10 +1344,10 @@ class TeacherNotice {
 
   factory TeacherNotice.fromJson(Map<String, dynamic> json) {
     return TeacherNotice(
-      id: json['id'] as String? ?? '',
+      id: (json['id'] ?? json['notice_id'] ?? '').toString(),
       title: json['title'] as String? ?? '',
       content: json['content'] as String? ?? '',
-      noticeType: json['notice_type'] as String? ?? '',
+      noticeType: (json['notice_type'] ?? json['category'] ?? '').toString(),
       targetAudience: json['target_audience'] as String?,
       publishDate: json['publish_date'] != null 
           ? DateTime.parse(json['publish_date'] as String) 
@@ -1264,7 +1357,7 @@ class TeacherNotice {
           : null,
       status: json['status'] as String? ?? 'draft',
       createdBy: json['created_by'] as String? ?? '',
-      createdByName: json['created_by_name'] as String?,
+      createdByName: (json['created_by_name'] ?? json['author_name']) as String?,
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
           : DateTime.now(),
@@ -1317,18 +1410,14 @@ class TeacherNotification {
 
   factory TeacherNotification.fromJson(Map<String, dynamic> json) {
     return TeacherNotification(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      message: json['message'] as String? ?? '',
-      type: json['type'] as String? ?? '',
-      isRead: json['is_read'] as bool? ?? false,
-      actionUrl: json['action_url'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
-          : DateTime.now(),
-      readAt: json['read_at'] != null 
-          ? DateTime.parse(json['read_at'] as String) 
-          : null,
+      id: _toStr(json['id']),
+      title: _toStr(json['title']),
+      message: (json['message'] ?? json['content'] ?? '').toString(),
+      type: _toStr(json['type']),
+      isRead: _toBool(json['is_read']),
+      actionUrl: _toStr(json['action_url']).isEmpty ? null : _toStr(json['action_url']),
+      createdAt: _toDateTime(json['created_at']) ?? DateTime.now(),
+      readAt: _toDateTime(json['read_at']),
     );
   }
 
@@ -1370,12 +1459,13 @@ class TeacherMyClass {
   });
 
   factory TeacherMyClass.fromJson(Map<String, dynamic> json) {
+    final classValue = (json['class'] ?? json['name'] ?? '').toString();
     return TeacherMyClass(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      section: json['section'] as String? ?? '',
+      id: (json['id'] ?? classValue).toString(),
+      name: classValue,
+      section: (json['section'] ?? '').toString(),
       classTeacher: json['class_teacher'] as String?,
-      studentCount: json['student_count'] as int? ?? 0,
+      studentCount: _toInt(json['student_count']),
       schedule: json['schedule'] as String?,
       roomNumber: json['room_number'] as String?,
       createdAt: json['created_at'] != null 

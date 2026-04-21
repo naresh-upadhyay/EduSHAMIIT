@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -17,6 +17,13 @@ class _TeacherSalaryState extends State<TeacherSalary> {
   List<SalarySlip> _salarySlips = [];
   bool _isLoading = true;
   String? _error;
+
+  String _formatSlipId(String id) {
+    final trimmed = id.trim();
+    if (trimmed.isEmpty) return '-';
+    if (trimmed.length <= 8) return trimmed;
+    return '${trimmed.substring(0, 8)}...';
+  }
 
   @override
   void initState() {
@@ -171,7 +178,7 @@ class _TeacherSalaryState extends State<TeacherSalary> {
                       ),
                     ),
                     Text(
-                      'Slip ID: ${slip.id.substring(0, 8)}...',
+                      'Slip ID: ${_formatSlipId(slip.id)}',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey[600],

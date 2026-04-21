@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -20,6 +20,12 @@ class _TeacherStudentDirectoryState extends State<TeacherStudentDirectory> {
   bool _isLoading = true;
   String? _error;
   final TextEditingController _searchController = TextEditingController();
+
+  String _classLabel(TeacherMyClass c) {
+    final section = c.section.trim();
+    if (section.isEmpty || c.name.contains('-$section')) return c.name;
+    return '${c.name}-$section';
+  }
 
   @override
   void initState() {
@@ -43,7 +49,7 @@ class _TeacherStudentDirectoryState extends State<TeacherStudentDirectory> {
       // Load classes
       final classes = await _apiService.getMyClasses();
       setState(() {
-        _classes = ['All', ...classes.map((c) => '${c.name}-${c.section}')];
+        _classes = ['All', ...classes.map(_classLabel).toSet()];
       });
 
       // Load students

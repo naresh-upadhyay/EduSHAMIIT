@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -22,6 +22,12 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
   bool _isLoading = true;
   String? _error;
 
+  String _classLabel(TeacherMyClass c) {
+    final section = c.section.trim();
+    if (section.isEmpty || c.name.contains('-$section')) return c.name;
+    return '${c.name}-$section';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +44,7 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
       // Load classes
       final classes = await _apiService.getMyClasses();
       setState(() {
-        _classes = classes.map((c) => '${c.name}-${c.section}').toList();
+        _classes = classes.map(_classLabel).toSet().toList();
         if (_classes.isNotEmpty && !_classes.contains(_selectedClass)) {
           _selectedClass = _classes.first;
         }

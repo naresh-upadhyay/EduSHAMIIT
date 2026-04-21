@@ -21,6 +21,12 @@ class _TeacherAttendanceState extends State<TeacherAttendance> {
   String? _error;
   bool _isSubmitting = false;
 
+  String _classLabel(TeacherMyClass c) {
+    final section = c.section.trim();
+    if (section.isEmpty || c.name.contains('-$section')) return c.name;
+    return '${c.name}-$section';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -37,7 +43,7 @@ class _TeacherAttendanceState extends State<TeacherAttendance> {
       // Load classes (using my-classes endpoint)
       final classes = await _apiService.getMyClasses();
       setState(() {
-        _classes = classes.map((c) => '${c.name}-${c.section}').toList();
+        _classes = classes.map(_classLabel).toSet().toList();
         if (_classes.isNotEmpty && !_classes.contains(_selectedClass)) {
           _selectedClass = _classes.first;
         }

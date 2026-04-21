@@ -204,6 +204,11 @@ final goRouter = GoRouter(
       path: '/teacher/my-classes',
       builder: (_, __) => const TeacherMyClasses(),
     ),
+    // Instruction/mockup compatibility aliases
+    GoRoute(
+      path: '/teacher/class-detail',
+      builder: (_, __) => const TeacherMyClasses(),
+    ),
     GoRoute(
       path: '/teacher/notices',
       builder: (_, __) => const TeacherNotices(),
@@ -214,6 +219,10 @@ final goRouter = GoRouter(
     ),
     GoRoute(
       path: '/teacher/grading',
+      builder: (_, __) => const TeacherGrading(),
+    ),
+    GoRoute(
+      path: '/teacher/grading-config',
       builder: (_, __) => const TeacherGrading(),
     ),
     GoRoute(
@@ -237,11 +246,19 @@ final goRouter = GoRouter(
       builder: (_, __) => const TeacherSubmissions(),
     ),
     GoRoute(
+      path: '/teacher/review-submissions',
+      builder: (_, __) => const TeacherSubmissions(),
+    ),
+    GoRoute(
       path: '/teacher/notifications',
       builder: (_, __) => const TeacherNotifications(),
     ),
     GoRoute(
       path: '/teacher/live-classes',
+      builder: (_, __) => const TeacherLiveClasses(),
+    ),
+    GoRoute(
+      path: '/teacher/live-session',
       builder: (_, __) => const TeacherLiveClasses(),
     ),
     GoRoute(

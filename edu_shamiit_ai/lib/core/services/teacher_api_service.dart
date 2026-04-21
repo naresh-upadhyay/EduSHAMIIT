@@ -14,6 +14,80 @@ class TeacherApiService {
 
   String get _baseUrl => AppConfig.apiBaseUrl;
 
+  dynamic _unwrapData(dynamic payload) {
+    if (payload is Map<String, dynamic>) {
+      if (payload['data'] != null) return payload['data'];
+      if (payload['result'] != null) return payload['result'];
+    }
+    return payload;
+  }
+
+  Map<String, dynamic> _toMap(dynamic payload,
+      {List<String> candidateKeys = const []}) {
+    final unwrapped = _unwrapData(payload);
+    if (unwrapped is Map<String, dynamic>) {
+      for (final key in candidateKeys) {
+        final candidate = unwrapped[key];
+        if (candidate is Map<String, dynamic>) return candidate;
+      }
+      return unwrapped;
+    }
+    return <String, dynamic>{};
+  }
+
+  List<dynamic> _toList(dynamic payload,
+      {List<String> candidateKeys = const []}) {
+    final unwrapped = _unwrapData(payload);
+    if (unwrapped is List) return unwrapped;
+    if (unwrapped is Map<String, dynamic>) {
+      for (final key in candidateKeys) {
+        final candidate = unwrapped[key];
+        if (candidate is List) return candidate;
+      }
+    }
+    return const [];
+  }
+
+  Future<http.Response> _getWithFallback(List<String> paths) async {
+    final headers = await _getHeaders();
+    http.Response? lastResponse;
+
+    for (final path in paths) {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$path'),
+        headers: headers,
+      );
+      lastResponse = response;
+      if (response.statusCode == 200) return response;
+    }
+
+    return lastResponse ??
+        http.Response('No path attempted', 500, request: null);
+  }
+
+  Future<http.Response> _postWithFallback({
+    required List<String> paths,
+    required Map<String, dynamic> body,
+  }) async {
+    final headers = await _getHeaders();
+    http.Response? lastResponse;
+
+    for (final path in paths) {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl$path'),
+        headers: headers,
+        body: json.encode(body),
+      );
+      lastResponse = response;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return response;
+      }
+    }
+
+    return lastResponse ??
+        http.Response('No path attempted', 500, request: null);
+  }
+
   /// Get headers with authorization
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -35,7 +109,7 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = _toMap(json.decode(response.body));
         return TeacherDashboard.fromJson(data);
       } else {
         throw Exception('Failed to load dashboard: ${response.statusCode}');
@@ -56,7 +130,10 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = _toMap(
+          json.decode(response.body),
+          candidateKeys: ['profile', 'teacher', 'user'],
+        );
         return TeacherProfile.fromJson(data);
       } else {
         throw Exception('Failed to load profile: ${response.statusCode}');
@@ -76,7 +153,7 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = _toMap(json.decode(response.body));
         return TeacherProfile.fromJson(data);
       } else {
         throw Exception('Failed to update profile: ${response.statusCode}');
@@ -92,13 +169,17 @@ class TeacherApiService {
   Future<List<StudentDirectoryEntry>> getStudentsForClass(
       String classId) async {
     try {
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/attendance/students?class=$classId'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/attendance/students?class=$classId',
+        '/teacher/students?class=$classId',
+        '/teacher/students?class_name=$classId',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['students', 'items', 'results'],
+        );
         return data
             .map((item) => StudentDirectoryEntry.fromJson(item))
             .toList();
@@ -123,6 +204,7 @@ class TeacherApiService {
         body: json.encode({
           'class_id': classId,
           'date': date,
+          'attendance_records': attendanceRecords,
           'records': attendanceRecords,
         }),
       );
@@ -158,7 +240,10 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['attendance', 'items', 'results'],
+        );
         return data
             .map((item) => TeacherAttendanceRecord.fromJson(item))
             .toList();
@@ -195,7 +280,10 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['homework', 'assignments', 'items', 'results'],
+        );
         return data
             .map((item) => TeacherHomeworkAssignment.fromJson(item))
             .toList();
@@ -218,22 +306,22 @@ class TeacherApiService {
     int? maxMarks,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/homework'),
-        headers: await _getHeaders(),
-        body: json.encode({
+      final response = await _postWithFallback(
+        paths: ['/teacher/homework', '/teacher/homework/create'],
+        body: {
           'title': title,
           'description': description,
           'class': classId,
+          'class_id': classId,
           'subject': subject,
           'due_date': dueDate.toIso8601String().split('T')[0],
           'instructions': instructions,
           'max_marks': maxMarks,
-        }),
+        },
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
         return TeacherHomeworkAssignment.fromJson(data);
       } else {
         throw Exception('Failed to create homework: ${response.statusCode}');
@@ -256,7 +344,7 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = _toMap(json.decode(response.body));
         return TeacherHomeworkAssignment.fromJson(data);
       } else {
         throw Exception('Failed to update homework: ${response.statusCode}');
@@ -293,14 +381,21 @@ class TeacherApiService {
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
 
-      final response = await _client.get(
-        Uri.parse(
-            '$_baseUrl/teacher/homework/$homeworkId/submissions?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = homeworkId.trim().isEmpty
+          ? await _getWithFallback([
+              '/teacher/submissions?$queryString',
+              '/teacher/submissions',
+            ])
+          : await _getWithFallback([
+              '/teacher/homework/$homeworkId/submissions?$queryString',
+              '/teacher/submissions?homework_id=$homeworkId${queryString.isEmpty ? '' : '&$queryString'}',
+            ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['submissions', 'items', 'results'],
+        );
         return data.map((item) => HomeworkSubmission.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load submissions: ${response.statusCode}');
@@ -317,17 +412,20 @@ class TeacherApiService {
     String? feedback,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/submissions/$submissionId/grade'),
-        headers: await _getHeaders(),
-        body: json.encode({
+      final response = await _postWithFallback(
+        paths: [
+          '/teacher/submissions/$submissionId/grade',
+          '/teacher/submissions/grade',
+        ],
+        body: {
+          'submission_id': submissionId,
           'marks': marks,
           'feedback': feedback,
-        }),
+        },
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = _toMap(json.decode(response.body));
         return HomeworkSubmission.fromJson(data);
       } else {
         throw Exception('Failed to grade submission: ${response.statusCode}');
@@ -352,13 +450,18 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/gradebook?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final queryStringByClassName =
+          queryString.replaceFirst('class=', 'class_name=');
+      final response = await _getWithFallback([
+        '/teacher/gradebook?$queryString',
+        '/teacher/gradebook?$queryStringByClassName',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['grades', 'gradebook', 'items', 'results'],
+        );
         return data.map((item) => GradeRecord.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load grades: ${response.statusCode}');
@@ -451,13 +554,15 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/exams?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/exams?$queryString',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['exams', 'items', 'results'],
+        );
         return data.map((item) => TeacherExam.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load exams: ${response.statusCode}');
@@ -480,24 +585,24 @@ class TeacherApiService {
     String? roomNumber,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/exams'),
-        headers: await _getHeaders(),
-        body: json.encode({
+      final response = await _postWithFallback(
+        paths: ['/teacher/exams', '/teacher/exams/create'],
+        body: {
           'title': title,
           'subject': subject,
           'class': classId,
+          'class_id': classId,
           'exam_date': examDate.toIso8601String().split('T')[0],
           'duration': duration,
           'total_marks': totalMarks,
           'exam_type': examType,
           'syllabus': syllabus,
           'room_number': roomNumber,
-        }),
+        },
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
         return TeacherExam.fromJson(data);
       } else {
         throw Exception('Failed to create exam: ${response.statusCode}');
@@ -527,7 +632,10 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['timetable', 'schedule', 'periods', 'items', 'results'],
+        );
         return data
             .map((item) => TeacherTimetablePeriod.fromJson(item))
             .toList();
@@ -555,13 +663,15 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/leave?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/leave?$queryString',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['leave', 'applications', 'items', 'results'],
+        );
         return data.map((item) => TeacherLeave.fromJson(item)).toList();
       } else {
         throw Exception(
@@ -580,19 +690,18 @@ class TeacherApiService {
     required String reason,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/leave'),
-        headers: await _getHeaders(),
-        body: json.encode({
+      final response = await _postWithFallback(
+        paths: ['/teacher/leave', '/teacher/leave/apply'],
+        body: {
           'leave_type': leaveType,
           'start_date': startDate.toIso8601String().split('T')[0],
           'end_date': endDate.toIso8601String().split('T')[0],
           'reason': reason,
-        }),
+        },
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
         return TeacherLeave.fromJson(data);
       } else {
         throw Exception('Failed to apply for leave: ${response.statusCode}');
@@ -622,13 +731,16 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/live-classes?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/live-classes?$queryString',
+        '/teacher/live-classes',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['live_classes', 'classes', 'items', 'results'],
+        );
         return data.map((item) => TeacherLiveClass.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load live classes: ${response.statusCode}');
@@ -649,22 +761,22 @@ class TeacherApiService {
     String? meetingPassword,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/live-classes'),
-        headers: await _getHeaders(),
-        body: json.encode({
+      final response = await _postWithFallback(
+        paths: ['/teacher/live-classes', '/teacher/live-classes/start'],
+        body: {
           'title': title,
           'class': classId,
+          'class_id': classId,
           'subject': subject,
           'scheduled_at': scheduledAt.toIso8601String(),
           'meeting_link': meetingLink,
           'meeting_id': meetingId,
           'meeting_password': meetingPassword,
-        }),
+        },
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
         return TeacherLiveClass.fromJson(data);
       } else {
         throw Exception(
@@ -695,13 +807,16 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/materials?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/materials?$queryString',
+        '/teacher/materials',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['materials', 'items', 'results'],
+        );
         return data.map((item) => TeachingMaterial.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load materials: ${response.statusCode}');
@@ -722,22 +837,23 @@ class TeacherApiService {
     String? thumbnailUrl,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/materials'),
-        headers: await _getHeaders(),
-        body: json.encode({
+      final response = await _postWithFallback(
+        paths: ['/teacher/materials', '/teacher/materials/upload'],
+        body: {
           'title': title,
           'description': description,
           'class': classId,
+          'class_id': classId,
           'subject': subject,
           'material_type': materialType,
+          'type': materialType,
           'file_url': fileUrl,
           'thumbnail_url': thumbnailUrl,
-        }),
+        },
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
         return TeachingMaterial.fromJson(data);
       } else {
         throw Exception('Failed to upload material: ${response.statusCode}');
@@ -765,13 +881,18 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/students?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final queryStringByClassName =
+          queryString.replaceFirst('class=', 'class_name=');
+      final response = await _getWithFallback([
+        '/teacher/students?$queryString',
+        '/teacher/students?$queryStringByClassName',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['students', 'items', 'results'],
+        );
         return data
             .map((item) => StudentDirectoryEntry.fromJson(item))
             .toList();
@@ -792,7 +913,7 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = _toMap(json.decode(response.body));
         return StudentDirectoryEntry.fromJson(data);
       } else {
         throw Exception('Failed to load student: ${response.statusCode}');
@@ -807,13 +928,16 @@ class TeacherApiService {
   /// Get teacher's classes
   Future<List<TeacherMyClass>> getMyClasses() async {
     try {
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/my-classes'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/my-classes',
+        '/teacher/classes',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['classes', 'items', 'results'],
+        );
         return data.map((item) => TeacherMyClass.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load classes: ${response.statusCode}');
@@ -841,13 +965,16 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/notices?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/notices?$queryString',
+        '/teacher/notices',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['notices', 'items', 'results'],
+        );
         return data.map((item) => TeacherNotice.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load notices: ${response.statusCode}');
@@ -867,21 +994,20 @@ class TeacherApiService {
     DateTime? expiryDate,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/notices'),
-        headers: await _getHeaders(),
-        body: json.encode({
+      final response = await _postWithFallback(
+        paths: ['/teacher/notices', '/teacher/notices/create'],
+        body: {
           'title': title,
           'content': content,
           'notice_type': noticeType,
           'target_audience': targetAudience,
           'publish_date': publishDate?.toIso8601String().split('T')[0],
           'expiry_date': expiryDate?.toIso8601String().split('T')[0],
-        }),
+        },
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
         return TeacherNotice.fromJson(data);
       } else {
         throw Exception('Failed to create notice: ${response.statusCode}');
@@ -909,13 +1035,16 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/notifications?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/notifications?$queryString',
+        '/teacher/notifications',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['notifications', 'items', 'results'],
+        );
         return data.map((item) => TeacherNotification.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load notifications: ${response.statusCode}');
@@ -974,13 +1103,16 @@ class TeacherApiService {
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/salary?$queryString'),
-        headers: await _getHeaders(),
-      );
+      final response = await _getWithFallback([
+        '/teacher/salary?$queryString',
+        '/teacher/salary',
+      ]);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['salary_slips', 'salary_history', 'items', 'results'],
+        );
         return data.map((item) => SalarySlip.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load salary slips: ${response.statusCode}');
@@ -999,7 +1131,7 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        final data = _toMap(json.decode(response.body));
         return SalarySlip.fromJson(data);
       } else {
         throw Exception('Failed to load salary slip: ${response.statusCode}');
@@ -1041,7 +1173,10 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['questions', 'items', 'results'],
+        );
         return data.map((item) => PaperQuestion.fromJson(item)).toList();
       } else {
         throw Exception('Failed to load questions: ${response.statusCode}');
@@ -1084,8 +1219,8 @@ class TeacherApiService {
         }),
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
         return PaperQuestion.fromJson(data);
       } else {
         throw Exception('Failed to add question: ${response.statusCode}');
@@ -1120,7 +1255,7 @@ class TeacherApiService {
       );
 
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        return _toMap(json.decode(response.body));
       } else {
         throw Exception('Failed to generate paper: ${response.statusCode}');
       }
