@@ -361,6 +361,8 @@ async def teacher_send_message(request: dict, user=Depends(get_current_user), sc
 @router.get("/messages/chat")
 async def teacher_get_chat(chat_id: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    if not chat_id:
+        return {"success": True, "school_id": school_id, "data": {"messages": []}}
     messages = (await sb.table("messages").select("*, profiles!sender_id(full_name, avatar_url)").eq("school_id", school_id).or_(f"sender_id.eq.{chat_id},receiver_id.eq.{chat_id}").order("created_at").aexecute()).data
     return {"success": True, "school_id": school_id, "data": {"messages": messages}}
 
