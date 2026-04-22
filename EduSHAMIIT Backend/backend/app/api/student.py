@@ -39,9 +39,9 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
         # Homework
         sb.table("homework").select("*, subjects(name, icon)").eq("school_id", school_id).eq("class", user["class"]).eq("status", "active").lte("due_date", (datetime.now() + timedelta(days=3)).isoformat()).order("due_date").aexecute(),
         # Attendance Total
-        sb.table("attendance").eq("school_id", school_id).eq("student_id", user["id"]).count().aexecute(),
+        sb.table("attendance").select("id").eq("school_id", school_id).eq("student_id", user["id"]).count().aexecute(),
         # Attendance Present
-        sb.table("attendance").eq("school_id", school_id).eq("student_id", user["id"]).eq("status", "present").count().aexecute(),
+        sb.table("attendance").select("id").eq("school_id", school_id).eq("student_id", user["id"]).eq("status", "present").count().aexecute(),
         # Latest Result
         sb.table("results").select("marks_obtained, total_marks").eq("school_id", school_id).eq("student_id", user["id"]).order("created_at", ascending=False).limit(1).maybe_single().aexecute()
     ]
@@ -232,7 +232,14 @@ async def student_events(user=Depends(get_current_user), school_id=Depends(requi
 @router.post("/events/{event_id}/register")
 async def register_event(event_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    await sb.table("event_registrations").insert({"school_id": school_id, "event_id": event_id, "student_id": user["id"]}).aexecute()
+    try:
+        await sb.table("event_registrations").insert({
+            "school_id": school_id, "event_id": event_id, "student_id": user["id"]
+        }).aexecute()
+    except Exception as e:
+        if "23505" in str(e) or "duplicate key" in str(e).lower():
+            return {"success": True, "message": "Already registered for this event"}
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
     return {"success": True, "message": "Registered successfully"}
 
 

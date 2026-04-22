@@ -44,6 +44,14 @@ class SupabaseClient:
         """Get a table query builder."""
         return TableQuery(self, table_name)
 
+    def rpc(self, function_name: str, params: dict = None):
+        """Call a Postgres RPC function."""
+        q = TableQuery(self, "_rpc")
+        q._operation = "rpc"
+        q._function_name = function_name
+        q._data = params or {}
+        return q
+
     def auth(self):
         """Get auth client."""
         return AuthClient(self)

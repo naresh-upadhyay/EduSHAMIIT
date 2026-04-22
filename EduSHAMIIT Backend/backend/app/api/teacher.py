@@ -201,7 +201,7 @@ async def teacher_gradebook(class_name: str = "", subject_id: str = "", user=Dep
     
     results = []
     if students:
-        query = sb.table("results").select("student_id, marks_obtained, max_marks, grade, exam_category").eq("school_id", school_id).in_("student_id", [s["id"] for s in students])
+        query = sb.table("results").select("student_id, marks_obtained, total_marks, grade, exam_type").eq("school_id", school_id).in_("student_id", [s["id"] for s in students])
         if subject_id:
             query = query.eq("subject_id", subject_id)
         results = (await query.aexecute()).data
@@ -210,7 +210,7 @@ async def teacher_gradebook(class_name: str = "", subject_id: str = "", user=Dep
     for s in students:
         s_results = [r for r in results if r["student_id"] == s["id"]]
         total = sum(float(r["marks_obtained"]) for r in s_results)
-        max_total = sum(float(r["max_marks"]) for r in s_results)
+        max_total = sum(float(r["total_marks"]) for r in s_results)
         avg = (total/max_total*100) if max_total > 0 else 0
         gradebook.append({"student_id": s["id"], "name": s["full_name"], "roll_number": s.get("roll_number"), "results": s_results, "average": round(avg, 1), "grade": _calculate_grade(avg)})
         
