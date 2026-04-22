@@ -48,7 +48,7 @@ async def list_documents(user: dict = Depends(get_current_user)):
     sb = get_supabase()
     school_id = user.get("school_id", "")
     try:
-        r = sb.table("knowledge_base").select("metadata").eq("metadata->>school_id", school_id).execute()
+        r = await sb.table("knowledge_base").select("metadata").eq("metadata->>school_id", school_id).aexecute()
         sources = set()
         for row in r.data or []:
             meta = row.get("metadata", {})
@@ -77,7 +77,7 @@ async def delete_document(source: str, user: dict = Depends(get_current_user)):
     sb = get_supabase()
     school_id = user.get("school_id", "")
     try:
-        r = sb.table("knowledge_base").delete().eq("metadata->>source", source).eq("metadata->>school_id", school_id).execute()
+        r = await sb.table("knowledge_base").delete().eq("metadata->>source", source).eq("metadata->>school_id", school_id).aexecute()
         return GenericResponse(
             success=True,
             school_id=school_id,

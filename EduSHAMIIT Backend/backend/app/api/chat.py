@@ -86,12 +86,12 @@ async def get_chat_history(
     """Get chat history for a session."""
     sb = get_supabase()
 
-    messages = sb.table("ai_chat_history") \
+    messages = (await sb.table("ai_chat_history") \
         .select("*") \
         .eq("school_id", school_id) \
         .eq("user_id", user["id"]) \
         .eq("session_id", session_id) \
         .order("created_at") \
-        .execute().data
+        .aexecute()).data
 
     return {"success": True, "school_id": school_id, "data": {"messages": messages}}

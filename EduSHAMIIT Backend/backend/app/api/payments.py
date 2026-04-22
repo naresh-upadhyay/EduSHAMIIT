@@ -26,7 +26,7 @@ def generate_transaction_id() -> str:
 @router.post("/create-upi-link", response_model=PaymentResponse)
 async def create_upi_link(request: PaymentRequest, user: dict = Depends(get_current_user), school_id: str = Depends(require_school_id)):
     sb = get_supabase()
-    fee = sb.table("fees").select("*").eq("id", request.fee_id).eq("school_id", school_id).maybe_single().execute()
+    fee = await sb.table("fees").select("*").eq("id", request.fee_id).eq("school_id", school_id).maybe_single().aexecute()
     if not fee.data:
         raise HTTPException(status_code=404, detail="Fee record not found")
     fd = fee.data
@@ -38,7 +38,7 @@ async def create_upi_link(request: PaymentRequest, user: dict = Depends(get_curr
         raise HTTPException(status_code=400, detail="Invalid payment amount")
     tx = generate_transaction_id()
     pr = {"school_id": school_id, "student_id": user["id"], "fee_id": request.fee_id, "transaction_id": tx, "amount": amount, "currency": "INR", "status": "pending", "payment_method": "upi", "description": request.description or "EduSHAMIIT Fee Payment"}
-    pi = sb.table("payments").insert(pr).execute()
+    pi = await sb.table("payments").insert(pr).aexecute()
     if not pi.data:
         raise HTTPException(status_code=500, detail="Failed to create payment record")
     ul = generate_upi_link(merchant_id=MERCHANT_ID, merchant_name=MERCHANT_NAME, amount=amount, transaction_id=tx, description=request.description or "EduSHAMIIT Fee")
@@ -48,7 +48,7 @@ async def create_upi_link(request: PaymentRequest, user: dict = Depends(get_curr
 @router.post("/verify", response_model=PaymentResponse)
 async def verify_payment(request: PaymentVerifyRequest, user: dict = Depends(get_current_user), school_id: str = Depends(require_school_id)):
     sb = get_supabase()
-    p = sb.table("payments").select("*").eq("id", request.payment_id).eq("school_id", school_id).maybe_single().execute()
+    p = await sb.table("payments").select("*").eq("id", request.payment_id).eq("school_id", school_id).maybe_single().aexecute()
     if not p.data:
         raise HTTPException(status_code=404, detail="Payment record not found")
     pd = p.data
@@ -57,14 +57,14 @@ async def verify_payment(request: PaymentVerifyRequest, user: dict = Depends(get
     ud = {"status": request.status, "verified_at": datetime.utcnow().isoformat()}
     if request.upi_transaction_id:
         ud["upi_transaction_id"] = request.upi_transaction_id
-    sb.table("payments").update(ud).eq("id", request.payment_id).execute()
+    await sb.table("payments").update(ud).eq("id", request.payment_id).aexecute()
     if request.status == "success":
-        fee = sb.table("fees").select("*").eq("id", pd["fee_id"]).maybe_single().execute()
+        fee = await sb.table("fees").select("*").eq("id", pd["fee_id"]).maybe_single().aexecute()
         if fee.data:
             fd = fee.data
             np = float(fd.get("amount_paid", 0)) + float(pd["amount"])
             ns = "paid" if np >= float(fd["amount"]) else "partial"
-            sb.table("fees").update({"amount_paid": np, "status": ns, "paid_at": datetime.utcnow().isoformat() if ns == "paid" else None}).eq("id", pd["fee_id"]).execute()
+            await sb.table("fees").update({"amount_paid": np, "status": ns, "paid_at": datetime.utcnow().isoformat() if ns == "paid" else None}).eq("id", pd["fee_id"]).aexecute()
     return PaymentResponse(success=True, school_id=school_id, data={"payment_id": pd["id"], "transaction_id": pd["transaction_id"], "amount": pd["amount"], "status": request.status, "upi_transaction_id": request.upi_transaction_id, "verified_at": ud["verified_at"]})
 
 
@@ -84,21 +84,21 @@ async def payment_webhook(request: Request):
         sm = {"success": "success", "completed": "success", "failure": "failed", "failed": "failed", "pending": "pending"}
         st = sm.get(sr, "pending")
         sb = get_supabase()
-        p = sb.table("payments").select("*").eq("transaction_id", tx).maybe_single().execute()
+        p = await sb.table("payments").select("*").eq("transaction_id", tx).maybe_single().aexecute()
         if not p.data:
             return {"status": "received", "message": "Transaction not found"}
         xd = p.data
         if xd["status"] == "success" and st == "success":
             return {"status": "received", "message": "Already processed"}
         ud = {"status": st, "upi_transaction_id": utx or xd.get("upi_transaction_id"), "bank_ref_no": brf, "webhook_payload": body, "verified_at": datetime.utcnow().isoformat()}
-        sb.table("payments").update(ud).eq("id", xd["id"]).execute()
+        await sb.table("payments").update(ud).eq("id", xd["id"]).aexecute()
         if st == "success":
-            fee = sb.table("fees").select("*").eq("id", xd["fee_id"]).maybe_single().execute()
+            fee = await sb.table("fees").select("*").eq("id", xd["fee_id"]).maybe_single().aexecute()
             if fee.data:
                 fd = fee.data
                 np = float(fd.get("amount_paid", 0)) + float(xd["amount"])
                 ns = "paid" if np >= float(fd["amount"]) else "partial"
-                sb.table("fees").update({"amount_paid": np, "status": ns, "paid_at": datetime.utcnow().isoformat() if ns == "paid" else None}).eq("id", xd["fee_id"]).execute()
+                await sb.table("fees").update({"amount_paid": np, "status": ns, "paid_at": datetime.utcnow().isoformat() if ns == "paid" else None}).eq("id", xd["fee_id"]).aexecute()
         return {"status": "received", "transaction_id": tx, "payment_status": st}
     except Exception as e:
         return {"status": "error", "message": str(e)}

@@ -154,19 +154,19 @@ async def login(request: LoginRequest):
         email = request.email
         password = request.password
 
-        auth_response = sb.auth().sign_in_with_password({
+        auth_response = await sb.auth().sign_in_with_password({
             "email": email,
             "password": password,
         })
 
         user_id = auth_response.user.id
-        profile = sb.table("profiles").select("*").eq("id", user_id).maybe_single().execute()
+        profile = await sb.table("profiles").select("*").eq("id", user_id).maybe_single().aexecute()
 
         if not profile.data:
             raise HTTPException(status_code=404, detail="Profile not found")
 
-        # profile.data is a list, get the first element
-        p = profile.data[0] if isinstance(profile.data, list) else profile.data
+        # profile.data is a dict (due to maybe_single in aexecute)
+        p = profile.data
 
         token = jwt.encode(
             {
@@ -237,12 +237,12 @@ async def register(request: RegisterRequest):
     try:
         sb = get_supabase()
 
-        auth_response = sb.auth().sign_up({
+        auth_response = await sb.auth().sign_up({
             "email": request.email,
             "password": request.password,
         })
 
-        sb.table("profiles").insert({
+        await sb.table("profiles").insert({
             "id": auth_response.user.id,
             "school_id": request.school_id,
             "user_id": f"STU-{uuid.uuid4().hex[:6].upper()}",
@@ -250,7 +250,7 @@ async def register(request: RegisterRequest):
             "email": request.email,
             "role": request.role,
             "class": request.class_name,
-        }).execute()
+        }).aexecute()
 
         return RegisterResponse(
             success=True,
@@ -310,8 +310,8 @@ async def refresh_token(request: RefreshRequest):
         sb = get_supabase()
         refresh_token = request.refresh_token
 
-        auth_response = sb.auth().refresh_session(refresh_token)
-        profile = sb.table("profiles").select("*").eq("id", auth_response.user.id).single().execute()
+        auth_response = await sb.auth().refresh_session(refresh_token)
+        profile = await sb.table("profiles").select("*").eq("id", auth_response.user.id).single().aexecute()
 
         p = profile.data
         token = jwt.encode(
@@ -340,19 +340,19 @@ def generate_otp(length: int = 6) -> str:
     return ''.join([str(random.randint(0, 9)) for _ in range(length)])
 
 
-def check_rate_limit(sb, identifier: str) -> bool:
+async def check_rate_limit(sb, identifier: str) -> bool:
     """Check if user has exceeded rate limit for OTP requests."""
     one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     
-    result = sb.table("password_resets").select("id").eq("user_id", identifier).gte("created_at", one_hour_ago.isoformat()).execute()
+    result = await sb.table("password_resets").select("id").eq("user_id", identifier).gte("created_at", one_hour_ago.isoformat()).aexecute()
     
     return len(result.data) < settings.OTP_RATE_LIMIT_PER_HOUR
 
 
-def find_user_by_identifier(sb, identifier: str) -> dict:
+async def find_user_by_identifier(sb, identifier: str) -> dict:
     """Find user by email or user_id."""
     # Try to find by email first
-    result = sb.table("profiles").select("*").eq("email", identifier).maybe_single().execute()
+    result = await sb.table("profiles").select("*").eq("email", identifier).maybe_single().aexecute()
     
     if result.data:
         return result.data
@@ -360,7 +360,7 @@ def find_user_by_identifier(sb, identifier: str) -> dict:
     # Try to find by user_id (UUID)
     try:
         uuid.UUID(identifier)
-        result = sb.table("profiles").select("*").eq("id", identifier).maybe_single().execute()
+        result = await sb.table("profiles").select("*").eq("id", identifier).maybe_single().aexecute()
         if result.data:
             return result.data
     except ValueError:
@@ -446,7 +446,7 @@ async def send_otp(request: EnhancedSendOtpRequest):
         user_name = request.user_name
         
         # Find user
-        user = find_user_by_identifier(sb, identifier)
+        user = await find_user_by_identifier(sb, identifier)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -455,27 +455,27 @@ async def send_otp(request: EnhancedSendOtpRequest):
         full_name = user.get("full_name", user_name)
         
         # Check rate limit
-        if not check_rate_limit(sb, user_id):
+        if not await check_rate_limit(sb, user_id):
             raise HTTPException(
                 status_code=429, 
                 detail=f"Rate limit exceeded. Maximum {settings.OTP_RATE_LIMIT_PER_HOUR} OTP requests per hour."
             )
         
         # Invalidate any pending OTPs for this user
-        sb.table("password_resets").update({"status": "used"}).eq("user_id", user_id).eq("status", "pending").execute()
+        await sb.table("password_resets").update({"status": "used"}).eq("user_id", user_id).eq("status", "pending").aexecute()
         
         # Generate OTP
         otp = generate_otp(settings.OTP_LENGTH)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRATION_MINUTES)
         
         # Store OTP in database
-        sb.table("password_resets").insert({
+        await sb.table("password_resets").insert({
             "user_id": user_id,
             "school_id": user.get("school_id"),
             "otp": otp,
             "expires_at": expires_at.isoformat(),
             "status": "pending"
-        }).execute()
+        }).aexecute()
         
         # Send email with OTP
         email_sent = email_service.send_otp_email(user_email, otp, full_name)
@@ -562,7 +562,7 @@ async def verify_otp(request: VerifyOtpRequest):
         otp = request.otp
         
         # Find user
-        user = find_user_by_identifier(sb, identifier)
+        user = await find_user_by_identifier(sb, identifier)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -570,14 +570,14 @@ async def verify_otp(request: VerifyOtpRequest):
         
         # Find valid OTP
         now = datetime.now(timezone.utc).isoformat()
-        result = sb.table("password_resets").select("*").eq("user_id", user_id).eq("otp", otp).eq("status", "pending").gte("expires_at", now).execute()
+        result = await sb.table("password_resets").select("*").eq("user_id", user_id).eq("otp", otp).eq("status", "pending").gte("expires_at", now).aexecute()
         
         if not result.data:
             raise HTTPException(status_code=400, detail="Invalid or expired OTP")
         
         # Mark OTP as verified
         otp_record = result.data[0]
-        sb.table("password_resets").update({"status": "verified"}).eq("id", otp_record["id"]).execute()
+        await sb.table("password_resets").update({"status": "verified"}).eq("id", otp_record["id"]).aexecute()
         
         return VerifyOtpResponse(
             success=True,
@@ -656,7 +656,7 @@ async def reset_password(request: EnhancedResetPasswordRequest):
         new_password = request.new_password
         
         # Find user
-        user = find_user_by_identifier(sb, identifier)
+        user = await find_user_by_identifier(sb, identifier)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -666,7 +666,7 @@ async def reset_password(request: EnhancedResetPasswordRequest):
         
         # Find and verify OTP (accept both pending and verified, as verified means it's been confirmed in the previous step)
         now = datetime.now(timezone.utc).isoformat()
-        result = sb.table("password_resets").select("*").eq("user_id", user_id).eq("otp", otp).in_("status", ["pending", "verified"]).gte("expires_at", now).execute()
+        result = await sb.table("password_resets").select("*").eq("user_id", user_id).eq("otp", otp).in_("status", ["pending", "verified"]).gte("expires_at", now).aexecute()
         
         if not result.data:
             raise HTTPException(status_code=400, detail="Invalid or expired OTP")
@@ -676,7 +676,7 @@ async def reset_password(request: EnhancedResetPasswordRequest):
         # Update password using Supabase Admin API
         try:
             # Use the Supabase REST API to update the user's password
-            import httpx
+            client = await sb.get_async_client()
             
             admin_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
             headers = {
@@ -685,7 +685,7 @@ async def reset_password(request: EnhancedResetPasswordRequest):
                 "Content-Type": "application/json"
             }
             
-            response = httpx.put(
+            response = await client.put(
                 admin_url,
                 headers=headers,
                 json={"password": new_password},
@@ -701,7 +701,7 @@ async def reset_password(request: EnhancedResetPasswordRequest):
             raise HTTPException(status_code=500, detail=f"Failed to update password: {str(e)}")
         
         # Mark OTP as used
-        sb.table("password_resets").update({"status": "used"}).eq("id", otp_record["id"]).execute()
+        await sb.table("password_resets").update({"status": "used"}).eq("id", otp_record["id"]).aexecute()
         
         # Send confirmation email
         email_sent = email_service.send_password_reset_confirmation(user_email, full_name)
@@ -742,13 +742,13 @@ async def delete_user(identifier: str):
         # Query profile to find the actual Auth record UUID
         if is_uuid:
             # Try finding by internal ID first (which is the Auth UUID)
-            profile = sb.table("profiles").select("id").eq("id", identifier).maybe_single().execute()
+            profile = await sb.table("profiles").select("id").eq("id", identifier).maybe_single().aexecute()
             if profile.data:
                 auth_uuid = profile.data["id"]
         
         # If not found yet, try finding by custom user_id (STU-XXXX)
         if not auth_uuid:
-            profile = sb.table("profiles").select("id").eq("user_id", identifier).maybe_single().execute()
+            profile = await sb.table("profiles").select("id").eq("user_id", identifier).maybe_single().aexecute()
             if profile.data:
                 auth_uuid = profile.data["id"]
 
@@ -762,14 +762,14 @@ async def delete_user(identifier: str):
         # 2. Delete from Supabase Auth (admin privileges)
         auth_deleted = False
         try:
-            sb.auth().admin_delete_user(auth_uuid)
+            await sb.auth().admin_delete_user(auth_uuid)
             auth_deleted = True
         except Exception as e:
             logging.warning(f"Auth record deletion failed for {auth_uuid}: {str(e)}")
             
         # 3. Delete from profiles table
         # We delete by the record's primary key (id) for precision
-        sb.table("profiles").delete().eq("id", auth_uuid).execute()
+        await sb.table("profiles").delete().eq("id", auth_uuid).aexecute()
         
         return {
             "success": True,

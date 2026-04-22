@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres_password_2026"
 
     # Supabase
-    SUPABASE_URL: str = "http://localhost:54321"
+    SUPABASE_URL: str = "http://127.0.0.1:54321"
     SUPABASE_ANON_KEY: str = "your-supabase-anon-key"
     SUPABASE_SERVICE_ROLE_KEY: str = "your-supabase-service-role-key"
     SUPABASE_JWT_SECRET: str = "eduSHAMIIT-jwt-secret-2026"

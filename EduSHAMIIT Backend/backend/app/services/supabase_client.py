@@ -14,6 +14,8 @@ class SupabaseClient:
     """Direct HTTP client for Supabase REST API."""
 
     def __init__(self, url: str, key: str):
+        if "localhost" in url:
+            url = url.replace("localhost", "127.0.0.1")
         self.url = url.rstrip("/")
         self.key = key
         self.headers = {
@@ -24,6 +26,19 @@ class SupabaseClient:
         }
         self.auth_url = f"{self.url}/auth/v1"
         self.rest_url = f"{self.url}/rest/v1"
+        self._async_client = None
+
+    async def get_async_client(self):
+        """Get or create the async httpx client with connection pooling."""
+        if self._async_client is None or self._async_client.is_closed:
+            limits = httpx.Limits(max_keepalive_connections=20, max_connections=50)
+            self._async_client = httpx.AsyncClient(timeout=10.0, limits=limits)
+        return self._async_client
+
+    async def close(self):
+        """Close the async client."""
+        if self._async_client and not self._async_client.is_closed:
+            await self._async_client.aclose()
 
     def table(self, table_name: str):
         """Get a table query builder."""
@@ -56,12 +71,14 @@ class AuthClient:
                 default
             )
         return str(error_data) if error_data else default
-    def sign_in_with_password(self, credentials: dict) -> dict:
+
+    async def sign_in_with_password(self, credentials: dict) -> dict:
         """Sign in with email and password."""
         email = credentials.get("email")
         password = credentials.get("password")
+        client = await self.client.get_async_client()
 
-        response = httpx.post(
+        response = await client.post(
             f"{self.client.auth_url}/token?grant_type=password",
             headers=self.client.headers,
             json={"email": email, "password": password},
@@ -75,12 +92,13 @@ class AuthClient:
         data = response.json()
         return AuthResponse(data)
 
-    def sign_up(self, credentials: dict) -> dict:
+    async def sign_up(self, credentials: dict) -> dict:
         """Sign up with email and password."""
         email = credentials.get("email")
         password = credentials.get("password")
+        client = await self.client.get_async_client()
 
-        response = httpx.post(
+        response = await client.post(
             f"{self.client.auth_url}/signup",
             headers=self.client.headers,
             json={"email": email, "password": password},
@@ -94,9 +112,10 @@ class AuthClient:
         data = response.json()
         return AuthResponse(data)
 
-    def refresh_session(self, refresh_token: str) -> dict:
+    async def refresh_session(self, refresh_token: str) -> dict:
         """Refresh the session using a refresh token."""
-        response = httpx.post(
+        client = await self.client.get_async_client()
+        response = await client.post(
             f"{self.client.auth_url}/token?grant_type=refresh_token",
             headers=self.client.headers,
             json={"refresh_token": refresh_token},
@@ -110,9 +129,10 @@ class AuthClient:
         data = response.json()
         return AuthResponse(data)
 
-    def admin_delete_user(self, user_id: str):
+    async def admin_delete_user(self, user_id: str):
         """Delete a user using admin privileges (service role key)."""
-        response = httpx.delete(
+        client = await self.client.get_async_client()
+        response = await client.delete(
             f"{self.client.auth_url}/admin/users/{user_id}",
             headers=self.client.headers,
             timeout=10.0
@@ -171,10 +191,18 @@ class TableQuery:
         self._offset = None
         self._single = False
         self._maybe_single = False
+        self._count = None
+        self._operation = "select"
+        self._data = None
 
     def select(self, columns: str):
         """Select columns."""
         self._select = columns
+        return self
+
+    def count(self, count_type: str = "exact"):
+        """Get the count of records."""
+        self._count = count_type
         return self
 
     def eq(self, column: str, value):
@@ -264,40 +292,6 @@ class TableQuery:
         self._maybe_single = True
         return self
 
-    def execute(self) -> dict:
-        """Execute the query."""
-        url = f"{self.client.rest_url}/{self.table_name}"
-
-        # Build query parameters
-        params = {"select": self._select}
-        if self._filters:
-            # Add filters as query params
-            for f in self._filters:
-                key, val = f.split("=", 1)
-                params[key] = val
-
-        if self._order:
-            params["order"] = self._order
-        if self._limit:
-            params["limit"] = self._limit
-        if self._offset:
-            params["offset"] = self._offset
-
-        # Add prefer header for single result
-        headers = self.client.headers.copy()
-        if self._single:
-            headers["Prefer"] = "return=representation,resolution=merge-duplicates"
-            headers["Accept"] = "application/vnd.pgrst.object+json"
-
-        response = httpx.get(url, headers=headers, params=params, timeout=10.0)
-
-        if response.status_code not in (200, 201):
-            error = response.text
-            raise Exception(f"Query failed: {error}")
-
-        data = response.json()
-        return QueryResult(data, is_single=self._single)
-
     def insert(self, data: dict):
         """Insert a row."""
         self._operation = "insert"
@@ -322,18 +316,36 @@ class TableQuery:
         self._operation = "delete"
         return self
 
-    def execute(self) -> dict:
-        """Execute the operation."""
-        url = f"{self.client.rest_url}/{self.table_name}"
+    def rpc(self, function_name: str, params: dict = None):
+        """Call a Postgres function."""
+        self._operation = "rpc"
+        self._function_name = function_name
+        self._data = params or {}
+        return self
+
+    def _prepare_request(self):
+        if self._operation == "rpc":
+            url = f"{self.client.url}/rest/v1/rpc/{self._function_name}"
+        else:
+            url = f"{self.client.rest_url}/{self.table_name}"
 
         headers = self.client.headers.copy()
         params = {}
 
-        # Add filters
+        if self._operation == "select":
+            params["select"] = self._select
+        
         if self._filters:
             for f in self._filters:
                 key, val = f.split("=", 1)
                 params[key] = val
+
+        if self._order:
+            params["order"] = self._order
+        if self._limit:
+            params["limit"] = self._limit
+        if self._offset:
+            params["offset"] = self._offset
 
         if self._single:
             headers["Prefer"] = "return=representation,resolution=merge-duplicates"
@@ -341,44 +353,79 @@ class TableQuery:
         elif self._maybe_single:
             params["limit"] = 1
 
-        if hasattr(self, '_operation'):
-            if self._operation == "insert":
-                response = httpx.post(url, headers=headers, json=self._data, params=params, timeout=10.0)
-            elif self._operation == "update":
-                response = httpx.patch(url, headers=headers, json=self._data, params=params, timeout=10.0)
-            elif self._operation == "upsert":
-                headers["Prefer"] = "return=representation,resolution=merge-duplicates"
-                if hasattr(self, '_on_conflict') and self._on_conflict:
-                    params["on_conflict"] = self._on_conflict
-                response = httpx.post(url, headers=headers, json=self._data, params=params, timeout=10.0)
-            elif self._operation == "delete":
-                response = httpx.delete(url, headers=headers, params=params, timeout=10.0)
+        if self._count:
+            prefer = headers.get("Prefer", "")
+            if prefer:
+                headers["Prefer"] = f"{prefer},count={self._count}"
             else:
-                # Default to select
-                if self._select:
-                    params["select"] = self._select
-                response = httpx.get(url, headers=headers, params=params, timeout=10.0)
-        else:
-            # Select operation
-            if self._select:
-                params["select"] = self._select
-            response = httpx.get(url, headers=headers, params=params, timeout=10.0)
+                headers["Prefer"] = f"count={self._count}"
+
+        if self._operation == "upsert":
+            headers["Prefer"] = "return=representation,resolution=merge-duplicates"
+            if hasattr(self, "_on_conflict") and self._on_conflict:
+                params["on_conflict"] = self._on_conflict
+
+        return url, headers, params
+
+    def execute(self) -> dict:
+        """Execute the operation synchronously."""
+        url, headers, params = self._prepare_request()
+        
+        with httpx.Client(timeout=15.0) as client:
+            if self._operation == "insert" or self._operation == "rpc":
+                response = client.post(url, headers=headers, json=self._data, params=params)
+            elif self._operation == "update":
+                response = client.patch(url, headers=headers, json=self._data, params=params)
+            elif self._operation == "upsert":
+                response = client.post(url, headers=headers, json=self._data, params=params)
+            elif self._operation == "delete":
+                response = client.delete(url, headers=headers, params=params)
+            else:
+                response = client.get(url, headers=headers, params=params)
 
         if response.status_code not in (200, 201, 204):
-            error = response.text
-            raise Exception(f"Operation failed: {error}")
+            raise Exception(f"Operation failed: {response.text}")
 
-        if response.status_code == 204:
-            return QueryResult([], is_single=self._single, is_maybe_single=self._maybe_single)
+        data = response.json() if response.status_code != 204 else []
+        return QueryResult(data, response.headers, is_single=self._single, is_maybe_single=self._maybe_single)
 
-        data = response.json()
-        return QueryResult(data, is_single=self._single, is_maybe_single=self._maybe_single)
+    async def aexecute(self) -> dict:
+        """Execute the operation asynchronously."""
+        url, headers, params = self._prepare_request()
+        client = await self.client.get_async_client()
+
+        if self._operation == "insert" or self._operation == "rpc":
+            response = await client.post(url, headers=headers, json=self._data, params=params)
+        elif self._operation == "update":
+            response = await client.patch(url, headers=headers, json=self._data, params=params)
+        elif self._operation == "upsert":
+            response = await client.post(url, headers=headers, json=self._data, params=params)
+        elif self._operation == "delete":
+            response = await client.delete(url, headers=headers, params=params)
+        else:
+            response = await client.get(url, headers=headers, params=params)
+
+        if response.status_code not in (200, 201, 204):
+            raise Exception(f"Operation failed: {response.text}")
+
+        data = response.json() if response.status_code != 204 else []
+        return QueryResult(data, response.headers, is_single=self._single, is_maybe_single=self._maybe_single)
 
 
 class QueryResult:
     """Query result wrapper."""
 
-    def __init__(self, data, is_single=False, is_maybe_single=False):
+    def __init__(self, data, headers=None, is_single=False, is_maybe_single=False):
+        self.headers = headers or {}
+        # Extract count if present in headers (Content-Range: 0-9/100)
+        self.count = None
+        content_range = self.headers.get("Content-Range")
+        if content_range and "/" in content_range:
+            try:
+                self.count = int(content_range.split("/")[-1])
+            except ValueError:
+                pass
+
         if is_single:
             self.data = data if data else None
         elif is_maybe_single:
