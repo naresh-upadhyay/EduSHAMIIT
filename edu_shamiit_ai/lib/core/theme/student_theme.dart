@@ -1,86 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 
 ThemeData getStudentTheme() {
-  return ThemeData(
-    useMaterial3: true,
+  final baseTheme = ThemeData.light(useMaterial3: true);
+  
+  return baseTheme.copyWith(
     primaryColor: StudentColors.primary,
     scaffoldBackgroundColor: StudentColors.background,
-    colorScheme: const ColorScheme.light(
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: StudentColors.primary,
       primary: StudentColors.primary,
       secondary: StudentColors.accent,
       surface: StudentColors.surface,
       error: StudentColors.error,
     ),
 
-    // Text Theme
-    textTheme: const TextTheme(
-      displayLarge: TextStyle(
-        fontFamily: AppFonts.heading,
-        fontSize: 32,
-        fontWeight: FontWeight.w800,
-        color: StudentColors.text,
+    // Text Theme - Use Google Fonts to load Outfit and DM Sans
+    textTheme: GoogleFonts.dmSansTextTheme(baseTheme.textTheme).copyWith(
+      displayLarge: GoogleFonts.outfit(
+        textStyle: baseTheme.textTheme.displayLarge?.copyWith(
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          color: StudentColors.text,
+        ),
       ),
-      displayMedium: TextStyle(
-        fontFamily: AppFonts.heading,
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        color: StudentColors.text,
+      displayMedium: GoogleFonts.outfit(
+        textStyle: baseTheme.textTheme.displayMedium?.copyWith(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: StudentColors.text,
+        ),
       ),
-      headlineLarge: TextStyle(
-        fontFamily: AppFonts.heading,
-        fontSize: 24,
-        fontWeight: FontWeight.w800,
-        color: StudentColors.text,
+      headlineLarge: GoogleFonts.outfit(
+        textStyle: baseTheme.textTheme.headlineLarge?.copyWith(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          color: StudentColors.text,
+        ),
       ),
-      headlineMedium: TextStyle(
-        fontFamily: AppFonts.heading,
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
-        color: StudentColors.text,
+      headlineMedium: GoogleFonts.outfit(
+        textStyle: baseTheme.textTheme.headlineMedium?.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: StudentColors.text,
+        ),
       ),
-      headlineSmall: TextStyle(
-        fontFamily: AppFonts.heading,
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: StudentColors.text,
+      headlineSmall: GoogleFonts.outfit(
+        textStyle: baseTheme.textTheme.headlineSmall?.copyWith(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: StudentColors.text,
+        ),
       ),
-      titleLarge: TextStyle(
-        fontFamily: AppFonts.heading,
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        color: StudentColors.text,
+      titleLarge: GoogleFonts.outfit(
+        textStyle: baseTheme.textTheme.titleLarge?.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: StudentColors.text,
+        ),
       ),
-      titleMedium: TextStyle(
-        fontFamily: AppFonts.body,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: StudentColors.text,
+      titleMedium: GoogleFonts.dmSans(
+        textStyle: baseTheme.textTheme.titleMedium?.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: StudentColors.text,
+        ),
       ),
-      bodyLarge: TextStyle(
-        fontFamily: AppFonts.body,
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        color: StudentColors.text,
+      bodyLarge: GoogleFonts.dmSans(
+        textStyle: baseTheme.textTheme.bodyLarge?.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: StudentColors.text,
+        ),
       ),
-      bodyMedium: TextStyle(
-        fontFamily: AppFonts.body,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: StudentColors.text2,
+      bodyMedium: GoogleFonts.dmSans(
+        textStyle: baseTheme.textTheme.bodyMedium?.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: StudentColors.text2,
+        ),
       ),
-      bodySmall: TextStyle(
-        fontFamily: AppFonts.body,
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: StudentColors.text3,
+      bodySmall: GoogleFonts.dmSans(
+        textStyle: baseTheme.textTheme.bodySmall?.copyWith(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: StudentColors.text3,
+        ),
       ),
-      labelLarge: TextStyle(
-        fontFamily: AppFonts.body,
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: Colors.white,
+      labelLarge: GoogleFonts.dmSans(
+        textStyle: baseTheme.textTheme.labelLarge?.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
       ),
     ),
 
@@ -112,8 +126,7 @@ ThemeData getStudentTheme() {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: const TextStyle(
-          fontFamily: AppFonts.body,
+        textStyle: GoogleFonts.dmSans(
           fontSize: 15,
           fontWeight: FontWeight.w600,
         ),

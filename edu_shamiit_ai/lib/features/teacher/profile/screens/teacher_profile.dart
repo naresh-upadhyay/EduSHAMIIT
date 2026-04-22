@@ -60,10 +60,16 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
             ),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () {
+                      if (Navigator.canPop(context)) {
+                        context.pop();
+                      } else {
+                        context.go('/teacher/dashboard');
+                      }
+                    },
+                  ),
                 const SizedBox(width: 12),
                 const Text(
                   'Profile',

@@ -271,23 +271,30 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                           ),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                day['name'],
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  day['name'],
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              Text(
-                                day['date'],
-                                style: TextStyle(
-                                  fontFamily: AppFonts.heading,
-                                  fontSize: 16,
-                                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-                                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  day['date'],
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 16,
+                                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6),
+                                  ),
                                 ),
                               ),
                             ],
