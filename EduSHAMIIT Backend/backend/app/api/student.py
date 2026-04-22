@@ -183,16 +183,23 @@ async def student_attendance(user=Depends(get_current_user), school_id=Depends(r
 @router.get("/fees")
 async def student_fees(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    fees_task = sb.table("fees").select("*").eq("school_id", school_id).eq("student_id", user["id"]).order("due_date").aexecute()
-    payments_task = sb.table("payments").select("*").eq("school_id", school_id).eq("student_id", user["id"]).order("paid_at", ascending=False).aexecute()
-    
-    fees_res, payments_res = await asyncio.gather(fees_task, payments_task)
-    fees = fees_res.data
-    payments = payments_res.data
-    
-    total_outstanding = sum(float(f["amount"]) - float(f.get("amount_paid", 0)) for f in fees if f["status"] in ("pending", "partial", "overdue"))
-    total_paid = sum(float(f.get("amount_paid", 0)) for f in fees)
-    return {"success": True, "school_id": school_id, "data": {"total_outstanding": total_outstanding, "total_paid": total_paid, "pending_fees": [f for f in fees if f["status"] in ("pending", "partial", "overdue")], "recent_payments": payments[:3]}}
+    # payments table has no school_id/student_id columns — query fees table only
+    fees = (await sb.table("fees").select("*").eq("school_id", school_id).eq("student_id", user["id"]).order("due_date").aexecute()).data
+
+    pending_fees = [f for f in fees if f["status"] in ("pending", "partial", "overdue")]
+    paid_fees    = [f for f in fees if f["status"] == "paid"]
+
+    total_outstanding = sum(float(f["amount"]) for f in pending_fees)
+    total_paid        = sum(float(f["amount"]) for f in paid_fees)
+    return {
+        "success": True, "school_id": school_id,
+        "data": {
+            "total_outstanding": total_outstanding,
+            "total_paid": total_paid,
+            "pending_fees": pending_fees,
+            "recent_payments": paid_fees[:3],
+        }
+    }
 
 
 @router.get("/transport")
@@ -268,7 +275,17 @@ async def student_library(user=Depends(get_current_user), school_id=Depends(requ
 async def student_courses(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
     student_class = user.get("class")
-    courses = (await sb.table("courses").select("*, subjects(name, icon, color)").eq("school_id", school_id).eq("class", student_class).aexecute()).data
+    # courses table has no 'class' column — resolve via subjects.class first
+    if student_class:
+        subjects_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("class", student_class).aexecute()
+        subject_ids = [s["id"] for s in (subjects_res.data or [])]
+        if subject_ids:
+            courses = (await sb.table("courses").select("*, subjects(name, icon, color)").eq("school_id", school_id).in_("subject_id", subject_ids).aexecute()).data
+        else:
+            courses = []
+    else:
+        # Fallback: return all courses for the school
+        courses = (await sb.table("courses").select("*, subjects(name, icon, color)").eq("school_id", school_id).aexecute()).data
     return {"success": True, "school_id": school_id, "data": {"courses": courses}}
 
 
