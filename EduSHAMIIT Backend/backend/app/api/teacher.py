@@ -29,36 +29,14 @@ async def teacher_dashboard(user=Depends(require_teacher), school_id=Depends(req
     sb = get_supabase()
     today = datetime.now().weekday()
     
-    tasks = [
-        sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute(),
-        sb.table("timetable").select("*, subjects(name, icon)").eq("school_id", school_id).eq("teacher_id", user["id"]).eq("day_of_week", today).order("start_time").aexecute(),
-        sb.table("homework").select("id").eq("school_id", school_id).eq("teacher_id", user["id"]).eq("status", "active").aexecute(),
-        sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()
-    ]
+    res = await sb.rpc("get_teacher_dashboard_summary", {
+        "p_school_id": school_id,
+        "p_teacher_id": user["id"],
+        "p_day_of_week": today
+    }).aexecute()
     
-    results = await asyncio.gather(*tasks)
-    classes = results[0].data
-    schedule = results[1].data
-    homework = results[2].data
-    profile = results[3].data
-
-    unique_classes = list(set(c["class"] for c in classes))
-    homework_ids = [hw["id"] for hw in homework]
-
-    async def fetch_students():
-        if not unique_classes: return []
-        res = await sb.table("profiles").select("id").eq("school_id", school_id).in_("class", unique_classes).eq("role", "student").aexecute()
-        return res.data
-        
-    async def fetch_pending_subs():
-        if not homework_ids: return []
-        res = await sb.table("homework_submissions").select("id").in_("homework_id", homework_ids).eq("status", "submitted").aexecute()
-        return res.data
-
-    students, pending_subs_data = await asyncio.gather(fetch_students(), fetch_pending_subs())
-    pending_subs = len(pending_subs_data)
-
-    result = {"success": True, "school_id": school_id, "data": {"teacher": profile, "stats": {"total_students": len(students), "total_classes": len(unique_classes), "pending_tasks": pending_subs}, "today_schedule": schedule}}
+    data = res.data[0] if res.data else {}
+    result = {"success": True, "school_id": school_id, "data": data}
     await set_cached(school_id, "teacher_dashboard", result, user["id"], ttl=120)
     return result
 
@@ -70,22 +48,12 @@ async def teacher_classes(user=Depends(require_teacher), school_id=Depends(requi
         return cached
 
     sb = get_supabase()
-    classes_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
-    classes = classes_res.data
-    unique_classes = list(set(c["class"] for c in classes))
+    res = await sb.rpc("get_teacher_classes_with_counts", {
+        "p_school_id": school_id,
+        "p_teacher_id": user["id"]
+    }).aexecute()
     
-    tasks = []
-    for cls in unique_classes:
-        tasks.append(sb.table("profiles").select("id").eq("school_id", school_id).eq("class", cls).eq("role", "student").aexecute())
-        
-    results = await asyncio.gather(*tasks) if tasks else []
-    
-    class_details = []
-    for i, cls in enumerate(unique_classes):
-        students = results[i].data if results else []
-        class_details.append({"class": cls, "student_count": len(students)})
-        
-    result = {"success": True, "school_id": school_id, "data": {"classes": class_details}}
+    result = {"success": True, "school_id": school_id, "data": {"classes": res.data}}
     await set_cached(school_id, "teacher_classes", result, user["id"], ttl=300)
     return result
 

@@ -29,68 +29,33 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
     sb = get_supabase()
     today = datetime.now().weekday()
     
-    # 1. Run all independent queries in parallel
-    # We use user["class"] from JWT to avoid waiting for profile fetch
-    tasks = [
-        # Profile fetch
-        sb.table("profiles").select("*").eq("id", user["id"]).maybe_single().aexecute(),
-        # Schedule
-        sb.table("timetable").select("*, subjects(name, icon, color)").eq("school_id", school_id).eq("class", user["class"]).eq("day_of_week", today).order("start_time").aexecute(),
-        # Homework
-        sb.table("homework").select("*, subjects(name, icon)").eq("school_id", school_id).eq("class", user["class"]).eq("status", "active").lte("due_date", (datetime.now() + timedelta(days=3)).isoformat()).order("due_date").aexecute(),
-        # Attendance Total
-        sb.table("attendance").select("id").eq("school_id", school_id).eq("student_id", user["id"]).count().aexecute(),
-        # Attendance Present
-        sb.table("attendance").select("id").eq("school_id", school_id).eq("student_id", user["id"]).eq("status", "present").count().aexecute(),
-        # Latest Result
-        sb.table("results").select("marks_obtained, total_marks").eq("school_id", school_id).eq("student_id", user["id"]).order("created_at", ascending=False).limit(1).maybe_single().aexecute()
+    res = await sb.rpc("get_student_dashboard_summary", {
+        "p_school_id": school_id,
+        "p_student_id": user["id"],
+        "p_day_of_week": today
+    }).aexecute()
+    
+    data = res.data[0] if res.data else {}
+    data["quick_access"] = [
+        {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
+        {"title": "Results", "icon": "📊", "route": "/student/results", "bg": "FDF4FF"},
+        {"title": "Fees", "icon": "💳", "route": "/student/fees", "bg": "ECFDF5"},
+        {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
+        {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
+        {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
+        {"title": "Events", "icon": "📅", "route": "/student/events", "bg": "FEF3C7"},
+        {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
+        {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
+        {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
+        {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
+        {"title": "Leave", "icon": "✉️", "route": "/student/leave-application", "bg": "FEF2F2"},
+        {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
+        {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": True},
+        {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
+        {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard", "bg": "FEF3C7"},
     ]
     
-    results = await asyncio.gather(*tasks)
-    
-    profile = results[0].data
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    schedule = results[1].data
-    homework = results[2].data
-    att_total = results[3].count or 0
-    att_present = results[4].count or 0
-    latest_result = results[5].data
-    
-    # 2. Rank query depends on profile["xp_points"]
-    rank_result = await sb.table("profiles").eq("school_id", school_id).eq("class", profile["class"]).eq("role", "student").gt("xp_points", profile.get("xp_points", 0)).count().aexecute()
-    class_rank = (rank_result.count or 0) + 1
-    
-    att_pct = (att_present / att_total * 100) if att_total > 0 else 0
-    avg_score = (float(latest_result["marks_obtained"]) / float(latest_result["total_marks"]) * 100) if latest_result else 0
-
-    result = {
-        "success": True, "school_id": school_id,
-        "data": {
-            "user": {"full_name": profile["full_name"], "class": profile.get("class"), "xp_points": profile.get("xp_points", 0), "learning_streak": profile.get("learning_streak", 0), "avatar_url": profile.get("avatar_url")},
-            "stats": {"attendance_pct": round(att_pct, 1), "avg_score": round(avg_score, 1), "class_rank": class_rank, "xp_points": profile.get("xp_points", 0)},
-            "today_schedule": schedule, "pending_homework": homework,
-                        "quick_access": [
-                {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
-                {"title": "Results", "icon": "📊", "route": "/student/results", "bg": "FDF4FF"},
-                {"title": "Fees", "icon": "💳", "route": "/student/fees", "bg": "ECFDF5"},
-                {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
-                {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
-                {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
-                {"title": "Events", "icon": "📅", "route": "/student/events", "bg": "FEF3C7"},
-                {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
-                {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
-                {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
-                {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
-                {"title": "Leave", "icon": "✉️", "route": "/student/leave-application", "bg": "FEF2F2"},
-                {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
-                {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": True},
-                {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
-                {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard", "bg": "FEF3C7"},
-            ],
-}
-    }
+    result = {"success": True, "school_id": school_id, "data": data}
     await set_cached(school_id, "dashboard", result, user["id"], ttl=120)
     return result
 
