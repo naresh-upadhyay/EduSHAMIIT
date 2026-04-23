@@ -126,7 +126,9 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
   }
 
   Future<void> loadCourses() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.courses.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/courses');
       if (response['success'] == true) {

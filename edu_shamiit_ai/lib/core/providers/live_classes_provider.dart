@@ -109,7 +109,9 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
   }
 
   Future<void> loadLiveClasses() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.liveNow.isEmpty && state.upcoming.isEmpty && state.recorded.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/live-classes');
       if (response['success'] == true) {

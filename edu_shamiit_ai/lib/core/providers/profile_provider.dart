@@ -189,7 +189,9 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 
   Future<void> loadProfile() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.profile == null) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/profile');
       if (response['success'] == true) {

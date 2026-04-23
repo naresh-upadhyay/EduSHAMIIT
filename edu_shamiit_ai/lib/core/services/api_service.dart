@@ -25,17 +25,35 @@ class ApiService {
     };
   }
 
+  final Map<String, dynamic> _cache = {};
+
   /// GET request
   Future<Map<String, dynamic>> get(String endpoint,
-      {Map<String, dynamic>? query}) async {
+      {Map<String, dynamic>? query, bool useCache = true}) async {
+    final cacheKey = '$endpoint${query?.toString() ?? ''}';
+    
+    // Return cached data immediately if available
+    if (useCache && _cache.containsKey(cacheKey)) {
+      // Fetch in background to update cache (stale-while-revalidate)
+      _fetchAndCache(endpoint, query, cacheKey);
+      return _cache[cacheKey];
+    }
+
+    return _fetchAndCache(endpoint, query, cacheKey);
+  }
+
+  Future<Map<String, dynamic>> _fetchAndCache(String endpoint, Map<String, dynamic>? query, String cacheKey) async {
     try {
       final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint')
           .replace(queryParameters: query);
       final response = await _client
           .get(uri, headers: await _headers)
           .timeout(AppConfig.apiTimeout);
-      return _handleResponse(response);
+      final data = _handleResponse(response);
+      _cache[cacheKey] = data;
+      return data;
     } catch (e) {
+      if (_cache.containsKey(cacheKey)) return _cache[cacheKey];
       throw ApiException('GET request failed: $e');
     }
   }

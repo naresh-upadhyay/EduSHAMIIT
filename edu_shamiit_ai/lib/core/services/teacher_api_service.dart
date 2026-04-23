@@ -14,12 +14,37 @@ class TeacherApiService {
 
   String get _baseUrl => AppConfig.apiBaseUrl;
 
+  final Map<String, dynamic> _cache = {};
+
   dynamic _unwrapData(dynamic payload) {
     if (payload is Map<String, dynamic>) {
       if (payload['data'] != null) return payload['data'];
       if (payload['result'] != null) return payload['result'];
     }
     return payload;
+  }
+
+  Future<dynamic> _getCached(String path, {bool useCache = true}) async {
+    if (useCache && _cache.containsKey(path)) {
+      _fetchAndCache(path);
+      return _cache[path];
+    }
+    return _fetchAndCache(path);
+  }
+
+  Future<dynamic> _fetchAndCache(String path) async {
+    final response = await _client.get(
+      Uri.parse('$_baseUrl$path'),
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      _cache[path] = data;
+      return data;
+    } else {
+      if (_cache.containsKey(path)) return _cache[path];
+      throw Exception('Failed to load $path: ${response.statusCode}');
+    }
   }
 
   Map<String, dynamic> _toMap(dynamic payload,
@@ -103,17 +128,9 @@ class TeacherApiService {
   /// Get teacher dashboard data
   Future<TeacherDashboard> getDashboard() async {
     try {
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/dashboard'),
-        headers: await _getHeaders(),
-      );
-
-      if (response.statusCode == 200) {
-        final data = _toMap(json.decode(response.body));
-        return TeacherDashboard.fromJson(data);
-      } else {
-        throw Exception('Failed to load dashboard: ${response.statusCode}');
-      }
+      final body = await _getCached('/teacher/dashboard');
+      final data = _toMap(body);
+      return TeacherDashboard.fromJson(data);
     } catch (e) {
       throw Exception('Error fetching dashboard: $e');
     }
@@ -124,20 +141,12 @@ class TeacherApiService {
   /// Get teacher profile
   Future<TeacherProfile> getProfile() async {
     try {
-      final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/profile'),
-        headers: await _getHeaders(),
+      final body = await _getCached('/teacher/profile');
+      final data = _toMap(
+        body,
+        candidateKeys: ['profile', 'teacher', 'user'],
       );
-
-      if (response.statusCode == 200) {
-        final data = _toMap(
-          json.decode(response.body),
-          candidateKeys: ['profile', 'teacher', 'user'],
-        );
-        return TeacherProfile.fromJson(data);
-      } else {
-        throw Exception('Failed to load profile: ${response.statusCode}');
-      }
+      return TeacherProfile.fromJson(data);
     } catch (e) {
       throw Exception('Error fetching profile: $e');
     }

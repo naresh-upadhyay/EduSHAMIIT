@@ -335,7 +335,9 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   AttendanceNotifier(this._apiService) : super(AttendanceState());
 
   Future<void> fetchAttendance() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.records.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/attendance');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -393,7 +395,9 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
   LeaveNotifier(this._apiService) : super(LeaveState());
 
   Future<void> fetchLeaveApplications() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.applications.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/leave-applications');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -480,7 +484,9 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   LibraryNotifier(this._apiService) : super(LibraryState());
 
   Future<void> fetchLibraryData() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.borrows.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/library');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -546,7 +552,9 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
   CoursesNotifier(this._apiService) : super(CoursesState());
 
   Future<void> fetchCourses() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.courses.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/courses');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -605,7 +613,9 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   NotificationsNotifier(this._apiService) : super(NotificationsState());
 
   Future<void> fetchNotifications() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.notifications.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/notifications');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -694,7 +704,9 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
   LiveClassesNotifier(this._apiService) : super(LiveClassesState());
 
   Future<void> fetchLiveClasses() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.classes.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/live-classes');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -757,7 +769,9 @@ class LeaderboardNotifier extends StateNotifier<LeaderboardState> {
   LeaderboardNotifier(this._apiService) : super(LeaderboardState());
 
   Future<void> fetchLeaderboard() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.entries.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/leaderboard');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -822,7 +836,9 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
   MessagingNotifier(this._apiService) : super(MessagingState());
 
   Future<void> fetchMessages() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.messages.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/messages');
       final data = response.containsKey('data') ? response['data'] : response;
@@ -902,7 +918,9 @@ class OnlineExamNotifier extends StateNotifier<OnlineExamState> {
   OnlineExamNotifier(this._apiService) : super(OnlineExamState());
 
   Future<void> fetchExams() async {
-    state = state.copyWith(isLoading: true, error: null);
+    if (state.exams.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
       final response = await _apiService.get('/student/exams');
       final data = response.containsKey('data') ? response['data'] : response;

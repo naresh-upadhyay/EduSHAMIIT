@@ -240,6 +240,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
 
     // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
+    // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
     ShellRoute(
       navigatorKey: _teacherShellKey,
       builder: (context, state, child) => TeacherShellScaffold(child: child),
