@@ -1,7 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -32,7 +34,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     _loadingController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
     _loadingAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _loadingController, curve: Curves.easeInOut));
     _loadingController.forward();
-    Future.delayed(const Duration(seconds: 2), () { if (mounted) context.go('/login'); });
+    
+    // Initialize auth state to check for existing token
+    Future.microtask(() async {
+      await ref.read(authProvider.notifier).initialize();
+      if (!mounted) return;
+      
+      final authState = ref.read(authProvider);
+      
+      // Add a slight delay just to show the cool splash animation
+      await Future.delayed(const Duration(milliseconds: 1500));
+      
+      if (!mounted) return;
+      
+      if (authState.isAuthenticated) {
+        if (authState.role == UserRole.teacher) {
+          context.go('/teacher/dashboard');
+        } else {
+          context.go('/student/dashboard');
+        }
+      } else {
+        context.go('/login');
+      }
+    });
   }
 
   @override

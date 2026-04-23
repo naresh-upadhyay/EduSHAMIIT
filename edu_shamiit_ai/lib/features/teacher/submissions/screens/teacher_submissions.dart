@@ -199,7 +199,9 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
             radius: 24,
             backgroundColor: statusColor.withValues(alpha: 0.1),
             child: Text(
-              submission.studentName.split(' ').map((n) => n[0]).take(2).join(),
+              submission.studentName.trim().isEmpty 
+                  ? '?' 
+                  : submission.studentName.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase(),
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.w700,

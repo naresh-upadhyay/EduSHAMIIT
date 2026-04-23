@@ -391,7 +391,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
           ),
           const SizedBox(height: 10),
           GestureDetector(
-            onTap: () => context.push('/ai-chat'),
+            onTap: () => context.push('/student/ai-chat'),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
@@ -635,7 +635,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
 
   Widget _buildAiFab() {
     return GestureDetector(
-      onTap: () => context.push('/ai-chat'),
+      onTap: () => context.push('/student/ai-chat'),
       child: Container(
         width: 46,
         height: 46,

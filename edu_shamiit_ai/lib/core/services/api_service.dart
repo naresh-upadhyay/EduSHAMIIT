@@ -10,6 +10,9 @@ class ApiService {
   ApiService._internal();
 
   final http.Client _client = http.Client();
+  
+  /// Global callback for 401 Unauthorized responses
+  void Function()? onUnauthorized;
 
   /// Get headers with authorization
   Future<Map<String, String>> get _headers async {
@@ -93,6 +96,7 @@ class ApiService {
           ? {}
           : jsonDecode(response.body) as Map<String, dynamic>;
     } else if (response.statusCode == 401) {
+      onUnauthorized?.call();
       throw ApiException('Unauthorized: Please login again');
     } else if (response.statusCode == 403) {
       throw ApiException('Forbidden: Access denied');

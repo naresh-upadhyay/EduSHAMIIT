@@ -698,11 +698,13 @@ class HomeworkSubmission {
   });
 
   factory HomeworkSubmission.fromJson(Map<String, dynamic> json) {
+    final profilesMap = json['profiles'] as Map<String, dynamic>?;
+    
     return HomeworkSubmission(
       id: _toStr(json['id']),
       homeworkId: _toStr(json['homework_id']),
       studentId: _toStr(json['student_id']),
-      studentName: _toStr(json['student_name']),
+      studentName: _toStr(json['student_name'] ?? profilesMap?['full_name'] ?? profilesMap?['name']),
       class_: _toStr(json['class'] ?? json['class_name']),
       submissionText:
           _toStr(json['submission_text']).isEmpty ? null : _toStr(json['submission_text']),
@@ -710,8 +712,8 @@ class HomeworkSubmission {
           _toStr(json['attachment_url']).isEmpty ? null : _toStr(json['attachment_url']),
       submittedAt: _toDateTime(json['submitted_at']) ?? DateTime.now(),
       marksObtained:
-          json['marks_obtained'] == null ? null : _toDouble(json['marks_obtained']),
-      feedback: _toStr(json['feedback']).isEmpty ? null : _toStr(json['feedback']),
+          (json['marks_obtained'] ?? json['marks']) == null ? null : _toDouble(json['marks_obtained'] ?? json['marks']),
+      feedback: _toStr(json['feedback'] ?? json['teacher_remarks']).isEmpty ? null : _toStr(json['feedback'] ?? json['teacher_remarks']),
       status: _toStr(json['status'], fallback: 'submitted'),
       gradedBy: _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
       gradedAt: _toDateTime(json['graded_at']),

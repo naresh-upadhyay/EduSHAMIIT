@@ -194,14 +194,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               ),
             ],
           ),
-          Positioned(
-            bottom: 80,
-            right: 16,
-            child: AiFab(
-              gradient: AppGradients.studentPrimary,
-              onPressed: () => context.push('/ai-chat'),
-            ),
-          ),
         ],
       ),
     );

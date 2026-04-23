@@ -109,14 +109,6 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
               ),
             ],
           ),
-          Positioned(
-            bottom: 80,
-            right: 16,
-            child: AiFab(
-              gradient: AppGradients.studentPrimary,
-              onPressed: () => context.push('/ai-chat'),
-            ),
-          ),
         ],
       ),
     );

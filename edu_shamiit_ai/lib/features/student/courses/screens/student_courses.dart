@@ -4,6 +4,8 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/courses_provider.dart';
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
+import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 
 class StudentCourses extends ConsumerStatefulWidget {
   const StudentCourses({super.key});
@@ -62,16 +64,25 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
           ),
 
           Expanded(
-            child: coursesState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : coursesState.error != null
-                    ? Center(child: Text('Error: ${coursesState.error}'))
-                    : coursesState.courses.isEmpty
-                        ? const Center(child: Text('No courses available'))
-                        : ListView(
-                            padding: const EdgeInsets.all(16),
-                            children: coursesState.courses.map((course) => _buildCourseCard(course)).toList(),
-                          ),
+            child: ResponsiveContent(
+              child: coursesState.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : coursesState.error != null
+                      ? Center(child: Text('Error: ${coursesState.error}'))
+                      : coursesState.courses.isEmpty
+                          ? const Center(child: Text('No courses available'))
+                          : GridView.builder(
+                              padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: Responsive.isDesktop(context) ? 3 : Responsive.isTablet(context) ? 2 : 1,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                mainAxisExtent: 160,
+                              ),
+                              itemCount: coursesState.courses.length,
+                              itemBuilder: (context, index) => _buildCourseCard(coursesState.courses[index]),
+                            ),
+            ),
           ),
         ],
       ),
@@ -80,7 +91,6 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
 
   Widget _buildCourseCard(CourseModel course) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: StudentColors.surface,

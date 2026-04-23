@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:edu_shamiit_ai/features/shared/splash/screens/splash_screen.dart';
 import 'package:edu_shamiit_ai/features/shared/login/screens/login_screen.dart';
 import 'package:edu_shamiit_ai/features/shared/login/screens/forgot_password_screen.dart';
@@ -53,9 +56,54 @@ import 'package:edu_shamiit_ai/shared/widgets/teacher_shell_scaffold.dart';
 final _studentShellKey = GlobalKey<NavigatorState>(debugLabel: 'studentShell');
 final _teacherShellKey = GlobalKey<NavigatorState>(debugLabel: 'teacherShell');
 
-final goRouter = GoRouter(
-  initialLocation: '/splash',
-  routes: [
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+  RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(
+      authProvider,
+      (_, __) => notifyListeners(),
+    );
+  }
+}
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = RouterNotifier(ref);
+
+  return GoRouter(
+    initialLocation: '/splash',
+    refreshListenable: notifier,
+    redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final isAuth = authState.isAuthenticated;
+      
+      final path = state.uri.path;
+      final isSplash = path == '/splash';
+      final isLogin = path == '/login';
+      final isForgot = path == '/forgot-password';
+      final isOtp = path == '/otp-verification';
+      final isReset = path == '/reset-password';
+      final isResetSuccess = path == '/password-reset-success';
+      
+      final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess;
+
+      // If user is NOT authenticated, and trying to access a private route, force to login
+      if (!isAuth && !isPublic && !authState.isLoading) {
+        return '/login';
+      }
+
+      // If user IS authenticated and trying to access a public route (like login), push to dashboard
+      if (isAuth && isPublic && !isSplash) {
+        final role = authState.role;
+        if (role.value == 'teacher') {
+          return '/teacher/dashboard';
+        } else {
+          return '/student/dashboard';
+        }
+      }
+
+      return null; // No redirect needed
+    },
+    routes: [
     // ─────────────── SHARED ROUTES (no bottom nav) ───────────────
     GoRoute(
       path: '/splash',
@@ -93,10 +141,6 @@ final goRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (_, __) => const SettingsScreen(),
-    ),
-    GoRoute(
-      path: '/ai-chat',
-      builder: (_, __) => const AiChatScreen(),
     ),
 
     // ─────────────── STUDENT SHELL (persistent bottom nav) ───────────────
@@ -187,6 +231,10 @@ final goRouter = GoRouter(
         GoRoute(
           path: '/student/online-exam',
           pageBuilder: (_, __) => const NoTransitionPage(child: OnlineExamScreen()),
+        ),
+        GoRoute(
+          path: '/student/ai-chat',
+          pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
         ),
       ],
     ),
@@ -284,7 +332,12 @@ final goRouter = GoRouter(
           path: '/teacher/student-directory',
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherStudentDirectory()),
         ),
+        GoRoute(
+          path: '/teacher/ai-chat',
+          pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
+        ),
       ],
     ),
   ],
 );
+});
