@@ -199,6 +199,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
             ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showUploadDialog(),
         backgroundColor: const Color(0xFFF59E0B),

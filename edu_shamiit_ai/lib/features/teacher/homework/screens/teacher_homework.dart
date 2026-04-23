@@ -199,6 +199,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
             ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateHomeworkDialog(),
         backgroundColor: const Color(0xFFBE185D),

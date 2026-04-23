@@ -176,6 +176,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
             ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showScheduleDialog(),
         backgroundColor: const Color(0xFFEF4444),

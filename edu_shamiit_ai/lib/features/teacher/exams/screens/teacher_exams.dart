@@ -178,6 +178,7 @@ class _TeacherExamsState extends State<TeacherExams> {
             ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateExamDialog(),
         backgroundColor: const Color(0xFF6366F1),

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/app.dart';
 import 'package:edu_shamiit_ai/core/services/supabase_service.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +26,24 @@ void main() async {
     ),
   );
 
+  // Initialize Riverpod container
+  final container = ProviderContainer();
+  
+  // Await auth restoration before the app UI even starts.
+  // This is critical for Flutter Web so duplicate tabs or refreshes 
+  // immediately know the user is authenticated before the router redirects.
+  await container.read(authProvider.notifier).initialize();
+  
+  // Sync the role provider with the restored auth state
+  final authState = container.read(authProvider);
+  if (authState.isAuthenticated) {
+    container.read(roleProvider.notifier).setRole(authState.role);
+  }
+
   runApp(
-    const ProviderScope(
-      child: EduShamiitApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const EduShamiitApp(),
     ),
   );
 }

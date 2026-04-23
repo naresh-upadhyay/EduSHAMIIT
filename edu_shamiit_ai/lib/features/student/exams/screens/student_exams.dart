@@ -193,9 +193,6 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
 
         ],
       ),
-      floatingActionButton: _buildAiFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-
     );
   }
 
@@ -629,32 +626,6 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildAiFab() {
-    return GestureDetector(
-      onTap: () => context.push('/student/ai-chat'),
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF4F46E5).withValues(alpha: 0.5),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Center(
-          child: Text('🤖', style: TextStyle(fontSize: 20)),
-        ),
       ),
     );
   }

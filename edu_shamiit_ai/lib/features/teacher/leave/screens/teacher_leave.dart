@@ -176,6 +176,7 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
             ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showApplyLeaveDialog(),
         backgroundColor: const Color(0xFF8B5CF6),

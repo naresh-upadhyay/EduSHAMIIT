@@ -340,12 +340,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/student/ai-chat'),
-        backgroundColor: const Color(0xFF4F46E5),
-        child: const Text('🤖', style: TextStyle(fontSize: 20)),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      
 
     );
   }
