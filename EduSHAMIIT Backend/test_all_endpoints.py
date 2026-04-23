@@ -177,6 +177,11 @@ check("GET /api/teacher/messages",    requests.get(f"{BASE_URL}/api/teacher/mess
 check("GET /api/teacher/messages/chat",requests.get(f"{BASE_URL}/api/teacher/messages/chat",headers=T))
 check("GET /api/teacher/groups",      requests.get(f"{BASE_URL}/api/teacher/groups",     headers=T))
 check("PUT /api/teacher/user/settings",requests.put(f"{BASE_URL}/api/teacher/user/settings", headers=T, json={"dark_mode": False}))
+check("GET /api/teacher/homework",     requests.get(f"{BASE_URL}/api/teacher/homework",    headers=T))
+check("GET /api/teacher/exams",        requests.get(f"{BASE_URL}/api/teacher/exams",       headers=T))
+check("GET /api/teacher/notices",      requests.get(f"{BASE_URL}/api/teacher/notices",     headers=T))
+check("GET /api/teacher/leave",        requests.get(f"{BASE_URL}/api/teacher/leave",       headers=T))
+check("GET /api/teacher/materials",    requests.get(f"{BASE_URL}/api/teacher/materials",   headers=T))
 
 # Classes (need for dependent tests)
 b = check("GET /api/teacher/classes", requests.get(f"{BASE_URL}/api/teacher/classes", headers=T))
@@ -194,10 +199,15 @@ else:
     warn("Teacher class-detail / gradebook (no classes found)")
 
 # Resolve subject_id from timetable
-tt = (requests.get(f"{BASE_URL}/api/teacher/timetable", headers=T).json().get("data") or {}).get("schedule", [])
-subject_id = tt[0]["subject_id"] if tt else None
+subject_id = None
+for d in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]:
+    tt = (requests.get(f"{BASE_URL}/api/teacher/timetable?day={d}", headers=T).json().get("data") or {}).get("schedule", [])
+    if tt and tt[0].get("subject_id"):
+        subject_id = tt[0]["subject_id"]
+        break
 
 # Create homework
+created_hw_id = None
 if subject_id and first_class:
     b = check("POST /api/teacher/homework/create",
               requests.post(f"{BASE_URL}/api/teacher/homework/create", headers=T, json={
@@ -205,6 +215,7 @@ if subject_id and first_class:
                   "description": "Automated homework", "due_date": (datetime.now() + timedelta(days=5)).date().isoformat(),
                   "max_marks": 20, "target_class": first_class
               }))
+    created_hw_id = (b.get("data") or {}).get("homework_id")
 else:
     warn("POST /api/teacher/homework/create (no subject/class)")
 
@@ -217,6 +228,7 @@ if subject_id and first_class:
         check("POST /api/teacher/attendance/mark",
               requests.post(f"{BASE_URL}/api/teacher/attendance/mark", headers=T, json={
                   "subject_id": subject_id,
+                  "class_name": first_class,
                   "date": datetime.now().date().isoformat(),
                   "attendance_records": records
               }))
@@ -226,6 +238,10 @@ else:
     warn("POST /api/teacher/attendance/mark (no subject/class)")
 
 # Grade a submission
+if created_hw_id:
+    # Auto-submit as student so teacher can grade it
+    requests.post(f"{BASE_URL}/api/student/homework/submit", headers=S, json={"homework_id": created_hw_id, "submission_text": "Auto test submission"})
+
 subs = (requests.get(f"{BASE_URL}/api/teacher/submissions", headers=T).json().get("data") or {}).get("submissions", [])
 pending_sub = next((s for s in subs if s.get("status") == "submitted"), None)
 if pending_sub:
@@ -293,7 +309,7 @@ if subject_id and first_class:
     check("POST /api/teacher/materials/upload",
           requests.post(f"{BASE_URL}/api/teacher/materials/upload", headers=T, json={
               "title": "Auto Test Material", "description": "Test",
-              "material_type": "notes", "target_class": first_class,
+              "material_type": "Notes", "target_class": first_class,
               "attachment_urls": ["https://example.com/test.pdf"]
           }))
 else:

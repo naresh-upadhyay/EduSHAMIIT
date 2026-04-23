@@ -246,10 +246,18 @@ class TeacherDashboard {
               ?.map((item) => QuickAccessItem.fromJson(item as Map<String, dynamic>))
               .toList() ??
           const [
-            QuickAccessItem(title: 'Attendance', icon: '✅', route: '/teacher/attendance'),
+            QuickAccessItem(title: 'My Classes', icon: '📚', route: '/teacher/my-classes'),
+            QuickAccessItem(title: 'Attendance', icon: '📋', route: '/teacher/attendance'),
             QuickAccessItem(title: 'Homework', icon: '📝', route: '/teacher/homework'),
+            QuickAccessItem(title: 'Exams', icon: '📝', route: '/teacher/exams'),
             QuickAccessItem(title: 'Gradebook', icon: '📊', route: '/teacher/gradebook'),
-            QuickAccessItem(title: 'Classes', icon: '📚', route: '/teacher/my-classes'),
+            QuickAccessItem(title: 'Students', icon: '👥', route: '/teacher/student-directory'),
+            QuickAccessItem(title: 'Timetable', icon: '🗓️', route: '/teacher/timetable'),
+            QuickAccessItem(title: 'Notices', icon: '📢', route: '/teacher/notices'),
+            QuickAccessItem(title: 'Leave', icon: '🏖️', route: '/teacher/leave'),
+            QuickAccessItem(title: 'Live Class', icon: '🎥', route: '/teacher/live-classes'),
+            QuickAccessItem(title: 'Materials', icon: '📁', route: '/teacher/materials'),
+            QuickAccessItem(title: 'Salary', icon: '💰', route: '/teacher/salary'),
           ],
     );
   }

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -124,7 +124,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     final stats = _dashboardData!.stats;
 
     return SliverAppBar(
-      expandedHeight: 200,
+      expandedHeight: 230,
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
@@ -169,7 +169,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                                onPressed: () {},
+                                onPressed: () => context.push('/teacher/notifications'),
                               ),
                               Positioned(
                                 right: 8,
@@ -189,10 +189,13 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                             ],
                           ),
                           const SizedBox(width: 8),
-                          const CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Colors.white30,
-                            child: Text('👨‍🏫', style: TextStyle(fontSize: 20)),
+                          InkWell(
+                            onTap: () => context.push('/teacher/profile'),
+                            child: const CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Colors.white30,
+                              child: Text('👨‍🏫', style: TextStyle(fontSize: 20)),
+                            ),
                           ),
                         ],
                       ),

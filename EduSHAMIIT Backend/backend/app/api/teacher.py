@@ -101,6 +101,7 @@ async def mark_attendance(request: dict, user=Depends(require_teacher), school_i
         tasks.append(sb.table("attendance").upsert({
             "school_id": school_id, "student_id": record["student_id"],
             "subject_id": request.get("subject_id"), "teacher_id": user["id"],
+            "marked_by": user["id"], "class": request.get("class_name", ""),
             "date": date, "status": record["status"],
         }, on_conflict="school_id,student_id,subject_id,date").aexecute())
         
@@ -117,7 +118,7 @@ async def create_homework(request: dict, user=Depends(require_teacher), school_i
         "school_id": school_id, "subject_id": request.get("subject_id"), "teacher_id": user["id"],
         "title": request.get("title"), "description": request.get("description"),
         "due_date": request.get("due_date"), "max_marks": request.get("max_marks", 25),
-        "target_class": request.get("target_class"), "status": "active",
+        "class": request.get("target_class"), "status": "active",
     }).aexecute()
     return {"success": True, "school_id": school_id, "data": {"homework_id": homework.data[0]["id"]}}
 
@@ -379,3 +380,66 @@ async def teacher_get_groups(user=Depends(get_current_user), school_id=Depends(r
     sb = get_supabase()
     groups = (await sb.table("groups").select("*").eq("school_id", school_id).aexecute()).data
     return {"success": True, "school_id": school_id, "data": {"groups": groups}}
+
+
+@router.get("/homework")
+async def teacher_get_homework(status: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    query = sb.table("homework").select("*").eq("school_id", school_id).eq("teacher_id", user["id"])
+    if status and status.lower() != 'all':
+        query = query.eq("status", status.lower())
+    homework = (await query.order("created_at", ascending=False).aexecute()).data
+    return {"success": True, "school_id": school_id, "data": {"homework": homework}}
+
+
+@router.get("/exams")
+async def teacher_get_exams(type: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    query = sb.table("exams").select("*, subjects(name, class)").eq("school_id", school_id)
+    exams_data = (await query.order("start_time", ascending=False).aexecute()).data
+    
+    for e in exams_data:
+        subj = e.get("subjects") or {}
+        e["subject"] = subj.get("name", "Unknown")
+        if not e.get("class"):
+            e["class"] = subj.get("class", "Unknown")
+        if not e.get("exam_date"):
+            e["exam_date"] = e.get("start_time")
+        e["duration"] = str(e.get("duration_minutes", 0)) + " mins"
+        
+    if type and type.lower() != 'all':
+        exams_data = [e for e in exams_data if (e.get("exam_type") or "").lower() == type.lower()]
+
+    return {"success": True, "school_id": school_id, "data": {"exams": exams_data}}
+
+
+@router.get("/notices")
+async def teacher_get_notices(category: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    query = sb.table("notices").select("*").eq("school_id", school_id)
+    if category and category.lower() != 'all':
+        query = query.eq("category", category)
+    notices = (await query.order("published_at", ascending=False).aexecute()).data
+    for n in notices:
+        n["created_at"] = n.get("published_at")
+    return {"success": True, "school_id": school_id, "data": {"notices": notices}}
+
+
+@router.get("/leave")
+async def teacher_get_leave(status: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    query = sb.table("leave_applications").select("*").eq("school_id", school_id).eq("applicant_id", user["id"])
+    if status and status.lower() != 'all':
+        query = query.eq("status", status.lower())
+    applications = (await query.order("created_at", ascending=False).aexecute()).data
+    return {"success": True, "school_id": school_id, "data": {"applications": applications}}
+
+
+@router.get("/materials")
+async def teacher_get_materials(type: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    query = sb.table("study_materials").select("*").eq("school_id", school_id).eq("teacher_id", user["id"])
+    if type and type.lower() != 'all':
+        query = query.eq("material_type", type.lower())
+    materials = (await query.order("created_at", ascending=False).aexecute()).data
+    return {"success": True, "school_id": school_id, "data": {"materials": materials}}

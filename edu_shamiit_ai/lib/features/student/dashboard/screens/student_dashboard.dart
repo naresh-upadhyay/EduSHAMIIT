@@ -209,7 +209,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     final stats = _dashboardData!['stats'];
 
     return SliverAppBar(
-      expandedHeight: 210,
+      expandedHeight: 230,
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
@@ -254,62 +254,70 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                       ),
                       Row(
                         children: [
-                          Stack(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.notifications_outlined,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
+                          GestureDetector(
+                            onTap: () => context.push('/student/notifications'),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Center(
-                                    child: Text(
-                                      '3',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
+                                  child: const Icon(
+                                    Icons.notifications_outlined,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFEF4444),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '3',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const SizedBox(width: 10),
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF06B6D4), Color(0xFF4F46E5)],
+                          GestureDetector(
+                            onTap: () => context.push('/student/profile'),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF06B6D4), Color(0xFF4F46E5)],
+                                ),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
                               ),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.3),
-                                width: 2,
+                              child: Center(
+                                child: Text(
+                                  user['avatar_emoji'] ?? '🧑',
+                                  style: const TextStyle(fontSize: 18),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              user['avatar_emoji'] ?? '🧑',
-                              style: const TextStyle(fontSize: 18),
                             ),
                           ),
                         ],
@@ -375,10 +383,10 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.'),
-                      _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score'),
-                      _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank'),
-                      _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points'),
+                      _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.', route: '/student/attendance'),
+                      _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score', route: '/student/results'),
+                      _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank', route: '/student/leaderboard'),
+                      _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points', route: '/student/leaderboard'),
                     ],
                   ),
                 ],
@@ -390,27 +398,44 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     );
   }
 
-  Widget _buildStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: AppFonts.heading,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
+  Widget _buildStatItem(String value, String label, {String? route}) {
+    final child = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontFamily: AppFonts.heading,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 9,
-            color: Colors.white.withValues(alpha: 0.5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
+
+    if (route != null) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => context.push(route),
+          child: child,
+        ),
+      );
+    }
+    return Expanded(child: child);
   }
 
   String _getOrdinalSuffix(dynamic rank) {
@@ -573,6 +598,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
 
   Widget _buildScheduleCard(Map<String, dynamic> item) {
     final isNow = item['is_now'] == true;
+    final String startTime = item['start_time']?.toString() ?? '--:--';
+    final String endTime = item['end_time']?.toString() ?? '--:--';
+    final String subjectName = item['subject'] ?? item['subjects']?['name'] ?? 'Subject';
+    final String room = item['room']?.toString() ?? 'TBD';
+    final String teacher = item['teacher'] ?? item['profiles']?['full_name'] ?? 'TBD';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -586,7 +616,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           Column(
             children: [
               Text(
-                item['start_time'],
+                startTime,
                 style: TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 10,
@@ -595,7 +625,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                 ),
               ),
               Text(
-                item['end_time'],
+                endTime,
                 style: TextStyle(
                   fontSize: 9,
                   color: isNow ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
@@ -618,7 +648,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['subject'],
+                  subjectName,
                   style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 12,
@@ -627,7 +657,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                   ),
                 ),
                 Text(
-                  'Room ${item['room']} · ${item['teacher']}',
+                  'Room $room · $teacher',
                   style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFF94A3B8),
@@ -754,6 +784,10 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
 
   Widget _buildHomeworkCard(Map<String, dynamic> hw) {
     final isUrgent = hw['status'] == 'due_today';
+    final String icon = hw['icon'] ?? hw['subjects']?['icon'] ?? '📝';
+    final String title = hw['title'] ?? 'Homework';
+    final String subjectName = hw['subject'] ?? hw['subjects']?['name'] ?? 'Subject';
+    final String dueDate = hw['due_date']?.toString() ?? 'TBD';
 
     return GestureDetector(
       onTap: () => context.push('/student/homework'),
@@ -777,7 +811,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
-                child: Text(hw['icon'], style: const TextStyle(fontSize: 14)),
+                child: Text(icon, style: const TextStyle(fontSize: 14)),
               ),
             ),
             const SizedBox(width: 10),
@@ -786,7 +820,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    hw['title'],
+                    title,
                     style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 12,
@@ -796,7 +830,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    hw['subject'],
+                    subjectName,
                     style: const TextStyle(
                       fontSize: 10,
                       color: Color(0xFF94A3B8),
@@ -806,7 +840,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               ),
             ),
             Text(
-              hw['due_date'],
+              dueDate,
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,

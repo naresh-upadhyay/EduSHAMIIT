@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -37,25 +37,57 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
     }
 
     if (entries.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF0F4FF),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.leaderboard, size: 64, color: StudentColors.text3),
-              SizedBox(height: 16),
-              Text(
-                'No leaderboard data',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: StudentColors.text3,
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4FF),
+        body: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
                 ),
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => context.pop(),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Leaderboard',
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.leaderboard, size: 64, color: StudentColors.text3),
+                    SizedBox(height: 16),
+                    Text(
+                      'No leaderboard data',
+                      style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: StudentColors.text3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
