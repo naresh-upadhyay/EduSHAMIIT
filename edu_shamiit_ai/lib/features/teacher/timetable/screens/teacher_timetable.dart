@@ -82,7 +82,7 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
 
           // Day selector
           SizedBox(
-            height: 44,
+            height: 56,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

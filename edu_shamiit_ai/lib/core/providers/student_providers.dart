@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:edu_shamiit_ai/core/config/app_config.dart';
-import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:edu_shamiit_ai/core/services/api_service.dart';
+import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
 
 // ============================================================================
 // DATA MODELS
@@ -332,38 +330,22 @@ class AttendanceState {
 }
 
 class AttendanceNotifier extends StateNotifier<AttendanceState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  AttendanceNotifier(this.ref) : super(AttendanceState());
+  AttendanceNotifier(this._apiService) : super(AttendanceState());
 
   Future<void> fetchAttendance() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/attendance'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final rawRecords = data['records'] ?? data['subject_wise'] ?? [];
-        final recordsList = (rawRecords as List).map((r) => AttendanceRecord.fromJson(r)).toList();
-        state = state.copyWith(
-          isLoading: false,
-          records: recordsList,
-          summary: data['summary'] as Map<String, dynamic>? ?? data,
-        );
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'Failed to fetch attendance',
-        );
-      }
+      final response = await _apiService.get('/student/attendance');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final rawRecords = data['records'] ?? data['subject_wise'] ?? [];
+      final recordsList = (rawRecords as List).map((r) => AttendanceRecord.fromJson(r)).toList();
+      state = state.copyWith(
+        isLoading: false,
+        records: recordsList,
+        summary: data['summary'] as Map<String, dynamic>? ?? data,
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -374,7 +356,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
 }
 
 final attendanceProvider = StateNotifierProvider<AttendanceNotifier, AttendanceState>((ref) {
-  return AttendanceNotifier(ref);
+  return AttendanceNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -406,33 +388,20 @@ class LeaveState {
 }
 
 class LeaveNotifier extends StateNotifier<LeaveState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  LeaveNotifier(this.ref) : super(LeaveState());
+  LeaveNotifier(this._apiService) : super(LeaveState());
 
   Future<void> fetchLeaveApplications() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/leave-applications'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final apps = (data['applications'] ?? data['leave'] ?? [] as List).map((a) => LeaveApplication.fromJson(a)).toList();
-        state = state.copyWith(
-          isLoading: false,
-          applications: apps,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch leave applications');
-      }
+      final response = await _apiService.get('/student/leave-applications');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final apps = (data['applications'] ?? data['leave'] ?? [] as List).map((a) => LeaveApplication.fromJson(a)).toList();
+      state = state.copyWith(
+        isLoading: false,
+        applications: apps,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -446,28 +415,14 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/leave-applications'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'type': type,
-          'start_date': startDate,
-          'end_date': endDate,
-          'reason': reason,
-        }),
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 201) {
-        await fetchLeaveApplications();
-        return true;
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to submit leave application');
-        return false;
-      }
+      await _apiService.post('/student/leave-applications', {
+        'type': type,
+        'start_date': startDate,
+        'end_date': endDate,
+        'reason': reason,
+      });
+      await fetchLeaveApplications();
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;
@@ -476,7 +431,7 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
 }
 
 final leaveProvider = StateNotifierProvider<LeaveNotifier, LeaveState>((ref) {
-  return LeaveNotifier(ref);
+  return LeaveNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -520,38 +475,25 @@ class LibraryState {
 }
 
 class LibraryNotifier extends StateNotifier<LibraryState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  LibraryNotifier(this.ref) : super(LibraryState());
+  LibraryNotifier(this._apiService) : super(LibraryState());
 
   Future<void> fetchLibraryData() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/library'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final borrowsList = (data['borrows'] ?? [] as List).map((b) => LibraryBorrow.fromJson(b)).toList();
-        final active = borrowsList.where((b) => b.status == 'borrowed').length;
-        final overdue = borrowsList.where((b) => b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && b.returnedAt == null).length;
-        state = state.copyWith(
-          isLoading: false,
-          borrows: borrowsList,
-          totalBorrows: borrowsList.length,
-          activeBorrows: active,
-          overdueBooks: overdue,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch library data');
-      }
+      final response = await _apiService.get('/student/library');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final borrowsList = (data['borrows'] ?? [] as List).map((b) => LibraryBorrow.fromJson(b)).toList();
+      final active = borrowsList.where((b) => b.status == 'borrowed').length;
+      final overdue = borrowsList.where((b) => b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && b.returnedAt == null).length;
+      state = state.copyWith(
+        isLoading: false,
+        borrows: borrowsList,
+        totalBorrows: borrowsList.length,
+        activeBorrows: active,
+        overdueBooks: overdue,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -559,7 +501,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 }
 
 final libraryProvider = StateNotifierProvider<LibraryNotifier, LibraryState>((ref) {
-  return LibraryNotifier(ref);
+  return LibraryNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -599,35 +541,22 @@ class CoursesState {
 }
 
 class CoursesNotifier extends StateNotifier<CoursesState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  CoursesNotifier(this.ref) : super(CoursesState());
+  CoursesNotifier(this._apiService) : super(CoursesState());
 
   Future<void> fetchCourses() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/courses'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final coursesList = (data['courses'] ?? [] as List).map((c) => Course.fromJson(c)).toList();
-        state = state.copyWith(
-          isLoading: false,
-          courses: coursesList,
-          totalCredits: data['total_credits'] as int? ?? 0,
-          averageProgress: (data['average_progress'] as num?)?.toDouble() ?? 0.0,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch courses');
-      }
+      final response = await _apiService.get('/student/courses');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final coursesList = (data['courses'] ?? [] as List).map((c) => Course.fromJson(c)).toList();
+      state = state.copyWith(
+        isLoading: false,
+        courses: coursesList,
+        totalCredits: data['total_credits'] as int? ?? 0,
+        averageProgress: (data['average_progress'] as num?)?.toDouble() ?? 0.0,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -635,7 +564,7 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
 }
 
 final coursesProvider = StateNotifierProvider<CoursesNotifier, CoursesState>((ref) {
-  return CoursesNotifier(ref);
+  return CoursesNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -671,35 +600,22 @@ class NotificationsState {
 }
 
 class NotificationsNotifier extends StateNotifier<NotificationsState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  NotificationsNotifier(this.ref) : super(NotificationsState());
+  NotificationsNotifier(this._apiService) : super(NotificationsState());
 
   Future<void> fetchNotifications() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/notifications'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final notificationsList = (data['notifications'] ?? [] as List).map((n) => NotificationItem.fromJson(n)).toList();
-        final unread = notificationsList.where((n) => !n.isRead).length;
-        state = state.copyWith(
-          isLoading: false,
-          notifications: notificationsList,
-          unreadCount: unread,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch notifications');
-      }
+      final response = await _apiService.get('/student/notifications');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final notificationsList = (data['notifications'] ?? [] as List).map((n) => NotificationItem.fromJson(n)).toList();
+      final unread = notificationsList.where((n) => !n.isRead).length;
+      state = state.copyWith(
+        isLoading: false,
+        notifications: notificationsList,
+        unreadCount: unread,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -707,14 +623,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
   Future<void> markAsRead(String notificationId) async {
     try {
-      final token = ref.read(authProvider).token;
-      await http.put(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/notifications/$notificationId/read'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
+      await _apiService.put('/student/notifications/$notificationId/read', {});
 
       // Update local state
       state = state.copyWith(
@@ -740,7 +649,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 }
 
 final notificationsProvider = StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
-  return NotificationsNotifier(ref);
+  return NotificationsNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -780,35 +689,22 @@ class LiveClassesState {
 }
 
 class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  LiveClassesNotifier(this.ref) : super(LiveClassesState());
+  LiveClassesNotifier(this._apiService) : super(LiveClassesState());
 
   Future<void> fetchLiveClasses() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/live-classes'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final classesList = (data['classes'] ?? [] as List).map((c) => LiveClass.fromJson(c)).toList();
-        state = state.copyWith(
-          isLoading: false,
-          classes: classesList,
-          liveCount: data['live_count'] as int? ?? 0,
-          upcomingCount: data['upcoming_count'] as int? ?? 0,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch live classes');
-      }
+      final response = await _apiService.get('/student/live-classes');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final classesList = (data['classes'] ?? [] as List).map((c) => LiveClass.fromJson(c)).toList();
+      state = state.copyWith(
+        isLoading: false,
+        classes: classesList,
+        liveCount: data['live_count'] as int? ?? 0,
+        upcomingCount: data['upcoming_count'] as int? ?? 0,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -816,7 +712,7 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
 }
 
 final liveClassesProvider = StateNotifierProvider<LiveClassesNotifier, LiveClassesState>((ref) {
-  return LiveClassesNotifier(ref);
+  return LiveClassesNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -856,41 +752,28 @@ class LeaderboardState {
 }
 
 class LeaderboardNotifier extends StateNotifier<LeaderboardState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  LeaderboardNotifier(this.ref) : super(LeaderboardState());
+  LeaderboardNotifier(this._apiService) : super(LeaderboardState());
 
   Future<void> fetchLeaderboard() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/leaderboard'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final rawEntries = data['entries'] ?? data['leaderboard'] ?? [];
-        
-        List<LeaderboardEntry> entriesList = [];
-        for (int i = 0; i < (rawEntries as List).length; i++) {
-          entriesList.add(LeaderboardEntry.fromJson(rawEntries[i], i));
-        }
-        
-        state = state.copyWith(
-          isLoading: false,
-          entries: entriesList,
-          userRank: data['user_rank'] as int? ?? 0,
-          userCgpa: (data['user_cgpa'] as num?)?.toDouble() ?? 0.0,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch leaderboard');
+      final response = await _apiService.get('/student/leaderboard');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final rawEntries = data['entries'] ?? data['leaderboard'] ?? [];
+      
+      List<LeaderboardEntry> entriesList = [];
+      for (int i = 0; i < (rawEntries as List).length; i++) {
+        entriesList.add(LeaderboardEntry.fromJson(rawEntries[i], i));
       }
+      
+      state = state.copyWith(
+        isLoading: false,
+        entries: entriesList,
+        userRank: data['user_rank'] as int? ?? 0,
+        userCgpa: (data['user_cgpa'] as num?)?.toDouble() ?? 0.0,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -898,7 +781,7 @@ class LeaderboardNotifier extends StateNotifier<LeaderboardState> {
 }
 
 final leaderboardProvider = StateNotifierProvider<LeaderboardNotifier, LeaderboardState>((ref) {
-  return LeaderboardNotifier(ref);
+  return LeaderboardNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -934,35 +817,22 @@ class MessagingState {
 }
 
 class MessagingNotifier extends StateNotifier<MessagingState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  MessagingNotifier(this.ref) : super(MessagingState());
+  MessagingNotifier(this._apiService) : super(MessagingState());
 
   Future<void> fetchMessages() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/messages'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final messagesList = (data['messages'] ?? [] as List).map((m) => MessageItem.fromJson(m)).toList();
-        final unread = messagesList.where((m) => !m.isRead).length;
-        state = state.copyWith(
-          isLoading: false,
-          messages: messagesList,
-          unreadCount: unread,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch messages');
-      }
+      final response = await _apiService.get('/student/messages');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final messagesList = (data['messages'] ?? [] as List).map((m) => MessageItem.fromJson(m)).toList();
+      final unread = messagesList.where((m) => !m.isRead).length;
+      state = state.copyWith(
+        isLoading: false,
+        messages: messagesList,
+        unreadCount: unread,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -970,21 +840,12 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
 
   Future<bool> sendMessage(String content, String receiverId) async {
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/messages/send'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'content': content, 'receiver_id': receiverId}),
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        await fetchMessages();
-        return true;
-      }
-      return false;
+      await _apiService.post('/student/messages/send', {
+        'content': content,
+        'receiver_id': receiverId,
+      });
+      await fetchMessages();
+      return true;
     } catch (e) {
       return false;
     }
@@ -992,7 +853,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
 }
 
 final messagingProvider = StateNotifierProvider<MessagingNotifier, MessagingState>((ref) {
-  return MessagingNotifier(ref);
+  return MessagingNotifier(ref.watch(apiServiceProvider));
 });
 
 // ============================================================================
@@ -1036,39 +897,26 @@ class OnlineExamState {
 }
 
 class OnlineExamNotifier extends StateNotifier<OnlineExamState> {
-  final Ref ref;
+  final ApiService _apiService;
 
-  OnlineExamNotifier(this.ref) : super(OnlineExamState());
+  OnlineExamNotifier(this._apiService) : super(OnlineExamState());
 
   Future<void> fetchExams() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final token = ref.read(authProvider).token;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/student/exams'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
-        final examsList = (data['exams'] ?? [] as List).map((e) => ExamItem.fromJson(e)).toList();
-        final upcoming = examsList.where((e) => e.status == 'upcoming').length;
-        final ongoing = examsList.where((e) => e.status == 'ongoing').length;
-        final completed = examsList.where((e) => e.status == 'completed').length;
-        state = state.copyWith(
-          isLoading: false,
-          exams: examsList,
-          upcomingCount: upcoming,
-          ongoingCount: ongoing,
-          completedCount: completed,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: 'Failed to fetch exams');
-      }
+      final response = await _apiService.get('/student/exams');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final examsList = (data['exams'] ?? [] as List).map((e) => ExamItem.fromJson(e)).toList();
+      final upcoming = examsList.where((e) => e.status == 'upcoming').length;
+      final ongoing = examsList.where((e) => e.status == 'ongoing').length;
+      final completed = examsList.where((e) => e.status == 'completed').length;
+      state = state.copyWith(
+        isLoading: false,
+        exams: examsList,
+        upcomingCount: upcoming,
+        ongoingCount: ongoing,
+        completedCount: completed,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -1076,5 +924,5 @@ class OnlineExamNotifier extends StateNotifier<OnlineExamState> {
 }
 
 final onlineExamProvider = StateNotifierProvider<OnlineExamNotifier, OnlineExamState>((ref) {
-  return OnlineExamNotifier(ref);
+  return OnlineExamNotifier(ref.watch(apiServiceProvider));
 });
