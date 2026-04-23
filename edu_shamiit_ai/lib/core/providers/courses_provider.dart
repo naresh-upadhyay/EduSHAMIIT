@@ -130,7 +130,11 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
     try {
       final response = await _apiService.get('/student/courses');
       if (response['success'] == true) {
-        final coursesList = (response['data'] as List<dynamic>)
+        final data = response['data'];
+        final List<dynamic> rawList = data is List 
+            ? data 
+            : (data is Map ? data.values.firstWhere((v) => v is List, orElse: () => []) as List : []);
+        final coursesList = rawList
             .map((course) => CourseModel.fromJson(course))
             .toList();
         state = state.copyWith(

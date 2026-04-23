@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -74,7 +74,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
     final records = attendanceState.records;
     final summary = attendanceState.summary;
     
-    final overallPct = summary['overall_percentage'] as num? ?? 0.0;
+    final overallPct = summary['overall_pct'] as num? ?? 0.0;
     final presentDays = summary['present_days'] as int? ?? 0;
     final absentDays = summary['absent_days'] as int? ?? 0;
     final lateDays = summary['late_days'] as int? ?? 0;

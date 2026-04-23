@@ -250,7 +250,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                 // Day chips
                 const SizedBox(height: 12),
                 SizedBox(
-                  height: 52,
+                  height: 56,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _dayData.length,
@@ -263,7 +263,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                           setState(() => _selectedDay = index);
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                           decoration: BoxDecoration(
                             color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
                             borderRadius: BorderRadius.circular(14),
@@ -328,7 +328,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
       ),
       // AI FAB
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/student/aichat'),
+        onPressed: () => context.push('/ai-chat'),
         backgroundColor: const Color(0xFF4F46E5),
         child: const Text('🤖', style: TextStyle(fontSize: 20)),
       ),

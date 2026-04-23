@@ -39,7 +39,8 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
         return StudentProfile.fromJson(data);
       } else {
         // Fallback to mock data when API fails
@@ -92,7 +93,8 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
         return AttendanceSummary.fromJson(data);
       } else {
         // Fallback to mock data when API fails
@@ -124,7 +126,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -165,7 +172,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -223,7 +235,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -246,13 +263,18 @@ class StudentApiService {
     try {
       final response = await _client
           .get(
-            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/schedule'),
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams'),
             headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -282,7 +304,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => ExamResult.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -364,7 +391,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -422,7 +454,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -489,7 +526,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -550,7 +592,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => Notice.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -591,7 +638,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => StudentNotification.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -663,7 +715,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => Event.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -719,7 +776,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -760,7 +822,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -799,7 +866,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) =>
                 StudentLeaveApplication.fromJson(e as Map<String, dynamic>))
@@ -873,7 +945,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -902,7 +979,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -941,7 +1023,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => Course.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -984,7 +1071,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map((e) => Message.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -1071,7 +1163,12 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') 
+            ? (decoded['data'] is List 
+                ? decoded['data'] as List 
+                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            : [];
         return data
             .map(
                 (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))

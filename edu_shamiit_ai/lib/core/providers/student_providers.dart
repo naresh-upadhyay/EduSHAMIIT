@@ -22,8 +22,8 @@ class AttendanceRecord {
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
     return AttendanceRecord(
-      status: json['status'] as String,
-      subjectName: json['subjects']?['name'] as String?,
+      status: json['status'] as String? ?? 'present',
+      subjectName: (json['subjects']?['name'] ?? json['subject']) as String?,
       subject: json['subjects'] as Map<String, dynamic>?,
     );
   }
@@ -214,12 +214,12 @@ class LeaderboardEntry {
     required this.learningStreak,
   });
 
-  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json, int index) {
     return LeaderboardEntry(
-      rank: 0, // Will be set by list index
-      studentId: json['id'] as String,
-      studentName: json['full_name'] as String,
-      avatarUrl: json['avatar_url'] as String?,
+      rank: index + 1,
+      studentId: json['id']?.toString() ?? '',
+      studentName: json['full_name']?.toString() ?? 'Student',
+      avatarUrl: json['avatar_url']?.toString(),
       xpPoints: json['xp_points'] as int? ?? 0,
       learningStreak: json['learning_streak'] as int? ?? 0,
     );
@@ -349,12 +349,14 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final recordsList = (data['records'] as List).map((r) => AttendanceRecord.fromJson(r)).toList();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final rawRecords = data['records'] ?? data['subject_wise'] ?? [];
+        final recordsList = (rawRecords as List).map((r) => AttendanceRecord.fromJson(r)).toList();
         state = state.copyWith(
           isLoading: false,
           records: recordsList,
-          summary: data['summary'] as Map<String, dynamic>? ?? {},
+          summary: data['summary'] as Map<String, dynamic>? ?? data,
         );
       } else {
         state = state.copyWith(
@@ -421,8 +423,9 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final apps = (data['applications'] as List).map((a) => LeaveApplication.fromJson(a)).toList();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final apps = (data['applications'] ?? data['leave'] ?? [] as List).map((a) => LeaveApplication.fromJson(a)).toList();
         state = state.copyWith(
           isLoading: false,
           applications: apps,
@@ -534,8 +537,9 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final borrowsList = (data['borrows'] as List).map((b) => LibraryBorrow.fromJson(b)).toList();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final borrowsList = (data['borrows'] ?? [] as List).map((b) => LibraryBorrow.fromJson(b)).toList();
         final active = borrowsList.where((b) => b.status == 'borrowed').length;
         final overdue = borrowsList.where((b) => b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && b.returnedAt == null).length;
         state = state.copyWith(
@@ -612,11 +616,12 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final courses = (data['courses'] as List).map((c) => Course.fromJson(c)).toList();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final coursesList = (data['courses'] ?? [] as List).map((c) => Course.fromJson(c)).toList();
         state = state.copyWith(
           isLoading: false,
-          courses: courses,
+          courses: coursesList,
           totalCredits: data['total_credits'] as int? ?? 0,
           averageProgress: (data['average_progress'] as num?)?.toDouble() ?? 0.0,
         );
@@ -683,12 +688,13 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final notifications = (data['notifications'] as List).map((n) => NotificationItem.fromJson(n)).toList();
-        final unread = notifications.where((n) => !n.isRead).length;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final notificationsList = (data['notifications'] ?? [] as List).map((n) => NotificationItem.fromJson(n)).toList();
+        final unread = notificationsList.where((n) => !n.isRead).length;
         state = state.copyWith(
           isLoading: false,
-          notifications: notifications,
+          notifications: notificationsList,
           unreadCount: unread,
         );
       } else {
@@ -791,11 +797,12 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final classes = (data['classes'] as List).map((c) => LiveClass.fromJson(c)).toList();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final classesList = (data['classes'] ?? [] as List).map((c) => LiveClass.fromJson(c)).toList();
         state = state.copyWith(
           isLoading: false,
-          classes: classes,
+          classes: classesList,
           liveCount: data['live_count'] as int? ?? 0,
           upcomingCount: data['upcoming_count'] as int? ?? 0,
         );
@@ -866,11 +873,18 @@ class LeaderboardNotifier extends StateNotifier<LeaderboardState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final entries = (data['entries'] as List).map((e) => LeaderboardEntry.fromJson(e)).toList();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final rawEntries = data['entries'] ?? data['leaderboard'] ?? [];
+        
+        List<LeaderboardEntry> entriesList = [];
+        for (int i = 0; i < (rawEntries as List).length; i++) {
+          entriesList.add(LeaderboardEntry.fromJson(rawEntries[i], i));
+        }
+        
         state = state.copyWith(
           isLoading: false,
-          entries: entries,
+          entries: entriesList,
           userRank: data['user_rank'] as int? ?? 0,
           userCgpa: (data['user_cgpa'] as num?)?.toDouble() ?? 0.0,
         );
@@ -937,12 +951,13 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final messages = (data['messages'] as List).map((m) => MessageItem.fromJson(m)).toList();
-        final unread = messages.where((m) => !m.isRead).length;
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final messagesList = (data['messages'] ?? [] as List).map((m) => MessageItem.fromJson(m)).toList();
+        final unread = messagesList.where((m) => !m.isRead).length;
         state = state.copyWith(
           isLoading: false,
-          messages: messages,
+          messages: messagesList,
           unreadCount: unread,
         );
       } else {
@@ -1038,8 +1053,9 @@ class OnlineExamNotifier extends StateNotifier<OnlineExamState> {
       ).timeout(AppConfig.apiTimeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final examsList = (data['exams'] as List).map((e) => ExamItem.fromJson(e)).toList();
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        final examsList = (data['exams'] ?? [] as List).map((e) => ExamItem.fromJson(e)).toList();
         final upcoming = examsList.where((e) => e.status == 'upcoming').length;
         final ongoing = examsList.where((e) => e.status == 'ongoing').length;
         final completed = examsList.where((e) => e.status == 'completed').length;

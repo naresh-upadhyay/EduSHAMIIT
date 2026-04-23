@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -190,17 +190,11 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
             ),
           ),
 
-          // AI FAB
-          Positioned(
-            bottom: 80,
-            right: 16,
-            child: _buildAiFab(),
-          ),
-
-          // Bottom Navigation
-          _buildBottomNav(),
         ],
       ),
+      floatingActionButton: _buildAiFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -269,7 +263,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
     final minutes = _timeRemaining.inMinutes.remainder(60);
 
     return Container(
-      margin: const EdgeInsets.only(top: -10),
+      margin: const EdgeInsets.only(top: 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: StudentColors.surface,
@@ -396,7 +390,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
           ),
           const SizedBox(height: 10),
           GestureDetector(
-            onTap: () => context.push('/student/aichat'),
+            onTap: () => context.push('/ai-chat'),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
@@ -640,7 +634,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
 
   Widget _buildAiFab() {
     return GestureDetector(
-      onTap: () => context.push('/student/aichat'),
+      onTap: () => context.push('/ai-chat'),
       child: Container(
         width: 46,
         height: 46,

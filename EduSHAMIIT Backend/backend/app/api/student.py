@@ -71,17 +71,25 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
             "user": {"full_name": profile["full_name"], "class": profile.get("class"), "xp_points": profile.get("xp_points", 0), "learning_streak": profile.get("learning_streak", 0), "avatar_url": profile.get("avatar_url")},
             "stats": {"attendance_pct": round(att_pct, 1), "avg_score": round(avg_score, 1), "class_rank": class_rank, "xp_points": profile.get("xp_points", 0)},
             "today_schedule": schedule, "pending_homework": homework,
-            "quick_access": [
-                {"title": "Timetable", "icon": "📅", "route": "/student/timetable"}, {"title": "Results", "icon": "📊", "route": "/student/results"},
-                {"title": "Fees", "icon": "💰", "route": "/student/fees"}, {"title": "Notices", "icon": "📢", "route": "/student/notices"},
-                {"title": "Homework", "icon": "📝", "route": "/student/homework"}, {"title": "Transport", "icon": "🚌", "route": "/student/transport"},
-                {"title": "Events", "icon": "🎉", "route": "/student/events"}, {"title": "Attendance", "icon": "📊", "route": "/student/attendance"},
-                {"title": "Library", "icon": "📚", "route": "/student/library"}, {"title": "Courses", "icon": "📖", "route": "/student/courses"},
-                {"title": "Exams", "icon": "📝", "route": "/student/exams"}, {"title": "Live Class", "icon": "🎥", "route": "/student/live-classes"},
-                {"title": "Messages", "icon": "💬", "route": "/messaging"}, {"title": "Achievements", "icon": "🏆", "route": "/student/achievements"},
-                {"title": "Leave", "icon": "🏖️", "route": "/student/leave"}, {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard"},
+                        "quick_access": [
+                {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
+                {"title": "Results", "icon": "📊", "route": "/student/results", "bg": "FDF4FF"},
+                {"title": "Fees", "icon": "💳", "route": "/student/fees", "bg": "ECFDF5"},
+                {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
+                {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
+                {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
+                {"title": "Events", "icon": "📅", "route": "/student/events", "bg": "FEF3C7"},
+                {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
+                {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
+                {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
+                {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
+                {"title": "Leave", "icon": "✉️", "route": "/student/leave-application", "bg": "FEF2F2"},
+                {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
+                {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": True},
+                {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
+                {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard", "bg": "FEF3C7"},
             ],
-        }
+}
     }
     await set_cached(school_id, "dashboard", result, user["id"], ttl=120)
     return result

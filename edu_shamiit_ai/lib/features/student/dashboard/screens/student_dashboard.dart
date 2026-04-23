@@ -137,11 +137,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
         {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
         {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
-        {"title": "Leave", "icon": "✉️", "route": "/student/leave", "bg": "FEF2F2"},
+        {"title": "Leave", "icon": "✉️", "route": "/student/leave-application", "bg": "FEF2F2"},
         {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
         {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": true},
-        {"title": "Messages", "icon": "💬", "route": "/student/messages", "bg": "E0E7FF"},
-        {"title": "Certificates", "icon": "🎓", "route": "/student/certificates", "bg": "FEF3C7"},
+        {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
+        {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard", "bg": "FEF3C7"},
       ],
     };
   }
@@ -377,7 +377,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                     children: [
                       _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.'),
                       _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score'),
-                      _buildStatItem('${stats['class_rank'] ?? '-'}rd', 'Rank'),
+                      _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank'),
                       _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points'),
                     ],
                   ),
@@ -411,6 +411,19 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         ),
       ],
     );
+  }
+
+  String _getOrdinalSuffix(dynamic rank) {
+    if (rank == null) return '';
+    int? n = int.tryParse(rank.toString());
+    if (n == null) return '';
+    if (n % 100 >= 11 && n % 100 <= 13) return 'th';
+    switch (n % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
   }
 
   Widget _buildQuickAccessGrid() {
