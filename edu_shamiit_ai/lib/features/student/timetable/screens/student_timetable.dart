@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
@@ -220,7 +221,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => context.pop(),
+                      onPressed: () => safeGoBack(context, '/student/dashboard'),
                     ),
                     const SizedBox(width: 12),
                     const Expanded(
@@ -333,8 +334,6 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
         child: const Text('🤖', style: TextStyle(fontSize: 20)),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      // Bottom nav placeholder
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -467,52 +466,4 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     );
   }
 
-  Widget _buildBottomNav() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem('🏠', 'Home', false, () => context.go('/student/dashboard')),
-          _buildNavItem('🗓️', 'Timetable', true, null),
-          _buildNavItem('📊', 'Results', false, () => context.go('/student/results')),
-          _buildNavItem('📝', 'Homework', false, () => context.go('/student/homework')),
-          _buildNavItem('👤', 'Profile', false, () => context.go('/student/profile')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String icon, String label, bool isActive, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 36,
-            height: 28,
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFFEEF2FF) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(child: Text(icon, style: const TextStyle(fontSize: 16))),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? StudentColors.primary : StudentColors.text3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 
@@ -127,7 +127,7 @@ class _StudentEventsState extends State<StudentEvents> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -149,7 +149,7 @@ class _StudentEventsState extends State<StudentEvents> {
                   child: const Row(
                     children: [
                       Text(
-                        '🤖',
+                        '??',
                         style: TextStyle(fontSize: 12),
                       ),
                       SizedBox(width: 4),
@@ -209,7 +209,7 @@ class _StudentEventsState extends State<StudentEvents> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          '📭',
+                          '??',
                           style: TextStyle(fontSize: 48),
                         ),
                         const SizedBox(height: 16),
@@ -374,7 +374,7 @@ class _StudentEventsState extends State<StudentEvents> {
                             ),
                           ),
                           child: const Text(
-                            '🎯 Register Now',
+                            '?? Register Now',
                             style: TextStyle(
                               fontFamily: AppFonts.heading,
                               fontSize: 12,
@@ -444,7 +444,7 @@ class _StudentEventsState extends State<StudentEvents> {
                           ),
                         ),
                         child: const Text(
-                          '📤',
+                          '??',
                           style: TextStyle(fontSize: 16),
                         ),
                       ),

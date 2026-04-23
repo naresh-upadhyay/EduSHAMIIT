@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
@@ -41,17 +41,17 @@ class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
   String _getIconForType(String type) {
     switch (type) {
       case 'homework':
-        return '📝';
+        return '??';
       case 'fee':
-        return '💳';
+        return '??';
       case 'result':
-        return '📊';
+        return '??';
       case 'transport':
-        return '🚌';
+        return '??';
       case 'achievement':
-        return '🏆';
+        return '??';
       default:
-        return '📢';
+        return '??';
     }
   }
 
@@ -88,7 +88,7 @@ class _StudentNotificationsState extends ConsumerState<StudentNotifications> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(

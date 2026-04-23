@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/live_classes_provider.dart';
@@ -33,7 +33,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -53,7 +53,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '🔴 ${liveClassesState.liveNow.length} Live Now',
+                    '?? ${liveClassesState.liveNow.length} Live Now',
                     style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -71,7 +71,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                         children: [
                           // Live Now Section
                           const Text(
-                            '🔴 LIVE NOW',
+                            '?? LIVE NOW',
                             style: TextStyle(
                               fontFamily: AppFonts.heading,
                               fontSize: 10,
@@ -87,7 +87,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                           
                           // Upcoming Section
                           const Text(
-                            '📅 UPCOMING TODAY',
+                            '?? UPCOMING TODAY',
                             style: TextStyle(
                               fontFamily: AppFonts.heading,
                               fontSize: 10,
@@ -108,7 +108,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                           
                           // Recorded Section
                           const Text(
-                            '📋 RECORDED CLASSES',
+                            '?? RECORDED CLASSES',
                             style: TextStyle(
                               fontFamily: AppFonts.heading,
                               fontSize: 10,
@@ -201,7 +201,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '👥 ${cls.viewers ?? 0} watching',
+                      '?? ${cls.viewers ?? 0} watching',
                       style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                   ),
@@ -218,7 +218,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: StudentColors.primary, width: 2),
                     ),
-                    child: const Center(child: Text('👨‍🏫', style: TextStyle(fontSize: 20))),
+                    child: const Center(child: Text('?????', style: TextStyle(fontSize: 20))),
                   ),
                 ),
               ],
@@ -240,7 +240,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${cls.teacher} · ${cls.started ?? ''}',
+                  '${cls.teacher} � ${cls.started ?? ''}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -258,7 +258,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        child: const Text('▶ Join Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        child: const Text('? Join Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -322,7 +322,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${cls.teacher} · ${cls.time ?? ''}',
+                  '${cls.teacher} � ${cls.time ?? ''}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -375,7 +375,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: StudentColors.border),
             ),
-            child: const Center(child: Text('📹', style: TextStyle(fontSize: 18))),
+            child: const Center(child: Text('??', style: TextStyle(fontSize: 18))),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -409,7 +409,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('▶ Play', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+            child: const Text('? Play', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -427,7 +427,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
 
   void _playRecording(LiveClassModel cls) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('🎥 Playing: ${cls.subject}')),
+      SnackBar(content: Text('?? Playing: ${cls.subject}')),
     );
   }
 }
@@ -446,7 +446,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
   final List<Map<String, dynamic>> _comments = [
     {
       'user': 'Dr. A. Verma',
-      'avatar': '👨‍🏫',
+      'avatar': '?????',
       'text': 'Today we\'ll cover Chapter 9: Optics. Please keep your NCERT books open on page 312. Ask doubts in the comment section!',
       'time': '25 min ago',
       'likes': 45,
@@ -462,14 +462,14 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
     {
       'user': 'Rahul V',
       'avatar': 'R',
-      'text': 'This is the best explanation! Understood everything clearly 🔥',
+      'text': 'This is the best explanation! Understood everything clearly ??',
       'time': '18 min ago',
       'likes': 8,
     },
     {
       'user': 'Neha S',
       'avatar': 'N',
-      'text': 'Can we get a practice problem after this section? 📝',
+      'text': 'Can we get a practice problem after this section? ??',
       'time': '15 min ago',
       'likes': 5,
     },
@@ -545,7 +545,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '👁️ ${widget.classData.viewers}.2k',
+                      '??? ${widget.classData.viewers}.2k',
                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                   ),
@@ -574,7 +574,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: StudentColors.primary, width: 2),
                     ),
-                    child: const Center(child: Text('👨‍🏫', style: TextStyle(fontSize: 24))),
+                    child: const Center(child: Text('?????', style: TextStyle(fontSize: 24))),
                   ),
                 ),
                 // Progress bar
@@ -613,7 +613,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${widget.classData.viewers}.2k views · ${widget.classData.started ?? ''}',
+                  '${widget.classData.viewers}.2k views � ${widget.classData.started ?? ''}',
                   style: const TextStyle(fontSize: 10, color: Colors.white54),
                 ),
                 const SizedBox(height: 12),
@@ -627,7 +627,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                         gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
                         borderRadius: BorderRadius.circular(50),
                       ),
-                      child: const Center(child: Text('👨‍🏫', style: TextStyle(fontSize: 14))),
+                      child: const Center(child: Text('?????', style: TextStyle(fontSize: 14))),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -667,11 +667,11 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _buildActionChip('👍 342'),
-                      _buildActionChip('👎 12'),
-                      _buildActionChip('📤 Share'),
-                      _buildActionChip('📥 Save'),
-                      _buildActionChip('📝 Notes'),
+                      _buildActionChip('?? 342'),
+                      _buildActionChip('?? 12'),
+                      _buildActionChip('?? Share'),
+                      _buildActionChip('?? Save'),
+                      _buildActionChip('?? Notes'),
                     ],
                   ),
                 ),
@@ -686,7 +686,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
             child: Row(
               children: [
                 Text(
-                  '💬 Comments',
+                  '?? Comments',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -700,7 +700,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                 ),
                 Spacer(),
                 Text(
-                  'Sort by ▾',
+                  'Sort by ?',
                   style: TextStyle(fontSize: 10, color: StudentColors.info, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -735,7 +735,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                     gradient: LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
                     shape: BoxShape.circle,
                   ),
-                  child: const Center(child: Text('🧑', style: TextStyle(fontSize: 12))),
+                  child: const Center(child: Text('??', style: TextStyle(fontSize: 12))),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -838,9 +838,9 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text('👍 ${comment['likes']}', style: const TextStyle(fontSize: 10, color: Colors.white38)),
+                    Text('?? ${comment['likes']}', style: const TextStyle(fontSize: 10, color: Colors.white38)),
                     const SizedBox(width: 10),
-                    const Text('💬 Reply', style: TextStyle(fontSize: 10, color: Colors.white38)),
+                    const Text('?? Reply', style: TextStyle(fontSize: 10, color: Colors.white38)),
                   ],
                 ),
               ],
@@ -856,7 +856,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
     setState(() {
       _comments.insert(0, {
         'user': 'Arjun K (You)',
-        'avatar': '🧑',
+        'avatar': '??',
         'text': text,
         'time': 'Just now',
         'likes': 0,

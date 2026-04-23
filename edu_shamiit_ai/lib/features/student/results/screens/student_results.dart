@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
@@ -238,7 +239,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => context.pop(),
+                      onPressed: () => safeGoBack(context, '/student/dashboard'),
                     ),
                     const Expanded(
                       child: Text(
@@ -523,7 +524,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
         child: const Text('🤖', style: TextStyle(fontSize: 20)),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: _buildBottomNav(),
+
     );
   }
 
@@ -560,58 +561,11 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
     );
   }
 
-  Widget _buildBottomNav() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem('🏠', 'Home', false, () => context.go('/student/dashboard')),
-          _buildNavItem('📚', 'Courses', false, () => context.go('/student/courses')),
-          _buildNavItem('📊', 'Results', true, null),
-          _buildNavItem('🏆', 'Achieve', false, () => context.go('/student/achievements')),
-          _buildNavItem('👤', 'Profile', false, () => context.go('/student/profile')),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String icon, String label, bool isActive, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 36,
-            height: 28,
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFFEEF2FF) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(child: Text(icon, style: const TextStyle(fontSize: 16))),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? StudentColors.primary : StudentColors.text3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showYearPicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
@@ -619,37 +573,39 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Select Academic Year',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: StudentColors.text,
+              const SizedBox(height: 16),
+              const Text(
+                'Select Academic Year',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: StudentColors.text,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildYearOption('2026', true),
-            _buildYearOption('2025', false),
-            _buildYearOption('2024', false),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              _buildYearOption('2026', true),
+              _buildYearOption('2025', false),
+              _buildYearOption('2024', false),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -686,6 +642,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   void _showDownloadDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
@@ -693,62 +650,64 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('📄', style: TextStyle(fontSize: 50)),
-            const SizedBox(height: 8),
-            const Text(
-              'Report Card Ready!',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: StudentColors.text,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Your consolidated academic ledger for 2026 has been generated',
-              style: TextStyle(color: StudentColors.text3, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('📥 ReportCard_2026_Arjun.pdf', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Color(0xFF059669))),
-                      Text('Size: 312 KB', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
-                    ],
-                  ),
-                  SizedBox(height: 4),
-                  Text('Format: PDF', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: StudentColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('📄', style: TextStyle(fontSize: 50)),
+              const SizedBox(height: 8),
+              const Text(
+                'Report Card Ready!',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: StudentColors.text,
                 ),
-                minimumSize: const Size(double.infinity, 48),
               ),
-              child: const Text('✅ Download Successfully'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              const Text(
+                'Your consolidated academic ledger for 2026 has been generated',
+                style: TextStyle(color: StudentColors.text3, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('📥 ReportCard_2026_Arjun.pdf', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Color(0xFF059669))),
+                        Text('Size: 312 KB', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Text('Format: PDF', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: StudentColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                child: const Text('✅ Download Successfully'),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
@@ -52,7 +52,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.pop(),
+                    onPressed: () => safeGoBack(context, '/student/dashboard'),
                   ),
                   const SizedBox(width: 12),
                   const Text(
@@ -115,7 +115,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -194,21 +194,25 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
   Widget _buildTabChip(String label, int index) {
     final isActive = _selectedTab == index;
     return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedTab = index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isActive ? StudentColors.error : const Color(0xFFFEF2F2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isActive ? Colors.white : StudentColors.error,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => setState(() => _selectedTab = index),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isActive ? StudentColors.error : const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.white : StudentColors.error,
+                ),
               ),
             ),
           ),
@@ -292,97 +296,101 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
     // Reorder for podium: 2nd, 1st, 3rd
     final podiumOrder = [1, 0, 2];
     
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: podiumOrder.map((idx) {
-        if (idx >= top3.length) return const SizedBox.shrink();
-        final student = top3[idx];
-        final isUser = student.studentId == 'current_user';
-        final heights = [100.0, 120.0, 80.0]; // 2nd, 1st, 3rd
-        final colors = [
-          const Color(0xFFC0C0C0), // Silver
-          const Color(0xFFFFD700), // Gold
-          const Color(0xFFCD7F32), // Bronze
-        ];
-        
-        return Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: isUser ? const Color(0xFFEEF2FF) : StudentColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors[idx], width: 2),
-              boxShadow: isUser
-                  ? [
-                      BoxShadow(
-                        color: StudentColors.primary.withValues(alpha: 0.15),
-                        blurRadius: 8,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  student.rank == 1 ? '🥇' : student.rank == 2 ? '🥈' : '🥉',
-                  style: const TextStyle(fontSize: 22),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  student.studentName,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isUser ? StudentColors.primary : StudentColors.text,
-                    fontFamily: AppFonts.heading,
+    final heights = [120.0, 100.0, 80.0]; // 1st, 2nd, 3rd
+    final colors = [
+      const Color(0xFFFFD700), // Gold
+      const Color(0xFFC0C0C0), // Silver
+      const Color(0xFFCD7F32), // Bronze
+    ];
+    
+    return SizedBox(
+      height: 240,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: podiumOrder.map((idx) {
+          if (idx >= top3.length) return const SizedBox.shrink();
+          final student = top3[idx];
+          final isUser = student.studentId == 'current_user';
+          
+          return Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: isUser ? const Color(0xFFEEF2FF) : StudentColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: colors[idx], width: 2),
+                boxShadow: isUser
+                    ? [
+                        BoxShadow(
+                          color: StudentColors.primary.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Text(
+                    student.rank == 1 ? '🥇' : student.rank == 2 ? '🥈' : '🥉',
+                    style: const TextStyle(fontSize: 22),
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${student.xpPoints} XP',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: StudentColors.primary,
-                  ),
-                ),
-                Text(
-                  'Streak: ${student.learningStreak}🔥',
-                  style: const TextStyle(fontSize: 9, color: StudentColors.text3),
-                ),
-                const Spacer(),
-                Container(
-                  height: heights[idx],
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isUser
-                          ? [StudentColors.primaryLight, const Color(0xFFE0E7FF)]
-                          : [colors[idx].withValues(alpha: 0.2), colors[idx].withValues(alpha: 0.1)],
+                  const SizedBox(height: 4),
+                  Text(
+                    student.studentName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isUser ? StudentColors.primary : StudentColors.text,
+                      fontFamily: AppFonts.heading,
                     ),
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  child: Center(
-                    child: Text(
-                      '#${student.rank}',
-                      style: TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: colors[idx],
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${student.xpPoints} XP',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: StudentColors.primary,
                     ),
                   ),
-                ),
-              ],
+                  Text(
+                    'Streak: ${student.learningStreak}🔥',
+                    style: const TextStyle(fontSize: 9, color: StudentColors.text3),
+                  ),
+                  const Spacer(),
+                  Container(
+                    height: heights[idx],
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isUser
+                            ? [StudentColors.primaryLight, const Color(0xFFE0E7FF)]
+                            : [colors[idx].withValues(alpha: 0.2), colors[idx].withValues(alpha: 0.1)],
+                      ),
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '#${student.rank}',
+                        style: TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: colors[idx],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 

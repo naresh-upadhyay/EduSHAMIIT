@@ -200,7 +200,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -853,61 +852,4 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     );
   }
 
-  Widget _buildBottomNav() {
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem('🏠', 'Home', true, '/student/dashboard'),
-          _buildNavItem('📚', 'Courses', false, '/student/courses'),
-          _buildNavItem('📊', 'Results', false, '/student/results'),
-          _buildNavItem('🏆', 'Achieve', false, '/student/achievements'),
-          _buildNavItem('👤', 'Profile', false, '/student/profile'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String emoji, String label, bool isActive, String route) {
-    return GestureDetector(
-      onTap: () => context.go(route),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 36,
-            height: 28,
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFFEEF2FF) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 16)),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: AppFonts.body,
-              fontSize: 9,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

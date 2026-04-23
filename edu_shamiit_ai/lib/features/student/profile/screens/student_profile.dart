@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/profile_provider.dart';
@@ -35,7 +35,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => context.pop(),
+                      onPressed: () => safeGoBack(context, '/student/dashboard'),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -67,7 +67,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                     border: Border.all(color: Colors.white24, width: 3),
                   ),
                   child: const Center(
-                    child: Text('🧑', style: TextStyle(fontSize: 30)),
+                    child: Text('??', style: TextStyle(fontSize: 30)),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -82,7 +82,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Class ${profileState.profile?.className ?? ''} · Roll No. ${profileState.profile?.rollNo ?? ''} · Session ${profileState.profile?.session ?? ''}',
+                  'Class ${profileState.profile?.className ?? ''} � Roll No. ${profileState.profile?.rollNo ?? ''} � Session ${profileState.profile?.session ?? ''}',
                   style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white54,
@@ -146,7 +146,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
 
                           const SizedBox(height: 16),
 
-                          _buildSectionTitle('📎 Documents'),
+                          _buildSectionTitle('?? Documents'),
                           _buildDocumentsCard(profileState.profile?.documents ?? []),
 
                           const SizedBox(height: 50),
@@ -351,7 +351,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
               ),
               const SizedBox(height: 16),
               const Text(
-                '✏️ Edit Profile',
+                '?? Edit Profile',
                 style: TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 16,
@@ -374,7 +374,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
 
               // Upload Documents Section
               const Text(
-                '📎 Upload Documents',
+                '?? Upload Documents',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -447,7 +447,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('✅ Profile Updated Successfully!'),
+                        content: Text('? Profile Updated Successfully!'),
                         backgroundColor: StudentColors.success,
                       ),
                     );
@@ -460,7 +460,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                     ),
                   ),
                   child: const Text(
-                    '💾 Save All Changes',
+                    '?? Save All Changes',
                     style: TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 15,

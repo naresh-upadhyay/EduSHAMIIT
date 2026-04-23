@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
@@ -78,7 +78,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -321,7 +321,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
       final marks = double.tryParse(marksStr);
       if (marks == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Invalid marks value')),
+          const SnackBar(content: Text('? Invalid marks value')),
         );
         return;
       }
@@ -334,14 +334,14 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Submission graded successfully!')),
+          const SnackBar(content: Text('? Submission graded successfully!')),
         );
         _loadSubmissions();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: $e')),
+          SnackBar(content: Text('? Error: $e')),
         );
       }
     }

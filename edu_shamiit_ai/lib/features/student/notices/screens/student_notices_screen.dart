@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
@@ -110,7 +110,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -234,7 +234,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      '🚨 URGENT',
+                      '?? URGENT',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
@@ -250,7 +250,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      '🎉 EVENT',
+                      '?? EVENT',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
@@ -266,7 +266,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      '📋 GENERAL',
+                      '?? GENERAL',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
@@ -299,7 +299,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             ),
             const SizedBox(height: 6),
             Text(
-              '📅 ${_formatDate(notice.createdAt)}',
+              '?? ${_formatDate(notice.createdAt)}',
               style: const TextStyle(
                 fontSize: 9,
                 color: StudentColors.text3,
@@ -353,7 +353,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
-                          '🚨 URGENT',
+                          '?? URGENT',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,

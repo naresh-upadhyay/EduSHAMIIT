@@ -115,7 +115,6 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -535,51 +534,4 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     );
   }
 
-  Widget _buildBottomNav() {
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        color: StudentColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem('🏠', 'Home', true, '/teacher/dashboard'),
-          _buildNavItem('📖', 'Classes', false, '/teacher/my-classes'),
-          _buildNavItem('📊', 'Grades', false, '/teacher/gradebook'),
-          _buildNavItem('📝', 'Tasks', false, '/teacher/homework'),
-          _buildNavItem('👤', 'Profile', false, '/teacher/profile'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(String emoji, String label, bool isActive, String route) {
-    return GestureDetector(
-      onTap: () => context.go(route),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(emoji, style: TextStyle(fontSize: 22, color: isActive ? StudentColors.primary : StudentColors.text3)),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: AppFonts.body,
-              fontSize: 11,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? StudentColors.primary : StudentColors.text3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

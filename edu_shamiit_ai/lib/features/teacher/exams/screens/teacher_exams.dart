@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
@@ -80,7 +80,7 @@ class _TeacherExamsState extends State<TeacherExams> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -276,7 +276,7 @@ class _TeacherExamsState extends State<TeacherExams> {
           Row(
             children: [
               Text(
-                '${exam.subject} • ${exam.totalMarks} marks',
+                '${exam.subject} � ${exam.totalMarks} marks',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],
@@ -285,7 +285,7 @@ class _TeacherExamsState extends State<TeacherExams> {
               ),
               if (exam.roomNumber != null)
                 Text(
-                  ' • Room ${exam.roomNumber}',
+                  ' � Room ${exam.roomNumber}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -346,7 +346,7 @@ class _TeacherExamsState extends State<TeacherExams> {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Exam created successfully!')),
+                const SnackBar(content: Text('? Exam created successfully!')),
               );
             },
             child: const Text('Create'),

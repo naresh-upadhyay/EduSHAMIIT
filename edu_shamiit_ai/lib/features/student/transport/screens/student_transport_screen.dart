@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 
@@ -58,7 +58,7 @@ class _StudentTransportState extends State<StudentTransport> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => context.pop(),
+                      onPressed: () => safeGoBack(context, '/student/dashboard'),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -99,11 +99,11 @@ class _StudentTransportState extends State<StudentTransport> {
                 // Info chips
                 Row(
                   children: [
-                    _buildInfoChip('🚌', 'Route 7B'),
+                    _buildInfoChip('??', 'Route 7B'),
                     const SizedBox(width: 8),
-                    _buildInfoChip('📍', 'Rajpur Stop'),
+                    _buildInfoChip('??', 'Rajpur Stop'),
                     const SizedBox(width: 8),
-                    _buildInfoChip('🎒', 'Seat 14'),
+                    _buildInfoChip('??', 'Seat 14'),
                   ],
                 ),
               ],
@@ -138,7 +138,7 @@ class _StudentTransportState extends State<StudentTransport> {
                       },
                       icon: const Icon(Icons.call, color: Colors.white),
                       label: const Text(
-                        '📞 Call Driver · 🔔 Set Alert',
+                        '?? Call Driver � ?? Set Alert',
                         style: TextStyle(
                           fontFamily: AppFonts.heading,
                           fontSize: 14,
@@ -265,7 +265,7 @@ class _StudentTransportState extends State<StudentTransport> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
-                  '🔍 Tap for full map',
+                  '?? Tap for full map',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 8,
@@ -296,7 +296,7 @@ class _StudentTransportState extends State<StudentTransport> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '🚌 Bus HR-29-3847',
+            '?? Bus HR-29-3847',
             style: TextStyle(
               fontFamily: AppFonts.heading,
               fontSize: 14,
@@ -451,7 +451,7 @@ class _StudentTransportState extends State<StudentTransport> {
               const Icon(Icons.check_circle, size: 16, color: Color(0xFF059669))
             else if (status == 'current')
               const Text(
-                '🔜',
+                '??',
                 style: TextStyle(fontSize: 14),
               ),
           ],
@@ -488,7 +488,7 @@ class _StudentTransportState extends State<StudentTransport> {
               child: Row(
                 children: [
                   const Text(
-                    '🚌 Live Tracking',
+                    '?? Live Tracking',
                     style: TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 16,
@@ -498,7 +498,7 @@ class _StudentTransportState extends State<StudentTransport> {
                   ),
                   const Spacer(),
                   const Text(
-                    'Bus HR-29-3847 · Route 7B',
+                    'Bus HR-29-3847 � Route 7B',
                     style: TextStyle(
                       fontSize: 11,
                       color: StudentColors.text3,
@@ -593,7 +593,7 @@ class _StudentTransportState extends State<StudentTransport> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          '1.2 km away · 38 students onboard',
+                          '1.2 km away � 38 students onboard',
                           style: TextStyle(
                             fontSize: 11,
                             color: StudentColors.text3,

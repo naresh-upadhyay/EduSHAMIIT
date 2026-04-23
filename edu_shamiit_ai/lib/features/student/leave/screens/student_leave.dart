@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
@@ -31,11 +31,11 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
 
   String _getLeaveIcon(String type) {
     switch (type) {
-      case 'Sick Leave': return '🤒';
-      case 'Casual Leave': return '🏠';
-      case 'Urgent Work': return '📦';
-      case 'Family Event': return '✨';
-      default: return '📝';
+      case 'Sick Leave': return '??';
+      case 'Casual Leave': return '??';
+      case 'Urgent Work': return '??';
+      case 'Family Event': return '?';
+      default: return '??';
     }
   }
 
@@ -66,7 +66,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -356,7 +356,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                                       ),
                                     )
                                   : const Text(
-                                      '✨ Apply for Leave',
+                                      '? Apply for Leave',
                                       style: TextStyle(
                                         fontFamily: AppFonts.heading,
                                         fontSize: 15,
@@ -506,7 +506,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${leave.startDate} – ${leave.endDate}',
+                      '${leave.startDate} � ${leave.endDate}',
                       style: const TextStyle(
                         fontSize: 10,
                         color: StudentColors.text3,
@@ -547,7 +547,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                       backgroundColor: StudentColors.border,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('✏️ Edit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: const Text('?? Edit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -560,7 +560,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                       backgroundColor: StudentColors.errorBg,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('✕ Cancel', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: StudentColors.error)),
+                    child: const Text('? Cancel', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: StudentColors.error)),
                   ),
                 ),
               ],
@@ -616,13 +616,13 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
           context: context,
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('✨ Leave Applied!'),
+            title: const Text('? Leave Applied!'),
             content: const Text('Your leave request has been submitted to your Class Teacher. You\'ll be notified once approved.'),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  context.pop(); // Go back to dashboard
+                  safeGoBack(context, '/student/dashboard'); // Go back to dashboard
                 },
                 child: const Text('Back to Home'),
               ),

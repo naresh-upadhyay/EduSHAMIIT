@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
@@ -92,7 +92,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -338,7 +338,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Paper generated successfully!')),
+          const SnackBar(content: Text('? Paper generated successfully!')),
         );
         setState(() {
           _selectedQuestions.clear();
@@ -348,7 +348,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error: $e')),
+          SnackBar(content: Text('? Error: $e')),
         );
       }
     }

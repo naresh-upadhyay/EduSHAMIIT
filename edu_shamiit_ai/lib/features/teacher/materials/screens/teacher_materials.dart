@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
@@ -95,7 +95,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -340,7 +340,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Material uploaded successfully!')),
+                const SnackBar(content: Text('? Material uploaded successfully!')),
               );
             },
             child: const Text('Upload'),

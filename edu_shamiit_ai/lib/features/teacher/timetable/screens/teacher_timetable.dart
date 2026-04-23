@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
+import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
@@ -64,7 +64,7 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -225,7 +225,7 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Class ${period.class_} • Period ${period.periodNumber}',
+                  'Class ${period.class_} � Period ${period.periodNumber}',
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
