@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
+import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
@@ -315,9 +317,10 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 
           // Main content
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+            child: ResponsiveContent(
+              child: SingleChildScrollView(
+                padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
+                child: Column(
                 children: [
                   // Overall performance card
                   Container(
@@ -512,7 +515,8 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                       minimumSize: const Size(double.infinity, 48),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -573,10 +577,11 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               Container(
                 width: 40,
                 height: 4,
@@ -608,8 +613,9 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildYearOption(String year, bool isCurrent) {
     return Container(
@@ -650,10 +656,11 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               const Text('📄', style: TextStyle(fontSize: 50)),
               const SizedBox(height: 8),
               const Text(
@@ -710,6 +717,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

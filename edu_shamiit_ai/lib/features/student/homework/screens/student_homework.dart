@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
+import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
@@ -209,29 +211,31 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
 
           // Content
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredHomework.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('📝', style: TextStyle(fontSize: 48)),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No ${_tabs[_selectedTab].toLowerCase()} homework',
-                              style: const TextStyle(color: StudentColors.text3, fontSize: 14),
-                            ),
-                          ],
+            child: ResponsiveContent(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredHomework.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('📝', style: TextStyle(fontSize: 48)),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No ${_tabs[_selectedTab].toLowerCase()} homework',
+                                style: const TextStyle(color: StudentColors.text3, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: Responsive.contentPadding(context),
+                          itemCount: _filteredHomework.length,
+                          itemBuilder: (context, index) {
+                            return _buildHomeworkCard(_filteredHomework[index]);
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        itemCount: _filteredHomework.length,
-                        itemBuilder: (context, index) {
-                          return _buildHomeworkCard(_filteredHomework[index]);
-                        },
-                      ),
+            ),
           ),
         ],
       ),

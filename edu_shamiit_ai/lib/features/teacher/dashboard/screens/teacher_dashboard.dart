@@ -6,6 +6,8 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
+import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/shared/widgets/ai_fab.dart';
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {
@@ -87,19 +89,21 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
             slivers: [
               _buildHeader(),
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 16),
-                      _buildQuickAccessGrid(),
-                      const SizedBox(height: 20),
-                      _buildTodaySchedule(),
-                      const SizedBox(height: 20),
-                      _buildPendingTasks(),
-                      const SizedBox(height: 100),
-                    ],
+                child: ResponsiveContent(
+                  child: Padding(
+                    padding: Responsive.contentPadding(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildQuickAccessGrid(),
+                        const SizedBox(height: 20),
+                        _buildTodaySchedule(),
+                        const SizedBox(height: 20),
+                        _buildPendingTasks(),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -123,7 +127,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     final stats = _dashboardData!.stats;
 
     return SliverAppBar(
-      expandedHeight: 230,
+      expandedHeight: Responsive.headerExpandedHeight(context),
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
@@ -263,11 +267,11 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: Responsive.gridCrossAxisCount(context),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 0.85,
+            childAspectRatio: Responsive.gridChildAspectRatio(context),
           ),
           itemCount: quickAccess.length,
           itemBuilder: (context, index) {

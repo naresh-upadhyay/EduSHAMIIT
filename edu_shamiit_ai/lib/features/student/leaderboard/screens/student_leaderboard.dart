@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
+import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
@@ -156,8 +158,9 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: ResponsiveContent(
+              child: ListView(
+                padding: Responsive.contentPadding(context),
               children: [
                 // Your Position Card
                 _buildYourPositionCard(userEntry, userRank, userCgpa),
@@ -185,6 +188,7 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
                 const SizedBox(height: 50),
               ],
             ),
+          ),
           ),
         ],
       ),

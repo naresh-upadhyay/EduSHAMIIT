@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
+import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -187,8 +189,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+            child: ResponsiveContent(
+              child: ListView(
+                padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
               children: [
                 // Overall Statistics Card
                 Container(
@@ -317,6 +320,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                 const SizedBox(height: 50),
               ],
             ),
+          ),
           ),
         ],
       ),

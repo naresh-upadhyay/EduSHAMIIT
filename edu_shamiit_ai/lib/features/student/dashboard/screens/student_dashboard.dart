@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
+import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/shared/widgets/ai_fab.dart';
 
 class StudentDashboard extends ConsumerStatefulWidget {
@@ -170,21 +172,23 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
             slivers: [
               _buildHeader(),
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 12),
-                      _buildQuickAccessGrid(),
-                      const SizedBox(height: 16),
-                      _buildTodaySchedule(),
-                      const SizedBox(height: 16),
-                      _buildAiInsightCard(),
-                      const SizedBox(height: 16),
-                      _buildPendingHomework(),
-                      const SizedBox(height: 100),
-                    ],
+                child: ResponsiveContent(
+                  child: Padding(
+                    padding: Responsive.contentPadding(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 12),
+                        _buildQuickAccessGrid(),
+                        const SizedBox(height: 16),
+                        _buildTodaySchedule(),
+                        const SizedBox(height: 16),
+                        _buildAiInsightCard(),
+                        const SizedBox(height: 16),
+                        _buildPendingHomework(),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -208,7 +212,7 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     final stats = _dashboardData!['stats'];
 
     return SliverAppBar(
-      expandedHeight: 230,
+      expandedHeight: Responsive.headerExpandedHeight(context),
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
@@ -222,173 +226,176 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$_greeting 🌤️',
-                            style: TextStyle(
-                              fontFamily: AppFonts.body,
-                              fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            user['full_name'] ?? 'Student',
-                            style: const TextStyle(
-                              fontFamily: AppFonts.heading,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () => context.push('/student/notifications'),
-                            child: Stack(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
-                                    Icons.notifications_outlined,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFEF4444),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Center(
-                                      child: Text(
-                                        '3',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          GestureDetector(
-                            onTap: () => context.push('/student/profile'),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF06B6D4), Color(0xFF4F46E5)],
-                                ),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                  width: 2,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  user['avatar_emoji'] ?? '🧑',
-                                  style: const TextStyle(fontSize: 18),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Learning streak
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '🔥 Learning Streak',
+                            Text(
+                              '$_greeting 🌤️',
                               style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
+                                fontFamily: AppFonts.body,
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.6),
                               ),
                             ),
+                            const SizedBox(height: 2),
                             Text(
-                              'Keep it going!',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white.withValues(alpha: 0.5),
+                              user['full_name'] ?? 'Student',
+                              style: const TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                             ),
                           ],
                         ),
-                        Column(
+                        Row(
                           children: [
-                            Text(
-                              '${user['learning_streak'] ?? 0}',
-                              style: const TextStyle(
-                                fontFamily: AppFonts.heading,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFFF59E0B),
+                            GestureDetector(
+                              onTap: () => context.push('/student/notifications'),
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.notifications_outlined,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          '3',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Text(
-                              'days',
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.white.withValues(alpha: 0.5),
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: () => context.push('/student/profile'),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF06B6D4), Color(0xFF4F46E5)],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    user['avatar_emoji'] ?? '🧑',
+                                    style: const TextStyle(fontSize: 18),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  // Stats row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.', route: '/student/attendance'),
-                      _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score', route: '/student/results'),
-                      _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank', route: '/student/leaderboard'),
-                      _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points', route: '/student/leaderboard'),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    // Learning streak
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '🔥 Learning Streak',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                'Keep it going!',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            children: [
+                              Text(
+                                '${user['learning_streak'] ?? 0}',
+                                style: const TextStyle(
+                                  fontFamily: AppFonts.heading,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFF59E0B),
+                                ),
+                              ),
+                              Text(
+                                'days',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Stats row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.', route: '/student/attendance'),
+                        _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score', route: '/student/results'),
+                        _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank', route: '/student/leaderboard'),
+                        _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points', route: '/student/leaderboard'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -397,9 +404,10 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     );
   }
 
+
   Widget _buildStatItem(String value, String label, {String? route}) {
     final child = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
@@ -469,11 +477,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: Responsive.gridCrossAxisCount(context),
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            childAspectRatio: 0.85,
+            childAspectRatio: Responsive.gridChildAspectRatio(context),
           ),
           itemCount: quickAccess.length,
           itemBuilder: (context, index) {
