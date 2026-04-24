@@ -2,7 +2,7 @@
 import sys, requests
 from datetime import datetime, timedelta
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:80"
 STUDENT_CREDS = {"email": "naresh.king88898@gmail.com", "password": "naresh@1A"}
 TEACHER_CREDS = {"email": "nehaupadhyay9119@gmail.com", "password": "naresh@1A"}
 

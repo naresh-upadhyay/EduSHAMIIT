@@ -1,1 +1,4 @@
--- Enable required PostgreSQL extensions`r`nCREATE EXTENSION IF NOT EXISTS ``uuid-ossp``;`r`nCREATE EXTENSION IF NOT EXISTS ``pgcrypto``;`r`nCREATE EXTENSION IF NOT EXISTS ``vector``;  -- For pgvector (RAG embeddings)
+-- Enable required PostgreSQL extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "vector";

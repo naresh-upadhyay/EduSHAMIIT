@@ -1,6 +1,6 @@
-# Env files
+# Env files — keep .env.example tracked, ignore real secrets
 .env
-.env.*
+!.env.example
 
 # Node
 node_modules/
