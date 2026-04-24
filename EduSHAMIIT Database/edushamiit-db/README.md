@@ -14,7 +14,7 @@ chmod +x setup.sh
 
 This will:
 1. Start PostgreSQL (with pgvector), Redis, and RabbitMQ via Docker
-2. Run all 80 migration files automatically
+2. Run all 91 migration files automatically
 3. Set up the complete database with tables, functions, and sample data
 
 ## 📋 Prerequisites
@@ -125,6 +125,28 @@ for file in migrations/*.sql; do
 done
 ```
 
+## ☁️ Cloud Supabase Deployment (PROD)
+
+To deploy the EduSHAMIIT database to a production Supabase project on [supabase.com](https://supabase.com):
+
+1. **Create a New Project**: Sign in to Supabase and create a new project.
+2. **Retrieve Connection details**: Go to Project Settings -> Database -> Connection Parameters.
+3. **Run Migrations**: You can use the Supabase CLI to link and push migrations, or execute the SQL files directly against your cloud database:
+
+   Using standard `psql` (Recommended for pure SQL migrations):
+   ```bash
+   for file in migrations/*.sql; do
+     PGPASSWORD="<your_supabase_db_password>" psql -h aws-0-region.pooler.supabase.com -p 6543 -d postgres -U postgres.your_project_ref < "$file"
+   done
+   ```
+
+   *Alternatively*, if you use Supabase CLI:
+   ```bash
+   supabase link --project-ref your-project-ref
+   supabase db push
+   ```
+4. **Update Backend Config**: Point your FastAPI backend `.env` `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to the new production project settings.
+
 ## 📁 Project Structure
 
 ```
@@ -137,18 +159,11 @@ edushamiit-db/
     ├── 001_enable_extensions.sql
     ├── 002_schools.sql
     ├── 003_profiles.sql
-    ├── ... (76 more files)
-    ├── 070_sample_library_books.sql
-    ├── 071_sample_bus_routes.sql
-    ├── 072_sample_bus_stops.sql
-    ├── 073_sample_live_classes.sql
-    ├── 074_sample_messages.sql
-    ├── 075_sample_notifications.sql
-    ├── 076_sample_leave_applications.sql
-    ├── 077_sample_iot_devices.sql
-    ├── 078_sample_iot_device_states.sql
-    ├── 079_sample_knowledge_base.sql
-    └── 080_sample_grading_policies.sql
+    ├── ... (87 more files)
+    ├── 088_sample_payments.sql
+    ├── 089_add_erp_columns.sql
+    ├── 090_sample_salary_exams.sql
+    └── 091_optimize_endpoints.sql
 ```
 
 ## 🧪 Verify Setup
