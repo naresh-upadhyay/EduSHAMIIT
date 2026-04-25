@@ -420,6 +420,15 @@ else:
     warn("PAYMENTS tests skipped – no pending fees for student")
 
 # ================================================================
+# 7. SYSTEM ENDPOINTS
+# ================================================================
+section("7. SYSTEM ENDPOINTS")
+
+check("GET /health", requests.get(f"{BASE_URL}/health"))
+check("GET /", requests.get(f"{BASE_URL}/"))
+check("GET /api/rag/documents", requests.get(f"{BASE_URL}/api/rag/documents", headers=T))
+
+# ================================================================
 # SUMMARY
 # ================================================================
 section("TEST RESULTS SUMMARY")
