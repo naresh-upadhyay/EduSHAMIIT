@@ -24,7 +24,7 @@ class MockData {
     'gender': 'Male',
     'date_of_birth': '2009-10-12',
     'blood_group': 'O+',
-    'email': 'arjun.kumar@eduverse.in',
+    'email': 'arjun.kumar@EduSHAMIIT.in',
     'phone': '+91-9876543210',
     'address': '42, Rajpur Road, Dehradun, Uttarakhand',
     'guardian_name': 'Rajesh Kumar',
@@ -256,7 +256,7 @@ class MockData {
       'teacher': 'Dr. A. Verma',
       'status': 'live',
       'started_at': '2026-03-27T09:00:00',
-      'meeting_link': 'https://meet.eduverse.in/physics-optics',
+      'meeting_link': 'https://meet.EduSHAMIIT.in/physics-optics',
       'participants': 34,
     },
     {
@@ -266,7 +266,7 @@ class MockData {
       'teacher': 'Mr. R. Sharma',
       'status': 'scheduled',
       'scheduled_at': '2026-03-27T14:00:00',
-      'meeting_link': 'https://meet.eduverse.in/math-integration',
+      'meeting_link': 'https://meet.EduSHAMIIT.in/math-integration',
     },
   ];
 

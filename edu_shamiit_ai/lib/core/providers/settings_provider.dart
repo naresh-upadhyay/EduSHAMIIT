@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/cache_service.dart';
 import 'api_provider.dart';
 import 'cache_provider.dart';
+import 'auth_provider.dart';
 
 /// Model class for user settings
 class UserSettings {
@@ -99,9 +100,11 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   final ApiService _apiService;
   final CacheService _cacheService;
 
-  SettingsNotifier(this._apiService, this._cacheService)
-      : super(SettingsState(isLoading: true)) {
-    loadSettings();
+  SettingsNotifier(this._apiService, this._cacheService, {bool skipLoad = false})
+      : super(SettingsState(isLoading: !skipLoad)) {
+    if (!skipLoad) {
+      loadSettings();
+    }
   }
 
   Future<void> loadSettings() async {
@@ -222,8 +225,16 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 final settingsProvider =
     StateNotifierProvider<SettingsNotifier, SettingsState>(
   (ref) {
+    // Watch authentication state. When user logs in/out, this provider is recreated.
+    final isAuthenticated = ref.watch(authProvider.select((s) => s.isAuthenticated));
+    
     final apiService = ref.watch(apiServiceProvider);
     final cacheService = ref.watch(cacheServiceProvider);
+    
+    if (!isAuthenticated) {
+      return SettingsNotifier(apiService, cacheService, skipLoad: true);
+    }
+    
     return SettingsNotifier(apiService, cacheService);
   },
 );

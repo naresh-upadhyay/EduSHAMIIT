@@ -175,6 +175,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -183,13 +186,14 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
 
     if (_error != null) {
       return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 16),
-              Text('Error loading timetable: $_error'),
+              Text('Error loading timetable: $_error', style: TextStyle(color: isDark ? StudentColors.darkText2 : StudentColors.text2)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadSchedule,
@@ -204,7 +208,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     final schedule = _getScheduleForDay(_selectedDay);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4FF),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           // Header
@@ -312,7 +316,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
           // Schedule list
           Expanded(
             child: schedule.isEmpty
-                ? const Center(child: Text('No classes scheduled for this day'))
+                ? Center(child: Text('No classes scheduled for this day', style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3)))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: schedule.length,
@@ -333,21 +337,26 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
   }
 
   Widget _buildClassCard(Map<String, dynamic> item) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final isNow = item['now'] == true;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isNow ? const Color(0xFFECFDF5) : StudentColors.surface,
+        color: isNow 
+          ? (isDark ? const Color(0xFF065F46) : const Color(0xFFECFDF5)) 
+          : theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: isNow ? Border.all(color: const Color(0xFFBBF7D0), width: 1.5) : null,
+        border: isNow ? Border.all(color: isDark ? const Color(0xFF059669) : const Color(0xFFBBF7D0), width: 1.5) : null,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Row(
@@ -367,11 +376,11 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
             children: [
               Text(
                 item['start'],
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11, fontFamily: AppFonts.heading),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, fontFamily: AppFonts.heading, color: isDark ? Colors.white : Colors.black),
               ),
               Text(
                 item['end'],
-                style: const TextStyle(color: StudentColors.text3, fontSize: 9),
+                style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 9),
               ),
             ],
           ),
@@ -393,12 +402,12 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               children: [
                 Text(
                   item['subject'],
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, fontFamily: AppFonts.heading),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, fontFamily: AppFonts.heading, color: isDark ? Colors.white : Colors.black),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   item['teacher'],
-                  style: const TextStyle(color: StudentColors.text3, fontSize: 10),
+                  style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),
                 ),
               ],
             ),
@@ -407,12 +416,12 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               item['room'],
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isDark ? StudentColors.darkText2 : const Color(0xFF475569)),
             ),
           ),
           if (isNow) ...[
@@ -435,12 +444,14 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
   }
 
   Widget _buildBreakCard(Map<String, dynamic> item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7ED),
+        color: isDark ? const Color(0xFF451A03).withOpacity(0.3) : const Color(0xFFFFF7ED),
         borderRadius: BorderRadius.circular(12),
+        border: isDark ? Border.all(color: const Color(0xFF78350F).withOpacity(0.5)) : null,
       ),
       child: Row(
         children: [
@@ -449,12 +460,12 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
           Expanded(
             child: Text(
               item['label'],
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Color(0xFF92400E)),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E)),
             ),
           ),
           Text(
             item['time'],
-            style: const TextStyle(fontSize: 10, color: Color(0xFFB45309)),
+            style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309)),
           ),
         ],
       ),

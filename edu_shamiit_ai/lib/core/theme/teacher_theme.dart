@@ -3,14 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/teacher_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 
-ThemeData getTeacherTheme() {
-  final baseTheme = ThemeData.light(useMaterial3: true);
+ThemeData getTeacherTheme({Brightness brightness = Brightness.light}) {
+  final baseTheme = brightness == Brightness.dark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
   
   return baseTheme.copyWith(
     primaryColor: TeacherColors.primary,
     scaffoldBackgroundColor: TeacherColors.background,
     colorScheme: ColorScheme.fromSeed(
       seedColor: TeacherColors.primary,
+      brightness: brightness,
       primary: TeacherColors.primary,
       secondary: TeacherColors.accent,
       surface: TeacherColors.surface,

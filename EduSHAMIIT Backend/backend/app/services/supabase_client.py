@@ -88,7 +88,10 @@ class AuthClient:
 
         response = await client.post(
             f"{self.client.auth_url}/token?grant_type=password",
-            headers=self.client.headers,
+            headers={
+                "apikey": self.client.key,
+                "Content-Type": "application/json"
+            },
             json={"email": email, "password": password},
             timeout=10.0
         )
@@ -153,6 +156,25 @@ class AuthClient:
             except:
                 error = {"msg": response.text}
             raise Exception(self._get_error_message(error, "User deletion failed"))
+
+        return True
+
+    async def admin_update_user(self, user_id: str, attributes: dict):
+        """Update a user using admin privileges (service role key)."""
+        client = await self.client.get_async_client()
+        response = await client.put(
+            f"{self.client.auth_url}/admin/users/{user_id}",
+            headers=self.client.headers,
+            json=attributes,
+            timeout=10.0
+        )
+
+        if response.status_code not in (200, 204):
+            try:
+                error = response.json()
+            except:
+                error = {"msg": response.text}
+            raise Exception(self._get_error_message(error, "User update failed"))
 
         return True
 

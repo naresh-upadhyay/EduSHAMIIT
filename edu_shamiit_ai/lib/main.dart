@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/app.dart';
 import 'package:edu_shamiit_ai/core/services/supabase_service.dart';
+import 'package:edu_shamiit_ai/core/services/cache_service.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 
@@ -11,6 +12,9 @@ void main() async {
 
   // Initialize Supabase
   await SupabaseService.initialize();
+  
+  // Initialize Cache Service
+  await CacheService().init();
 
   // Lock orientation to portrait
   await SystemChrome.setPreferredOrientations([

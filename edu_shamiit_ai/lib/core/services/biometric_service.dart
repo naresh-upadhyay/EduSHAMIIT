@@ -43,7 +43,7 @@ class BiometricService {
   /// Authenticate using biometrics
   /// Returns true if authentication is successful
   Future<bool> authenticate({
-    String reason = 'Authenticate to access EduVerse',
+    String reason = 'Authenticate to access EduSHAMIIT',
     String? localizedReason,
     bool useErrorDialogs = true,
     bool stickyAuth = true,

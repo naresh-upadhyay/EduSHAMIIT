@@ -65,6 +65,7 @@ dependencies:
 
   # Typography
   google_fonts: ^6.1.0
+  image_cropper: ^12.2.1
 
 dev_dependencies:
   flutter_test:

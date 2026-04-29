@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,7 +58,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Center(child: Text('🤖', style: TextStyle(fontSize: 14))),
+                  child: const Center(child: Text('??', style: TextStyle(fontSize: 14))),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -66,7 +66,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'EduVerse AI',
+                        'EduSHAMIIT AI',
                         style: TextStyle(
                           fontFamily: AppFonts.heading,
                           fontSize: 14,
@@ -234,7 +234,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 ),
                 shape: BoxShape.circle,
               ),
-              child: const Center(child: Text('🤖', style: TextStyle(fontSize: 12))),
+              child: const Center(child: Text('??', style: TextStyle(fontSize: 12))),
             ),
           Flexible(
             child: Container(
@@ -313,7 +313,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               ),
               shape: BoxShape.circle,
             ),
-            child: const Center(child: Text('🤖', style: TextStyle(fontSize: 12))),
+            child: const Center(child: Text('??', style: TextStyle(fontSize: 12))),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

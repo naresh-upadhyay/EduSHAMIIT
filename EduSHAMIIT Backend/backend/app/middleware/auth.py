@@ -38,6 +38,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             "school_id": payload.get("school_id"),
             "role": payload.get("role"),
             "class": payload.get("class"),
+            "email": payload.get("email"),
         }
 
         if not user["id"]:

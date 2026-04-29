@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
@@ -26,6 +27,11 @@ class ApiService {
   }
 
   final Map<String, dynamic> _cache = {};
+  
+  /// Clear in-memory cache
+  void clearCache() {
+    _cache.clear();
+  }
 
   /// GET request
   Future<Map<String, dynamic>> get(String endpoint,
@@ -122,6 +128,57 @@ class ApiService {
       throw ApiException('Resource not found');
     } else {
       throw ApiException('Server error: ${response.statusCode}');
+    }
+  }
+
+  /// Multipart POST — used for file uploads (avatar, documents)
+  Future<Map<String, dynamic>> multipartPost(
+      String endpoint, File file, String fieldName, {Map<String, String>? fields}) async {
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final request = http.MultipartRequest('POST', uri);
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+      request.files.add(await http.MultipartFile.fromPath(fieldName, file.path));
+
+      final streamedResponse =
+          await request.send().timeout(AppConfig.apiTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } catch (e) {
+      throw ApiException('Multipart POST failed: $e');
+    }
+  }
+
+  /// Multipart POST using bytes — safe for Web and cross-platform
+  Future<Map<String, dynamic>> multipartPostBytes(
+      String endpoint, List<int> bytes, String filename, String fieldName, {Map<String, String>? fields}) async {
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final request = http.MultipartRequest('POST', uri);
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+      request.files.add(http.MultipartFile.fromBytes(fieldName, bytes, filename: filename));
+
+      final streamedResponse = await request.send().timeout(AppConfig.apiTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } catch (e) {
+      throw ApiException('Multipart POST (bytes) failed: $e');
     }
   }
 

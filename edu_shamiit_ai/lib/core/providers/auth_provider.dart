@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:edu_shamiit_ai/core/services/api_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
 
 /// Auth provider state — no longer holds a Supabase User object,
 /// just the fields we get back from the FastAPI /api/auth/login response.
@@ -46,7 +48,8 @@ class AuthState {
 
 /// Auth provider notifier — calls FastAPI backend for login.
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState());
+  final Ref ref;
+  AuthNotifier(this.ref) : super(AuthState());
 
   /// Try to restore session from SharedPreferences on app start.
   Future<void> initialize() async {
@@ -109,6 +112,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final role = UserRoleExtension.fromString(roleStr);
 
         // Persist session
+        // Clear API cache before saving new session
+        ref.read(apiServiceProvider).clearCache();
         await _saveSession(token: token, role: role, userData: user);
 
         // Sync role provider
@@ -140,6 +145,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Sign out — clears local session.
   Future<void> signOut() async {
+    // Clear API cache
+    ref.read(apiServiceProvider).clearCache();
     await _clearSession();
     state = AuthState();
   }
@@ -173,5 +180,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 /// Auth provider
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier();
+  return AuthNotifier(ref);
 });

@@ -78,15 +78,15 @@ class NotificationService {
     if (!_isInitialized) await init();
 
     // Default channel settings
-    channelId ??= 'eduverse_default';
-    channelName ??= 'EduVerse Notifications';
-    channelDescription ??= 'Notifications from EduVerse Student Portal';
+    channelId ??= 'EduSHAMIIT_default';
+    channelName ??= 'EduSHAMIIT Notifications';
+    channelDescription ??= 'Notifications from EduSHAMIIT Student Portal';
 
     // Create/update channel for Android
     const androidDetails = AndroidNotificationDetails(
-      'eduverse_default',
-      'EduVerse Notifications',
-      channelDescription: 'Notifications from EduVerse Student Portal',
+      'EduSHAMIIT_default',
+      'EduSHAMIIT Notifications',
+      channelDescription: 'Notifications from EduSHAMIIT Student Portal',
       importance: Importance.high,
       priority: Priority.high,
       playSound: true,
@@ -123,9 +123,9 @@ class NotificationService {
     if (!_isInitialized) await init();
 
     const androidDetails = AndroidNotificationDetails(
-      'eduverse_scheduled',
+      'EduSHAMIIT_scheduled',
       'Scheduled Notifications',
-      channelDescription: 'Scheduled notifications from EduVerse',
+      channelDescription: 'Scheduled notifications from EduSHAMIIT',
       importance: Importance.high,
       priority: Priority.high,
     );

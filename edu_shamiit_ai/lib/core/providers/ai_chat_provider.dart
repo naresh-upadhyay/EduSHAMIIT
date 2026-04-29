@@ -61,7 +61,7 @@ class AiChatState {
     messages: [
       ChatMessage(
         isUser: false,
-        text: '👋 Hey! I\'m your EduVerse AI. I can help you with homework, explain concepts, track your exams, check your fees, or anything school-related!',
+        text: '👋 Hey! I\'m your EduSHAMIIT AI. I can help you with homework, explain concepts, track your exams, check your fees, or anything school-related!',
         timestamp: DateTime.now(),
       ),
     ],
@@ -227,7 +227,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   /// Export chat history
   Future<String> exportChat() async {
     final buffer = StringBuffer();
-    buffer.writeln('EduVerse AI Chat History');
+    buffer.writeln('EduSHAMIIT AI Chat History');
     buffer.writeln('Generated: ${DateTime.now().toIso8601String()}');
     buffer.writeln('---');
     

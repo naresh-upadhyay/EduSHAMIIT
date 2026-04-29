@@ -7,6 +7,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 
 class StudentAttendance extends ConsumerStatefulWidget {
   const StudentAttendance({super.key});
@@ -35,21 +36,25 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
       );
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (attendanceState.error != null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFEFF6FF),
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.error_outline, size: 64, color: StudentColors.error),
               const SizedBox(height: 16),
-              const Text(
-                'Failed to load attendance',
+              Text(
+                'Failed to load attendance'.tr(ref),
                 style: TextStyle(
                   fontFamily: AppFonts.heading,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black,
                 ),
               ),
               const SizedBox(height: 8),
@@ -64,7 +69,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   ref.read(attendanceProvider.notifier).fetchAttendance();
                 },
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text('Retry'.tr(ref)),
               ),
             ],
           ),
@@ -158,7 +163,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
     };
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEFF6FF),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           Container(
@@ -175,9 +180,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Attendance',
-                  style: TextStyle(
+                Text(
+                  'Attendance'.tr(ref),
+                  style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -208,9 +213,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Overall Attendance',
-                              style: TextStyle(color: Colors.white70, fontSize: 14),
+                            Text(
+                              'Overall Attendance'.tr(ref),
+                              style: const TextStyle(color: Colors.white70, fontSize: 14),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -244,20 +249,20 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                 // Stats Row
                 Row(
                   children: [
-                    _buildStatCard('✅', '${data['present_days']}', 'Present', StudentColors.successBg, StudentColors.success),
+                    _buildStatCard('✅', '${data['present_days']}', 'Present'.tr(ref), StudentColors.successBg, StudentColors.success),
                     const SizedBox(width: 12),
-                    _buildStatCard('❌', '${data['absent_days']}', 'Absent', StudentColors.errorBg, StudentColors.error),
+                    _buildStatCard('❌', '${data['absent_days']}', 'Absent'.tr(ref), StudentColors.errorBg, StudentColors.error),
                     const SizedBox(width: 12),
-                    _buildStatCard('⏰', '${data['late_days']}', 'Late', StudentColors.warningBg, StudentColors.warning),
+                    _buildStatCard('⏰', '${data['late_days']}', 'Late'.tr(ref), StudentColors.warningBg, StudentColors.warning),
                   ],
                 ),
 
                 const SizedBox(height: 20),
 
                 // Weekly Chart
-                const Text(
-                  'Weekly Trend',
-                  style: TextStyle(
+                Text(
+                  'Weekly Trend'.tr(ref),
+                  style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -268,14 +273,15 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   height: 150,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: StudentColors.surface,
+                    color: theme.cardColor,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
+                      if (!isDark)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
                     ],
                   ),
                   child: LineChart(
@@ -307,9 +313,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                 const SizedBox(height: 20),
 
                 // Subject Wise
-                const Text(
-                  'Subject Wise',
-                  style: TextStyle(
+                Text(
+                  'Subject Wise'.tr(ref),
+                  style: const TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -328,11 +334,12 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
   }
 
   Widget _buildStatCard(String emoji, String value, String label, Color bgColor, Color textColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: isDark ? bgColor.withOpacity(0.08) : bgColor,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -363,19 +370,22 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
   }
 
   Widget _buildSubjectCard(Map<String, dynamic> subject) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final pct = subject['pct'];
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: StudentColors.surface,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Row(
@@ -386,10 +396,11 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               children: [
                 Text(
                   subject['subject'],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -410,10 +421,11 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
           const SizedBox(width: 12),
           Text(
             '${pct.toStringAsFixed(0)}%',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: AppFonts.heading,
               fontSize: 16,
               fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
         ],

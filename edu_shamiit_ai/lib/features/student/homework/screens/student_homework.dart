@@ -8,6 +8,7 @@ import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 
 class StudentHomework extends ConsumerStatefulWidget {
   const StudentHomework({super.key});
@@ -66,22 +67,22 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
     final dueDate = hw.dueDate;
     
     if (hw.status == 'graded') {
-      return 'Graded';
+      return 'Graded'.tr(ref);
     } else if (hw.status == 'submitted') {
-      return 'Submitted';
+      return 'Submitted'.tr(ref);
     } else if (hw.status == 'late') {
-      return 'Late';
+      return 'Late'.tr(ref);
     } else {
       // Pending - show due date
       final difference = dueDate.difference(now).inDays;
       if (difference == 0) {
-        return 'Due TODAY';
+        return 'Due TODAY'.tr(ref);
       } else if (difference == 1) {
-        return 'Due Tomorrow';
+        return 'Due Tomorrow'.tr(ref);
       } else if (difference < 0) {
-        return 'Overdue';
+        return 'Overdue'.tr(ref);
       } else {
-        return 'Due: ${dueDate.day}/${dueDate.month}';
+        return '${'Due'.tr(ref)}: ${dueDate.day}/${dueDate.month}';
       }
     }
   }
@@ -125,8 +126,11 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF0F8),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           // Header
@@ -144,10 +148,10 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                   onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Homework',
-                    style: TextStyle(
+                    'Homework'.tr(ref),
+                    style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -161,14 +165,14 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('🤖', style: TextStyle(fontSize: 10)),
-                      SizedBox(width: 4),
+                      const Text('🤖', style: TextStyle(fontSize: 10)),
+                      const SizedBox(width: 4),
                       Text(
-                        'AI Help',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 9),
+                        'AI Help'.tr(ref),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 9),
                       ),
                     ],
                   ),
@@ -190,16 +194,20 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       margin: EdgeInsets.only(right: index < _tabs.length - 1 ? 6 : 0),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFFDF2F8) : Colors.transparent,
+                        color: isSelected 
+                          ? (isDark ? const Color(0xFFBE185D).withOpacity(0.15) : const Color(0xFFFDF2F8)) 
+                          : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        _tabs[index],
+                        _tabs[index].tr(ref),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? const Color(0xFFBE185D) : StudentColors.text3,
+                          color: isSelected 
+                            ? (isDark ? const Color(0xFFF472B6) : const Color(0xFFBE185D)) 
+                            : (isDark ? StudentColors.darkText3 : StudentColors.text3),
                         ),
                       ),
                     ),
@@ -222,8 +230,8 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                               const Text('📝', style: TextStyle(fontSize: 48)),
                               const SizedBox(height: 12),
                               Text(
-                                'No ${_tabs[_selectedTab].toLowerCase()} homework',
-                                style: const TextStyle(color: StudentColors.text3, fontSize: 14),
+                                'No ${_tabs[_selectedTab].tr(ref).toLowerCase()} ${'Homework'.tr(ref).toLowerCase()}',
+                                style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 14),
                               ),
                             ],
                           ),
@@ -249,18 +257,22 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
     final dueColor = _getDueColor(hw);
     final subjectIcon = _getSubjectIcon(hw.subject);
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: StudentColors.surface,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
         border: Border(
           left: BorderSide(
@@ -295,25 +307,26 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               if (hw.maxMarks != null)
                 Text(
                   '${hw.maxMarks} marks',
-                  style: const TextStyle(color: StudentColors.text3, fontSize: 10),
+                  style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),
                 ),
             ],
           ),
           const SizedBox(height: 5),
           Text(
             hw.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13,
               fontFamily: AppFonts.heading,
+              color: isDark ? Colors.white : Colors.black,
             ),
           ),
           const SizedBox(height: 5),
           Text(
             hw.description,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: StudentColors.text3,
+              color: isDark ? StudentColors.darkText2 : StudentColors.text3,
               height: 1.5,
             ),
           ),
@@ -393,21 +406,22 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              '📤 Submit Homework',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: StudentColors.text,
+              Text(
+                '📤 Submit Homework',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white : StudentColors.text,
+                ),
               ),
-            ),
             const SizedBox(height: 8),
             Text(
               hw.title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
+                color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText : Colors.black,
               ),
               textAlign: TextAlign.center,
             ),
@@ -417,22 +431,22 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE2E8F0), style: BorderStyle.solid),
+                  border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : const Color(0xFFE2E8F0), style: BorderStyle.solid),
                   borderRadius: BorderRadius.circular(16),
-                  color: const Color(0xFFF8FAFC),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
                 ),
-                child: const Column(
+                child: Column(
                   children: [
                     Text('📁', style: TextStyle(fontSize: 36)),
                     SizedBox(height: 8),
                     Text(
                       'Tap to upload file',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
                     ),
                     SizedBox(height: 4),
                     Text(
                       'PDF, DOC, JPG up to 10MB',
-                      style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),
                     ),
                   ],
                 ),
@@ -441,10 +455,13 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
             const SizedBox(height: 12),
             TextField(
               maxLines: 3,
+              style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Add notes for your teacher (optional)...',
+                hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 13),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : Colors.grey),
                 ),
                 contentPadding: const EdgeInsets.all(12),
               ),
@@ -469,7 +486,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                         _loadHomework(); // Refresh the list
                       } else {
                         messenger.showSnackBar(
-                          const SnackBar(content: Text('Failed to submit homework')),
+                          SnackBar(content: Text('Failed to submit homework'.tr(ref))),
                         );
                       }
                     }
@@ -490,16 +507,16 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  '📤 Submit Assignment',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                child: Text(
+                  '📤 Submit Assignment'.tr(ref),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel'.tr(ref)),
             ),
           ],
         ),
@@ -522,9 +539,9 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
           children: [
             const Text('✅', style: TextStyle(fontSize: 60)),
             const SizedBox(height: 8),
-            const Text(
-              'Submitted Successfully!',
-              style: TextStyle(
+            Text(
+              'Submitted Successfully!'.tr(ref),
+              style: const TextStyle(
                 fontFamily: AppFonts.heading,
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
@@ -532,9 +549,9 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Your homework has been submitted. Your teacher will review it shortly.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            Text(
+              'Your homework has been submitted. Your teacher will review it shortly.'.tr(ref),
+              style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : const Color(0xFF64748B)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -550,7 +567,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text('Done'),
+                child: Text('Done'.tr(ref)),
               ),
             ),
           ],

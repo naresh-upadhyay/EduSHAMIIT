@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from typing import Optional
 from datetime import datetime, timedelta
 import asyncio
+import base64
+import os
+import httpx
 
 from app.middleware.auth import get_current_user, require_school_id, require_student
 from app.services.supabase_client import get_supabase
 from app.cache.redis_client import get_cached, set_cached
+from app.config import settings
 
 router = APIRouter()
 
@@ -240,8 +244,203 @@ async def apply_leave(request: dict, user=Depends(get_current_user), school_id=D
 @router.get("/profile")
 async def student_profile(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    profile = (await sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"profile": profile}}
+
+    # Fetch raw profile, stats, and documents concurrently
+    profile_task = sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()
+    stats_task = sb.table("student_profile_stats").select(
+        "avg_score,attendance_pct,class_rank,badges_count"
+    ).eq("student_id", user["id"]).maybe_single().aexecute()
+    docs_task = sb.table("documents").select("id, document_type, file_name, file_url, verification_status").eq("user_id", user["id"]).aexecute()
+
+    profile_res, stats_res, docs_res = await asyncio.gather(profile_task, stats_task, docs_task)
+    p = profile_res.data or {}
+    s = stats_res.data or {}
+    docs = docs_res.data or []
+
+    # Build a consistently-named response the Flutter app can rely on
+    data = {
+        # Identity
+        "id":                p.get("id"),
+        "name":              p.get("full_name", ""),
+        "class":             p.get("class", ""),
+        "roll_number":       str(p.get("roll_number", "")),
+        "session":           p.get("session", ""),
+        "avatar_url":        p.get("avatar_url"),
+        # Stats (computed)
+        "avg_score":         str(s.get("avg_score", "0")),
+        "attendance_pct":    str(s.get("attendance_pct", "0")),
+        "rank":              str(s.get("class_rank", "-")),
+        "badges":            str(s.get("badges_count", "0")),
+        # Personal info
+        "gender":            p.get("gender", ""),
+        "date_of_birth":     str(p.get("date_of_birth", "")) if p.get("date_of_birth") else "",
+        "blood_group":       p.get("blood_group", ""),
+        "email":             p.get("email", ""),
+        "phone":             p.get("phone", ""),
+        "admission_number":  p.get("admission_number", ""),
+        "nationality":       p.get("nationality", ""),
+        "religion":          p.get("religion", ""),
+        "category":          p.get("category", ""),
+        "address":           p.get("address", ""),
+        "house":             p.get("house", ""),
+        # Guardian info
+        "father_name":       p.get("father_name", ""),
+        "father_occupation": p.get("father_occupation", ""),
+        "father_phone":      p.get("father_phone", ""),
+        "mother_name":       p.get("mother_name", ""),
+        "mother_occupation": p.get("mother_occupation", ""),
+        "mother_phone":      p.get("mother_phone", ""),
+        "local_guardian":    p.get("local_guardian", ""),
+        # XP / gamification
+        "xp_points":         p.get("xp_points", 0),
+        "learning_streak":   p.get("learning_streak", 0),
+        # Documents
+        "documents":         docs,
+    }
+    return {"success": True, "school_id": school_id, "data": data}
+
+
+@router.put("/profile")
+async def update_student_profile(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    """Update editable profile fields for a student."""
+    sb = get_supabase()
+
+    # Allowed editable fields (students cannot change class/roll/session themselves)
+    allowed_fields = {
+        "full_name", "phone", "email", "address", "blood_group",
+        "gender", "date_of_birth", "category",
+        "father_name", "father_occupation", "father_phone",
+        "mother_name", "mother_occupation", "mother_phone",
+        "local_guardian", "nationality", "religion",
+    }
+
+    update_data = {k: v for k, v in request.items() if k in allowed_fields}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields provided for update")
+
+    update_data["updated_at"] = datetime.utcnow().isoformat()
+
+    await sb.table("profiles").update(update_data).eq("id", user["id"]).aexecute()
+    return {"success": True, "message": "Profile updated successfully"}
+
+
+@router.post("/profile/avatar")
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Upload a profile photo and save the public URL to profiles.avatar_url."""
+    image_bytes = await avatar.read()
+    if len(image_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty image file")
+    if len(image_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large. Maximum 5 MB.")
+
+    content_type = avatar.content_type or "application/octet-stream"
+    if content_type == "application/octet-stream":
+        if avatar.filename and avatar.filename.lower().endswith(".png"):
+            content_type = "image/png"
+        else:
+            content_type = "image/jpeg"
+
+    # Determine extension
+    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}
+    ext = ext_map.get(content_type, "jpg")
+    storage_path = f"avatars/{user['id']}.{ext}"
+
+    # Upload to Supabase Storage via REST API
+    supabase_url = settings.SUPABASE_URL.rstrip("/")
+    storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": content_type,
+        "x-upsert": "true",
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        upload_response = await client.post(storage_url, headers=headers, content=image_bytes)
+
+    if upload_response.status_code not in (200, 201):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Storage upload failed: {upload_response.text}"
+        )
+
+    # Build public URL with a cache-busting query parameter
+    timestamp = int(datetime.utcnow().timestamp())
+    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}?t={timestamp}"
+
+    # Persist public URL in profiles
+    sb = get_supabase()
+    await sb.table("profiles").update({"avatar_url": public_url}).eq("id", user["id"]).aexecute()
+
+    return {"success": True, "data": {"avatar_url": public_url}}
+
+
+@router.post("/profile/document")
+async def upload_document(
+    document: UploadFile = File(...),
+    document_type: str = Form(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Upload a document and add it to the user's documents list."""
+    import uuid
+    sb = get_supabase()
+    
+    # 1. Validate file
+    if not document.filename:
+        raise HTTPException(status_code=400, detail="Filename missing")
+    ext = document.filename.split('.')[-1].lower() if '.' in document.filename else ''
+    if ext not in ["pdf", "jpg", "jpeg", "png"]:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: PDF, JPG, PNG")
+
+    file_bytes = await document.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum 5 MB.")
+
+    # 2. Upload to Supabase Storage
+    doc_id = str(uuid.uuid4())
+    storage_path = f"documents/{user['id']}/{doc_id}.{ext}"
+    supabase_url = settings.SUPABASE_URL.rstrip("/")
+    storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": document.content_type or "application/octet-stream",
+        "x-upsert": "true",
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        upload_response = await client.post(storage_url, headers=headers, content=file_bytes)
+
+    if upload_response.status_code not in (200, 201):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Storage upload failed: {upload_response.text}"
+        )
+
+    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
+
+    # 3. Insert into documents table
+    doc_data = {
+        "id": doc_id,
+        "school_id": school_id,
+        "user_id": user["id"],
+        "document_type": document_type,
+        "file_name": document.filename,
+        "file_url": public_url,
+        "verification_status": "pending"
+    }
+    await sb.table("documents").insert(doc_data).aexecute()
+
+    return {"success": True, "message": "Document uploaded successfully", "data": doc_data}
 
 
 @router.get("/library")
@@ -299,18 +498,66 @@ async def student_leaderboard(user=Depends(get_current_user), school_id=Depends(
     return {"success": True, "school_id": school_id, "data": {"leaderboard": students, "class": student_class}}
 
 
-@router.get("/user/settings")
+@router.get("/settings")
 async def get_settings(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
     settings = (await sb.table("user_settings").select("*").eq("user_id", user["id"]).maybe_single().aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"settings": settings or {}}}
+    return {"success": True, "school_id": school_id, "data": settings or {}}
 
 
-@router.put("/user/settings")
+@router.put("/settings")
 async def update_settings(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
     await sb.table("user_settings").upsert({"school_id": school_id, "user_id": user["id"], **request}, on_conflict="user_id").aexecute()
     return {"success": True, "message": "Settings updated"}
+
+
+@router.post("/change-password")
+async def change_password(request: dict, user=Depends(get_current_user)):
+    current_pw = request.get("currentPassword")
+    new_pw = request.get("newPassword")
+    
+    if not current_pw or not new_pw:
+        raise HTTPException(status_code=400, detail="Current and new password required")
+        
+    sb = get_supabase()
+    
+    # 1. Get email (fallback if not in token)
+    email = user.get("email")
+    if not email:
+        try:
+            profile_res = await sb.table("profiles").select("email").eq("id", user["id"]).maybe_single().aexecute()
+            if profile_res.data:
+                email = profile_res.data.get("email")
+        except Exception as e:
+            print(f"Error fetching email fallback: {str(e)}")
+            
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    # 2. Verify current password by attempting to sign in
+    try:
+        await sb.auth().sign_in_with_password({
+            "email": email,
+            "password": current_pw,
+        })
+    except Exception as e:
+        print(f"Password verification failed for {email}: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Current password incorrect: {str(e)}")
+        
+    # 2. Update to new password
+    try:
+        # Use the admin update to override password directly
+        await sb.auth().admin_update_user(user["id"], {"password": new_pw})
+        return {"success": True, "message": "Password changed successfully"}
+    except Exception as e:
+        print(f"Password update failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update password: {str(e)}")
+
+
+@router.post("/logout")
+async def logout():
+    return {"success": True, "message": "Logged out"}
 
 
 @router.get("/messages")

@@ -176,6 +176,9 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -184,13 +187,14 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
 
     if (_error != null) {
       return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.error_outline, size: 48, color: Colors.red),
               const SizedBox(height: 16),
-              Text('Error loading results: $_error'),
+              Text('Error loading results: $_error', style: TextStyle(color: isDark ? StudentColors.darkText2 : StudentColors.text2)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadResults,
@@ -224,7 +228,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
     final subjects = _getSubjectWiseResults();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           // Header
@@ -326,21 +330,22 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: StudentColors.surface,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
-                        BoxShadow(
-                          color: StudentColors.primary.withValues(alpha: 0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 4),
-                        ),
+                        if (!isDark)
+                          BoxShadow(
+                            color: StudentColors.primary.withValues(alpha: 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
+                          ),
                       ],
                     ),
                     child: Column(
                       children: [
-                        const Text(
+                        Text(
                           'Academic Performance',
-                          style: TextStyle(color: StudentColors.text3, fontSize: 11),
+                          style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 11),
                         ),
                         const SizedBox(height: 4),
                         ShaderMask(
@@ -361,16 +366,17 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                           margin: const EdgeInsets.only(top: 4, bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFECFDF5),
+                            color: isDark ? const Color(0xFF065F46).withOpacity(0.3) : const Color(0xFFECFDF5),
                             borderRadius: BorderRadius.circular(12),
+                            border: isDark ? Border.all(color: const Color(0xFF059669).withOpacity(0.5)) : null,
                           ),
                           child: Text(
                             '${overall['grade']} Grade 🏅',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: AppFonts.heading,
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF059669),
+                              color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                             ),
                           ),
                         ),
@@ -389,7 +395,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   const SizedBox(height: 16),
 
                   // Subject-wise section
-                  const Row(
+                  Row(
                     children: [
                       Text(
                         'Subject-wise Analytics',
@@ -397,7 +403,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                           fontFamily: AppFonts.heading,
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: StudentColors.text,
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : StudentColors.text,
                         ),
                       ),
                     ],
@@ -409,14 +415,15 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: StudentColors.surface,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
+                        if (!isDark)
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
                       ],
                     ),
                     child: Column(
@@ -431,7 +438,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
-                                    color: _getSubjectBg(subject['name']),
+                                    color: isDark ? _getSubjectBg(subject['name']).withOpacity(0.1) : _getSubjectBg(subject['name']),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -445,15 +452,16 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                                     children: [
                                       Text(
                                         subject['name'],
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 13,
+                                          color: isDark ? Colors.white : Colors.black,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         'Score: ${subject['score']}/${subject['max']}',
-                                        style: const TextStyle(color: StudentColors.text3, fontSize: 10),
+                                        style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),
                                       ),
                                     ],
                                   ),
@@ -471,27 +479,28 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: _getGradeBg(subject['grade']),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        subject['grade'],
-                                        style: TextStyle(
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w700,
-                                          color: _getGradeColor(subject['grade']),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? _getGradeColor(subject['grade']).withOpacity(0.15) : _getGradeBg(subject['grade']),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: isDark ? Border.all(color: _getGradeColor(subject['grade']).withOpacity(0.3)) : null,
+                                        ),
+                                        child: Text(
+                                          subject['grade'],
+                                          style: TextStyle(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? _getGradeColor(subject['grade']).withOpacity(0.9) : _getGradeColor(subject['grade']),
+                                          ),
                                         ),
                                       ),
-                                    ),
                                   ],
                                 ),
                               ],
                             ),
                             if (index < subjects.length - 1)
-                              const Divider(height: 16, thickness: 0.5),
+                              Divider(height: 16, thickness: 0.5, color: isDark ? StudentColors.darkBorder : Colors.grey.withOpacity(0.1)),
                           ],
                         );
                       }).toList(),
@@ -540,21 +549,22 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   }
 
   Widget _buildStatItem(String value, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: AppFonts.heading,
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(color: StudentColors.text3, fontSize: 9),
+          style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 9),
         ),
       ],
     );
@@ -566,53 +576,57 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Select Academic Year',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: StudentColors.text,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildYearOption('2026', true),
-              _buildYearOption('2025', false),
-              _buildYearOption('2024', false),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-            ],
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
-        ),
-      ),
-    ),
-  );
-}
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Select Academic Year',
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : StudentColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildYearOption('2026', true),
+                  _buildYearOption('2025', false),
+                  _buildYearOption('2024', false),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildYearOption(String year, bool isCurrent) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: ElevatedButton(
@@ -621,12 +635,16 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           // Handle year change
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: isCurrent ? const Color(0xFFEEF2FF) : const Color(0xFFF8FAFC),
-          foregroundColor: isCurrent ? StudentColors.primary : StudentColors.text,
+          backgroundColor: isCurrent 
+            ? (Theme.of(context).brightness == Brightness.dark ? StudentColors.primary.withOpacity(0.2) : const Color(0xFFEEF2FF)) 
+            : (Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : const Color(0xFFF8FAFC)),
+          foregroundColor: isCurrent ? StudentColors.primary : (Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText : StudentColors.text),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: isCurrent ? const BorderSide(color: Color(0xFF4F46E5), width: 2) : BorderSide(color: Colors.grey.shade200),
+            side: isCurrent 
+              ? const BorderSide(color: Color(0xFF4F46E5), width: 2) 
+              : BorderSide(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : Colors.grey.shade200),
           ),
           minimumSize: const Size(double.infinity, 48),
         ),
@@ -645,74 +663,78 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              const Text('📄', style: TextStyle(fontSize: 50)),
-              const SizedBox(height: 8),
-              const Text(
-                'Report Card Ready!',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: StudentColors.text,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Your consolidated academic ledger for 2026 has been generated',
-                style: TextStyle(color: StudentColors.text3, fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('📄', style: TextStyle(fontSize: 50)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Report Card Ready!',
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : StudentColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Your consolidated academic ledger for 2026 has been generated',
+                    style: TextStyle(color: StudentColors.text3, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF065F46).withOpacity(0.2) : const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: isDark ? Border.all(color: const Color(0xFF059669).withOpacity(0.4)) : null,
+                    ),
+                    child: const Column(
                       children: [
-                        Text('📥 ReportCard_2026_Arjun.pdf', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Color(0xFF059669))),
-                        Text('Size: 312 KB', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('📥 ReportCard_2026_Arjun.pdf', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Color(0xFF059669))),
+                            Text('Size: 312 KB', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
+                          ],
+                        ),
+                        SizedBox(height: 4),
+                        Text('Format: PDF', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
                       ],
                     ),
-                    SizedBox(height: 4),
-                    Text('Format: PDF', style: TextStyle(color: StudentColors.text3, fontSize: 10)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: StudentColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
                   ),
-                  minimumSize: const Size(double.infinity, 48),
-                ),
-                child: const Text('✅ Download Successfully'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: StudentColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      minimumSize: const Size(double.infinity, 48),
+                    ),
+                    child: const Text('✅ Download Successfully'),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    ),
-  );
-}
+        );
+      },
+    );
+  }
 }
