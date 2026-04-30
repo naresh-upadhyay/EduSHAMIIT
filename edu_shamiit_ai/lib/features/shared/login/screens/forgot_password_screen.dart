@@ -10,7 +10,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -117,7 +118,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ],
                   ),
                   child: const Center(
-                    child: Text('??', style: TextStyle(fontSize: 40)),
+                    child: Text('🔒', style: TextStyle(fontSize: 40)),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -247,11 +248,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             fillColor: Colors.white.withValues(alpha: 0.08),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide:
+                  BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              borderSide:
+                  BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
