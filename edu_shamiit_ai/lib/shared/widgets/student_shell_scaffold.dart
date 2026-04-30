@@ -203,14 +203,12 @@ class _DesktopSidebar extends StatelessWidget {
           // App logo / brand
           LayoutBuilder(
             builder: (context, constraints) {
-              final canShowLabel = constraints.maxWidth > 100;
+              final canShowLabel = isExtended && constraints.maxWidth > 160;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
                 child: Row(
-                  mainAxisAlignment: canShowLabel
-                      ? MainAxisAlignment.start
-                      : MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.max,
                   children: [
                     Container(
                       width: 40,
@@ -236,6 +234,7 @@ class _DesktopSidebar extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF0F172A),
                           ),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),

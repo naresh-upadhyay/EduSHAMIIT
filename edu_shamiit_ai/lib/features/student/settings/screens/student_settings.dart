@@ -464,9 +464,10 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
               style: ElevatedButton.styleFrom(backgroundColor: StudentColors.error),
               onPressed: () async {
                 Navigator.pop(dialogCtx);
-                // Call both logout from backend and clear local session
-                await ref.read(settingsProvider.notifier).logout();
-                ref.read(authProvider.notifier).signOut();
+                // Call local sign out immediately to trigger navigation
+                await ref.read(authProvider.notifier).signOut();
+                // Optional: call backend logout in background without awaiting if it's slow
+                ref.read(settingsProvider.notifier).logout();
               },
               child: Text('Logout'.tr(ref), style: const TextStyle(color: Colors.white)),
             ),

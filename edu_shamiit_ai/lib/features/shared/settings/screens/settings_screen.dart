@@ -394,9 +394,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              ref.read(authProvider.notifier).signOut();
+            onPressed: () async {
               Navigator.pop(context);
+              await ref.read(authProvider.notifier).signOut();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,

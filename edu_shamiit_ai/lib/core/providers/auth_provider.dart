@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
+import 'package:edu_shamiit_ai/core/services/api_service.dart';
 
 /// Auth provider state — no longer holds a Supabase User object,
 /// just the fields we get back from the FastAPI /api/auth/login response.
@@ -112,7 +112,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         // Persist session
         // Clear API cache before saving new session
-        ref.read(apiServiceProvider).clearCache();
+        ApiService().clearCache();
         await _saveSession(token: token, role: role, userData: user);
 
         // Sync role provider
@@ -145,7 +145,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Sign out — clears local session.
   Future<void> signOut() async {
     // Clear API cache
-    ref.read(apiServiceProvider).clearCache();
+    ApiService().clearCache();
     await _clearSession();
     state = AuthState();
   }
