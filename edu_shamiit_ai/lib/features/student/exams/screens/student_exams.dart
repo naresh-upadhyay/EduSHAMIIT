@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -8,14 +10,14 @@ import 'package:edu_shamiit_ai/core/models/student_models.dart';
 import 'dart:async';
 
 /// Student Exams Screen - Shows upcoming exams, countdown timer, AI prep tips, and exam schedule
-class StudentExamsScreen extends StatefulWidget {
+class StudentExamsScreen extends ConsumerStatefulWidget {
   const StudentExamsScreen({super.key});
 
   @override
-  State<StudentExamsScreen> createState() => _StudentExamsScreenState();
+  ConsumerState<StudentExamsScreen> createState() => _StudentExamsScreenState();
 }
 
-class _StudentExamsScreenState extends State<StudentExamsScreen> {
+class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
   final StudentApiService _apiService = StudentApiService();
   
   // Countdown timer
@@ -140,7 +142,7 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadExams,
-                child: const Text('Retry'),
+                child: Text('Retry'.tr(ref)),
               ),
             ],
           ),
@@ -702,8 +704,8 @@ class _StudentExamsScreenState extends State<StudentExamsScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Upload feature coming soon!'),
+                    SnackBar(
+                      content: Text('Upload feature coming soon!'.tr(ref)),
                       backgroundColor: StudentColors.primary,
                     ),
                   );

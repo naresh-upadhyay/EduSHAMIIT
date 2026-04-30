@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/teacher_colors.dart';
-import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 
 ThemeData getTeacherTheme({Brightness brightness = Brightness.light}) {
   final baseTheme = brightness == Brightness.dark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);

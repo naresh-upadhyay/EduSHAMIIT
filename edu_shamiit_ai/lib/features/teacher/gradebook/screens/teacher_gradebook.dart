@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherGradebook extends StatefulWidget {
+class TeacherGradebook extends ConsumerStatefulWidget {
   const TeacherGradebook({super.key});
 
   @override
-  State<TeacherGradebook> createState() => _TeacherGradebookState();
+  ConsumerState<TeacherGradebook> createState() => _TeacherGradebookState();
 }
 
-class _TeacherGradebookState extends State<TeacherGradebook> {
+class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedClass = 'X-A';
@@ -183,7 +185,7 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadData,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -223,9 +225,9 @@ class _TeacherGradebookState extends State<TeacherGradebook> {
 
           // Empty state
           if (!_isLoading && _error == null && _grades.isEmpty)
-            const Expanded(
+            Expanded(
               child: Center(
-                child: Text('No grades found for this selection'),
+                child: Text('No grades found for this selection'.tr(ref)),
               ),
             ),
         ],

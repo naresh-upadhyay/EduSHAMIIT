@@ -1,15 +1,17 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 
-class PasswordResetSuccessScreen extends StatefulWidget {
+class PasswordResetSuccessScreen extends ConsumerStatefulWidget {
   const PasswordResetSuccessScreen({super.key});
 
   @override
-  State<PasswordResetSuccessScreen> createState() => _PasswordResetSuccessScreenState();
+  ConsumerState<PasswordResetSuccessScreen> createState() => _PasswordResetSuccessScreenState();
 }
 
-class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
+class _PasswordResetSuccessScreenState extends ConsumerState<PasswordResetSuccessScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -91,9 +93,9 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                 // Success text
                 FadeTransition(
                   opacity: _fadeAnimation,
-                  child: const Text(
-                    'Password Reset Successful!',
-                    style: TextStyle(
+                  child: Text(
+                    'Password Reset Successful!'.tr(ref),
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
@@ -105,7 +107,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Text(
-                    'Your password has been updated successfully.\nYou can now sign in with your new password.',
+                    'Your password has been updated successfully.\nYou can now sign in with your new password.'.tr(ref),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.white.withValues(alpha: 0.6),
@@ -132,9 +134,9 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                         ),
                         elevation: 0,
                       ),
-                      child: const Text(
-                        'Go to Login',
-                        style: TextStyle(
+                      child: Text(
+                        'Go to Login'.tr(ref),
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
@@ -165,7 +167,7 @@ class _PasswordResetSuccessScreenState extends State<PasswordResetSuccessScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'For security, never share your password with anyone.',
+                            'For security, never share your password with anyone.'.tr(ref),
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 12,

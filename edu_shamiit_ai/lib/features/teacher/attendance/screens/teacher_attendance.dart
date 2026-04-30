@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherAttendance extends StatefulWidget {
+class TeacherAttendance extends ConsumerStatefulWidget {
   const TeacherAttendance({super.key});
 
   @override
-  State<TeacherAttendance> createState() => _TeacherAttendanceState();
+  ConsumerState<TeacherAttendance> createState() => _TeacherAttendanceState();
 }
 
-class _TeacherAttendanceState extends State<TeacherAttendance> {
+class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedClass = 'X-A';
@@ -186,7 +188,7 @@ class _TeacherAttendanceState extends State<TeacherAttendance> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadData,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -418,8 +420,8 @@ class _TeacherAttendanceState extends State<TeacherAttendance> {
           _isSubmitting = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Attendance marked successfully!'),
+          SnackBar(
+            content: Text('✅ Attendance marked successfully!'.tr(ref)),
             backgroundColor: Colors.green,
           ),
         );

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -171,12 +172,12 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     
     if (myBorrows.isEmpty) {
       return [
-        const Center(
+        Center(
           child: Column(
             children: [
-              Icon(Icons.library_books, size: 64, color: StudentColors.text3),
-              SizedBox(height: 16),
-              Text(
+              const Icon(Icons.library_books, size: 64, color: StudentColors.text3),
+              const SizedBox(height: 16),
+              const Text(
                 'No books borrowed',
                 style: TextStyle(
                   fontFamily: AppFonts.heading,
@@ -185,8 +186,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   color: StudentColors.text3,
                 ),
               ),
-              SizedBox(height: 8),
-              Text('Browse the library to find books to borrow'),
+              const SizedBox(height: 8),
+              Text('Browse the library to find books to borrow'.tr(ref)),
             ],
           ),
         ),
@@ -509,12 +510,12 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('📗 Book Renewed!'),
+        title: Text('📗 Book Renewed!'.tr(ref)),
         content: Text('Your book "${borrow.bookTitle}" has been renewed for 15 additional days.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text('OK'.tr(ref)),
           ),
         ],
       ),
@@ -526,21 +527,21 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('📖 Borrow Book'),
+        title: Text('📖 Borrow Book'.tr(ref)),
         content: Text('Would you like to borrow "${book['title']}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Book borrowed successfully!')),
+                SnackBar(content: Text('✅ Book borrowed successfully!'.tr(ref))),
               );
             },
-            child: const Text('Borrow'),
+            child: Text('Borrow'.tr(ref)),
           ),
         ],
       ),
@@ -552,12 +553,12 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('📋 Book Request Submitted!'),
-        content: const Text('Your book request has been submitted. The librarian will notify you when the book is available.'),
+        title: Text('📋 Book Request Submitted!'.tr(ref)),
+        content: Text('Your book request has been submitted. The librarian will notify you when the book is available.'.tr(ref)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text('OK'.tr(ref)),
           ),
         ],
       ),

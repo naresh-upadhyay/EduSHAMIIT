@@ -401,7 +401,7 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
     try {
       final response = await _apiService.get('/student/leave-applications');
       final data = response.containsKey('data') ? response['data'] : response;
-      final apps = (data['applications'] ?? data['leave'] ?? [] as List).map((a) => LeaveApplication.fromJson(a)).toList();
+      final apps = (data['applications'] ?? data['leave'] ?? []).map((a) => LeaveApplication.fromJson(a)).toList();
       state = state.copyWith(
         isLoading: false,
         applications: apps,
@@ -490,7 +490,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     try {
       final response = await _apiService.get('/student/library');
       final data = response.containsKey('data') ? response['data'] : response;
-      final borrowsList = (data['borrows'] ?? [] as List).map((b) => LibraryBorrow.fromJson(b)).toList();
+      final borrowsList = (data['borrows'] ?? []).map((b) => LibraryBorrow.fromJson(b)).toList();
       final active = borrowsList.where((b) => b.status == 'borrowed').length;
       final overdue = borrowsList.where((b) => b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && b.returnedAt == null).length;
       state = state.copyWith(
@@ -558,7 +558,7 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
     try {
       final response = await _apiService.get('/student/courses');
       final data = response.containsKey('data') ? response['data'] : response;
-      final coursesList = (data['courses'] ?? [] as List).map((c) => Course.fromJson(c)).toList();
+      final coursesList = (data['courses'] ?? []).map((c) => Course.fromJson(c)).toList();
       state = state.copyWith(
         isLoading: false,
         courses: coursesList,
@@ -619,7 +619,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     try {
       final response = await _apiService.get('/student/notifications');
       final data = response.containsKey('data') ? response['data'] : response;
-      final notificationsList = (data['notifications'] ?? [] as List).map((n) => NotificationItem.fromJson(n)).toList();
+      final notificationsList = (data['notifications'] ?? []).map((n) => NotificationItem.fromJson(n)).toList();
       final unread = notificationsList.where((n) => !n.isRead).length;
       state = state.copyWith(
         isLoading: false,
@@ -710,7 +710,7 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
     try {
       final response = await _apiService.get('/student/live-classes');
       final data = response.containsKey('data') ? response['data'] : response;
-      final classesList = (data['classes'] ?? [] as List).map((c) => LiveClass.fromJson(c)).toList();
+      final classesList = (data['classes'] ?? []).map((c) => LiveClass.fromJson(c)).toList();
       state = state.copyWith(
         isLoading: false,
         classes: classesList,
@@ -842,7 +842,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     try {
       final response = await _apiService.get('/student/messages');
       final data = response.containsKey('data') ? response['data'] : response;
-      final messagesList = (data['messages'] ?? [] as List).map((m) => MessageItem.fromJson(m)).toList();
+      final messagesList = (data['messages'] ?? []).map((m) => MessageItem.fromJson(m)).toList();
       final unread = messagesList.where((m) => !m.isRead).length;
       state = state.copyWith(
         isLoading: false,
@@ -924,7 +924,7 @@ class OnlineExamNotifier extends StateNotifier<OnlineExamState> {
     try {
       final response = await _apiService.get('/student/exams');
       final data = response.containsKey('data') ? response['data'] : response;
-      final examsList = (data['exams'] ?? [] as List).map((e) => ExamItem.fromJson(e)).toList();
+      final examsList = (data['exams'] ?? []).map((e) => ExamItem.fromJson(e)).toList();
       final upcoming = examsList.where((e) => e.status == 'upcoming').length;
       final ongoing = examsList.where((e) => e.status == 'ongoing').length;
       final completed = examsList.where((e) => e.status == 'completed').length;

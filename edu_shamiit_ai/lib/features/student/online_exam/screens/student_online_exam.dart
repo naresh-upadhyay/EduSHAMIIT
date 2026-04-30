@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +23,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
     });
   }
 
-  String _getMonthAbbr(String dateStr) {
+String _getMonthAbbr(String dateStr) {
     if (dateStr.isEmpty) return 'TBD';
     try {
       final date = DateTime.parse(dateStr);
@@ -467,7 +468,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('📤 Upload Answer Sheet'),
+        title: Text('📤 Upload Answer Sheet'.tr(ref)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -509,16 +510,16 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Answer sheet uploaded successfully!')),
+                SnackBar(content: Text('✅ Answer sheet uploaded successfully!'.tr(ref))),
               );
             },
-            child: const Text('Submit'),
+            child: Text('Submit'.tr(ref)),
           ),
         ],
       ),
@@ -527,11 +528,11 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
 }
 
 // Exam Instructions Screen
-class _ExamInstructionsScreen extends StatelessWidget {
+class _ExamInstructionsScreen extends ConsumerWidget {
   const _ExamInstructionsScreen();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
@@ -729,14 +730,14 @@ class _ExamInstructionsScreen extends StatelessWidget {
 }
 
 // Exam Taking Screen
-class _ExamTakingScreen extends StatefulWidget {
+class _ExamTakingScreen extends ConsumerStatefulWidget {
   const _ExamTakingScreen();
 
   @override
-  State<_ExamTakingScreen> createState() => _ExamTakingScreenState();
+  ConsumerState<_ExamTakingScreen> createState() => _ExamTakingScreenState();
 }
 
-class _ExamTakingScreenState extends State<_ExamTakingScreen> {
+class _ExamTakingScreenState extends ConsumerState<_ExamTakingScreen> {
   int _currentQuestion = 0;
   final List<String?> _answers = List.filled(10, null);
   final List<bool> _reviewed = List.filled(10, false);
@@ -1111,12 +1112,12 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('🛑 Exit Examination?'),
-        content: const Text('Walking away now will submit your exam as-is. This action cannot be undone. Are you sure?'),
+        title: Text('🛑 Exit Examination?'.tr(ref)),
+        content: Text('Walking away now will submit your exam as-is. This action cannot be undone. Are you sure?'.tr(ref)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Stay & Work'),
+            child: Text('Stay & Work'.tr(ref)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: StudentColors.error),
@@ -1135,12 +1136,12 @@ class _ExamTakingScreenState extends State<_ExamTakingScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('⚠️ Final Submission?'),
+        title: Text('⚠️ Final Submission?'.tr(ref)),
         content: Text('You have answered ${_answers.where((a) => a != null).length} of ${_questions.length} questions. Are you sure you want to submit?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: StudentColors.success),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -70,7 +71,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                   : coursesState.error != null
                       ? Center(child: Text('Error: ${coursesState.error}'))
                       : coursesState.courses.isEmpty
-                          ? const Center(child: Text('No courses available'))
+                          ? Center(child: Text('No courses available'.tr(ref)))
                           : GridView.builder(
                               padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
                               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -316,7 +317,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                     final success = await ref.read(coursesProvider.notifier).startLearning(course.id);
                     if (success) {
                       messenger.showSnackBar(
-                        const SnackBar(content: Text('🎥 Starting video lecture...')),
+                        SnackBar(content: Text('🎥 Starting video lecture...'.tr(ref))),
                       );
                     }
                   },

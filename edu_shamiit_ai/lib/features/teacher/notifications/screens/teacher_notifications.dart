@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherNotifications extends StatefulWidget {
+class TeacherNotifications extends ConsumerStatefulWidget {
   const TeacherNotifications({super.key});
 
   @override
-  State<TeacherNotifications> createState() => _TeacherNotificationsState();
+  ConsumerState<TeacherNotifications> createState() => _TeacherNotificationsState();
 }
 
-class _TeacherNotificationsState extends State<TeacherNotifications> {
+class _TeacherNotificationsState extends ConsumerState<TeacherNotifications> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedFilter = 'All';
@@ -181,7 +183,7 @@ class _TeacherNotificationsState extends State<TeacherNotifications> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadNotifications,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -192,7 +194,7 @@ class _TeacherNotificationsState extends State<TeacherNotifications> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _notifications.isEmpty
-                  ? const Center(child: Text('No notifications'))
+                  ? Center(child: Text('No notifications'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _notifications.length,

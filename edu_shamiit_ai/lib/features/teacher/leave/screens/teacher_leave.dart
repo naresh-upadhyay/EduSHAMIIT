@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
 
-class TeacherLeaveScreen extends StatefulWidget {
+class TeacherLeaveScreen extends ConsumerStatefulWidget {
   const TeacherLeaveScreen({super.key});
 
   @override
-  State<TeacherLeaveScreen> createState() => _TeacherLeaveScreenState();
+  ConsumerState<TeacherLeaveScreen> createState() => _TeacherLeaveScreenState();
 }
 
-class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
+class _TeacherLeaveScreenState extends ConsumerState<TeacherLeaveScreen> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedStatus = 'All';
@@ -154,7 +156,7 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadLeaves,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -165,7 +167,7 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _leaves.isEmpty
-                  ? const Center(child: Text('No leave applications found'))
+                  ? Center(child: Text('No leave applications found'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _leaves.length,
@@ -298,7 +300,7 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Apply for Leave'),
+        title: Text('Apply for Leave'.tr(ref)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -340,17 +342,17 @@ class _TeacherLeaveScreenState extends State<TeacherLeaveScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               // Apply leave logic
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Leave application submitted!')),
+                SnackBar(content: Text('✅ Leave application submitted!'.tr(ref))),
               );
             },
-            child: const Text('Submit'),
+            child: Text('Submit'.tr(ref)),
           ),
         ],
       ),

@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherLiveClasses extends StatefulWidget {
+class TeacherLiveClasses extends ConsumerStatefulWidget {
   const TeacherLiveClasses({super.key});
 
   @override
-  State<TeacherLiveClasses> createState() => _TeacherLiveClassesState();
+  ConsumerState<TeacherLiveClasses> createState() => _TeacherLiveClassesState();
 }
 
-class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
+class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedStatus = 'All';
@@ -154,7 +156,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadLiveClasses,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -165,7 +167,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _liveClasses.isEmpty
-                  ? const Center(child: Text('No live classes found'))
+                  ? Center(child: Text('No live classes found'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _liveClasses.length,
@@ -292,7 +294,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
                 // Join meeting
               },
               icon: const Icon(Icons.video_call),
-              label: const Text('Join Meeting'),
+              label: Text('Join Meeting'.tr(ref)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -307,7 +309,7 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Schedule Live Class'),
+        title: Text('Schedule Live Class'.tr(ref)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -343,15 +345,15 @@ class _TeacherLiveClassesState extends State<TeacherLiveClasses> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr(ref))),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Live class scheduled!')),
+                SnackBar(content: Text('✅ Live class scheduled!'.tr(ref))),
               );
             },
-            child: const Text('Schedule'),
+            child: Text('Schedule'.tr(ref)),
           ),
         ],
       ),

@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherGrading extends StatefulWidget {
+class TeacherGrading extends ConsumerStatefulWidget {
   const TeacherGrading({super.key});
 
   @override
-  State<TeacherGrading> createState() => _TeacherGradingState();
+  ConsumerState<TeacherGrading> createState() => _TeacherGradingState();
 }
 
-class _TeacherGradingState extends State<TeacherGrading> {
+class _TeacherGradingState extends ConsumerState<TeacherGrading> {
   final TeacherApiService _apiService = TeacherApiService();
 
   String _selectedClass = 'X-A';
@@ -50,8 +52,8 @@ class _TeacherGradingState extends State<TeacherGrading> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Failed to load assignments. Please try again.')),
+          SnackBar(
+              content: Text('Failed to load assignments. Please try again.'.tr(ref))),
         );
       }
     }
@@ -364,7 +366,7 @@ class _TeacherGradingState extends State<TeacherGrading> {
               onPressed: () {
                 // Navigate to grading interface
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Opening grading interface...')),
+                  SnackBar(content: Text('Opening grading interface...'.tr(ref))),
                 );
               },
               style: ElevatedButton.styleFrom(

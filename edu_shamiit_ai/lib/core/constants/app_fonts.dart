@@ -1,4 +1,3 @@
-import 'package:google_fonts/google_fonts.dart';
 
 class AppFonts {
   // Font families (will be loaded via GoogleFonts in the theme)

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -304,7 +305,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Study Group'),
+        title: Text('Create Study Group'.tr(ref)),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -326,16 +327,16 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('🎉 Group Created!')),
+                SnackBar(content: Text('🎉 Group Created!'.tr(ref))),
               );
             },
-            child: const Text('Create'),
+            child: Text('Create'.tr(ref)),
           ),
         ],
       ),
@@ -344,17 +345,17 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
 }
 
 // Chat Detail Screen
-class _ChatDetailScreen extends StatefulWidget {
+class _ChatDetailScreen extends ConsumerStatefulWidget {
   final String senderName;
   final String senderId;
 
   const _ChatDetailScreen({required this.senderName, required this.senderId});
 
   @override
-  State<_ChatDetailScreen> createState() => _ChatDetailScreenState();
+  ConsumerState<_ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends State<_ChatDetailScreen> {
+class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   
   // Sample messages for demo (would be fetched from API in real app)

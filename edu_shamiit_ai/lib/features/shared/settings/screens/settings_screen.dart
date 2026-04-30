@@ -1,11 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
-import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
-import 'package:edu_shamiit_ai/core/config/app_config.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -97,117 +95,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           _buildSettingsTile(
             icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Settings',
-            subtitle: 'Manage your privacy',
+            title: 'Privacy Policy',
+            subtitle: 'Read our privacy policy',
             trailing: const Icon(Icons.chevron_right, color: StudentColors.text3),
             onTap: () {},
-          ),
-          _buildSettingsTile(
-            icon: Icons.security_outlined,
-            title: 'Security',
-            subtitle: 'Two-factor authentication',
-            trailing: const Icon(Icons.chevron_right, color: StudentColors.text3),
-            onTap: () {},
-          ),
-          const SizedBox(height: 20),
-
-          // Support Section
-          _buildSectionTitle('Support'),
-          _buildSettingsTile(
-            icon: Icons.help_outline,
-            title: 'Help Center',
-            subtitle: 'Get help and FAQs',
-            trailing: const Icon(Icons.chevron_right, color: StudentColors.text3),
-            onTap: () {},
-          ),
-          _buildSettingsTile(
-            icon: Icons.feedback_outlined,
-            title: 'Send Feedback',
-            subtitle: 'Share your thoughts',
-            trailing: const Icon(Icons.chevron_right, color: StudentColors.text3),
-            onTap: () => _showFeedbackDialog(),
           ),
           _buildSettingsTile(
             icon: Icons.info_outline,
-            title: 'About',
-            subtitle: 'Version ${AppConfig.appVersion}',
+            title: 'About EduSHAMIIT',
+            subtitle: 'Version 1.0.0',
             trailing: const Icon(Icons.chevron_right, color: StudentColors.text3),
-            onTap: () => _showAboutDialog(),
+            onTap: () {},
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 40),
 
           // Logout Button
-          _buildLogoutButton(),
-          const SizedBox(height: 30),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileCard() {
-    final authState = ref.watch(authProvider);
-    final userData = authState.userData; // Map<String, dynamic> from backend
-    final roleState = ref.watch(roleProvider);
-
-    final displayName = userData?['full_name'] as String? ??
-        userData?['email'] as String? ??
-        'User';
-    final initials = displayName.length >= 2
-        ? displayName.substring(0, 2).toUpperCase()
-        : displayName.toUpperCase();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: AppGradients.studentPrimary,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
-            child: Text(
-              initials,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+          ElevatedButton(
+            onPressed: () => _showLogoutDialog(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.red,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.1)),
               ),
+              elevation: 0,
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.logout),
+                SizedBox(width: 8),
+                Text(
+                  'Log Out',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            displayName,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
+          const SizedBox(height: 20),
+          const Center(
             child: Text(
-              roleState.role.value.toUpperCase(),
-              style: const TextStyle(
+              '©  Shami Innovation and Technologies LLP',
+              style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: StudentColors.text3,
               ),
             ),
           ),
+          const SizedBox(height: 30),
         ],
       ),
     );
@@ -215,15 +155,89 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title,
         style: const TextStyle(
-          fontFamily: 'Outfit',
-          fontSize: 16,
+          fontSize: 14,
           fontWeight: FontWeight.w700,
-          color: StudentColors.text,
+          color: StudentColors.text2,
+          letterSpacing: 0.5,
         ),
+      ),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    final authState = ref.watch(authProvider);
+    final userData = authState.userData;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppGradients.studentPrimary,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: StudentColors.primary.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: CircleAvatar(
+              radius: 35,
+              backgroundColor: Colors.white,
+              child: Text(
+                userData?['email']?.substring(0, 1).toUpperCase() ?? 'U',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: StudentColors.primary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  userData?['email']?.split('@')[0] ?? 'User',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  userData?['email'] ?? '',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+          ),
+        ],
       ),
     );
   }
@@ -232,142 +246,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
-    Widget? trailing,
+    required Widget trailing,
     VoidCallback? onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: StudentColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: StudentColors.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: StudentColors.text,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontFamily: 'DM Sans',
-                          fontSize: 13,
-                          color: StudentColors.text3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                trailing ?? const SizedBox.shrink(),
-              ],
-            ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: StudentColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: StudentColors.primary, size: 22),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: StudentColors.text,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton() {
-    return Container(
-      width: double.infinity,
-      height: 54,
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _handleLogout,
-          borderRadius: BorderRadius.circular(14),
-          child: const Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.logout, color: Colors.red, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Logout',
-                  style: TextStyle(
-                    fontFamily: 'Outfit',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 12,
+            color: StudentColors.text3,
           ),
         ),
+        trailing: trailing,
+        onTap: onTap,
       ),
     );
-  }
-
-  Future<void> _handleLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await ref.read(authProvider.notifier).signOut();
-      if (mounted) {
-        context.go('/login');
-      }
-    }
   }
 
   void _showLanguageDialog() {
@@ -375,27 +298,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Select Language'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildLanguageOption('English'),
-            _buildLanguageOption('Hindi'),
-            _buildLanguageOption('Spanish'),
-            _buildLanguageOption('French'),
+            _buildLanguageOption('English', '🇺🇸'),
+            _buildLanguageOption('Hindi', '🇮🇳'),
+            _buildLanguageOption('French', '🇫🇷'),
+            _buildLanguageOption('Spanish', '🇪🇸'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLanguageOption(String language) {
-    final isSelected = _selectedLanguage == language;
+  Widget _buildLanguageOption(String language, String flag) {
     return ListTile(
-      leading: Icon(
-        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: isSelected ? StudentColors.primary : Colors.grey,
-      ),
+      leading: Text(flag, style: const TextStyle(fontSize: 20)),
       title: Text(language),
+      trailing: _selectedLanguage == language
+          ? const Icon(Icons.check_circle, color: StudentColors.primary)
+          : null,
       onTap: () {
         setState(() {
           _selectedLanguage = language;
@@ -406,41 +329,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Change Password'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: currentPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Current Password',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             TextField(
-              controller: newPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'New Password',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             TextField(
-              controller: confirmPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Confirm New Password',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -450,108 +367,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () {
-              // TODO: Implement password change
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Password changed successfully')),
-              );
-            },
-            child: const Text('Change'),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: StudentColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Update'),
           ),
         ],
       ),
     );
   }
 
-  void _showFeedbackDialog() {
-    final feedbackController = TextEditingController();
-
+  void _showLogoutDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Send Feedback'),
-        content: TextField(
-          controller: feedbackController,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Tell us what you think...',
-            border: OutlineInputBorder(),
-          ),
-        ),
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out of EduSHAMIIT?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
-              // TODO: Implement feedback submission
+              ref.read(authProvider.notifier).signOut();
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Thank you for your feedback!')),
-              );
             },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAboutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('About EduSHAMIIT AI'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: AppGradients.studentPrimary,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Center(
-                  child: Text('🎓', style: TextStyle(fontSize: 30)),
-                ),
-              ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'EduSHAMIIT AI',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const Text(
-              'Version 1.0.0',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'An AI-powered school ERP system designed to enhance the learning experience for students and teachers alike.',
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '© 2026 EduSHAMIIT. All rights reserved.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('Log Out'),
           ),
         ],
       ),
     );
   }
 }
+
+
+

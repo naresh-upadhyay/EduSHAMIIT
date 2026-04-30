@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherExams extends StatefulWidget {
+class TeacherExams extends ConsumerStatefulWidget {
   const TeacherExams({super.key});
 
   @override
-  State<TeacherExams> createState() => _TeacherExamsState();
+  ConsumerState<TeacherExams> createState() => _TeacherExamsState();
 }
 
-class _TeacherExamsState extends State<TeacherExams> {
+class _TeacherExamsState extends ConsumerState<TeacherExams> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedType = 'All';
@@ -156,7 +158,7 @@ class _TeacherExamsState extends State<TeacherExams> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadExams,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -167,7 +169,7 @@ class _TeacherExamsState extends State<TeacherExams> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _exams.isEmpty
-                  ? const Center(child: Text('No exams scheduled'))
+                  ? Center(child: Text('No exams scheduled'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _exams.length,
@@ -320,7 +322,7 @@ class _TeacherExamsState extends State<TeacherExams> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Exam'),
+        title: Text('Create Exam'.tr(ref)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -342,15 +344,15 @@ class _TeacherExamsState extends State<TeacherExams> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr(ref))),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('? Exam created successfully!')),
+                SnackBar(content: Text('? Exam created successfully!'.tr(ref))),
               );
             },
-            child: const Text('Create'),
+            child: Text('Create'.tr(ref)),
           ),
         ],
       ),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,7 +59,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: const Center(child: Text('??', style: TextStyle(fontSize: 14))),
+                  child: const Center(child: Text('🤖', style: TextStyle(fontSize: 14))),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -86,7 +87,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            chatState.isTyping ? 'Typing...' : 'Always Online',
+                            chatState.isTyping ? 'Typing...'.tr(ref) : 'Always Online'.tr(ref),
                             style: const TextStyle(
                               fontSize: 10,
                               color: Colors.white54,
@@ -108,8 +109,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'export', child: Text('Export Chat')),
-                    const PopupMenuItem(value: 'clear', child: Text('Clear Chat')),
+                    PopupMenuItem(value: 'export', child: Text('Export Chat'.tr(ref))),
+                    PopupMenuItem(value: 'clear', child: Text('Clear Chat'.tr(ref))),
                   ],
                 ),
               ],
@@ -181,7 +182,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                   child: TextField(
                     controller: _controller,
                     decoration: InputDecoration(
-                      hintText: 'Ask anything about school...',
+                      hintText: 'Ask anything about school...'.tr(ref),
                       filled: true,
                       fillColor: StudentColors.surface,
                       border: OutlineInputBorder(
@@ -234,7 +235,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                 ),
                 shape: BoxShape.circle,
               ),
-              child: const Center(child: Text('??', style: TextStyle(fontSize: 12))),
+              child: const Center(child: Text('🤖', style: TextStyle(fontSize: 12))),
             ),
           Flexible(
             child: Container(
@@ -313,7 +314,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               ),
               shape: BoxShape.circle,
             ),
-            child: const Center(child: Text('??', style: TextStyle(fontSize: 12))),
+            child: const Center(child: Text('🤖', style: TextStyle(fontSize: 12))),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -402,7 +403,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chat exported!')),
+        SnackBar(content: Text('Chat exported!'.tr(ref))),
       );
       // In a real app, you would share or save the chatHistory string
       debugPrint(chatHistory);
@@ -413,19 +414,19 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Chat'),
-        content: const Text('Are you sure you want to clear all chat history?'),
+        title: Text('Clear Chat'.tr(ref)),
+        content: Text('Are you sure you want to clear all chat history?'.tr(ref)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           TextButton(
             onPressed: () {
               ref.read(aiChatProvider.notifier).clearChat();
               Navigator.pop(context);
             },
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+            child: Text('Clear'.tr(ref), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),

@@ -1,6 +1,6 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -197,7 +197,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadSchedule,
-                child: const Text('Retry'),
+                child: Text('Retry'.tr(ref)),
               ),
             ],
           ),
@@ -416,7 +416,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9),
+              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -449,9 +449,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF451A03).withOpacity(0.3) : const Color(0xFFFFF7ED),
+        color: isDark ? const Color(0xFF451A03).withValues(alpha: 0.3) : const Color(0xFFFFF7ED),
         borderRadius: BorderRadius.circular(12),
-        border: isDark ? Border.all(color: const Color(0xFF78350F).withOpacity(0.5)) : null,
+        border: isDark ? Border.all(color: const Color(0xFF78350F).withValues(alpha: 0.5)) : null,
       ),
       child: Row(
         children: [

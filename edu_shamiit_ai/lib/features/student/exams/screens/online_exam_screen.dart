@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -5,14 +7,14 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'dart:async';
 
 /// Online Exam Screen - Interactive exam interface with timer and question navigation
-class OnlineExamScreen extends StatefulWidget {
+class OnlineExamScreen extends ConsumerStatefulWidget {
   const OnlineExamScreen({super.key});
 
   @override
-  State<OnlineExamScreen> createState() => _OnlineExamScreenState();
+  ConsumerState<OnlineExamScreen> createState() => _OnlineExamScreenState();
 }
 
-class _OnlineExamScreenState extends State<OnlineExamScreen> {
+class _OnlineExamScreenState extends ConsumerState<OnlineExamScreen> {
   Timer? _timer;
   Duration _timeRemaining = const Duration(hours: 2, minutes: 30);
   int _currentQuestion = 0;
@@ -110,13 +112,13 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('⏰ Time\'s Up!'),
-        content: const Text('Your exam has been automatically submitted.'),
+        content: Text('Your exam has been automatically submitted.'.tr(ref)),
         actions: [
           TextButton(
             onPressed: () {
               context.go('/student/exams');
             },
-            child: const Text('OK'),
+            child: Text('OK'.tr(ref)),
           ),
         ],
       ),
@@ -707,12 +709,12 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('⚠️ Exit Exam?'),
-        content: const Text('Are you sure you want to exit? Your progress will be lost.'),
+        title: Text('⚠️ Exit Exam?'.tr(ref)),
+        content: Text('Are you sure you want to exit? Your progress will be lost.'.tr(ref)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           TextButton(
             onPressed: () {
@@ -720,7 +722,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
               context.go('/student/exams');
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Exit'),
+            child: Text('Exit'.tr(ref)),
           ),
         ],
       ),
@@ -731,7 +733,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('📝 Submit Exam?'),
+        title: Text('📝 Submit Exam?'.tr(ref)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,13 +743,13 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
             if (_reviewCount > 0)
               Text('⚠️ $_reviewCount questions marked for review.'),
             const SizedBox(height: 12),
-            const Text('Are you sure you want to submit?'),
+            Text('Are you sure you want to submit?'.tr(ref)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Continue Exam'),
+            child: Text('Continue Exam'.tr(ref)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -758,7 +760,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
               backgroundColor: const Color(0xFF10B981),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Submit'),
+            child: Text('Submit'.tr(ref)),
           ),
         ],
       ),
@@ -800,7 +802,7 @@ class _OnlineExamScreenState extends State<OnlineExamScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                 ),
-                child: const Text('View Results'),
+                child: Text('View Results'.tr(ref)),
               ),
             ],
           ),

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +9,6 @@ import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
-import 'package:edu_shamiit_ai/shared/widgets/ai_fab.dart';
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -67,7 +67,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadDashboard,
-                child: const Text('Retry'),
+                child: Text('Retry'.tr(ref)),
               ),
             ],
           ),
@@ -76,8 +76,8 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     }
 
     if (_dashboardData == null) {
-      return const Scaffold(
-        body: Center(child: Text('No data available')),
+      return Scaffold(
+        body: Center(child: Text('No data available'.tr(ref))),
       );
     }
 
@@ -325,7 +325,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
             ),
             TextButton(
               onPressed: () => context.push('/teacher/timetable'),
-              child: const Text('View All'),
+              child: Text('View All'.tr(ref)),
             ),
           ],
         ),
@@ -457,7 +457,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
             ),
             TextButton(
               onPressed: () {},
-              child: const Text('View All'),
+              child: Text('View All'.tr(ref)),
             ),
           ],
         ),

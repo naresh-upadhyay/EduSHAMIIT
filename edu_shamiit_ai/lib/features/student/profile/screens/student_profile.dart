@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,24 +133,23 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
             onPressed: () => safeGoBack(context, '/student/dashboard'),
           ),
           actions: [
-            if (p != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: TextButton.icon(
-                  onPressed: () => showModalBottomSheet(
-                    context: context, isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => _EditSheet(profile: p),
-                  ),
-                  icon: const Icon(Icons.edit, color: Colors.white, size: 14),
-                  label: Text('Edit'.tr(ref), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.white.withValues(alpha: 0.12),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton.icon(
+                onPressed: () => showModalBottomSheet(
+                  context: context, isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => _EditSheet(profile: p),
+                ),
+                icon: const Icon(Icons.edit, color: Colors.white, size: 14),
+                label: Text('Edit'.tr(ref), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
+            ),
           ],
           flexibleSpace: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
@@ -159,7 +157,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
               final isCollapsed = top <= kToolbarHeight + MediaQuery.of(context).padding.top + 20;
 
               return FlexibleSpaceBar(
-                title: isCollapsed ? Text(p?.name ?? 'Profile'.tr(ref), style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)) : null,
+                title: isCollapsed ? Text(p.name, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)) : null,
                 centerTitle: true,
                 background: Container(
                   decoration: const BoxDecoration(
@@ -173,7 +171,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                         const SizedBox(height: 36),
                         GestureDetector(
                           onTap: () {
-                            if (p?.avatarUrl != null && p!.avatarUrl!.isNotEmpty) {
+                            if (p.avatarUrl != null && p.avatarUrl!.isNotEmpty) {
                               ImagePreviewDialog.show(context, p.avatarUrl!, title: p.name);
                             }
                           },
@@ -186,45 +184,42 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
                               ),
                               child: ClipOval(child: st.isUploadingAvatar
                                 ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                : p?.avatarUrl != null && p!.avatarUrl!.isNotEmpty
+                                : p.avatarUrl != null && p.avatarUrl!.isNotEmpty
                                   ? CachedNetworkImage(imageUrl: p.avatarUrl!, fit: BoxFit.cover,
                                       errorWidget: (_, __, ___) => _initials(p.name))
-                                  : p != null ? _initials(p.name) : const Center(child: Text('?', style: TextStyle(fontSize: 28, color: Colors.white))))),
-                            if (p != null)
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: GestureDetector(
-                                  onTap: _pickAvatar,
-                                  child: Container(width: 26, height: 26,
-                                    decoration: BoxDecoration(color: const Color(0xFF4F46E5), shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2)),
-                                    child: const Icon(Icons.camera_alt, size: 14, color: Colors.white)),
-                                ),
+                                  : _initials(p.name))),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: _pickAvatar,
+                                child: Container(width: 26, height: 26,
+                                  decoration: BoxDecoration(color: const Color(0xFF4F46E5), shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2)),
+                                  child: const Icon(Icons.camera_alt, size: 14, color: Colors.white)),
                               ),
+                            ),
                           ]),
                         ),
                         const SizedBox(height: 8),
-                        Text(p?.name ?? '—', style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                        Text(p.name, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
                         const SizedBox(height: 4),
-                        if (p != null)
-                          Text(
-                            [if (p.className.isNotEmpty) 'Class ${p.className}', if (p.rollNumber.isNotEmpty) 'Roll No. ${p.rollNumber}', if (p.session.isNotEmpty) 'Session ${p.session}'].join(' · '),
-                            style: const TextStyle(fontSize: 11, color: Colors.white54),
-                          ),
+                        Text(
+                          [if (p.className.isNotEmpty) 'Class ${p.className}', if (p.rollNumber.isNotEmpty) 'Roll No. ${p.rollNumber}', if (p.session.isNotEmpty) 'Session ${p.session}'].join(' · '),
+                          style: const TextStyle(fontSize: 11, color: Colors.white54),
+                        ),
                         const SizedBox(height: 14),
-                        if (p != null)
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 16),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(16)),
-                            child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                              _stat('${p.avgScore}%', 'Avg Score'.tr(ref)),
-                              _stat('${p.attendancePct}%', 'Attend.'.tr(ref)),
-                              _stat(p.rank.isEmpty ? '—' : p.rank, 'Rank'.tr(ref)),
-                              _stat(p.badges, 'Badges'.tr(ref)),
-                            ]),
-                          ),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(16)),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                            _stat('${p.avgScore}%', 'Avg Score'.tr(ref)),
+                            _stat('${p.attendancePct}%', 'Attend.'.tr(ref)),
+                            _stat(p.rank.isEmpty ? '—' : p.rank, 'Rank'.tr(ref)),
+                            _stat(p.badges, 'Badges'.tr(ref)),
+                          ]),
+                        ),
                         const SizedBox(height: 16),
                       ],
                     ),
@@ -397,7 +392,7 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
               if (lowUrl.contains('.jpg') || lowUrl.contains('.jpeg') || lowUrl.contains('.png')) {
                 ImagePreviewDialog.show(context, doc.fileUrl, title: name);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📄 File is not an image (PDF/Doc)')));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('📄 File is not an image (PDF/Doc)'.tr(ref))));
               }
             }
           },
@@ -601,7 +596,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                 decoration: BoxDecoration(
                   border: Border.all(color: isDark ? StudentColors.darkBorder : StudentColors.border, width: 2),
                   borderRadius: BorderRadius.circular(14),
-                  color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                  color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                 ),
                 child: Column(children: [
                   const Text('📁', style: TextStyle(fontSize: 24)),
@@ -648,7 +643,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
             )),
             const SizedBox(height: 8),
             TextButton(onPressed: () => Navigator.pop(context),
-              style: TextButton.styleFrom(backgroundColor: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9),
+              style: TextButton.styleFrom(backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
               child: Text('Cancel', style: TextStyle(color: isDark ? StudentColors.darkText2 : StudentColors.text2))),
           ]),
@@ -680,7 +675,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
         labelText: label,
         labelStyle: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3),
         prefixIcon: Icon(icon, size: 18, color: isDark ? StudentColors.darkText3 : StudentColors.text3),
-        filled: true, fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.white,
+        filled: true, fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? StudentColors.darkBorder : StudentColors.border)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? StudentColors.darkBorder : StudentColors.border)),
@@ -692,13 +687,13 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
   Widget _drop(String label, String val, List<String> items, ValueChanged<String?> onChange) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(padding: const EdgeInsets.only(bottom: 12), child: DropdownButtonFormField<String>(
-      value: val,
+      initialValue: val,
       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3),
-        filled: true, fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.white,
+        filled: true, fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? StudentColors.darkBorder : StudentColors.border)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? StudentColors.darkBorder : StudentColors.border)),
@@ -724,7 +719,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
             labelText: 'Date of Birth',
             labelStyle: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3),
             prefixIcon: Icon(Icons.calendar_today_outlined, size: 18, color: isDark ? StudentColors.darkText3 : StudentColors.text3),
-            filled: true, fillColor: isDark ? Colors.white.withOpacity(0.03) : Colors.white,
+            filled: true, fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? StudentColors.darkBorder : StudentColors.border)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? StudentColors.darkBorder : StudentColors.border)),

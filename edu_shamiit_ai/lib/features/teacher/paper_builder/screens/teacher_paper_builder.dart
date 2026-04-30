@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherPaperBuilder extends StatefulWidget {
+class TeacherPaperBuilder extends ConsumerStatefulWidget {
   const TeacherPaperBuilder({super.key});
 
   @override
-  State<TeacherPaperBuilder> createState() => _TeacherPaperBuilderState();
+  ConsumerState<TeacherPaperBuilder> createState() => _TeacherPaperBuilderState();
 }
 
-class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
+class _TeacherPaperBuilderState extends ConsumerState<TeacherPaperBuilder> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedSubject = 'All';
@@ -172,7 +174,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadQuestions,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -183,7 +185,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _questions.isEmpty
-                  ? const Center(child: Text('No questions found in question bank'))
+                  ? Center(child: Text('No questions found in question bank'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _questions.length,
@@ -338,7 +340,7 @@ class _TeacherPaperBuilderState extends State<TeacherPaperBuilder> {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('? Paper generated successfully!')),
+          SnackBar(content: Text('? Paper generated successfully!'.tr(ref))),
         );
         setState(() {
           _selectedQuestions.clear();

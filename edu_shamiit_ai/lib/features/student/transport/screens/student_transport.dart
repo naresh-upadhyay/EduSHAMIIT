@@ -1,6 +1,6 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -117,7 +117,7 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadTransport,
-                child: const Text('Retry'),
+                child: Text('Retry'.tr(ref)),
               ),
             ],
           ),
@@ -544,7 +544,7 @@ class _StudentTransportState extends ConsumerState<StudentTransport> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text('OK, Got it!'),
+                child: Text('OK, Got it!'.tr(ref)),
               ),
             ),
           ],

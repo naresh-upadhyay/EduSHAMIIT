@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherMyClasses extends StatefulWidget {
+class TeacherMyClasses extends ConsumerStatefulWidget {
   const TeacherMyClasses({super.key});
 
   @override
-  State<TeacherMyClasses> createState() => _TeacherMyClassesState();
+  ConsumerState<TeacherMyClasses> createState() => _TeacherMyClassesState();
 }
 
-class _TeacherMyClassesState extends State<TeacherMyClasses> {
+class _TeacherMyClassesState extends ConsumerState<TeacherMyClasses> {
   final TeacherApiService _apiService = TeacherApiService();
   
   List<TeacherMyClass> _classes = [];
@@ -97,7 +99,7 @@ class _TeacherMyClassesState extends State<TeacherMyClasses> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadClasses,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -108,7 +110,7 @@ class _TeacherMyClassesState extends State<TeacherMyClasses> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _classes.isEmpty
-                  ? const Center(child: Text('No classes assigned'))
+                  ? Center(child: Text('No classes assigned'.tr(ref)))
                   : GridView.builder(
                       padding: const EdgeInsets.all(16),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -207,7 +209,7 @@ class _TeacherMyClassesState extends State<TeacherMyClasses> {
             onPressed: () {
               // Navigate to class details
             },
-            child: const Text('View Details'),
+            child: Text('View Details'.tr(ref)),
           ),
         ],
       ),

@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherMaterials extends StatefulWidget {
+class TeacherMaterials extends ConsumerStatefulWidget {
   const TeacherMaterials({super.key});
 
   @override
-  State<TeacherMaterials> createState() => _TeacherMaterialsState();
+  ConsumerState<TeacherMaterials> createState() => _TeacherMaterialsState();
 }
 
-class _TeacherMaterialsState extends State<TeacherMaterials> {
+class _TeacherMaterialsState extends ConsumerState<TeacherMaterials> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedType = 'All';
@@ -171,7 +173,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadMaterials,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -182,7 +184,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _materials.isEmpty
-                  ? const Center(child: Text('No teaching materials found'))
+                  ? Center(child: Text('No teaching materials found'.tr(ref)))
                   : GridView.builder(
                       padding: const EdgeInsets.all(16),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -308,7 +310,7 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Upload Material'),
+        title: Text('Upload Material'.tr(ref)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -336,15 +338,15 @@ class _TeacherMaterialsState extends State<TeacherMaterials> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel'.tr(ref))),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('? Material uploaded successfully!')),
+                SnackBar(content: Text('? Material uploaded successfully!'.tr(ref))),
               );
             },
-            child: const Text('Upload'),
+            child: Text('Upload'.tr(ref)),
           ),
         ],
       ),

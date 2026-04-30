@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -541,7 +542,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                 Expanded(
                   child: TextButton(
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Edit feature coming soon')),
+                      SnackBar(content: Text('Edit feature coming soon'.tr(ref))),
                     ),
                     style: TextButton.styleFrom(
                       backgroundColor: StudentColors.border,
@@ -554,7 +555,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                 Expanded(
                   child: TextButton(
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Cancel feature coming soon')),
+                      SnackBar(content: Text('Cancel feature coming soon'.tr(ref))),
                     ),
                     style: TextButton.styleFrom(
                       backgroundColor: StudentColors.errorBg,
@@ -594,7 +595,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
     if (_formKey.currentState!.validate()) {
       if (_startDate == null || _endDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select start and end dates')),
+          SnackBar(content: Text('Please select start and end dates'.tr(ref))),
         );
         return;
       }
@@ -616,7 +617,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
           context: context,
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Text('? Leave Applied!'),
+            title: Text('? Leave Applied!'.tr(ref)),
             content: const Text('Your leave request has been submitted to your Class Teacher. You\'ll be notified once approved.'),
             actions: [
               TextButton(
@@ -624,7 +625,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
                   Navigator.pop(ctx);
                   safeGoBack(context, '/student/dashboard'); // Go back to dashboard
                 },
-                child: const Text('Back to Home'),
+                child: Text('Back to Home'.tr(ref)),
               ),
             ],
           ),
@@ -637,7 +638,7 @@ class _StudentLeaveState extends ConsumerState<StudentLeave> {
         });
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to submit leave application. Please try again.')),
+          SnackBar(content: Text('Failed to submit leave application. Please try again.'.tr(ref))),
         );
       }
     }

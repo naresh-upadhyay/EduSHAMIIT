@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -151,7 +150,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
                             ),
                             _buildNavigationRow(
                               icon: '🌐',
-                              iconBg: isDark ? StudentColors.primary.withOpacity(0.2) : StudentColors.infoBg,
+                              iconBg: isDark ? StudentColors.primary.withValues(alpha: 0.2) : StudentColors.infoBg,
                               title: 'Language'.tr(ref),
                               subtitle: settings?.language ?? 'English',
                               onTap: () => _showLanguageDialog(context),
@@ -298,7 +297,7 @@ class _StudentSettingsState extends ConsumerState<StudentSettings> {
               ),
               Switch.adaptive(
                 value: value,
-                activeColor: const Color(0xFF4F46E5),
+                activeTrackColor: StudentColors.primary,
                 onChanged: onChanged,
               ),
             ],
@@ -557,7 +556,7 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                 ),
                 child: Column(
                   children: [
@@ -568,7 +567,7 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: primaryColor.withOpacity(0.3),
+                            color: primaryColor.withValues(alpha: 0.3),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -578,14 +577,14 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Update Password'.tr(this.ref),
+                      'Update Password'.tr(ref),
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Ensure your account stays secure'.tr(this.ref),
+                      'Ensure your account stays secure'.tr(ref),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3),
                     ),
@@ -602,16 +601,16 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
                     children: [
                       _buildPasswordField(
                         controller: _currentController,
-                        label: 'Current Password'.tr(this.ref),
-                        hint: 'Enter your current password'.tr(this.ref),
+                        label: 'Current Password'.tr(ref),
+                        hint: 'Enter your current password'.tr(ref),
                         obscured: _isCurrentObscured,
                         onToggle: () => setState(() => _isCurrentObscured = !_isCurrentObscured),
                       ),
                       const SizedBox(height: 20),
                       _buildPasswordField(
                         controller: _newController,
-                        label: 'New Password'.tr(this.ref),
-                        hint: 'Enter new secure password'.tr(this.ref),
+                        label: 'New Password'.tr(ref),
+                        hint: 'Enter new secure password'.tr(ref),
                         obscured: _isNewObscured,
                         onToggle: () => setState(() => _isNewObscured = !_isNewObscured),
                       ),
@@ -621,21 +620,21 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          _buildValidationHint('8+ chars'.tr(this.ref), _hasMinLength),
-                          _buildValidationHint('Number'.tr(this.ref), _hasNumber),
-                          _buildValidationHint('Symbol'.tr(this.ref), _hasSpecialChar),
+                          _buildValidationHint('8+ chars'.tr(ref), _hasMinLength),
+                          _buildValidationHint('Number'.tr(ref), _hasNumber),
+                          _buildValidationHint('Symbol'.tr(ref), _hasSpecialChar),
                         ],
                       ),
                       const SizedBox(height: 20),
                       _buildPasswordField(
                         controller: _confirmController,
-                        label: 'Confirm New Password'.tr(this.ref),
-                        hint: 'Re-type new password'.tr(this.ref),
+                        label: 'Confirm New Password'.tr(ref),
+                        hint: 'Re-type new password'.tr(ref),
                         obscured: _isConfirmObscured,
                         onToggle: () => setState(() => _isConfirmObscured = !_isConfirmObscured),
                       ),
                       const SizedBox(height: 12),
-                      _buildValidationHint('Passwords match'.tr(this.ref), _matches),
+                      _buildValidationHint('Passwords match'.tr(ref), _matches),
                     ],
                   ),
                 ),
@@ -653,7 +652,7 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: Text('Cancel'.tr(this.ref)),
+                        child: Text('Cancel'.tr(ref)),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -667,7 +666,7 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
                         ),
                         child: _isLoading 
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text('Update'.tr(this.ref)),
+                          : Text('Update'.tr(ref)),
                       ),
                     ),
                   ],
@@ -685,9 +684,9 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -737,19 +736,19 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
     // Custom validation logic
     if (_currentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter current password'.tr(this.ref))),
+        SnackBar(content: Text('Please enter current password'.tr(ref))),
       );
       return;
     }
     if (!_hasMinLength || !_hasNumber || !_hasSpecialChar) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please meet all password requirements'.tr(this.ref))),
+        SnackBar(content: Text('Please meet all password requirements'.tr(ref))),
       );
       return;
     }
     if (!_matches) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Passwords do not match'.tr(this.ref))),
+        SnackBar(content: Text('Passwords do not match'.tr(ref))),
       );
       return;
     }
@@ -767,7 +766,7 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
-                Text('Password updated successfully!'.tr(this.ref)),
+                Text('Password updated successfully!'.tr(ref)),
               ],
             ),
             backgroundColor: Colors.green,
@@ -782,7 +781,7 @@ class _ChangePasswordDialogState extends ConsumerState<ChangePasswordDialog> {
               children: [
                 const Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 12),
-                Text('Incorrect current password. Please try again.'.tr(this.ref)),
+                Text('Incorrect current password. Please try again.'.tr(ref)),
               ],
             ),
             backgroundColor: Colors.red,

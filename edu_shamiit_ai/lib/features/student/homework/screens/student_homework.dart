@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
@@ -195,7 +194,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                       margin: EdgeInsets.only(right: index < _tabs.length - 1 ? 6 : 0),
                       decoration: BoxDecoration(
                         color: isSelected 
-                          ? (isDark ? const Color(0xFFBE185D).withOpacity(0.15) : const Color(0xFFFDF2F8)) 
+                          ? (isDark ? const Color(0xFFBE185D).withValues(alpha: 0.15) : const Color(0xFFFDF2F8)) 
                           : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -433,17 +432,17 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                 decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : const Color(0xFFE2E8F0), style: BorderStyle.solid),
                   borderRadius: BorderRadius.circular(16),
-                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
                 ),
                 child: Column(
                   children: [
-                    Text('📁', style: TextStyle(fontSize: 36)),
-                    SizedBox(height: 8),
+                    const Text('📁', style: TextStyle(fontSize: 36)),
+                    const SizedBox(height: 8),
                     Text(
                       'Tap to upload file',
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'PDF, DOC, JPG up to 10MB',
                       style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),

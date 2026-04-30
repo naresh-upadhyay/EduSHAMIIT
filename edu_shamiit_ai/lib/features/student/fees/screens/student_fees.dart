@@ -1,6 +1,6 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -137,7 +137,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
               ElevatedButton.icon(
                 onPressed: _loadFees,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text('Retry'.tr(ref)),
               ),
             ],
           ),
@@ -485,7 +485,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
             const SizedBox(height: 12),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel'.tr(ref)),
             ),
           ],
         ),
@@ -590,7 +590,7 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
                 ),
                 minimumSize: const Size(double.infinity, 48),
               ),
-              child: const Text('Done'),
+              child: Text('Done'.tr(ref)),
             ),
           ],
         ),

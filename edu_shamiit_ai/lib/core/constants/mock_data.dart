@@ -1,6 +1,7 @@
 /// Mock data constants for API fallback
 /// This file contains mock data that will be used when API calls fail
 /// To disable mock data, simply delete this file
+library;
 
 class MockData {
   // Common response wrapper

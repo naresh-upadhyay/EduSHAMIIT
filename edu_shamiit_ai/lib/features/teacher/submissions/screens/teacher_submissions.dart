@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherSubmissions extends StatefulWidget {
+class TeacherSubmissions extends ConsumerStatefulWidget {
   const TeacherSubmissions({super.key});
 
   @override
-  State<TeacherSubmissions> createState() => _TeacherSubmissionsState();
+  ConsumerState<TeacherSubmissions> createState() => _TeacherSubmissionsState();
 }
 
-class _TeacherSubmissionsState extends State<TeacherSubmissions> {
+class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedStatus = 'All';
@@ -149,7 +151,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadSubmissions,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -160,7 +162,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _submissions.isEmpty
-                  ? const Center(child: Text('No submissions found'))
+                  ? Center(child: Text('No submissions found'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _submissions.length,
@@ -278,7 +280,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Grade Submission'),
+        title: Text('Grade Submission'.tr(ref)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -304,14 +306,14 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await _gradeSubmission(submission, marksController.text, feedbackController.text);
             },
-            child: const Text('Submit'),
+            child: Text('Submit'.tr(ref)),
           ),
         ],
       ),
@@ -323,7 +325,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
       final marks = double.tryParse(marksStr);
       if (marks == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('? Invalid marks value')),
+          SnackBar(content: Text('? Invalid marks value'.tr(ref))),
         );
         return;
       }
@@ -336,7 +338,7 @@ class _TeacherSubmissionsState extends State<TeacherSubmissions> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('? Submission graded successfully!')),
+          SnackBar(content: Text('? Submission graded successfully!'.tr(ref))),
         );
         _loadSubmissions();
       }

@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherStudentDirectory extends StatefulWidget {
+class TeacherStudentDirectory extends ConsumerStatefulWidget {
   const TeacherStudentDirectory({super.key});
 
   @override
-  State<TeacherStudentDirectory> createState() => _TeacherStudentDirectoryState();
+  ConsumerState<TeacherStudentDirectory> createState() => _TeacherStudentDirectoryState();
 }
 
-class _TeacherStudentDirectoryState extends State<TeacherStudentDirectory> {
+class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirectory> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedClass = 'All';
@@ -195,7 +197,7 @@ class _TeacherStudentDirectoryState extends State<TeacherStudentDirectory> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadData,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -206,7 +208,7 @@ class _TeacherStudentDirectoryState extends State<TeacherStudentDirectory> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _students.isEmpty
-                  ? const Center(child: Text('No students found'))
+                  ? Center(child: Text('No students found'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _students.length,

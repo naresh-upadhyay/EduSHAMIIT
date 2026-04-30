@@ -1,6 +1,6 @@
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
@@ -198,7 +198,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadResults,
-                child: const Text('Retry'),
+                child: Text('Retry'.tr(ref)),
               ),
             ],
           ),
@@ -366,9 +366,9 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                           margin: const EdgeInsets.only(top: 4, bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF065F46).withOpacity(0.3) : const Color(0xFFECFDF5),
+                            color: isDark ? const Color(0xFF065F46).withValues(alpha: 0.3) : const Color(0xFFECFDF5),
                             borderRadius: BorderRadius.circular(12),
-                            border: isDark ? Border.all(color: const Color(0xFF059669).withOpacity(0.5)) : null,
+                            border: isDark ? Border.all(color: const Color(0xFF059669).withValues(alpha: 0.5)) : null,
                           ),
                           child: Text(
                             '${overall['grade']} Grade 🏅',
@@ -438,7 +438,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
-                                    color: isDark ? _getSubjectBg(subject['name']).withOpacity(0.1) : _getSubjectBg(subject['name']),
+                                    color: isDark ? _getSubjectBg(subject['name']).withValues(alpha: 0.1) : _getSubjectBg(subject['name']),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -482,16 +482,16 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: isDark ? _getGradeColor(subject['grade']).withOpacity(0.15) : _getGradeBg(subject['grade']),
+                                          color: isDark ? _getGradeColor(subject['grade']).withValues(alpha: 0.15) : _getGradeBg(subject['grade']),
                                           borderRadius: BorderRadius.circular(6),
-                                          border: isDark ? Border.all(color: _getGradeColor(subject['grade']).withOpacity(0.3)) : null,
+                                          border: isDark ? Border.all(color: _getGradeColor(subject['grade']).withValues(alpha: 0.3)) : null,
                                         ),
                                         child: Text(
                                           subject['grade'],
                                           style: TextStyle(
                                             fontSize: 8,
                                             fontWeight: FontWeight.w700,
-                                            color: isDark ? _getGradeColor(subject['grade']).withOpacity(0.9) : _getGradeColor(subject['grade']),
+                                            color: isDark ? _getGradeColor(subject['grade']).withValues(alpha: 0.9) : _getGradeColor(subject['grade']),
                                           ),
                                         ),
                                       ),
@@ -500,7 +500,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                               ],
                             ),
                             if (index < subjects.length - 1)
-                              Divider(height: 16, thickness: 0.5, color: isDark ? StudentColors.darkBorder : Colors.grey.withOpacity(0.1)),
+                              Divider(height: 16, thickness: 0.5, color: isDark ? StudentColors.darkBorder : Colors.grey.withValues(alpha: 0.1)),
                           ],
                         );
                       }).toList(),
@@ -513,7 +513,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   ElevatedButton.icon(
                     onPressed: () => _showDownloadDialog(context),
                     icon: const Text('📥', style: TextStyle(fontSize: 16)),
-                    label: const Text('Download Report Card'),
+                    label: Text('Download Report Card'.tr(ref)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: StudentColors.primary,
                       foregroundColor: Colors.white,
@@ -577,7 +577,6 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -614,7 +613,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text('Cancel'.tr(ref)),
                   ),
                 ],
               ),
@@ -626,7 +625,6 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   }
 
   Widget _buildYearOption(String year, bool isCurrent) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: ElevatedButton(
@@ -636,8 +634,8 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: isCurrent 
-            ? (Theme.of(context).brightness == Brightness.dark ? StudentColors.primary.withOpacity(0.2) : const Color(0xFFEEF2FF)) 
-            : (Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.05) : const Color(0xFFF8FAFC)),
+            ? (Theme.of(context).brightness == Brightness.dark ? StudentColors.primary.withValues(alpha: 0.2) : const Color(0xFFEEF2FF)) 
+            : (Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC)),
           foregroundColor: isCurrent ? StudentColors.primary : (Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText : StudentColors.text),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
@@ -697,9 +695,9 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF065F46).withOpacity(0.2) : const Color(0xFFECFDF5),
+                      color: isDark ? const Color(0xFF065F46).withValues(alpha: 0.2) : const Color(0xFFECFDF5),
                       borderRadius: BorderRadius.circular(12),
-                      border: isDark ? Border.all(color: const Color(0xFF059669).withOpacity(0.4)) : null,
+                      border: isDark ? Border.all(color: const Color(0xFF059669).withValues(alpha: 0.4)) : null,
                     ),
                     child: const Column(
                       children: [
@@ -727,7 +725,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
                       ),
                       minimumSize: const Size(double.infinity, 48),
                     ),
-                    child: const Text('✅ Download Successfully'),
+                    child: Text('✅ Download Successfully'.tr(ref)),
                   ),
                 ],
               ),

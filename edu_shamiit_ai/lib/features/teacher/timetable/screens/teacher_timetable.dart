@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherTimetable extends StatefulWidget {
+class TeacherTimetable extends ConsumerStatefulWidget {
   const TeacherTimetable({super.key});
 
   @override
-  State<TeacherTimetable> createState() => _TeacherTimetableState();
+  ConsumerState<TeacherTimetable> createState() => _TeacherTimetableState();
 }
 
-class _TeacherTimetableState extends State<TeacherTimetable> {
+class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedDay = 'Monday';
@@ -135,7 +137,7 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadTimetable,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -146,7 +148,7 @@ class _TeacherTimetableState extends State<TeacherTimetable> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _periods.isEmpty
-                  ? const Center(child: Text('No classes scheduled for this day'))
+                  ? Center(child: Text('No classes scheduled for this day'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _periods.length,

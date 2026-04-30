@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherSalary extends StatefulWidget {
+class TeacherSalary extends ConsumerStatefulWidget {
   const TeacherSalary({super.key});
 
   @override
-  State<TeacherSalary> createState() => _TeacherSalaryState();
+  ConsumerState<TeacherSalary> createState() => _TeacherSalaryState();
 }
 
-class _TeacherSalaryState extends State<TeacherSalary> {
+class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
   final TeacherApiService _apiService = TeacherApiService();
   
   List<SalarySlip> _salarySlips = [];
@@ -104,7 +106,7 @@ class _TeacherSalaryState extends State<TeacherSalary> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadSalarySlips,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -115,7 +117,7 @@ class _TeacherSalaryState extends State<TeacherSalary> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _salarySlips.isEmpty
-                  ? const Center(child: Text('No salary slips found'))
+                  ? Center(child: Text('No salary slips found'.tr(ref)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _salarySlips.length,
@@ -284,7 +286,7 @@ class _TeacherSalaryState extends State<TeacherSalary> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text('Close'.tr(ref)),
           ),
         ],
       ),

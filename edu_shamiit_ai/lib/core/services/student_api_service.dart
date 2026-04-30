@@ -137,13 +137,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getAttendanceRecords() as List)
+        return (MockDataService().getAttendanceRecords())
             .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getAttendanceRecords() as List)
+      return (MockDataService().getAttendanceRecords())
           .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -183,13 +183,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getHomeworkAssignments() as List)
+        return (MockDataService().getHomeworkAssignments())
             .map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getHomeworkAssignments() as List)
+      return (MockDataService().getHomeworkAssignments())
           .map((e) => HomeworkAssignment.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -246,13 +246,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getUpcomingExams() as List)
+        return (MockDataService().getUpcomingExams())
             .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getUpcomingExams() as List)
+      return (MockDataService().getUpcomingExams())
           .map((e) => ExamSchedule.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -315,13 +315,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getExamResults() as List)
+        return (MockDataService().getExamResults())
             .map((e) => ExamResult.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getExamResults() as List)
+      return (MockDataService().getExamResults())
           .map((e) => ExamResult.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -402,13 +402,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getFeeRecords() as List)
+        return (MockDataService().getFeeRecords())
             .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getFeeRecords() as List)
+      return (MockDataService().getFeeRecords())
           .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -465,13 +465,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getTimetable() as List)
+        return (MockDataService().getTimetable())
             .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getTimetable() as List)
+      return (MockDataService().getTimetable())
           .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -537,13 +537,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getLiveClasses() as List)
+        return (MockDataService().getLiveClasses())
             .map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getLiveClasses() as List)
+      return (MockDataService().getLiveClasses())
           .map((e) => StudentLiveClass.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -603,13 +603,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getNotices() as List)
+        return (MockDataService().getNotices())
             .map((e) => Notice.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getNotices() as List)
+      return (MockDataService().getNotices())
           .map((e) => Notice.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -649,13 +649,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getNotifications() as List)
+        return (MockDataService().getNotifications())
             .map((e) => StudentNotification.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getNotifications() as List)
+      return (MockDataService().getNotifications())
           .map((e) => StudentNotification.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -726,13 +726,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getEvents() as List)
+        return (MockDataService().getEvents())
             .map((e) => Event.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getEvents() as List)
+      return (MockDataService().getEvents())
           .map((e) => Event.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -787,13 +787,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getAchievements() as List)
+        return (MockDataService().getAchievements())
             .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getAchievements() as List)
+      return (MockDataService().getAchievements())
           .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -833,13 +833,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getLeaderboard() as List)
+        return (MockDataService().getLeaderboard())
             .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getLeaderboard() as List)
+      return (MockDataService().getLeaderboard())
           .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -878,14 +878,14 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getLeaveApplications() as List)
+        return (MockDataService().getLeaveApplications())
             .map((e) =>
                 StudentLeaveApplication.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getLeaveApplications() as List)
+      return (MockDataService().getLeaveApplications())
           .map((e) =>
               StudentLeaveApplication.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -956,13 +956,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getLibraryBooks() as List)
+        return (MockDataService().getLibraryBooks())
             .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getLibraryBooks() as List)
+      return (MockDataService().getLibraryBooks())
           .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -990,13 +990,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getIssuedBooks() as List)
+        return (MockDataService().getIssuedBooks())
             .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getIssuedBooks() as List)
+      return (MockDataService().getIssuedBooks())
           .map((e) => LibraryBook.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -1034,13 +1034,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getCourses() as List)
+        return (MockDataService().getCourses())
             .map((e) => Course.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getCourses() as List)
+      return (MockDataService().getCourses())
           .map((e) => Course.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -1082,13 +1082,13 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getMessages() as List)
+        return (MockDataService().getMessages())
             .map((e) => Message.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getMessages() as List)
+      return (MockDataService().getMessages())
           .map((e) => Message.fromJson(e as Map<String, dynamic>))
           .toList();
     }
@@ -1175,14 +1175,14 @@ class StudentApiService {
             .toList();
       } else {
         // Fallback to mock data when API fails
-        return (MockDataService().getPerformanceAnalytics() as List)
+        return (MockDataService().getPerformanceAnalytics())
             .map(
                 (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))
             .toList();
       }
     } catch (e) {
       // Fallback to mock data when API fails
-      return (MockDataService().getPerformanceAnalytics() as List)
+      return (MockDataService().getPerformanceAnalytics())
           .map(
               (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))
           .toList();

@@ -339,7 +339,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDark ? bgColor.withOpacity(0.08) : bgColor,
+          color: isDark ? bgColor.withValues(alpha: 0.08) : bgColor,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

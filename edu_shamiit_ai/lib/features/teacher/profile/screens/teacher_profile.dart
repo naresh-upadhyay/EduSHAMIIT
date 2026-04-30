@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
 
-class TeacherProfileScreen extends StatefulWidget {
+class TeacherProfileScreen extends ConsumerStatefulWidget {
   const TeacherProfileScreen({super.key});
 
   @override
-  State<TeacherProfileScreen> createState() => _TeacherProfileScreenState();
+  ConsumerState<TeacherProfileScreen> createState() => _TeacherProfileScreenState();
 }
 
-class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
+class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
   final TeacherApiService _apiService = TeacherApiService();
   
   models.TeacherProfile? _profile;
@@ -108,7 +110,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadProfile,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -348,7 +350,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Edit Profile'),
+        title: Text('Edit Profile'.tr(ref)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -379,7 +381,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: Text('Cancel'.tr(ref))),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(dialogCtx);
@@ -387,10 +389,10 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
               await _loadProfile();
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Profile updated successfully!')),
+                SnackBar(content: Text('✅ Profile updated successfully!'.tr(ref))),
               );
             },
-            child: const Text('Save'),
+            child: Text('Save'.tr(ref)),
           ),
         ],
       ),

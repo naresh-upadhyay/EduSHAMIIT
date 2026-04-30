@@ -1,16 +1,17 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 
-class StudentEvents extends StatefulWidget {
+class StudentEvents extends ConsumerStatefulWidget {
   const StudentEvents({super.key});
 
   @override
-  State<StudentEvents> createState() => _StudentEventsState();
+  ConsumerState<StudentEvents> createState() => _StudentEventsState();
 }
 
-class _StudentEventsState extends State<StudentEvents> {
+class _StudentEventsState extends ConsumerState<StudentEvents> {
   String _selectedTab = 'Upcoming';
   final List<String> _tabs = ['Upcoming', 'Registered', 'Past'];
 

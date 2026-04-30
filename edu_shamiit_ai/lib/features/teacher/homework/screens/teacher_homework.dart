@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 
-class TeacherHomework extends StatefulWidget {
+class TeacherHomework extends ConsumerStatefulWidget {
   const TeacherHomework({super.key});
 
   @override
-  State<TeacherHomework> createState() => _TeacherHomeworkState();
+  ConsumerState<TeacherHomework> createState() => _TeacherHomeworkState();
 }
 
-class _TeacherHomeworkState extends State<TeacherHomework> {
+class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedTab = 'Active';
@@ -162,7 +164,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadHomework,
-                      child: const Text('Retry'),
+                      child: Text('Retry'.tr(ref)),
                     ),
                   ],
                 ),
@@ -369,7 +371,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Create Homework'),
+          title: Text('Create Homework'.tr(ref)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -457,7 +459,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel'.tr(ref)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -470,7 +472,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
                   dueDate: DateTime.now().add(const Duration(days: 2)),
                 );
               },
-              child: const Text('Create'),
+              child: Text('Create'.tr(ref)),
             ),
           ],
         ),
@@ -482,7 +484,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Homework'),
+        title: Text('Edit Homework'.tr(ref)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -503,14 +505,14 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'.tr(ref)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await _updateHomework(homework);
             },
-            child: const Text('Update'),
+            child: Text('Update'.tr(ref)),
           ),
           TextButton(
             onPressed: () async {
@@ -518,7 +520,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
               await _deleteHomework(homework);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text('Delete'.tr(ref)),
           ),
         ],
       ),
@@ -542,7 +544,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Homework created successfully!')),
+          SnackBar(content: Text('✅ Homework created successfully!'.tr(ref))),
         );
         _loadHomework();
       }
@@ -563,7 +565,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Homework updated successfully!')),
+          SnackBar(content: Text('✅ Homework updated successfully!'.tr(ref))),
         );
         _loadHomework();
       }
@@ -581,7 +583,7 @@ class _TeacherHomeworkState extends State<TeacherHomework> {
       await _apiService.deleteHomework(homework.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Homework deleted successfully!')),
+          SnackBar(content: Text('✅ Homework deleted successfully!'.tr(ref))),
         );
         _loadHomework();
       }

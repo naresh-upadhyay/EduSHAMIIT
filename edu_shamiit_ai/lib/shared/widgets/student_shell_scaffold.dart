@@ -14,34 +14,6 @@ class StudentShellScaffold extends StatelessWidget {
 
   const StudentShellScaffold({super.key, required this.child});
 
-  // Bottom nav items (mobile only)
-  static const _bottomNavItems = [
-    _NavItem(
-        icon: Icons.home_rounded,
-        emoji: '🏠',
-        label: 'Home',
-        route: '/student/dashboard'),
-    _NavItem(
-        icon: Icons.menu_book_rounded,
-        emoji: '📚',
-        label: 'Courses',
-        route: '/student/courses'),
-    _NavItem(
-        icon: Icons.bar_chart_rounded,
-        emoji: '📊',
-        label: 'Results',
-        route: '/student/results'),
-    _NavItem(
-        icon: Icons.emoji_events_rounded,
-        emoji: '🏆',
-        label: 'Achieve',
-        route: '/student/achievements'),
-    _NavItem(
-        icon: Icons.person_rounded,
-        emoji: '👤',
-        label: 'Profile',
-        route: '/student/profile'),
-  ];
 
   // Full sidebar items (desktop) — all routes with proper icons
   static const _sidebarItems = [
@@ -229,40 +201,49 @@ class _DesktopSidebar extends StatelessWidget {
       child: Column(
         children: [
           // App logo / brand
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-            child: Row(
-              mainAxisAlignment: isExtended
-                  ? MainAxisAlignment.start
-                  : MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final canShowLabel = constraints.maxWidth > 100;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: canShowLabel
+                      ? MainAxisAlignment.start
+                      : MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text('📖', style: TextStyle(fontSize: 20)),
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: Text('📖', style: TextStyle(fontSize: 20)),
-                  ),
+                    if (canShowLabel) ...[
+                      const SizedBox(width: 12),
+                      const Flexible(
+                        child: Text(
+                          'EduSHAMIIT',
+                          style: TextStyle(
+                            fontFamily: AppFonts.heading,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                if (isExtended) ...[
-                  const SizedBox(width: 12),
-                  const Text(
-                    'EduSHAMIIT',
-                    style: TextStyle(
-                      fontFamily: AppFonts.heading,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+              );
+            },
           ),
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
           const SizedBox(height: 8),

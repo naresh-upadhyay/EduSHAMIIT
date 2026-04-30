@@ -240,7 +240,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${cls.teacher} � ${cls.started ?? ''}',
+                  '${cls.teacher}  ${cls.started ?? ''}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -322,7 +322,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${cls.teacher} � ${cls.time ?? ''}',
+                  '${cls.teacher}  ${cls.time ?? ''}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: StudentColors.text3,
@@ -433,16 +433,16 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
 }
 
 // Live Class Detail Screen (YouTube-style)
-class _LiveClassDetailScreen extends StatefulWidget {
+class _LiveClassDetailScreen extends ConsumerStatefulWidget {
   final LiveClassModel classData;
 
   const _LiveClassDetailScreen({required this.classData});
 
   @override
-  State<_LiveClassDetailScreen> createState() => _LiveClassDetailScreenState();
+  ConsumerState<_LiveClassDetailScreen> createState() => _LiveClassDetailScreenState();
 }
 
-class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
+class _LiveClassDetailScreenState extends ConsumerState<_LiveClassDetailScreen> {
   final List<Map<String, dynamic>> _comments = [
     {
       'user': 'Dr. A. Verma',
@@ -613,7 +613,7 @@ class _LiveClassDetailScreenState extends State<_LiveClassDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${widget.classData.viewers}.2k views � ${widget.classData.started ?? ''}',
+                  '${widget.classData.viewers}.2k views  ${widget.classData.started ?? ''}',
                   style: const TextStyle(fontSize: 10, color: Colors.white54),
                 ),
                 const SizedBox(height: 12),
