@@ -101,6 +101,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
       }
 
+      // If user IS authenticated, let's enforce role constraints and path mismatches
+      if (isAuth) {
+        final role = authState.role;
+        final isTeacher = role.value == 'teacher';
+        
+        if (isTeacher && path.startsWith('/student')) {
+          if (path == '/student/settings') return '/teacher/settings';
+          return '/teacher/dashboard';
+        }
+        if (!isTeacher && path.startsWith('/teacher')) {
+          if (path == '/teacher/settings') return '/student/settings';
+          return '/student/dashboard';
+        }
+      }
+
       return null; // No redirect needed
     },
     routes: [
@@ -140,7 +155,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/settings',
-      builder: (_, __) => const SettingsScreen(),
+      redirect: (context, state) {
+        final authState = ref.read(authProvider);
+        final isTeacher = authState.role.value == 'teacher';
+        return isTeacher ? '/teacher/settings' : '/student/settings';
+      },
     ),
 
     // ─────────────── STUDENT SHELL (persistent bottom nav) ───────────────
@@ -332,6 +351,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/teacher/student-directory',
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherStudentDirectory()),
+        ),
+        GoRoute(
+          path: '/teacher/settings',
+          pageBuilder: (_, __) => const NoTransitionPage(child: SettingsScreen()),
         ),
         GoRoute(
           path: '/teacher/ai-chat',

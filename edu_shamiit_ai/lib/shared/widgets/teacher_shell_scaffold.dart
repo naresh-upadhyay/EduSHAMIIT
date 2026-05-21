@@ -83,6 +83,10 @@ class TeacherShellScaffold extends StatelessWidget {
         icon: Icons.person_rounded,
         label: 'Profile',
         route: '/teacher/profile'),
+    _NavItem(
+        icon: Icons.settings_rounded,
+        label: 'Settings',
+        route: '/teacher/settings'),
   ];
 
   int _selectedIndex(String location, List<_NavItem> items) {

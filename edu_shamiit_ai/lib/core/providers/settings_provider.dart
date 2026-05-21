@@ -4,6 +4,7 @@ import '../services/cache_service.dart';
 import 'api_provider.dart';
 import 'cache_provider.dart';
 import 'auth_provider.dart';
+import 'role_provider.dart';
 
 /// Model class for user settings
 class UserSettings {
@@ -99,8 +100,9 @@ class SettingsState {
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final ApiService _apiService;
   final CacheService _cacheService;
+  final bool isTeacher;
 
-  SettingsNotifier(this._apiService, this._cacheService, {bool skipLoad = false})
+  SettingsNotifier(this._apiService, this._cacheService, {this.isTeacher = false, bool skipLoad = false})
       : super(SettingsState(isLoading: !skipLoad)) {
     if (!skipLoad) {
       loadSettings();
@@ -120,9 +122,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       }
 
       // Then fetch from API
-      final response = await _apiService.get('/student/settings');
+      final path = isTeacher ? '/user/settings' : '/student/settings';
+      final response = await _apiService.get(path);
       if (response['success'] == true) {
-        final settings = UserSettings.fromJson(response['data']);
+        final Map<String, dynamic> rawData = response['data'];
+        final settingsJson = rawData.containsKey('settings') ? rawData['settings'] : rawData;
+        final settings = UserSettings.fromJson(settingsJson);
         // Cache the settings
         await _cacheService.set('user_settings', settings.toJson());
         state = state.copyWith(
@@ -184,8 +189,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
     // Sync with server
     try {
+      final path = isTeacher ? '/user/settings' : '/student/settings';
       final response =
-          await _apiService.put('/student/settings', {key: value});
+          await _apiService.put(path, {key: value});
       return response['success'] == true;
     } catch (e) {
       return false; // Optimistic update succeeded, but sync failed
@@ -195,7 +201,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<bool> changePassword(
       String currentPassword, String newPassword) async {
     try {
-      final response = await _apiService.post('/student/change-password', {
+      final path = isTeacher ? '/user/change-password' : '/student/change-password';
+      final response = await _apiService.post(path, {
         'currentPassword': currentPassword,
         'newPassword': newPassword,
       });
@@ -207,7 +214,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<bool> logout() async {
     try {
-      final response = await _apiService.post('/student/logout', {});
+      final path = isTeacher ? '/user/logout' : '/student/logout';
+      final response = await _apiService.post(path, {});
       if (response['success'] == true) {
         // Clear cached settings
         await _cacheService.remove('user_settings');
@@ -235,6 +243,7 @@ final settingsProvider =
       return SettingsNotifier(apiService, cacheService, skipLoad: true);
     }
     
-    return SettingsNotifier(apiService, cacheService);
+    final isTeacher = ref.read(authProvider).role == UserRole.teacher;
+    return SettingsNotifier(apiService, cacheService, isTeacher: isTeacher);
   },
 );

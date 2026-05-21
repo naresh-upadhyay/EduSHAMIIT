@@ -1014,7 +1014,7 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
     final operations = [
       (Icons.payments_outlined, 'Salary History'.tr(ref), '/teacher/salary'),
       (Icons.beach_access_outlined, 'Apply Leave'.tr(ref), '/teacher/leave'),
-      (Icons.settings_outlined, 'App Settings'.tr(ref), '/settings'),
+      (Icons.settings_outlined, 'App Settings'.tr(ref), '/teacher/settings'),
     ];
 
     return Container(

@@ -4,11 +4,22 @@ import 'package:go_router/go_router.dart';
 /// Safely navigates back. If there's history to pop, it pops.
 /// Otherwise it navigates to the [fallbackRoute] (typically the dashboard).
 void safeGoBack(BuildContext context, String fallbackRoute) {
-  if (context.canPop()) {
-    context.pop();
-  } else {
-    context.go(fallbackRoute);
-  }
+  try {
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+      return;
+    }
+  } catch (_) {}
+
+  try {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+  } catch (_) {}
+
+  context.go(fallbackRoute);
 }
 
 /// Returns the correct dashboard fallback route based on the current location.
