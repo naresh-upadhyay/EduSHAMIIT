@@ -105,3 +105,4 @@ def require_role(required_role: str):
 require_teacher = require_role("teacher")
 require_student = require_role("student")
 require_admin = require_role("admin")
+require_parent = require_role("parent")

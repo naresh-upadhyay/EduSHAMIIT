@@ -434,3 +434,59 @@ class UpdateSettingsRequest(BaseModel):
     notifications_enabled: Optional[bool] = None
     dark_mode: Optional[bool] = None
     language: Optional[str] = None
+
+
+# ─────────────── Parent Portal Models ───────────────
+
+class ParentLeaveRequest(BaseModel):
+    """Request model for parent applying leave on behalf of student"""
+    student_id: str
+    leave_type: str
+    start_date: str
+    end_date: str
+    reason: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "student_id": "bb000001-0000-0000-0000-000000000001",
+                "leave_type": "sick",
+                "start_date": "2026-05-01",
+                "end_date": "2026-05-02",
+                "reason": "Child is unwell"
+            }
+        }
+
+
+class ParentMessageRequest(BaseModel):
+    """Request model for parent sending message to teacher"""
+    teacher_id: str
+    content: str
+    student_id: Optional[str] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "teacher_id": "aa000001-0000-0000-0000-000000000001",
+                "content": "I would like to discuss my child's progress",
+                "student_id": "bb000001-0000-0000-0000-000000000001"
+            }
+        }
+
+
+class ParentProfileUpdateRequest(BaseModel):
+    """Request model for updating parent profile"""
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    avatar_url: Optional[str] = None
+    gender: Optional[str] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "full_name": "Ramesh Kumar",
+                "phone": "+91-9100000001",
+                "address": "42, MG Road, Bengaluru"
+            }
+        }

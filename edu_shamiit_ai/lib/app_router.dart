@@ -52,9 +52,26 @@ import 'package:edu_shamiit_ai/features/teacher/materials/screens/teacher_materi
 import 'package:edu_shamiit_ai/features/teacher/student_directory/screens/teacher_student_directory.dart';
 import 'package:edu_shamiit_ai/shared/widgets/student_shell_scaffold.dart';
 import 'package:edu_shamiit_ai/shared/widgets/teacher_shell_scaffold.dart';
+import 'package:edu_shamiit_ai/shared/widgets/parent_shell_scaffold.dart';
+import 'package:edu_shamiit_ai/features/parent/dashboard/screens/parent_dashboard.dart';
+import 'package:edu_shamiit_ai/features/parent/attendance/screens/parent_attendance.dart';
+import 'package:edu_shamiit_ai/features/parent/results/screens/parent_results.dart';
+import 'package:edu_shamiit_ai/features/parent/fees/screens/parent_fees.dart';
+import 'package:edu_shamiit_ai/features/parent/homework/screens/parent_homework.dart';
+import 'package:edu_shamiit_ai/features/parent/leave/screens/parent_leave.dart';
+import 'package:edu_shamiit_ai/features/parent/transport/screens/parent_transport.dart';
+import 'package:edu_shamiit_ai/features/parent/messaging/screens/parent_messaging.dart';
+import 'package:edu_shamiit_ai/features/parent/notifications/screens/parent_notifications.dart';
+import 'package:edu_shamiit_ai/features/parent/profile/screens/parent_profile.dart';
+import 'package:edu_shamiit_ai/features/parent/settings/screens/parent_settings.dart';
+import 'package:edu_shamiit_ai/features/parent/timetable/screens/parent_timetable.dart';
+import 'package:edu_shamiit_ai/features/parent/achievements/screens/parent_achievements.dart';
+import 'package:edu_shamiit_ai/features/parent/notices/screens/parent_notices.dart';
+import 'package:edu_shamiit_ai/features/parent/events/screens/parent_events.dart';
 
 final _studentShellKey = GlobalKey<NavigatorState>(debugLabel: 'studentShell');
 final _teacherShellKey = GlobalKey<NavigatorState>(debugLabel: 'teacherShell');
+final _parentShellKey = GlobalKey<NavigatorState>(debugLabel: 'parentShell');
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -75,7 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final isAuth = authState.isAuthenticated;
-      
+
       final path = state.uri.path;
       final isSplash = path == '/splash';
       final isLogin = path == '/login';
@@ -83,8 +100,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOtp = path == '/otp-verification';
       final isReset = path == '/reset-password';
       final isResetSuccess = path == '/password-reset-success';
-      
-      final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess;
+
+      final isPublic =
+          isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess;
 
       // If user is NOT authenticated, and trying to access a private route, force to login
       if (!isAuth && !isPublic && !authState.isLoading) {
@@ -96,6 +114,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         final role = authState.role;
         if (role.value == 'teacher') {
           return '/teacher/dashboard';
+        } else if (role.value == 'parent') {
+          return '/parent/dashboard';
         } else {
           return '/student/dashboard';
         }
@@ -104,241 +124,373 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null; // No redirect needed
     },
     routes: [
-    // ─────────────── SHARED ROUTES (no bottom nav) ───────────────
-    GoRoute(
-      path: '/splash',
-      builder: (_, __) => const SplashScreen(),
-    ),
-    GoRoute(
-      path: '/login',
-      builder: (_, __) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: '/forgot-password',
-      builder: (_, __) => const ForgotPasswordScreen(),
-    ),
-    GoRoute(
-      path: '/otp-verification',
-      builder: (context, state) {
-        final args = state.extra as Map<String, dynamic>?;
-        final email = args?['email'] as String? ?? '';
-        return OtpVerificationScreen(email: email);
-      },
-    ),
-    GoRoute(
-      path: '/reset-password',
-      builder: (context, state) {
-        final args = state.extra as Map<String, dynamic>?;
-        final email = args?['email'] as String? ?? '';
-        final otp = args?['otp'] as String? ?? '';
-        return ResetPasswordScreen(email: email, otp: otp);
-      },
-    ),
-    GoRoute(
-      path: '/password-reset-success',
-      builder: (_, __) => const PasswordResetSuccessScreen(),
-    ),
-    GoRoute(
-      path: '/settings',
-      builder: (_, __) => const SettingsScreen(),
-    ),
+      // ─────────────── SHARED ROUTES (no bottom nav) ───────────────
+      GoRoute(
+        path: '/splash',
+        builder: (_, __) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, __) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/otp-verification',
+        builder: (context, state) {
+          final args = state.extra as Map<String, dynamic>?;
+          final email = args?['email'] as String? ?? '';
+          return OtpVerificationScreen(email: email);
+        },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final args = state.extra as Map<String, dynamic>?;
+          final email = args?['email'] as String? ?? '';
+          final otp = args?['otp'] as String? ?? '';
+          return ResetPasswordScreen(email: email, otp: otp);
+        },
+      ),
+      GoRoute(
+        path: '/password-reset-success',
+        builder: (_, __) => const PasswordResetSuccessScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (_, __) => const SettingsScreen(),
+      ),
 
-    // ─────────────── STUDENT SHELL (persistent bottom nav) ───────────────
-    ShellRoute(
-      navigatorKey: _studentShellKey,
-      builder: (context, state, child) => StudentShellScaffold(child: child),
-      routes: [
-        GoRoute(
-          path: '/student/dashboard',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentDashboard()),
-        ),
-        GoRoute(
-          path: '/student/timetable',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentTimetable()),
-        ),
-        GoRoute(
-          path: '/student/results',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentResults()),
-        ),
-        GoRoute(
-          path: '/student/fees',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentFees()),
-        ),
-        GoRoute(
-          path: '/student/notices',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentNotices()),
-        ),
-        GoRoute(
-          path: '/student/homework',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentHomework()),
-        ),
-        GoRoute(
-          path: '/student/transport',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentTransport()),
-        ),
-        GoRoute(
-          path: '/student/events',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentEvents()),
-        ),
-        GoRoute(
-          path: '/student/attendance',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentAttendance()),
-        ),
-        GoRoute(
-          path: '/student/achievements',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentAchievements()),
-        ),
-        GoRoute(
-          path: '/student/profile',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentProfile()),
-        ),
-        GoRoute(
-          path: '/student/leave-application',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentLeave()),
-        ),
-        GoRoute(
-          path: '/student/library',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentLibrary()),
-        ),
-        GoRoute(
-          path: '/student/courses',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentCourses()),
-        ),
-        GoRoute(
-          path: '/student/notifications',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentNotifications()),
-        ),
-        GoRoute(
-          path: '/student/live-classes',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentLiveClasses()),
-        ),
-        GoRoute(
-          path: '/student/leaderboard',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentLeaderboard()),
-        ),
-        GoRoute(
-          path: '/student/messaging',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentMessaging()),
-        ),
-        GoRoute(
-          path: '/student/settings',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentSettings()),
-        ),
-        GoRoute(
-          path: '/student/exams',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentExamsScreen()),
-        ),
-        GoRoute(
-          path: '/student/online-exam',
-          pageBuilder: (_, __) => const NoTransitionPage(child: OnlineExamScreen()),
-        ),
-        GoRoute(
-          path: '/student/ai-chat',
-          pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
-        ),
-      ],
-    ),
+      // ─────────────── STUDENT SHELL (persistent bottom nav) ───────────────
+      ShellRoute(
+        navigatorKey: _studentShellKey,
+        builder: (context, state, child) => StudentShellScaffold(child: child),
+        routes: [
+          GoRoute(
+            path: '/student/dashboard',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentDashboard()),
+          ),
+          GoRoute(
+            path: '/student/timetable',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentTimetable()),
+          ),
+          GoRoute(
+            path: '/student/results',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentResults()),
+          ),
+          GoRoute(
+            path: '/student/fees',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentFees()),
+          ),
+          GoRoute(
+            path: '/student/notices',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentNotices()),
+          ),
+          GoRoute(
+            path: '/student/homework',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentHomework()),
+          ),
+          GoRoute(
+            path: '/student/transport',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentTransport()),
+          ),
+          GoRoute(
+            path: '/student/events',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentEvents()),
+          ),
+          GoRoute(
+            path: '/student/attendance',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentAttendance()),
+          ),
+          GoRoute(
+            path: '/student/achievements',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentAchievements()),
+          ),
+          GoRoute(
+            path: '/student/profile',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentProfile()),
+          ),
+          GoRoute(
+            path: '/student/leave-application',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentLeave()),
+          ),
+          GoRoute(
+            path: '/student/library',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentLibrary()),
+          ),
+          GoRoute(
+            path: '/student/courses',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentCourses()),
+          ),
+          GoRoute(
+            path: '/student/notifications',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentNotifications()),
+          ),
+          GoRoute(
+            path: '/student/live-classes',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentLiveClasses()),
+          ),
+          GoRoute(
+            path: '/student/leaderboard',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentLeaderboard()),
+          ),
+          GoRoute(
+            path: '/student/messaging',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentMessaging()),
+          ),
+          GoRoute(
+            path: '/student/settings',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentSettings()),
+          ),
+          GoRoute(
+            path: '/student/exams',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: StudentExamsScreen()),
+          ),
+          GoRoute(
+            path: '/student/online-exam',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: OnlineExamScreen()),
+          ),
+          GoRoute(
+            path: '/student/ai-chat',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: AiChatScreen()),
+          ),
+        ],
+      ),
 
-    // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
-    // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
-    ShellRoute(
-      navigatorKey: _teacherShellKey,
-      builder: (context, state, child) => TeacherShellScaffold(child: child),
-      routes: [
-        GoRoute(
-          path: '/teacher/dashboard',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherDashboardScreen()),
-        ),
-        GoRoute(
-          path: '/teacher/timetable',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherTimetable()),
-        ),
-        GoRoute(
-          path: '/teacher/attendance',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherAttendance()),
-        ),
-        GoRoute(
-          path: '/teacher/homework',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherHomework()),
-        ),
-        GoRoute(
-          path: '/teacher/gradebook',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherGradebook()),
-        ),
-        GoRoute(
-          path: '/teacher/my-classes',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMyClasses()),
-        ),
-        GoRoute(
-          path: '/teacher/class-detail',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMyClasses()),
-        ),
-        GoRoute(
-          path: '/teacher/notices',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherNotices()),
-        ),
-        GoRoute(
-          path: '/teacher/profile',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherProfileScreen()),
-        ),
-        GoRoute(
-          path: '/teacher/grading',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherGrading()),
-        ),
-        GoRoute(
-          path: '/teacher/grading-config',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherGrading()),
-        ),
-        GoRoute(
-          path: '/teacher/exams',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherExams()),
-        ),
-        GoRoute(
-          path: '/teacher/paper-builder',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherPaperBuilder()),
-        ),
-        GoRoute(
-          path: '/teacher/leave',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherLeaveScreen()),
-        ),
-        GoRoute(
-          path: '/teacher/salary',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherSalary()),
-        ),
-        GoRoute(
-          path: '/teacher/submissions',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherSubmissions()),
-        ),
-        GoRoute(
-          path: '/teacher/review-submissions',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherSubmissions()),
-        ),
-        GoRoute(
-          path: '/teacher/notifications',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherNotifications()),
-        ),
-        GoRoute(
-          path: '/teacher/live-classes',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherLiveClasses()),
-        ),
-        GoRoute(
-          path: '/teacher/live-session',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherLiveClasses()),
-        ),
-        GoRoute(
-          path: '/teacher/materials',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMaterials()),
-        ),
-        GoRoute(
-          path: '/teacher/student-directory',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherStudentDirectory()),
-        ),
-        GoRoute(
-          path: '/teacher/ai-chat',
-          pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
-        ),
-      ],
-    ),
-  ],
-);
+      // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
+      // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
+      ShellRoute(
+        navigatorKey: _teacherShellKey,
+        builder: (context, state, child) => TeacherShellScaffold(child: child),
+        routes: [
+          GoRoute(
+            path: '/teacher/dashboard',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherDashboardScreen()),
+          ),
+          GoRoute(
+            path: '/teacher/timetable',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherTimetable()),
+          ),
+          GoRoute(
+            path: '/teacher/attendance',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherAttendance()),
+          ),
+          GoRoute(
+            path: '/teacher/homework',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherHomework()),
+          ),
+          GoRoute(
+            path: '/teacher/gradebook',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherGradebook()),
+          ),
+          GoRoute(
+            path: '/teacher/my-classes',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherMyClasses()),
+          ),
+          GoRoute(
+            path: '/teacher/class-detail',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherMyClasses()),
+          ),
+          GoRoute(
+            path: '/teacher/notices',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherNotices()),
+          ),
+          GoRoute(
+            path: '/teacher/profile',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherProfileScreen()),
+          ),
+          GoRoute(
+            path: '/teacher/grading',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherGrading()),
+          ),
+          GoRoute(
+            path: '/teacher/grading-config',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherGrading()),
+          ),
+          GoRoute(
+            path: '/teacher/exams',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherExams()),
+          ),
+          GoRoute(
+            path: '/teacher/paper-builder',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherPaperBuilder()),
+          ),
+          GoRoute(
+            path: '/teacher/leave',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherLeaveScreen()),
+          ),
+          GoRoute(
+            path: '/teacher/salary',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherSalary()),
+          ),
+          GoRoute(
+            path: '/teacher/submissions',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherSubmissions()),
+          ),
+          GoRoute(
+            path: '/teacher/review-submissions',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherSubmissions()),
+          ),
+          GoRoute(
+            path: '/teacher/notifications',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherNotifications()),
+          ),
+          GoRoute(
+            path: '/teacher/live-classes',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherLiveClasses()),
+          ),
+          GoRoute(
+            path: '/teacher/live-session',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherLiveClasses()),
+          ),
+          GoRoute(
+            path: '/teacher/materials',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherMaterials()),
+          ),
+          GoRoute(
+            path: '/teacher/student-directory',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: TeacherStudentDirectory()),
+          ),
+          GoRoute(
+            path: '/teacher/ai-chat',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: AiChatScreen()),
+          ),
+        ],
+      ),
+
+      // ─────────────── PARENT SHELL (persistent bottom nav) ───────────────
+      ShellRoute(
+        navigatorKey: _parentShellKey,
+        builder: (context, state, child) => ParentShellScaffold(child: child),
+        routes: [
+          GoRoute(
+            path: '/parent/dashboard',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentDashboard()),
+          ),
+          GoRoute(
+            path: '/parent/attendance',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentAttendance()),
+          ),
+          GoRoute(
+            path: '/parent/results',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentResults()),
+          ),
+          GoRoute(
+            path: '/parent/fees',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ParentFees()),
+          ),
+          GoRoute(
+            path: '/parent/homework',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentHomework()),
+          ),
+          GoRoute(
+            path: '/parent/leave',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentLeave()),
+          ),
+          GoRoute(
+            path: '/parent/transport',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentTransport()),
+          ),
+          GoRoute(
+            path: '/parent/messaging',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentMessaging()),
+          ),
+          GoRoute(
+            path: '/parent/notifications',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentNotifications()),
+          ),
+          GoRoute(
+            path: '/parent/profile',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentProfile()),
+          ),
+          GoRoute(
+            path: '/parent/settings',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentSettings()),
+          ),
+          GoRoute(
+            path: '/parent/timetable',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentTimetable()),
+          ),
+          GoRoute(
+            path: '/parent/achievements',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentAchievements()),
+          ),
+          GoRoute(
+            path: '/parent/notices',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentNotices()),
+          ),
+          GoRoute(
+            path: '/parent/events',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ParentEvents()),
+          ),
+          GoRoute(
+            path: '/parent/ai-chat',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: AiChatScreen()),
+          ),
+        ],
+      ),
+    ],
+  );
 });

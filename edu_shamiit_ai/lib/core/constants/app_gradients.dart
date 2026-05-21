@@ -25,6 +25,18 @@ class AppGradients {
     end: Alignment.bottomRight,
   );
 
+  static const LinearGradient parentPrimary = LinearGradient(
+    colors: [Color(0xFF0D9488), Color(0xFFF59E0B)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient parentHeader = LinearGradient(
+    colors: [Color(0xFF0F766E), Color(0xFF0D9488)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   static const LinearGradient success = LinearGradient(
     colors: [Color(0xFF059669), Color(0xFF10B981)],
     begin: Alignment.topLeft,

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, parent
 
 
 @asynccontextmanager
@@ -132,6 +132,7 @@ app.include_router(image.router, prefix="/api/chat", tags=["Image"])
 app.include_router(iot.router, prefix="/api/iot", tags=["IoT"])
 app.include_router(rag.router, prefix="/api/rag", tags=["RAG"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
+app.include_router(parent.router, prefix="/api/parent", tags=["Parent"])
 
 
 @app.get("/health")
