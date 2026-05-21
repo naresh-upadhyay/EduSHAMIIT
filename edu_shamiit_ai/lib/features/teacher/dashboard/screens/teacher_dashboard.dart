@@ -2,6 +2,7 @@ import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
@@ -9,6 +10,7 @@ import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
+import 'package:edu_shamiit_ai/core/providers/teacher_profile_provider.dart';
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -115,8 +117,12 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
   }
 
   Widget _buildHeader() {
-    final user = _dashboardData!.user;
+    final profileState = ref.watch(teacherProfileProvider);
+    final profile = profileState.profile;
+
+    final user = profile ?? _dashboardData!.user;
     final stats = _dashboardData!.stats;
+    final profileImageUrl = user.profileImageUrl;
 
     return SliverAppBar(
       expandedHeight: Responsive.headerExpandedHeight(context),
@@ -184,12 +190,37 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                             ],
                           ),
                           const SizedBox(width: 8),
-                          InkWell(
-                            onTap: () => context.push('/teacher/profile'),
-                            child: const CircleAvatar(
-                              radius: 20,
-                              backgroundColor: Colors.white30,
-                              child: Text('👨‍🏫', style: TextStyle(fontSize: 20)),
+                          GestureDetector(
+                            onTap: () async {
+                              await context.push('/teacher/profile');
+                              _loadDashboard();
+                            },
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: ClipOval(
+                                child: profileImageUrl != null && profileImageUrl.isNotEmpty
+                                    ? CachedNetworkImage(
+                                        imageUrl: profileImageUrl,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(
+                                          color: Colors.white.withValues(alpha: 0.1),
+                                          child: const Center(
+                                            child: Text('👨‍🏫', style: TextStyle(fontSize: 20)),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => _initials(user.fullName),
+                                      )
+                                    : _initials(user.fullName),
+                              ),
                             ),
                           ),
                         ],
@@ -530,4 +561,17 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     );
   }
 
+  Widget _initials(String name) {
+    final i = name.trim().split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+    return Center(
+      child: Text(
+        i,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
 }

@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from typing import Optional
 from datetime import datetime
 import asyncio
+import httpx
+import uuid
 
 from app.middleware.auth import get_current_user, require_school_id, require_teacher
 from app.services.supabase_client import get_supabase
 from app.cache.redis_client import get_cached, set_cached
+from app.config import settings
 
 router = APIRouter()
 
@@ -282,11 +285,193 @@ async def teacher_profile(user=Depends(get_current_user), school_id=Depends(requ
         return cached
 
     sb = get_supabase()
-    profile = (await sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()).data
+    profile_task = sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()
+    docs_task = sb.table("documents").select("id, document_type, file_name, file_url, verification_status").eq("user_id", user["id"]).aexecute()
+    
+    profile_res, docs_res = await asyncio.gather(profile_task, docs_task)
+    profile = profile_res.data or {}
+    profile["documents"] = docs_res.data or []
     
     result = {"success": True, "school_id": school_id, "data": {"profile": profile}}
     await set_cached(school_id, "teacher_profile", result, user["id"], ttl=300)
     return result
+
+
+@router.patch("/profile")
+async def update_teacher_profile(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    allowed_fields = {
+        "full_name", "phone", "email", "address", "blood_group",
+        "gender", "date_of_birth", "category",
+        "father_name", "father_occupation", "father_phone",
+        "mother_name", "mother_occupation", "mother_phone",
+        "local_guardian", "nationality", "religion", "qualification",
+        "experience_years", "bio", "joining_date", "specialization"
+    }
+    update_data = {k: v for k, v in request.items() if k in allowed_fields}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields provided for update")
+    
+    update_data["updated_at"] = datetime.utcnow().isoformat()
+    await sb.table("profiles").update(update_data).eq("id", user["id"]).aexecute()
+    
+    # Clear Redis Cache
+    try:
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            await rc.delete(f"{school_id}:teacher_profile:{user['id']}")
+    except Exception:
+        pass
+        
+    # Fetch updated profile to return
+    profile_task = sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()
+    docs_task = sb.table("documents").select("id, document_type, file_name, file_url, verification_status").eq("user_id", user["id"]).aexecute()
+    profile_res, docs_res = await asyncio.gather(profile_task, docs_task)
+    profile = profile_res.data or {}
+    profile["documents"] = docs_res.data or []
+    
+    return {
+        "success": True, 
+        "message": "Profile updated successfully", 
+        "data": {**profile, "profile": profile}
+    }
+
+
+@router.post("/profile/avatar")
+async def upload_avatar(
+    avatar: UploadFile = File(...),
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id),
+):
+    """Upload a profile photo and save the public URL to profiles.avatar_url."""
+    image_bytes = await avatar.read()
+    if len(image_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty image file")
+    if len(image_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large. Maximum 5 MB.")
+
+    content_type = avatar.content_type or "application/octet-stream"
+    if content_type == "application/octet-stream":
+        if avatar.filename and avatar.filename.lower().endswith(".png"):
+            content_type = "image/png"
+        else:
+            content_type = "image/jpeg"
+
+    # Determine extension
+    ext_map = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}
+    ext = ext_map.get(content_type, "jpg")
+    storage_path = f"avatars/{user['id']}.{ext}"
+
+    # Upload to Supabase Storage via REST API
+    supabase_url = settings.SUPABASE_URL.rstrip("/")
+    storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": content_type,
+        "x-upsert": "true",
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        upload_response = await client.post(storage_url, headers=headers, content=image_bytes)
+
+    if upload_response.status_code not in (200, 201):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Storage upload failed: {upload_response.text}"
+        )
+
+    # Build public URL with a cache-busting query parameter
+    timestamp = int(datetime.utcnow().timestamp())
+    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}?t={timestamp}"
+
+    # Persist public URL in profiles
+    sb = get_supabase()
+    await sb.table("profiles").update({"avatar_url": public_url}).eq("id", user["id"]).aexecute()
+
+    # Clear Redis Cache
+    try:
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            await rc.delete(f"{school_id}:teacher_profile:{user['id']}")
+    except Exception:
+        pass
+
+    return {"success": True, "data": {"avatar_url": public_url}}
+
+
+@router.post("/profile/document")
+async def upload_document(
+    document: UploadFile = File(...),
+    document_type: str = Form(...),
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id),
+):
+    """Upload a document and add it to the teacher's documents list."""
+    sb = get_supabase()
+    
+    # 1. Validate file
+    if not document.filename:
+        raise HTTPException(status_code=400, detail="Filename missing")
+    ext = document.filename.split('.')[-1].lower() if '.' in document.filename else ''
+    if ext not in ["pdf", "jpg", "jpeg", "png"]:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: PDF, JPG, PNG")
+
+    file_bytes = await document.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum 5 MB.")
+
+    # 2. Upload to Supabase Storage
+    doc_id = str(uuid.uuid4())
+    storage_path = f"documents/{user['id']}/{doc_id}.{ext}"
+    supabase_url = settings.SUPABASE_URL.rstrip("/")
+    storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": document.content_type or "application/octet-stream",
+        "x-upsert": "true",
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        upload_response = await client.post(storage_url, headers=headers, content=file_bytes)
+
+    if upload_response.status_code not in (200, 201):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Storage upload failed: {upload_response.text}"
+        )
+
+    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
+
+    # 3. Insert into documents table
+    doc_data = {
+        "id": doc_id,
+        "school_id": school_id,
+        "user_id": user["id"],
+        "document_type": document_type,
+        "file_name": document.filename,
+        "file_url": public_url,
+        "verification_status": "pending"
+    }
+    await sb.table("documents").insert(doc_data).aexecute()
+
+    # Clear Redis Cache
+    try:
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            await rc.delete(f"{school_id}:teacher_profile:{user['id']}")
+    except Exception:
+        pass
+
+    return {"success": True, "message": "Document uploaded successfully", "data": doc_data}
 
 
 @router.get("/submissions")

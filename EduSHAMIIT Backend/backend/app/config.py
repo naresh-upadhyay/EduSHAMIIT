@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import Field, AliasChoices
 from typing import Optional
 
 
@@ -68,7 +69,7 @@ class Settings(BaseSettings):
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = "binaftab936@gmail.com"
-    SMTP_PASSWORD: str = ""
+    SMTP_PASSWORD: str = Field(default="", validation_alias=AliasChoices("SMTP_PASSWORD", "SMTP_PASS"))
     EMAIL_FROM: str = "binaftab936@gmail.com"
     EMAIL_RETRY_ATTEMPTS: int = 3
     EMAIL_RETRY_DELAY: int = 1  # seconds (will be multiplied exponentially)

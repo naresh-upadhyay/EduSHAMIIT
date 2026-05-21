@@ -100,6 +100,24 @@ class ApiService {
     }
   }
 
+  /// PATCH request
+  Future<Map<String, dynamic>> patch(
+      String endpoint, Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+      final response = await _client
+          .patch(
+            uri,
+            headers: await _headers,
+            body: jsonEncode(data),
+          )
+          .timeout(AppConfig.apiTimeout);
+      return _handleResponse(response);
+    } catch (e) {
+      throw ApiException('PATCH request failed: $e');
+    }
+  }
+
   /// DELETE request
   Future<Map<String, dynamic>> delete(String endpoint) async {
     try {

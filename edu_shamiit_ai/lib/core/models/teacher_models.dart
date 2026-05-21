@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../providers/profile_provider.dart';
 
 int _toInt(dynamic value, {int fallback = 0}) {
   if (value is int) return value;
@@ -86,6 +87,27 @@ class TeacherProfile {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // New personal info
+  final String gender;
+  final String dateOfBirth;
+  final String bloodGroup;
+  final String nationality;
+  final String religion;
+  final String category;
+  final String address;
+
+  // New guardian/mother details
+  final String fatherName;
+  final String fatherOccupation;
+  final String fatherPhone;
+  final String motherName;
+  final String motherOccupation;
+  final String motherPhone;
+  final String localGuardian;
+
+  // Documents
+  final List<DocumentModel> documents;
+
   const TeacherProfile({
     required this.id,
     required this.userId,
@@ -104,6 +126,21 @@ class TeacherProfile {
     this.bio,
     required this.createdAt,
     required this.updatedAt,
+    this.gender = '',
+    this.dateOfBirth = '',
+    this.bloodGroup = '',
+    this.nationality = '',
+    this.religion = '',
+    this.category = '',
+    this.address = '',
+    this.fatherName = '',
+    this.fatherOccupation = '',
+    this.fatherPhone = '',
+    this.motherName = '',
+    this.motherOccupation = '',
+    this.motherPhone = '',
+    this.localGuardian = '',
+    this.documents = const [],
   });
 
   factory TeacherProfile.fromJson(Map<String, dynamic> json) {
@@ -140,6 +177,24 @@ class TeacherProfile {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String) 
           : DateTime.now(),
+      gender: _toStr(json['gender']),
+      dateOfBirth: _toStr(json['date_of_birth']),
+      bloodGroup: _toStr(json['blood_group']),
+      nationality: _toStr(json['nationality']),
+      religion: _toStr(json['religion']),
+      category: _toStr(json['category']),
+      address: _toStr(json['address']),
+      fatherName: _toStr(json['father_name']),
+      fatherOccupation: _toStr(json['father_occupation']),
+      fatherPhone: _toStr(json['father_phone']),
+      motherName: _toStr(json['mother_name']),
+      motherOccupation: _toStr(json['mother_occupation']),
+      motherPhone: _toStr(json['mother_phone']),
+      localGuardian: _toStr(json['local_guardian']),
+      documents: (json['documents'] as List<dynamic>?)
+              ?.map((e) => DocumentModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -162,6 +217,20 @@ class TeacherProfile {
       'bio': bio,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'gender': gender,
+      'date_of_birth': dateOfBirth,
+      'blood_group': bloodGroup,
+      'nationality': nationality,
+      'religion': religion,
+      'category': category,
+      'address': address,
+      'father_name': fatherName,
+      'father_occupation': fatherOccupation,
+      'father_phone': fatherPhone,
+      'mother_name': motherName,
+      'mother_occupation': motherOccupation,
+      'mother_phone': motherPhone,
+      'local_guardian': localGuardian,
     };
   }
 
@@ -183,6 +252,21 @@ class TeacherProfile {
     String? bio,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? gender,
+    String? dateOfBirth,
+    String? bloodGroup,
+    String? nationality,
+    String? religion,
+    String? category,
+    String? address,
+    String? fatherName,
+    String? fatherOccupation,
+    String? fatherPhone,
+    String? motherName,
+    String? motherOccupation,
+    String? motherPhone,
+    String? localGuardian,
+    List<DocumentModel>? documents,
   }) {
     return TeacherProfile(
       id: id ?? this.id,
@@ -202,6 +286,21 @@ class TeacherProfile {
       bio: bio ?? this.bio,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      gender: gender ?? this.gender,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      bloodGroup: bloodGroup ?? this.bloodGroup,
+      nationality: nationality ?? this.nationality,
+      religion: religion ?? this.religion,
+      category: category ?? this.category,
+      address: address ?? this.address,
+      fatherName: fatherName ?? this.fatherName,
+      fatherOccupation: fatherOccupation ?? this.fatherOccupation,
+      fatherPhone: fatherPhone ?? this.fatherPhone,
+      motherName: motherName ?? this.motherName,
+      motherOccupation: motherOccupation ?? this.motherOccupation,
+      motherPhone: motherPhone ?? this.motherPhone,
+      localGuardian: localGuardian ?? this.localGuardian,
+      documents: documents ?? this.documents,
     );
   }
 }

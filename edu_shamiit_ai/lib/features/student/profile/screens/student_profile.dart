@@ -78,9 +78,23 @@ class _StudentProfileState extends ConsumerState<StudentProfile> {
   Widget build(BuildContext context) {
     final st = ref.watch(profileProvider);
     final theme = Theme.of(context);
+    
+    if (st.profile == null) {
+      if (st.error != null) {
+        return Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: _error(st.error!),
+        );
+      }
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: _shimmer(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: st.isLoading ? _shimmer() : st.error != null && st.profile == null ? _error(st.error!) : _body(st),
+      body: st.isLoading ? _shimmer() : _body(st),
     );
   }
 
