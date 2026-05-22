@@ -84,6 +84,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> signIn({
     required String email,
     required String password,
+    required UserRole role,
     required WidgetRef ref,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -95,7 +96,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'role': role.value,
+        }),
       ).timeout(AppConfig.apiTimeout);
 
       debugPrint('[AuthProvider] Response status: ${response.statusCode}');

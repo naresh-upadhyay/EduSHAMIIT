@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>EduVerse — Admin Suite</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--ev-primary:#1a1f3a;--ev-primary-deep:#0d0f1e;--ev-accent:#6366f1;--ev-accent2:#818cf8;
+--ev-accent3:#f59e0b;--ev-accent4:#ef4444;--ev-accent5:#22c55e;--ev-accent6:#06b6d4;
+--ev-bg:#f8fafc;--ev-surface:#ffffff;--ev-card:#f1f5f9;
+--ev-text:#0f172a;--ev-text2:#475569;--ev-text3:#94a3b8;--ev-border:#e2e8f0;
+}
+body{font-family:'DM Sans',sans-serif;background:#0A0A1A;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.page-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;padding:20px}
+.page-title{font-family:'Outfit',sans-serif;font-size:28px;font-weight:900;color:#fff;letter-spacing:-1px;text-align:center}
+.page-title span{background:linear-gradient(135deg,#6366f1,#818cf8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.page-sub{color:rgba(255,255,255,.4);font-size:12px;text-align:center;margin-top:-8px}
+.phone{width:360px;height:740px;background:#111;border-radius:44px;padding:12px;box-shadow:0 0 0 2px #222,0 0 0 3px #0A0A1A,0 32px 80px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.08);position:relative}
+.phone-screen{background:#f8fafc;border-radius:34px;overflow:hidden;height:100%;position:relative;display:flex;flex-direction:column}
+.status-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 18px 0;font-size:10.5px;font-weight:700;font-family:'Outfit',sans-serif;flex-shrink:0;z-index:10;position:relative;color:#fff}
+.status-bar .notch{width:80px;height:22px;border-radius:0 0 16px 16px;position:absolute;top:0;left:50%;transform:translateX(-50%);background:#111}
+.status-icons{display:flex;gap:5px;align-items:center}
+.screen{display:none;flex-direction:column;height:100%;position:absolute;inset:0;z-index:1;background:#f8fafc;overflow:hidden}
+.screen.active{display:flex;z-index:10;animation:fadeIn .3s cubic-bezier(0.4,0,0.2,1)}
+@keyframes fadeIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.bottom-nav{display:flex;background:#1a1f3a;border-top:1px solid rgba(99,102,241,.2);padding:8px 0 14px;flex-shrink:0;position:relative;z-index:10}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.nav-icon-wrap{width:36px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:16px;transition:all .2s}
+.nav-item.active .nav-icon-wrap{background:rgba(99,102,241,.2)}
+.nav-lbl{font-size:9px;font-weight:500;color:rgba(255,255,255,.4);font-family:'Outfit',sans-serif}
+.nav-item.active .nav-lbl{color:#818cf8;font-weight:700}
+.ai-fab{position:absolute;bottom:130px;right:16px;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(99,102,241,.5);z-index:100;font-size:20px;cursor:pointer;animation:fab-pulse 3s ease-in-out infinite}
+@keyframes fab-pulse{0%,100%{box-shadow:0 4px 20px rgba(99,102,241,.5)}50%{box-shadow:0 4px 28px rgba(99,102,241,.8),0 0 0 6px rgba(99,102,241,.1)}}
+.back-btn{width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;cursor:pointer}
+.mini-top{display:flex;align-items:center;gap:10px}
+.mini-title{font-family:'Outfit',sans-serif;font-size:17px;font-weight:800;color:#fff;flex:1}
+.section-header-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 8px}
+.section-header-title{font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;color:var(--ev-text)}
+.chip-row{display:flex;gap:6px;padding:10px 14px 2px;overflow-x:auto;scrollbar-width:none}
+.chip-row::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;font-family:'Outfit',sans-serif;cursor:pointer;transition:all .2s}
+.ai-tag{display:inline-flex;align-items:center;gap:5px;background:#6366f1;color:#fff;font-size:9px;font-weight:700;padding:3px 9px;border-radius:20px;font-family:'Outfit',sans-serif;letter-spacing:.05em;margin-bottom:8px}
+.dash-card{margin:0 14px 12px;background:#fff;border-radius:18px;padding:14px;box-shadow:0 2px 12px rgba(0,0,0,.05)}
+.card-title{font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;color:var(--ev-text);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.card-title a{font-size:10px;color:var(--ev-accent);font-weight:500;text-decoration:none;cursor:pointer}
+.spacer{height:12px}.spacer-sm{height:8px}
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;justify-content:center;border-radius:34px;overflow:hidden}
+.modal-overlay.show{display:flex}
+.modal-sheet{background:#fff;border-radius:24px 24px 0 0;width:100%;max-height:85%;padding:20px;animation:slideUp .3s ease;overflow-y:auto}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:40px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 16px}
+.modal-title{font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:var(--ev-text);margin-bottom:12px;text-align:center}
+.toggle{width:36px;height:20px;border-radius:10px;position:relative;flex-shrink:0;cursor:pointer;transition:background .2s}
+.toggle-on{background:#6366f1}.toggle-off{background:#cbd5e1}
+.toggle-knob{position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;transition:all .2s}
+.toggle-on .toggle-knob{right:2px}.toggle-off .toggle-knob{left:2px}
+.btn-primary{width:100%;background:linear-gradient(135deg,#6366f1,#818cf8);border:none;border-radius:14px;padding:14px;color:#fff;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(99,102,241,.4)}
+.btn-secondary{width:100%;background:#eef2ff;border:none;border-radius:14px;padding:12px;color:#6366f1;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.btn-success{width:100%;background:linear-gradient(135deg,#059669,#22c55e);border:none;border-radius:14px;padding:12px;color:#fff;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer}
+.btn-danger{width:100%;background:#fef2f2;border:none;border-radius:14px;padding:12px;color:#ef4444;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.input-field{width:100%;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;color:var(--ev-text);margin-bottom:8px}
+.input-field:focus{border-color:#6366f1}
+.input-dark{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.1);color:#fff}
+.input-dark::placeholder{color:rgba(255,255,255,.3)}
+.qa-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;padding:16px}
+.qa-item{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+.qa-icon-wrap{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform .15s}
+.qa-item:active .qa-icon-wrap{transform:scale(.9)}
+.qa-lbl{font-size:9.5px;font-weight:600;color:var(--ev-text2);text-align:center;line-height:1.2;font-family:'Outfit',sans-serif}
+.fee-badge{margin-left:auto;font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;font-family:'Outfit',sans-serif}
+.paid{background:#ecfdf5;color:#059669}.due{background:#fef2f2;color:#ef4444}
+@keyframes checkPop{0%{transform:scale(0)}50%{transform:scale(1.2)}100%{transform:scale(1)}}
+.success-check{animation:checkPop .5s ease .2s both}
+.live-badge{display:inline-flex;align-items:center;gap:4px;background:#ef4444;color:#fff;padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;font-family:'Outfit',sans-serif;animation:pulse-red 2s infinite}
+@keyframes pulse-red{0%{box-shadow:0 0 0 0 rgba(239,68,68,.7)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.notification-badge{position:absolute;top:-3px;right:-3px;width:16px;height:16px;background:#ef4444;border-radius:50%;font-size:8px;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif}
+.attend-ring{fill:none;stroke-width:8;stroke-linecap:round}
+.progress-bar{height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width .5s ease}
+.task-check{width:22px;height:22px;border-radius:50%;border:2px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;transition:all .2s;flex-shrink:0}
+.task-check.done{background:#22c55e;border-color:#22c55e;color:#fff}
+@keyframes scan-line{0%{top:0}50%{top:calc(100% - 4px)}100%{top:0}}
+.scan-line{position:absolute;left:0;right:0;height:4px;background:linear-gradient(90deg,transparent,#f59e0b,transparent);animation:scan-line 2s ease-in-out infinite}
+.toggle-btn{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:700;font-family:'Outfit',sans-serif;cursor:pointer;border:none;transition:all .2s}
+.toggle-btn.active{background:#6366f1;color:#fff}
+.toggle-btn.inactive{background:#e2e8f0;color:#64748b}
+@media(max-width:400px){.phone{width:calc(100vw - 32px);height:calc(100vh - 60px)}}
+.screen-body{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.screen-body::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+<div class="page-title">Edu<span>Verse</span> Admin Suite</div>
+<div class="page-sub">12 roles · Command center · Full school management</div>
+<div class="phone">
+<div class="phone-screen" id="phoneScreen">
+
+<!-- ==================== SPLASH ==================== -->
+<div class="screen active" data-screen="splash" style="background:linear-gradient(160deg,#1a1f3a,#2d3158,#6366f1)">
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+<div style="width:90px;height:90px;background:rgba(255,255,255,.1);border-radius:28px;display:flex;align-items:center;justify-content:center;font-size:42px;border:1px solid rgba(255,255,255,.15);position:relative">🏫<div style="position:absolute;inset:-8px;border-radius:34px;border:1.5px solid rgba(99,102,241,.4);animation:ring-spin 4s linear infinite"></div></div>
+<div style="font-family:'Outfit',sans-serif;font-size:36px;font-weight:900;color:#fff">Edu<span style="background:linear-gradient(90deg,#818cf8,#6366f1);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">Verse</span></div>
+<div style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.15em;text-transform:uppercase">Admin Suite</div>
+<div style="margin-top:40px;width:120px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden"><div id="splashBar" style="width:0%;height:100%;background:linear-gradient(90deg,#818cf8,#6366f1);border-radius:2px;transition:width 1.5s ease"></div></div>
+</div>
+</div>
+
+<!-- ==================== LOGIN ==================== -->
+<div class="screen" data-screen="login" style="background:linear-gradient(160deg,#1a1f3a,#2d3158,#6366f1)">
+<div class="status-bar" style="padding-top:14px"><span>9:41</span><div class="notch"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 20px 24px;position:relative;overflow-y:auto;scrollbar-width:none">
+<div style="position:absolute;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.3),transparent 70%);top:-40px;left:50%;transform:translateX(-50%)"></div>
+<div style="width:64px;height:64px;background:rgba(255,255,255,.1);border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:18px 0 10px;border:1px solid rgba(255,255,255,.15);position:relative">🏫<div style="position:absolute;inset:-6px;border-radius:28px;border:1.5px solid rgba(99,102,241,.4);animation:ring-spin 4s linear infinite"></div></div>
+<div style="font-family:'Outfit',sans-serif;font-size:26px;font-weight:900;color:#fff">Edu<span style="background:linear-gradient(90deg,#818cf8,#6366f1);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">Verse</span></div>
+<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:18px;letter-spacing:.1em;text-transform:uppercase">Admin Suite</div>
+<div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:8px;align-self:flex-start;font-weight:500">Login as</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;width:100%;margin-bottom:14px" id="loginRoles">
+<div class="lr-card active" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🛡️</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Super Admin</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">👑</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Director</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🎓</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Principal</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">💰</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Finance</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🏢</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Admin Mgr</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🧑‍⚕️</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">HR Manager</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🚌</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Transport</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">📖</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Librarian</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🏃</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Sports</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🔒</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Security</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🧹</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Support</div></div>
+<div class="lr-card" onclick="selectRole(this)"><div style="font-size:18px;margin-bottom:2px">🚐</div><div style="font-size:8px;font-weight:600;color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif">Driver</div></div>
+</div>
+<input class="input-dark input-field" type="text" placeholder="Admin ID" value="ADMIN-2026-001" style="font-size:12px">
+<input class="input-dark input-field" type="password" placeholder="Password" value="••••••••" style="font-size:12px">
+<button class="btn-primary" onclick="loginToRole()" style="margin-top:4px;font-size:13px;padding:12px">🛡️ Login to Admin Suite</button>
+<div style="margin-top:12px;display:flex;gap:10px;width:100%">
+<div style="flex:1;background:rgba(255,255,255,.06);border-radius:10px;padding:7px;text-align:center;font-size:9px;color:rgba(255,255,255,.4);cursor:pointer">🆔 Face ID</div>
+<div style="flex:1;background:rgba(255,255,255,.06);border-radius:10px;padding:7px;text-align:center;font-size:9px;color:rgba(255,255,255,.4);cursor:pointer">🔑 OTP</div>
+<div style="flex:1;background:rgba(255,255,255,.06);border-radius:10px;padding:7px;text-align:center;font-size:9px;color:rgba(255,255,255,.4);cursor:pointer">📲 QR</div>
+</div>
+</div>
+</div>
+
+<!-- ==================== COMMAND CENTER (PRINCIPAL) ==================== -->
+<div class="screen" data-screen="command_center" style="background:#0f1623">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1f3a,#2d3158);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1f3a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1f3a,#2d3158);padding:8px 18px 20px;position:relative;overflow:hidden">
+<div style="position:absolute;width:160px;height:160px;border-radius:50%;background:rgba(99,102,241,.08);right:-40px;top:-40px"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;position:relative">
+<div><div style="font-size:11px;color:rgba(255,255,255,.6)">Good Morning ☀️</div><div style="font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:#fff">Dr. Suresh Mehta</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Principal · DAV Public School</div></div>
+<div style="display:flex;align-items:center;gap:6px">
+<div style="width:32px;height:32px;background:rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;position:relative" onclick="navigateTo('notifications')">🔔<div class="notification-badge">3</div></div>
+<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid rgba(255,255,255,.2);cursor:pointer" onclick="navigateTo('profile')">👨‍💼</div>
+</div></div>
+<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+<div class="toggle-btn active" onclick="switchRoleView(this)">🎓 Principal</div>
+<div class="toggle-btn inactive" onclick="switchRoleView(this)">💰 Finance View</div>
+<div class="toggle-btn inactive" onclick="switchRoleView(this)">📊 Reports</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px">
+<div style="background:rgba(255,255,255,.06);border-radius:10px;padding:8px 4px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">847</div><div style="font-size:8px;color:rgba(255,255,255,.35)">Students</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:10px;padding:8px 4px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">62</div><div style="font-size:8px;color:rgba(255,255,255,.35)">Staff</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:10px;padding:8px 4px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#22c55e">91%</div><div style="font-size:8px;color:rgba(255,255,255,.35)">Attend.</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:10px;padding:8px 4px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#f59e0b">12</div><div style="font-size:8px;color:rgba(255,255,255,.35)">Pending</div></div>
+</div>
+</div>
+<div style="padding:12px 14px 4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase">Quick Access</div>
+<div class="qa-grid" style="background:#0f1623">
+<div class="qa-item" onclick="navigateTo('staff_directory')"><div class="qa-icon-wrap" style="background:rgba(99,102,241,.15)">📋</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Attendance</div></div>
+<div class="qa-item" onclick="navigateTo('staff_directory')"><div class="qa-icon-wrap" style="background:rgba(34,197,94,.15)">👥</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Staff</div></div>
+<div class="qa-item" onclick="navigateTo('timetable')"><div class="qa-icon-wrap" style="background:rgba(245,158,11,.15)">📅</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Timetable</div></div>
+<div class="qa-item" onclick="navigateTo('notices')"><div class="qa-icon-wrap" style="background:rgba(239,68,68,.15)">📢</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Notice</div></div>
+<div class="qa-item" onclick="navigateTo('admissions')"><div class="qa-icon-wrap" style="background:rgba(6,182,212,.15)">🚪</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Admission</div></div>
+<div class="qa-item" onclick="navigateTo('reports')"><div class="qa-icon-wrap" style="background:rgba(139,92,246,.15)">🏆</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Results</div></div>
+<div class="qa-item" onclick="navigateTo('ai_assistant')"><div class="qa-icon-wrap" style="background:rgba(99,102,241,.15)">🤖</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">AI Assist</div></div>
+<div class="qa-item" onclick="navigateTo('reports')"><div class="qa-icon-wrap" style="background:rgba(245,158,11,.15)">📊</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Reports</div></div>
+</div>
+<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase">Live Alerts</div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+<div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="font-size:16px">🔴</div><div style="flex:1;font-size:11px;color:rgba(255,255,255,.65)">3 teachers absent today — substitutes needed</div><div style="font-size:9px;color:rgba(255,255,255,.25)">8:05 AM</div></div>
+<div style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="font-size:16px">💰</div><div style="flex:1;font-size:11px;color:rgba(255,255,255,.65)">₹2.4L fee collection pending — 18 students</div><div style="font-size:9px;color:rgba(255,255,255,.25)">7:30 AM</div></div>
+<div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.2);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="font-size:16px">📝</div><div style="flex:1;font-size:11px;color:rgba(255,255,255,.65)">New admission: Rohan Verma, Class IX</div><div style="font-size:9px;color:rgba(255,255,255,.25)">7:15 AM</div></div>
+</div>
+<div style="margin:4px 14px 12px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(129,140,248,.1));border:1px solid rgba(99,102,241,.2);border-radius:16px;padding:12px"><div class="ai-tag">🤖 AI RISK ALERT</div><div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.6">Class VIII-B attendance dropped below 85%. 4 students at risk of detention. Auto-notify parents?</div></div>
+<div class="spacer"></div>
+</div>
+<div class="ai-fab" onclick="navigateTo('ai_assistant')">🤖</div>
+<div class="bottom-nav">
+<div class="nav-item active" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fees</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== DIRECTOR DASHBOARD ==================== -->
+<div class="screen" data-screen="director" style="background:#0f1623">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1300,#2a1e00);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1300"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1300,#2a1e00);padding:8px 18px 20px">
+<div class="mini-top"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff;flex:1">Director Dashboard</div><div style="font-size:22px">👑</div></div>
+<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:2px">Mr. Rajesh Gupta · Gupta Education Group</div>
+<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+<div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(201,168,76,.2);color:#f0d080;border:1px solid rgba(201,168,76,.3)">DAV Noida</div>
+<div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(201,168,76,.2);color:#f0d080;border:1px solid rgba(201,168,76,.3)">DAV Ghaziabad</div>
+<div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(201,168,76,.2);color:#f0d080;border:1px solid rgba(201,168,76,.3)">DAV Lucknow</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:14px">
+<div style="background:rgba(255,255,255,.06);border-radius:12px;padding:10px"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#f0d080">2,847</div><div style="font-size:9px;color:rgba(255,255,255,.4)">Total Students</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:12px;padding:10px"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#f0d080">₹54.2L</div><div style="font-size:9px;color:rgba(255,255,255,.4)">Monthly Revenue</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:12px;padding:10px"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#22c55e">91%</div><div style="font-size:9px;color:rgba(255,255,255,.4)">Avg Attendance</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:12px;padding:10px"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff">186</div><div style="font-size:9px;color:rgba(255,255,255,.4)">Total Staff</div></div>
+</div>
+</div>
+<div style="padding:10px 14px 4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase">Branch Performance</div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+<div style="background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="font-size:16px">🏫</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:#fff">DAV Noida</div><div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:94%;background:#22c55e"></div></div></div><div style="font-size:11px;font-weight:700;color:#22c55e">↑ 94%</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="font-size:16px">🏫</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:#fff">DAV Ghaziabad</div><div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:78%;background:#f59e0b"></div></div></div><div style="font-size:11px;font-weight:700;color:#f59e0b">→ 78%</div></div>
+<div style="background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="font-size:16px">🏫</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:#fff">DAV Lucknow</div><div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:61%;background:#ef4444"></div></div></div><div style="font-size:11px;font-weight:700;color:#ef4444">↓ 61%</div></div>
+</div>
+<div style="margin:4px 14px 12px;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.1));border:1px solid rgba(245,158,11,.2);border-radius:16px;padding:12px"><div class="ai-tag" style="background:#f59e0b">🤖 EXECUTIVE BRIEFING</div><div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.6">DAV Lucknow needs attention. Fee collection dropped 12%. Recommend: deploy finance team this week.</div></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item active" onclick="navigateTo('director')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">🏫</div><div class="nav-lbl">Schools</div></div>
+<div class="nav-item" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Finance</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== FINANCE DASHBOARD ==================== -->
+<div class="screen" data-screen="finance" style="background:#0f1623">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#0a2218,#0d4f3c);padding-top:14px"><span>9:41</span><div class="notch" style="background:#0a2218"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#0a2218,#0d4f3c);padding:8px 18px 20px">
+<div class="mini-top"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff;flex:1">Finance Dashboard</div><div style="font-size:22px">💰</div></div>
+<div style="font-size:10px;color:rgba(255,255,255,.5)">Kavita Agarwal · March 2026</div>
+<div style="background:rgba(255,255,255,.1);border-radius:14px;padding:14px;margin-top:14px">
+<div style="font-size:10px;color:rgba(255,255,255,.6)">Monthly Collection</div>
+<div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:900;color:#fff">₹18,42,500</div>
+<div class="progress-bar" style="margin:8px 0"><div class="progress-fill" style="width:72%;background:#22c55e"></div></div>
+<div style="display:flex;justify-content:space-between"><span style="font-size:9px;color:rgba(255,255,255,.4)">72% of ₹25.6L target</span><span style="font-size:9px;color:#22c55e;font-weight:700">On Track</span></div>
+</div>
+</div>
+<div class="qa-grid" style="padding:12px 14px">
+<div class="qa-item"><div class="qa-icon-wrap" style="background:rgba(34,197,94,.15)">💳</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Collect</div></div>
+<div class="qa-item" onclick="navigateTo('defaulters')"><div class="qa-icon-wrap" style="background:rgba(239,68,68,.15)">📋</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Defaulters</div></div>
+<div class="qa-item"><div class="qa-icon-wrap" style="background:rgba(245,158,11,.15)">💵</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Payroll</div></div>
+<div class="qa-item" onclick="navigateTo('reports')"><div class="qa-icon-wrap" style="background:rgba(99,102,241,.15)">📊</div><div class="qa-lbl" style="color:rgba(255,255,255,.5)">Reports</div></div>
+</div>
+<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase">Recent Transactions</div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+<div style="background:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#ecfdf5;display:flex;align-items:center;justify-content:center;font-size:14px">👦</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Arun Verma — X-A</div><div style="font-size:10px;color:var(--ev-text3)">Annual Fee · UPI</div></div><div style="font-size:13px;font-weight:700;color:#22c55e">+₹42,000</div></div>
+<div style="background:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:14px">👧</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Sneha Patel — VIII-B</div><div style="font-size:10px;color:var(--ev-text3)">Term 2 · Overdue 14 days</div></div><div style="font-size:13px;font-weight:700;color:#ef4444">₹8,500 DUE</div></div>
+<div style="background:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:10px;background:#ecfdf5;display:flex;align-items:center;justify-content:center;font-size:14px">👦</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Rohan Verma — IX-A</div><div style="font-size:10px;color:var(--ev-text3)">Lab Fee · Card</div></div><div style="font-size:13px;font-weight:700;color:#22c55e">+₹2,000</div></div>
+</div>
+<div style="margin:4px 14px 12px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(129,140,248,.1));border:1px solid rgba(99,102,241,.2);border-radius:16px;padding:12px"><div class="ai-tag">🤖 DEFAULTER PREDICTION</div><div style="font-size:11px;color:rgba(255,255,255,.7);line-height:1.6">18 students likely to default next month. Auto-send SMS reminders?</div></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fees</div></div>
+<div class="nav-item" onclick="navigateTo('defaulters')"><div class="nav-icon-wrap">📋</div><div class="nav-lbl">Defaulters</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== STAFF DIRECTORY ==================== -->
+<div class="screen" data-screen="staff_directory" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1f3a,#3730a3);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1f3a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1f3a,#3730a3);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Staff Directory</div><div style="background:rgba(255,255,255,.15);padding:4px 10px;border-radius:8px;font-size:10px;color:#fff;font-weight:600">62 Total</div></div></div>
+<input type="text" placeholder="🔍 Search by name, department, role..." style="width:calc(100% - 28px);margin:10px 14px;padding:10px 14px;border-radius:12px;border:1.5px solid #e2e8f0;font-family:inherit;font-size:12px;outline:none;box-sizing:border-box">
+<div class="chip-row"><div class="chip" style="background:#6366f1;color:#fff">All (62)</div><div class="chip" style="background:#eef2ff;color:#6366f1">Teachers (38)</div><div class="chip" style="background:#eef2ff;color:#6366f1">Admin (8)</div><div class="chip" style="background:#eef2ff;color:#6366f1">Support (12)</div><div class="chip" style="background:#eef2ff;color:#6366f1">Transport (4)</div></div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04);cursor:pointer" onclick="showStaffDetail('Mr. R. Sharma','Mathematics','Room 301','12 years','M.Sc, B.Ed')"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:18px">👨‍🏫</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Mr. R. Sharma</div><div style="font-size:10px;color:var(--ev-text3)">Mathematics · Room 301</div></div><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04);cursor:pointer" onclick="showStaffDetail('Ms. P. Gupta','English','Room 204','8 years','M.A, B.Ed')"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ec4899,#f472b6);display:flex;align-items:center;justify-content:center;font-size:18px">👩‍🏫</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Ms. P. Gupta</div><div style="font-size:10px;color:var(--ev-text3)">English · Room 204</div></div><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04);cursor:pointer" onclick="showStaffDetail('Dr. A. Verma','Physics','Lab 2','15 years','Ph.D, M.Sc')"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#06b6d4,#22d3ee);display:flex;align-items:center;justify-content:center;font-size:18px">👨‍🔬</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Dr. A. Verma</div><div style="font-size:10px;color:var(--ev-text3)">Physics · Lab 2</div></div><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04);cursor:pointer" onclick="showStaffDetail('Mr. V. Jain','Computer Science','Lab 3','6 years','M.Tech')"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#10b981,#34d399);display:flex;align-items:center;justify-content:center;font-size:18px">👨‍💻</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Mr. V. Jain</div><div style="font-size:10px;color:var(--ev-text3)">Computer Science · Lab 3</div></div><div style="width:8px;height:8px;border-radius:50%;background:#94a3b8"></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04);cursor:pointer" onclick="showStaffDetail('Mohan Lal','Housekeeping','Block A','3 years','10th Pass')"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#78716c,#a8a29e);display:flex;align-items:center;justify-content:center;font-size:18px">🧹</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Mohan Lal</div><div style="font-size:10px;color:var(--ev-text3)">Housekeeping · Block A</div></div><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04);cursor:pointer" onclick="showStaffDetail('Ramkumar Singh','Security','Main Gate','5 years','12th Pass')"><div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#94a3b8,#cbd5e1);display:flex;align-items:center;justify-content:center;font-size:18px">🔒</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Ramkumar Singh</div><div style="font-size:10px;color:var(--ev-text3)">Security · Main Gate</div></div><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div></div>
+</div>
+<div style="padding:14px"><button class="btn-primary" style="font-size:13px;padding:12px">+ Add New Staff Member</button></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item" onclick="navigateTo('hr')"><div class="nav-icon-wrap">📋</div><div class="nav-lbl">Attendance</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== HR DASHBOARD ==================== -->
+<div class="screen" data-screen="hr" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#3b0764,#6d28d9);padding-top:14px"><span>9:41</span><div class="notch" style="background:#3b0764"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#3b0764,#6d28d9);padding:8px 18px 20px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">HR Dashboard</div><div style="font-size:10px;color:rgba(255,255,255,.5)">March 2026</div></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px">
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">62</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Total</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#22c55e">3</div><div style="font-size:8px;color:rgba(255,255,255,.4)">New</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#ef4444">1</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Left</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#f59e0b">97%</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Present</div></div>
+</div>
+</div>
+<div class="qa-grid"><div class="qa-item"><div class="qa-icon-wrap" style="background:#eef2ff">📋</div><div class="qa-lbl">Attendance</div></div><div class="qa-item"><div class="qa-icon-wrap" style="background:#fef3c7">📝</div><div class="qa-lbl">Leave Mgmt</div></div><div class="qa-item"><div class="qa-icon-wrap" style="background:#ecfdf5">💵</div><div class="qa-lbl">Payroll</div></div><div class="qa-item" onclick="navigateTo('reports')"><div class="qa-icon-wrap" style="background:#f3e8ff">📊</div><div class="qa-lbl">Reports</div></div></div>
+<div class="dash-card"><div class="card-title">📋 Pending Leave Requests</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:10px;padding:8px;background:#fef3c7;border-radius:10px"><div style="font-size:16px">🤒</div><div style="flex:1"><div style="font-size:12px;font-weight:600">Mr. A. Verma</div><div style="font-size:10px;color:var(--ev-text3)">Sick Leave · Mar 28-29</div></div><div style="display:flex;gap:4px"><button style="padding:4px 10px;border-radius:6px;border:none;background:#22c55e;color:#fff;font-size:9px;font-weight:700;cursor:pointer" onclick="approveLeave(this)">✓ Approve</button><button style="padding:4px 10px;border-radius:6px;border:none;background:#ef4444;color:#fff;font-size:9px;font-weight:700;cursor:pointer" onclick="rejectLeave(this)">✕ Reject</button></div></div>
+<div style="display:flex;align-items:center;gap:10px;padding:8px;background:#fef3c7;border-radius:10px"><div style="font-size:16px">🏠</div><div style="flex:1"><div style="font-size:12px;font-weight:600">Ms. K. Rao</div><div style="font-size:10px;color:var(--ev-text3)">Casual Leave · Apr 1-2</div></div><div style="display:flex;gap:4px"><button style="padding:4px 10px;border-radius:6px;border:none;background:#22c55e;color:#fff;font-size:9px;font-weight:700;cursor:pointer" onclick="approveLeave(this)">✓ Approve</button><button style="padding:4px 10px;border-radius:6px;border:none;background:#ef4444;color:#fff;font-size:9px;font-weight:700;cursor:pointer" onclick="rejectLeave(this)">✕ Reject</button></div></div>
+</div></div>
+<div style="margin:0 14px 12px;background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(168,85,247,.1));border:1px solid rgba(139,92,246,.2);border-radius:16px;padding:12px"><div class="ai-tag" style="background:#8b5cf6">🤖 ATTRITION RISK</div><div style="font-size:11px;color:var(--ev-text2);line-height:1.6">2 staff showing disengagement patterns. Recommend: schedule 1-on-1 meetings this week.</div></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item active" onclick="navigateTo('hr')"><div class="nav-icon-wrap">📋</div><div class="nav-lbl">HR</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== ADMISSIONS PIPELINE ==================== -->
+<div class="screen" data-screen="admissions" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1f3a,#6366f1);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1f3a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1f3a,#6366f1);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Admission Pipeline</div><div style="font-size:10px;color:rgba(255,255,255,.5)">2026-27</div></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px">
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">156</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Total</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#22c55e">42</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Enrolled</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#f59e0b">28</div><div style="font-size:8px;color:rgba(255,255,255,.4)">In Process</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#06b6d4">86</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Enquiries</div></div>
+</div></div>
+<div style="padding:12px 14px 8px;font-size:10px;font-weight:700;color:var(--ev-text3);letter-spacing:.1em;text-transform:uppercase">Pipeline Stages</div>
+<div style="display:flex;gap:2px;padding:0 14px;margin-bottom:10px;overflow-x:auto;scrollbar-width:none">
+<div style="flex:1;min-width:50px;background:#6366f1;border-radius:8px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:800;color:#fff">86</div><div style="font-size:7px;color:rgba(255,255,255,.7)">Enquiry</div></div>
+<div style="flex:1;min-width:50px;background:#818cf8;border-radius:8px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:800;color:#fff">45</div><div style="font-size:7px;color:rgba(255,255,255,.7)">Applied</div></div>
+<div style="flex:1;min-width:50px;background:#f59e0b;border-radius:8px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:800;color:#fff">28</div><div style="font-size:7px;color:#fff">Test</div></div>
+<div style="flex:1;min-width:50px;background:#06b6d4;border-radius:8px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:800;color:#fff">18</div><div style="font-size:7px;color:#fff">Interview</div></div>
+<div style="flex:1;min-width:50px;background:#22c55e;border-radius:8px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:800;color:#fff">42</div><div style="font-size:7px;color:#fff">Enrolled</div></div>
+</div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="width:40px;height:40px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:16px">📝</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Rohan Verma</div><div style="font-size:10px;color:var(--ev-text3)">Class IX · Test Stage · Mar 25</div></div><div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:#fef3c7;color:#d97706">TEST</div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="width:40px;height:40px;border-radius:10px;background:#e0f2fe;display:flex;align-items:center;justify-content:center;font-size:16px">📝</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Ananya Singh</div><div style="font-size:10px;color:var(--ev-text3)">Class VI · Interview · Mar 22</div></div><div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:#e0f2fe;color:#0284c7">INTERVIEW</div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="width:40px;height:40px;border-radius:10px;background:#ecfdf5;display:flex;align-items:center;justify-content:center;font-size:16px">📝</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Vikram Patel</div><div style="font-size:10px;color:var(--ev-text3)">Class X · Applied · Mar 20</div></div><div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:#eef2ff;color:#6366f1">APPLIED</div></div>
+</div>
+<div style="margin:10px 14px 12px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(129,140,248,.1));border:1px solid rgba(99,102,241,.2);border-radius:16px;padding:12px"><div class="ai-tag">🤖 LEAD SCORING</div><div style="font-size:11px;color:var(--ev-text2);line-height:1.6">Top 5 high-probability applicants identified. Auto-send acceptance reminders?</div></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active" onclick="navigateTo('admissions')"><div class="nav-icon-wrap">🚪</div><div class="nav-lbl">Pipeline</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">🚫</div><div class="nav-lbl">Visitors</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== GATE QR SCANNER ==================== -->
+<div class="screen" data-screen="gate_scanner" style="background:#0f1623">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1200,#2d1f00);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1200"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1200,#2d1f00);padding:8px 18px 16px"><div class="mini-top"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff;flex:1">Gate Scanner</div><div style="font-size:22px">🔒</div></div><div style="font-size:10px;color:rgba(255,255,255,.5)">Ramkumar Singh · Main Gate</div></div>
+<div style="margin:14px;background:rgba(245,158,11,.1);border:1.5px dashed rgba(245,158,11,.3);border-radius:16px;padding:30px;text-align:center;position:relative;overflow:hidden">
+<div class="scan-line"></div>
+<div style="font-size:48px;margin-bottom:8px">📷</div>
+<div style="font-size:13px;color:rgba(255,255,255,.6);font-weight:700">Tap to Scan QR / RFID</div>
+</div>
+<div style="display:flex;gap:8px;padding:0 14px;margin-bottom:12px">
+<div style="flex:1;background:rgba(245,158,11,.15);border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:18px">📱</div><div style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600">QR Code</div></div>
+<div style="flex:1;background:rgba(99,102,241,.15);border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:18px">🆔</div><div style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600">ID Card</div></div>
+<div style="flex:1;background:rgba(34,197,94,.15);border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:18px">✍️</div><div style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600">Manual</div></div>
+</div>
+<div style="padding:0 14px 4px;font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase">Today's Log</div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#fff;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div><div style="flex:1"><div style="font-size:11px;font-weight:600;color:var(--ev-text)">Anita Sharma (Parent)</div><div style="font-size:9px;color:var(--ev-text3)">Visitor · Meeting Principal</div></div><div style="font-size:10px;color:var(--ev-text3);font-weight:600">9:12 AM</div></div>
+<div style="background:#fff;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:#ef4444"></div><div style="flex:1"><div style="font-size:11px;font-weight:600;color:var(--ev-text)">Rajesh Kumar (Vendor)</div><div style="font-size:9px;color:var(--ev-text3)">Exit · Canteen delivery</div></div><div style="font-size:10px;color:var(--ev-text3);font-weight:600">9:05 AM</div></div>
+<div style="background:#fff;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div><div style="flex:1"><div style="font-size:11px;font-weight:600;color:var(--ev-text)">Mrs. Priya Sharma</div><div style="font-size:9px;color:var(--ev-text3)">Staff · Teacher check-in</div></div><div style="font-size:10px;color:var(--ev-text3);font-weight:600">8:45 AM</div></div>
+<div style="background:#fff;border-radius:10px;padding:10px;display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div><div style="flex:1"><div style="font-size:11px;font-weight:600;color:var(--ev-text)">Bus #KA-01-1234</div><div style="font-size:9px;color:var(--ev-text3)">Transport · 42 students</div></div><div style="font-size:10px;color:var(--ev-text3);font-weight:600">8:30 AM</div></div>
+</div>
+<div style="padding:14px;display:flex;gap:8px">
+<div style="flex:1;background:rgba(255,255,255,.06);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#22c55e">47</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Entries</div></div>
+<div style="flex:1;background:rgba(255,255,255,.06);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#ef4444">12</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Exits</div></div>
+<div style="flex:1;background:rgba(255,255,255,.06);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#f59e0b">3</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Visitors</div></div>
+</div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item active"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">📷</div><div class="nav-lbl">Scan</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">📋</div><div class="nav-lbl">Log</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">📞</div><div class="nav-lbl">Emergency</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== SUPPORT STAFF TASKS ==================== -->
+<div class="screen" data-screen="support_tasks" style="background:#fafaf9">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1c1917,#44403c);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1c1917"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1c1917,#44403c);padding:8px 18px 20px"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff">Mohan Lal</div><div style="font-size:10px;color:rgba(255,255,255,.5)">Housekeeping · Block A</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:14px">
+<div style="background:rgba(255,255,255,.08);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">8</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Total</div></div>
+<div style="background:rgba(34,197,94,.15);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#22c55e">5</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Done</div></div>
+<div style="background:rgba(245,158,11,.15);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#f59e0b">3</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Pending</div></div>
+</div></div>
+<div style="padding:12px 14px 8px;font-size:10px;font-weight:700;color:var(--ev-text3);letter-spacing:.1em;text-transform:uppercase">Today's Tasks</div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div class="task-check done">✓</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#94a3b8;text-decoration:line-through">Clean Classroom 301</div><div style="font-size:9px;color:var(--ev-text3)">Completed 7:30 AM</div></div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div class="task-check done">✓</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#94a3b8;text-decoration:line-through">Clean Classroom 302</div><div style="font-size:9px;color:var(--ev-text3)">Completed 7:45 AM</div></div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div class="task-check done">✓</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#94a3b8;text-decoration:line-through">Clean Washroom Block A</div><div style="font-size:9px;color:var(--ev-text3)">Completed 8:00 AM</div></div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div class="task-check done">✓</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#94a3b8;text-decoration:line-through">Mop Corridor Block A</div><div style="font-size:9px;color:var(--ev-text3)">Completed 8:30 AM</div></div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div class="task-check done">✓</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#94a3b8;text-decoration:line-through">Empty Dustbins Ground Floor</div><div style="font-size:9px;color:var(--ev-text3)">Completed 9:00 AM</div></div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03);border-left:3px solid #f59e0b"><div class="task-check" onclick="toggleTask(this)">⬜</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Sanitize Boys Washroom</div><div style="font-size:9px;color:var(--ev-text3)">Due 10:00 AM</div></div><div style="font-size:16px;cursor:pointer">📸</div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03);border-left:3px solid #f59e0b"><div class="task-check" onclick="toggleTask(this)">⬜</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Mop First Floor Corridor</div><div style="font-size:9px;color:var(--ev-text3)">Due 11:00 AM</div></div><div style="font-size:16px;cursor:pointer">📸</div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03);border-left:3px solid #f59e0b"><div class="task-check" onclick="toggleTask(this)">⬜</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Clean Staff Room</div><div style="font-size:9px;color:var(--ev-text3)">Due 12:00 PM</div></div><div style="font-size:16px;cursor:pointer">📸</div></div>
+</div>
+<div style="padding:14px"><button class="btn-success" style="font-size:13px;padding:12px" onclick="completeAllTasks()">✅ Mark All Complete</button></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item active"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">📋</div><div class="nav-lbl">Tasks</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">📸</div><div class="nav-lbl">Photos</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== TRANSPORT DASHBOARD ==================== -->
+<div class="screen" data-screen="transport" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#0c4a6e,#0369a1);padding-top:14px"><span>9:41</span><div class="notch" style="background:#0c4a6e"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#0c4a6e,#0369a1);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Transport</div><div class="live-badge">LIVE</div></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px">
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">6</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Buses</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">284</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Students</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">12</div><div style="font-size:8px;color:rgba(255,255,255,.4)">Routes</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#22c55e">98%</div><div style="font-size:8px;color:rgba(255,255,255,.4)">On Time</div></div>
+</div></div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-top:8px">
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="font-size:24px">🚌</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ev-text)">Route 7B · HR-29-3847</div><div style="font-size:10px;color:var(--ev-text3)">38 students · 5 min to school</div></div><div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:#ecfdf5;color:#059669">● LIVE</div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="font-size:24px">🚌</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ev-text)">Route 3A · HR-26-5678</div><div style="font-size:10px;color:var(--ev-text3)">42 students · 12 min to school</div></div><div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:#fef3c7;color:#d97706">12 min</div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="font-size:24px">🚌</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ev-text)">Route 12 · DL-01-9012</div><div style="font-size:10px;color:var(--ev-text3)">35 students · Arrived</div></div><div style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:6px;background:#eef2ff;color:#6366f1">✓ Arrived</div></div>
+</div>
+<div style="margin:10px 14px 12px;background:linear-gradient(135deg,rgba(6,182,212,.15),rgba(14,165,233,.1));border:1px solid rgba(6,182,212,.2);border-radius:16px;padding:12px"><div class="ai-tag" style="background:#06b6d4">🤖 ROUTE OPTIMIZER</div><div style="font-size:11px;color:var(--ev-text2);line-height:1.6">Route 3A can save 8 min by reordering stops 4 & 5. Apply optimization?</div></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active"><div class="nav-icon-wrap">🚌</div><div class="nav-lbl">Routes</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">👨‍✈️</div><div class="nav-lbl">Drivers</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== LIBRARY MANAGER ==================== -->
+<div class="screen" data-screen="library" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#3b0764,#6d28d9);padding-top:14px"><span>9:41</span><div class="notch" style="background:#3b0764"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#3b0764,#6d28d9);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Library</div><div style="font-size:10px;color:rgba(255,255,255,.5)">📖 2,450 Books</div></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px">
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;color:#fff">2,450</div><div style="font-size:7px;color:rgba(255,255,255,.4)">Total</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;color:#22c55e">180</div><div style="font-size:7px;color:rgba(255,255,255,.4)">Issued</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;color:#ef4444">12</div><div style="font-size:7px;color:rgba(255,255,255,.4)">Overdue</div></div>
+<div style="background:rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;color:#f59e0b">5</div><div style="font-size:7px;color:rgba(255,255,255,.4)">Requests</div></div>
+</div></div>
+<input type="text" placeholder="🔍 Search books by title, author, ISBN..." style="width:calc(100% - 28px);margin:10px 14px;padding:10px 14px;border-radius:12px;border:1.5px solid #e2e8f0;font-family:inherit;font-size:12px;outline:none;box-sizing:border-box">
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04)"><div style="width:40px;height:52px;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📘</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ev-text)">NCERT Physics XII</div><div style="font-size:10px;color:var(--ev-text3)">By NCERT · Class XII</div><div style="font-size:10px;font-weight:600;color:#22c55e;margin-top:2px">Available</div></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04)"><div style="width:40px;height:52px;border-radius:8px;background:linear-gradient(135deg,#d97706,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📙</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ev-text)">H.C. Verma Vol.1</div><div style="font-size:10px;color:var(--ev-text3)">By H.C. Verma</div><div style="font-size:10px;font-weight:600;color:#d97706;margin-top:2px">Issued to Arjun (Due: Apr 5)</div></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 6px rgba(0,0,0,.04)"><div style="width:40px;height:52px;border-radius:8px;background:linear-gradient(135deg,#059669,#34d399);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📗</div><div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ev-text)">R.D. Sharma Class X</div><div style="font-size:10px;color:var(--ev-text3)">By R.D. Sharma</div><div style="font-size:10px;font-weight:600;color:#ef4444;margin-top:2px">⚠️ Overdue · Send Reminder</div></div></div>
+</div>
+<div style="margin:10px 14px 12px;background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(168,85,247,.1));border:1px solid rgba(139,92,246,.2);border-radius:16px;padding:12px"><div class="ai-tag" style="background:#8b5cf6">🤖 READING RECOMMENDATION</div><div style="font-size:11px;color:var(--ev-text2);line-height:1.6">12 books overdue. Auto-send reminders to students and notify parents?</div></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active"><div class="nav-icon-wrap">📚</div><div class="nav-lbl">Catalog</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">📋</div><div class="nav-lbl">Issues</div></div>
+<div class="nav-item"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fines</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== REPORTS ==================== -->
+<div class="screen" data-screen="reports" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1f3a,#6366f1);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1f3a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1f3a,#6366f1);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Reports & Analytics</div></div></div>
+<div style="padding:12px 14px 8px;font-size:10px;font-weight:700;color:var(--ev-text3);letter-spacing:.1em;text-transform:uppercase">Report Categories</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 14px;margin-bottom:12px">
+<div style="background:#fff;border-radius:14px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer"><div style="font-size:24px;margin-bottom:4px">📊</div><div style="font-size:10px;font-weight:700;color:var(--ev-text)">Academic</div></div>
+<div style="background:#fff;border-radius:14px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer"><div style="font-size:24px;margin-bottom:4px">📋</div><div style="font-size:10px;font-weight:700;color:var(--ev-text)">Attendance</div></div>
+<div style="background:#fff;border-radius:14px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer"><div style="font-size:24px;margin-bottom:4px">💰</div><div style="font-size:10px;font-weight:700;color:var(--ev-text)">Financial</div></div>
+<div style="background:#fff;border-radius:14px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer"><div style="font-size:24px;margin-bottom:4px">👥</div><div style="font-size:10px;font-weight:700;color:var(--ev-text)">Staff</div></div>
+<div style="background:#fff;border-radius:14px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer"><div style="font-size:24px;margin-bottom:4px">🚌</div><div style="font-size:10px;font-weight:700;color:var(--ev-text)">Transport</div></div>
+<div style="background:#fff;border-radius:14px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer"><div style="font-size:24px;margin-bottom:4px">📖</div><div style="font-size:10px;font-weight:700;color:var(--ev-text)">Library</div></div>
+</div>
+<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--ev-text3);letter-spacing:.1em;text-transform:uppercase">Recent Reports</div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div style="font-size:20px">📊</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Monthly Attendance — March 2026</div><div style="font-size:10px;color:var(--ev-text3)">Generated: Mar 27</div></div><div style="font-size:10px;color:#6366f1;font-weight:700;cursor:pointer">📥 PDF</div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div style="font-size:20px">💰</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Fee Collection Summary — Q4</div><div style="font-size:10px;color:var(--ev-text3)">Generated: Mar 25</div></div><div style="font-size:10px;color:#6366f1;font-weight:700;cursor:pointer">📥 PDF</div></div>
+<div style="background:#fff;border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,.03)"><div style="font-size:20px">👥</div><div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--ev-text)">Staff Appraisal — Annual</div><div style="font-size:10px;color:var(--ev-text3)">Generated: Mar 20</div></div><div style="font-size:10px;color:#6366f1;font-weight:700;cursor:pointer">📥 PDF</div></div>
+</div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fees</div></div>
+<div class="nav-item active" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== AI ASSISTANT ==================== -->
+<div class="screen" data-screen="ai_assistant" style="background:#020617">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#0f0c29,#302b63);padding-top:14px"><span>9:41</span><div class="notch" style="background:#0f0c29"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div style="background:linear-gradient(135deg,#0f0c29,#302b63);padding:8px 18px 12px;flex-shrink:0"><div style="display:flex;align-items:center;gap:10px"><div class="back-btn" onclick="goBack()">←</div><div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:14px">🤖</div><div style="flex:1"><div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;color:#fff">EduVerse AI</div><div style="font-size:10px;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;background:#22c55e;border-radius:50%;animation:blink 1s infinite"></div>Always Online</div></div></div></div>
+<div id="chatBody" style="background:#f8faff;flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;scrollbar-width:none">
+<div style="display:flex;align-items:flex-start"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-right:6px">🤖</div><div style="max-width:85%;background:#fff;border-radius:4px 16px 16px 16px;padding:10px 13px;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:12px;color:var(--ev-text);line-height:1.6">Hello Dr. Mehta! 👋 I'm your EduVerse AI assistant. I can help with attendance analysis, fee tracking, staff management, admissions pipeline, and more!</div><div style="font-size:9px;color:var(--ev-text3);margin-top:4px">9:00 AM</div></div></div>
+<div style="display:flex;align-items:flex-start"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-right:6px">🤖</div><div style="max-width:85%;background:#fff;border-radius:4px 16px 16px 16px;padding:10px 13px;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:12px;color:var(--ev-text);line-height:1.6">📊 <b>Today's Summary:</b><br>• Attendance: 91% (785/862 students)<br>• 3 teachers absent (need substitutes)<br>• ₹2.4L fee pending (18 students)<br>• 28 admission applications in pipeline<br><br>What would you like to focus on?</div><div style="font-size:9px;color:var(--ev-text3);margin-top:4px">9:01 AM</div></div></div>
+</div>
+<div style="padding:6px 10px;display:flex;gap:5px;background:#f8faff;overflow-x:auto;scrollbar-width:none;flex-shrink:0">
+<div style="flex-shrink:0;background:#eef2ff;color:#6366f1;font-size:9.5px;font-weight:600;padding:5px 10px;border-radius:20px;font-family:'Outfit',sans-serif;cursor:pointer" onclick="sendAiMsg('Show attendance summary')">📊 Attendance</div>
+<div style="flex-shrink:0;background:#eef2ff;color:#6366f1;font-size:9.5px;font-weight:600;padding:5px 10px;border-radius:20px;font-family:'Outfit',sans-serif;cursor:pointer" onclick="sendAiMsg('Show fee defaulters')">💰 Fee defaulters</div>
+<div style="flex-shrink:0;background:#eef2ff;color:#6366f1;font-size:9.5px;font-weight:600;padding:5px 10px;border-radius:20px;font-family:'Outfit',sans-serif;cursor:pointer" onclick="sendAiMsg('Who is absent today?')">👥 Staff absent</div>
+<div style="flex-shrink:0;background:#eef2ff;color:#6366f1;font-size:9.5px;font-weight:600;padding:5px 10px;border-radius:20px;font-family:'Outfit',sans-serif;cursor:pointer" onclick="sendAiMsg('Show pending tasks')">📋 Pending tasks</div>
+</div>
+<div style="background:#fff;border-top:1px solid #e2e8f0;padding:10px 12px 16px;display:flex;gap:8px;align-items:center;flex-shrink:0">
+<input id="aiInput" class="input-field" placeholder="Ask anything about school..." style="margin-bottom:0;flex:1" onkeypress="if(event.key==='Enter')sendAiMsg()">
+<button onclick="sendAiMsg()" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);border:none;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;color:#fff">➤</button>
+</div>
+</div>
+
+<!-- ==================== NOTICES ==================== -->
+<div class="screen" data-screen="notices" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#92400e,#d97706);padding-top:14px"><span>9:41</span><div class="notch" style="background:#92400e"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#92400e,#d97706);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Notices</div><div style="background:rgba(255,255,255,.2);padding:4px 10px;border-radius:8px;font-size:10px;color:#fff;font-weight:600;cursor:pointer">+ Create</div></div></div>
+<div class="chip-row"><div class="chip" style="background:#d97706;color:#fff">All (12)</div><div class="chip" style="background:#fef3c7;color:#d97706">Urgent (2)</div><div class="chip" style="background:#fef3c7;color:#d97706">General</div><div class="chip" style="background:#fef3c7;color:#d97706">Events</div></div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #ef4444;cursor:pointer"><div style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;background:#fef2f2;color:#ef4444;display:inline-block;margin-bottom:4px">🚨 URGENT</div><div style="font-size:12px;font-weight:700;color:var(--ev-text)">Exam Hall Ticket Collection</div><div style="font-size:10px;color:var(--ev-text3);margin-top:2px">Collect hall tickets from office · Mar 28</div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #ef4444;cursor:pointer"><div style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;background:#fef2f2;color:#ef4444;display:inline-block;margin-bottom:4px">🚨 URGENT</div><div style="font-size:12px;font-weight:700;color:var(--ev-text)">Fee Payment Deadline Extended</div><div style="font-size:10px;color:var(--ev-text3);margin-top:2px">Extended to April 5 · Late fees waived · Mar 25</div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #6366f1;cursor:pointer"><div style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;background:#eef2ff;color:#6366f1;display:inline-block;margin-bottom:4px">📋 GENERAL</div><div style="font-size:12px;font-weight:700;color:var(--ev-text)">Staff Meeting Tomorrow</div><div style="font-size:10px;color:var(--ev-text3);margin-top:2px">All staff · Room 101 · 8:00 AM · Mar 24</div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #f59e0b;cursor:pointer"><div style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;background:#fef3c7;color:#d97706;display:inline-block;margin-bottom:4px">🎉 EVENT</div><div style="font-size:12px;font-weight:700;color:var(--ev-text)">Annual Day Preparation</div><div style="font-size:10px;color:var(--ev-text3);margin-top:2px">Committee meeting · Auditorium · Mar 22</div></div>
+</div>
+<div style="padding:14px"><button class="btn-primary" style="font-size:13px;padding:12px">📝 Create New Notice</button></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active"><div class="nav-icon-wrap">📢</div><div class="nav-lbl">Notices</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== TIMETABLE ==================== -->
+<div class="screen" data-screen="timetable" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1f3a,#3730a3);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1f3a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1f3a,#3730a3);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Timetable</div><div style="font-size:10px;color:rgba(255,255,255,.5)">All Classes</div></div></div>
+<div class="chip-row"><div class="chip" style="background:#6366f1;color:#fff">All Classes</div><div class="chip" style="background:#eef2ff;color:#6366f1">X-A</div><div class="chip" style="background:#eef2ff;color:#6366f1">IX-B</div><div class="chip" style="background:#eef2ff;color:#6366f1">VIII-A</div></div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px">
+<div style="background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:16px;padding:12px;display:flex;gap:10px;align-items:center;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#6366f1;border-radius:4px 0 0 4px"></div><div style="width:44px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:700">8:00</div><div style="font-size:9px;color:var(--ev-text3)">9:00</div></div><div style="width:8px;height:8px;border-radius:50%;background:#6366f1"></div><div><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Mathematics</div><div style="font-size:10px;color:var(--ev-text3)">X-A · Room 301 · Mr. Sharma</div></div></div>
+<div style="background:#ecfdf5;border:1.5px solid #a7f3d0;border-radius:16px;padding:12px;display:flex;gap:10px;align-items:center;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#22c55e;border-radius:4px 0 0 4px"></div><div style="width:44px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;color:#22c55e">9:00</div><div style="font-size:9px;color:var(--ev-text3)">10:00</div></div><div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Physics</div><div style="font-size:10px;color:var(--ev-text3)">X-A · Lab 2 · Dr. Verma</div></div><div style="font-size:9px;background:#22c55e;color:#fff;padding:2px 6px;border-radius:4px;font-weight:700">NOW</div></div>
+<div style="background:#fff;border-radius:16px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;gap:10px;align-items:center;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#ef4444;border-radius:4px 0 0 4px"></div><div style="width:44px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:700">10:20</div><div style="font-size:9px;color:var(--ev-text3)">11:20</div></div><div style="width:8px;height:8px;border-radius:50%;background:#ef4444"></div><div><div style="font-size:13px;font-weight:700;color:var(--ev-text)">English</div><div style="font-size:10px;color:var(--ev-text3)">IX-B · Room 204 · Ms. Gupta</div></div></div>
+<div style="background:#fff;border-radius:16px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;gap:10px;align-items:center;position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#f59e0b;border-radius:4px 0 0 4px"></div><div style="width:44px;text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:700">11:20</div><div style="font-size:9px;color:var(--ev-text3)">12:20</div></div><div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div><div><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Chemistry</div><div style="font-size:10px;color:var(--ev-text3)">VIII-A · Lab 1 · Dr. Mehta</div></div></div>
+</div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active"><div class="nav-icon-wrap">📅</div><div class="nav-lbl">Timetable</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== SETTINGS ==================== -->
+<div class="screen" data-screen="settings" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1e293b,#0f172a);padding-top:14px"><span>9:41</span><div class="notch" style="background:#0f172a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:8px 18px 0"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Settings</div></div>
+<div style="text-align:center;padding:16px 0"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;border:3px solid rgba(255,255,255,.2)">👨‍💼</div><div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:#fff">Dr. Suresh Mehta</div><div style="font-size:10px;color:rgba(255,255,255,.5)">Principal · DAV Public School</div></div></div>
+<div style="padding:14px">
+<div style="font-size:10px;font-weight:700;color:var(--ev-text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Notifications</div>
+<div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.04);margin-bottom:12px">
+<div style="display:flex;align-items:center;padding:13px 14px;gap:12px;border-bottom:1px solid #f8fafc" onclick="this.querySelector('.toggle').classList.toggle('toggle-on');this.querySelector('.toggle').classList.toggle('toggle-off')"><div style="width:34px;height:34px;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:16px">🔔</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ev-text)">Push Notifications</div><div style="font-size:10px;color:var(--ev-text3)">Alerts, notices, updates</div></div><div class="toggle toggle-on"><div class="toggle-knob"></div></div></div>
+<div style="display:flex;align-items:center;padding:13px 14px;gap:12px;border-bottom:1px solid #f8fafc" onclick="this.querySelector('.toggle').classList.toggle('toggle-on');this.querySelector('.toggle').classList.toggle('toggle-off')"><div style="width:34px;height:34px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:16px">📱</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ev-text)">SMS Alerts</div><div style="font-size:10px;color:var(--ev-text3)">Critical updates only</div></div><div class="toggle toggle-on"><div class="toggle-knob"></div></div></div>
+<div style="display:flex;align-items:center;padding:13px 14px;gap:12px" onclick="this.querySelector('.toggle').classList.toggle('toggle-on');this.querySelector('.toggle').classList.toggle('toggle-off')"><div style="width:34px;height:34px;border-radius:10px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;font-size:16px">📧</div><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--ev-text)">Email Reports</div><div style="font-size:10px;color:var(--ev-text3)">Weekly summary</div></div><div class="toggle toggle-off"><div class="toggle-knob"></div></div></div>
+</div>
+<div style="font-size:10px;font-weight:700;color:var(--ev-text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Account</div>
+<div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.04);margin-bottom:12px">
+<div style="display:flex;align-items:center;padding:13px 14px;gap:12px;border-bottom:1px solid #f8fafc;cursor:pointer"><div style="width:34px;height:34px;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:16px">👤</div><div style="font-size:13px;font-weight:600;color:var(--ev-text);flex:1">Profile</div><div style="font-size:14px;color:#cbd5e1">›</div></div>
+<div style="display:flex;align-items:center;padding:13px 14px;gap:12px;border-bottom:1px solid #f8fafc;cursor:pointer"><div style="width:34px;height:34px;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:16px">🔑</div><div style="font-size:13px;font-weight:600;color:var(--ev-text);flex:1">Change Password</div><div style="font-size:14px;color:#cbd5e1">›</div></div>
+<div style="display:flex;align-items:center;padding:13px 14px;gap:12px;cursor:pointer" onclick="navigateTo('login')"><div style="width:34px;height:34px;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:16px">🚪</div><div style="font-size:13px;font-weight:600;color:#ef4444;flex:1">Logout</div></div>
+</div>
+<div style="text-align:center;padding:8px 0 16px;font-size:10px;color:var(--ev-text3)">EduVerse Admin Suite v1.0 · © 2026</div>
+</div></div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fees</div></div>
+<div class="nav-item" onclick="navigateTo('reports')"><div class="nav-icon-wrap">📊</div><div class="nav-lbl">Reports</div></div>
+<div class="nav-item active" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== PROFILE ==================== -->
+<div class="screen" data-screen="profile" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#0f172a,#1e293b);padding-top:14px"><span>9:41</span><div class="notch" style="background:#0f172a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:8px 18px 0"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Profile</div></div>
+<div style="text-align:center;padding:20px 0"><div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 8px;border:3px solid rgba(255,255,255,.2)">👨‍💼</div><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff">Dr. Suresh Mehta</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Principal · DAV Public School · EMP-001</div></div>
+<div style="display:flex;justify-content:space-around;background:rgba(255,255,255,.06);border-radius:16px;padding:12px;margin-bottom:16px">
+<div style="text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff">15</div><div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px">Years Exp</div></div>
+<div style="text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#fff">12</div><div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px">Awards</div></div>
+<div style="text-align:center"><div style="font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:#22c55e">98%</div><div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px">Rating</div></div>
+</div></div>
+<div style="padding:14px">
+<div style="font-size:10px;font-weight:700;color:var(--ev-text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Personal Info</div>
+<div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.04);margin-bottom:12px">
+<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #f8fafc"><span style="font-size:11px;color:var(--ev-text3)">Email</span><span style="font-size:12px;font-weight:600;color:#6366f1">suresh.mehta@dav.edu</span></div>
+<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #f8fafc"><span style="font-size:11px;color:var(--ev-text3)">Phone</span><span style="font-size:12px;font-weight:600;color:var(--ev-text)">+91-9876543210</span></div>
+<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #f8fafc"><span style="font-size:11px;color:var(--ev-text3)">Department</span><span style="font-size:12px;font-weight:600;color:var(--ev-text)">Administration</span></div>
+<div style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #f8fafc"><span style="font-size:11px;color:var(--ev-text3)">Joining</span><span style="font-size:12px;font-weight:600;color:var(--ev-text)">July 2011</span></div>
+<div style="display:flex;justify-content:space-between;padding:11px 14px"><span style="font-size:11px;color:var(--ev-text3)">Qualification</span><span style="font-size:12px;font-weight:600;color:var(--ev-text)">Ph.D Education</span></div>
+</div></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fees</div></div>
+<div class="nav-item active"><div class="nav-icon-wrap">👤</div><div class="nav-lbl">Profile</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== NOTIFICATIONS ==================== -->
+<div class="screen" data-screen="notifications" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#1a1f3a,#3730a3);padding-top:14px"><span>9:41</span><div class="notch" style="background:#1a1f3a"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#1a1f3a,#3730a3);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Notifications</div></div></div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-top:8px">
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #ef4444;display:flex;gap:10px"><div style="font-size:16px">🔴</div><div style="flex:1"><div style="font-size:12px;font-weight:600">3 Teachers Absent Today</div><div style="font-size:10px;color:var(--ev-text3)">Substitutes needed · 2 mins ago</div></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #f59e0b;display:flex;gap:10px"><div style="font-size:16px">💰</div><div style="flex:1"><div style="font-size:12px;font-weight:600">Fee Collection Alert</div><div style="font-size:10px;color:var(--ev-text3)">₹2.4L pending · 1 hour ago</div></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #6366f1;display:flex;gap:10px"><div style="font-size:16px">📝</div><div style="flex:1"><div style="font-size:12px;font-weight:600">New Admission Application</div><div style="font-size:10px;color:var(--ev-text3)">Rohan Verma · Class IX · 3 hours ago</div></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);border-left:3px solid #22c55e;display:flex;gap:10px"><div style="font-size:16px">✅</div><div style="flex:1"><div style="font-size:12px;font-weight:600">Leave Approved</div><div style="font-size:10px;color:var(--ev-text3)">Mr. A. Verma · Sick Leave · Yesterday</div></div></div>
+</div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item" onclick="navigateTo('staff_directory')"><div class="nav-icon-wrap">👥</div><div class="nav-lbl">Staff</div></div>
+<div class="nav-item" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fees</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== DEFAULTERS ==================== -->
+<div class="screen" data-screen="defaulters" style="background:#f8fafc">
+<div class="status-bar" style="color:#fff;background:linear-gradient(135deg,#7f1d1d,#dc2626);padding-top:14px"><span>9:41</span><div class="notch" style="background:#7f1d1d"></div><div class="status-icons"><span>📶</span><span>🔋</span></div></div>
+<div class="screen-body">
+<div style="background:linear-gradient(135deg,#7f1d1d,#dc2626);padding:8px 18px 16px"><div class="mini-top"><div class="back-btn" onclick="goBack()">←</div><div class="mini-title">Fee Defaulters</div><div style="background:rgba(255,255,255,.15);padding:4px 10px;border-radius:8px;font-size:10px;color:#fff;font-weight:600">18 Students</div></div></div>
+<div style="padding:0 14px;display:flex;flex-direction:column;gap:6px;margin-top:8px">
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:14px">👧</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Sneha Patel</div><div style="font-size:10px;color:var(--ev-text3)">Class VIII-B · Overdue 14 days</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:#ef4444">₹8,500</div><button style="margin-top:4px;padding:3px 8px;border-radius:6px;border:none;background:#6366f1;color:#fff;font-size:9px;font-weight:700;cursor:pointer">Send SMS</button></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:14px">👦</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Rohan Verma</div><div style="font-size:10px;color:var(--ev-text3)">Class IX-A · Overdue 10 days</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:#ef4444">₹6,200</div><button style="margin-top:4px;padding:3px 8px;border-radius:6px;border:none;background:#6366f1;color:#fff;font-size:9px;font-weight:700;cursor:pointer">Send SMS</button></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:14px">👦</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Amit Singh</div><div style="font-size:10px;color:var(--ev-text3)">Class VII-C · Overdue 7 days</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:#ef4444">₹4,500</div><button style="margin-top:4px;padding:3px 8px;border-radius:6px;border:none;background:#6366f1;color:#fff;font-size:9px;font-weight:700;cursor:pointer">Send SMS</button></div></div>
+<div style="background:#fff;border-radius:14px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,.04);display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:14px">👧</div><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--ev-text)">Priya Sharma</div><div style="font-size:10px;color:var(--ev-text3)">Class VI-B · Overdue 5 days</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:#ef4444">₹4,500</div><button style="margin-top:4px;padding:3px 8px;border-radius:6px;border:none;background:#6366f1;color:#fff;font-size:9px;font-weight:700;cursor:pointer">Send SMS</button></div></div>
+</div>
+<div style="padding:14px"><button class="btn-danger" style="font-size:13px;padding:12px" onclick="showToast('SMS sent to all 18 defaulters!')">📱 Send Bulk SMS to All Defaulters</button></div>
+<div class="spacer"></div>
+</div>
+<div class="bottom-nav">
+<div class="nav-item" onclick="navigateTo('command_center')"><div class="nav-icon-wrap">🏠</div><div class="nav-lbl">Home</div></div>
+<div class="nav-item active" onclick="navigateTo('defaulters')"><div class="nav-icon-wrap">📋</div><div class="nav-lbl">Defaulters</div></div>
+<div class="nav-item" onclick="navigateTo('finance')"><div class="nav-icon-wrap">💰</div><div class="nav-lbl">Fees</div></div>
+<div class="nav-item" onclick="navigateTo('settings')"><div class="nav-icon-wrap">⚙️</div><div class="nav-lbl">Settings</div></div>
+</div>
+</div>
+
+<!-- ==================== STAFF DETAIL MODAL ==================== -->
+<div class="modal-overlay" id="staffDetailModal">
+<div class="modal-sheet" style="text-align:center">
+<div class="modal-handle"></div>
+<div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 10px" id="staffModalAvatar">👨‍🏫</div>
+<div class="modal-title" id="staffModalName">Mr. R. Sharma</div>
+<div style="font-size:12px;color:var(--ev-text3);margin-bottom:16px" id="staffModalInfo">Mathematics · Room 301</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+<div style="background:#f8fafc;border-radius:10px;padding:10px;text-align:center"><div style="font-size:12px;font-weight:700;color:var(--ev-text)" id="staffModalExp">12 years</div><div style="font-size:9px;color:var(--ev-text3)">Experience</div></div>
+<div style="background:#f8fafc;border-radius:10px;padding:10px;text-align:center"><div style="font-size:12px;font-weight:700;color:var(--ev-text)" id="staffModalQual">M.Sc, B.Ed</div><div style="font-size:9px;color:var(--ev-text3)">Qualification</div></div>
+</div>
+<div style="display:flex;gap:8px;margin-bottom:8px">
+<button class="btn-secondary" style="flex:1" onclick="hideModal('staffDetailModal')">📞 Call</button>
+<button class="btn-primary" style="flex:1" onclick="hideModal('staffDetailModal')">💬 Message</button>
+</div>
+<button class="btn-secondary" onclick="hideModal('staffDetailModal')" style="margin-top:4px">Close</button>
+</div>
+</div>
+
+<!-- ==================== PAYMENT SUCCESS MODAL ==================== -->
+<div class="modal-overlay" id="successModal">
+<div class="modal-sheet" style="text-align:center">
+<div class="modal-handle"></div>
+<div class="success-check" style="font-size:60px;margin-bottom:8px">✅</div>
+<div class="modal-title" style="color:#22c55e" id="successTitle">Action Completed!</div>
+<p style="font-size:12px;color:var(--ev-text3);margin-bottom:16px" id="successMsg">The action has been processed successfully.</p>
+<button class="btn-primary" onclick="hideModal('successModal')">Done</button>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<script>
+const screenHistory = [];
+let currentScreen = 'splash';
+let selectedRoleIndex = 0;
+
+// Splash auto-transition
+setTimeout(() => { const b = document.getElementById('splashBar'); if(b) b.style.width = '100%'; }, 300);
+setTimeout(() => navigateTo('login'), 2000);
+
+// Role to dashboard mapping
+const roleDashboards = {
+  0: 'command_center',  // Super Admin → Command Center
+  1: 'director',        // Director
+  2: 'command_center',  // Principal
+  3: 'finance',         // Finance
+  4: 'command_center',  // Admin Mgr → Command Center
+  5: 'hr',              // HR
+  6: 'transport',       // Transport
+  7: 'library',         // Librarian
+  8: 'command_center',  // Sports → Command Center
+  9: 'gate_scanner',    // Security
+  10: 'support_tasks',  // Support
+  11: 'transport'       // Driver → Transport
+};
+
+function navigateTo(name) {
+  if (name === currentScreen) return;
+  screenHistory.push(currentScreen);
+  showScreen(name);
+}
+
+function goBack() {
+  if (screenHistory.length > 0) {
+    showScreen(screenHistory.pop());
+  }
+}
+
+function showScreen(name) {
+  const screens = document.querySelectorAll('.screen');
+  const oldActive = document.querySelector('.screen.active');
+  const target = document.querySelector('[data-screen="'+name+'"]');
+  if (!target) return;
+  
+  if (oldActive && oldActive !== target) {
+    oldActive.classList.remove('active');
+    setTimeout(() => {}, 400);
+  }
+  screens.forEach(s => { if(s !== target) s.classList.remove('active'); });
+  target.classList.add('active');
+  currentScreen = name;
+}
+
+function showModal(id) { document.getElementById(id)?.classList.add('show'); }
+function hideModal(id) { document.getElementById(id)?.classList.remove('show'); }
+
+function selectRole(el) {
+  document.querySelectorAll('.lr-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  selectedRoleIndex = Array.from(document.querySelectorAll('.lr-card')).indexOf(el);
+}
+
+function loginToRole() {
+  const dashboard = roleDashboards[selectedRoleIndex] || 'command_center';
+  navigateTo(dashboard);
+}
+
+function switchRoleView(el) {
+  el.parentElement.querySelectorAll('.toggle-btn').forEach(b => {
+    b.classList.remove('active');
+    b.classList.add('inactive');
+  });
+  el.classList.remove('inactive');
+  el.classList.add('active');
+}
+
+function showStaffDetail(name, dept, room, exp, qual) {
+  document.getElementById('staffModalName').textContent = name;
+  document.getElementById('staffModalInfo').textContent = dept + ' · ' + room;
+  document.getElementById('staffModalExp').textContent = exp;
+  document.getElementById('staffModalQual').textContent = qual;
+  showModal('staffDetailModal');
+}
+
+function toggleTask(el) {
+  if (el.classList.contains('done')) {
+    el.classList.remove('done');
+    el.textContent = '⬜';
+  } else {
+    el.classList.add('done');
+    el.textContent = '✓';
+  }
+}
+
+function completeAllTasks() {
+  document.querySelectorAll('.task-check').forEach(t => {
+    t.classList.add('done');
+    t.textContent = '✓';
+  });
+  document.getElementById('successTitle').textContent = 'All Tasks Complete! ✅';
+  document.getElementById('successMsg').textContent = 'All housekeeping tasks for today have been marked as complete.';
+  showModal('successModal');
+}
+
+function approveLeave(btn) {
+  btn.parentElement.innerHTML = '<span style="font-size:9px;font-weight:700;color:#22c55e">✅ Approved</span>';
+  document.getElementById('successTitle').textContent = 'Leave Approved ✅';
+  document.getElementById('successMsg').textContent = 'The leave request has been approved and the staff member notified.';
+  showModal('successModal');
+}
+
+function rejectLeave(btn) {
+  btn.parentElement.innerHTML = '<span style="font-size:9px;font-weight:700;color:#ef4444">✕ Rejected</span>';
+  document.getElementById('successTitle').textContent = 'Leave Rejected';
+  document.getElementById('successMsg').textContent = 'The leave request has been rejected.';
+  showModal('successModal');
+}
+
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#6366f1;color:#fff;padding:12px 24px;border-radius:30px;font-size:12px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:99999';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
+
+// AI Chat
+const aiResponses = {
+  'attendance': '📊 <b>Today\'s Attendance Report:</b><br><br>• Overall: 91% (785/862 students)<br>• Class X-A: 96% ✅<br>• Class IX-B: 92% ✅<br>• Class VIII-B: 83% ⚠️ (Below threshold!)<br>• Class VII-C: 89%<br><br>3 teachers absent. Substitutes arranged for 2. Need 1 more for Hindi.',
+  'defaulters': '💰 <b>Fee Defaulter Summary:</b><br><br>• Total Defaulters: 18 students<br>• Total Pending: ₹2,42,000<br>• Overdue >30 days: 5 students (₹52,000)<br>• Overdue 15-30 days: 8 students (₹96,000)<br>• Overdue <15 days: 5 students (₹94,000)<br><br>Auto-send bulk SMS reminders?',
+  'staff': '👥 <b>Staff Absence Today:</b><br><br>• Mr. A. Verma (Physics) — Sick Leave ✅ Approved<br>• Ms. K. Rao (History) — Casual Leave ⏳ Pending<br>• Mr. P. Singh (Hindi) — Emergency Leave ✅ Approved<br><br>Substitutes assigned for Physics & Hindi. History substitute needed.',
+  'tasks': '📋 <b>Pending Tasks:</b><br><br>• 3 substitute arrangements pending<br>• 5 admission applications to review<br>• 2 parent complaints unresolved<br>• Monthly report due tomorrow<br>• Staff meeting agenda preparation<br><br>Priority: Substitute arrangements (high)'
+};
+
+function sendAiMsg(preset) {
+  const input = document.getElementById('aiInput');
+  const body = document.getElementById('chatBody');
+  const msg = preset || (input ? input.value.trim() : '');
+  if (!msg) return;
+  
+  // Add user message
+  const userDiv = document.createElement('div');
+  userDiv.style.cssText = 'max-width:85%;background:linear-gradient(135deg,#6366f1,#818cf8);border-radius:16px 16px 4px 16px;padding:10px 13px;align-self:flex-end';
+  userDiv.innerHTML = '<div style="font-size:12px;color:#fff;line-height:1.6">' + msg + '</div><div style="font-size:9px;color:rgba(255,255,255,.6);margin-top:4px;text-align:right">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div>';
+  body.appendChild(userDiv);
+  if (input) input.value = '';
+  
+  // Typing indicator
+  const typingDiv = document.createElement('div');
+  typingDiv.style.cssText = 'display:flex;gap:4px;align-items:center;padding:10px';
+  typingDiv.innerHTML = '<div style="width:7px;height:7px;background:#cbd5e1;border-radius:50%;animation:typing-bounce 1.2s infinite"></div><div style="width:7px;height:7px;background:#cbd5e1;border-radius:50%;animation:typing-bounce 1.2s infinite .2s"></div><div style="width:7px;height:7px;background:#cbd5e1;border-radius:50%;animation:typing-bounce 1.2s infinite .4s"></div>';
+  body.appendChild(typingDiv);
+  body.scrollTop = body.scrollHeight;
+  
+  setTimeout(() => {
+    typingDiv.remove();
+    const lowerMsg = msg.toLowerCase();
+    let response = 'I can help with attendance, fees, staff, admissions, transport, and more. What would you like to know?';
+    for (const key in aiResponses) {
+      if (lowerMsg.includes(key)) { response = aiResponses[key]; break; }
+    }
+    const aiDiv = document.createElement('div');
+    aiDiv.style.cssText = 'display:flex;align-items:flex-start';
+    aiDiv.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-right:6px">🤖</div><div style="max-width:85%;background:#fff;border-radius:4px 16px 16px 16px;padding:10px 13px;box-shadow:0 2px 8px rgba(0,0,0,.06)"><div style="font-size:12px;color:#0f172a;line-height:1.6">' + response + '</div><div style="font-size:9px;color:#94a3b8;margin-top:4px">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div></div>';
+    body.appendChild(aiDiv);
+    body.scrollTop = body.scrollHeight;
+  }, 1500);
+}
+
+// Close modals on overlay click
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('show');
+  }
+});
+
+// Ring spin animation
+const ringStyle = document.createElement('style');
+ringStyle.textContent = '@keyframes ring-spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}@keyframes typing-bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px);background:#6366f1}}.lr-card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s}.lr-card.active{background:rgba(99,102,241,.25);border-color:rgba(99,102,241,.6)}';
+document.head.appendChild(ringStyle);
+</script>
+</body>
+</html>

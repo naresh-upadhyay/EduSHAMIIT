@@ -168,6 +168,13 @@ async def login(request: LoginRequest):
         # profile.data is a dict (due to maybe_single in aexecute)
         p = profile.data
 
+        # Enforce role matching if role is requested
+        if request.role and p["role"].lower() != request.role.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied: Selected role '{request.role}' does not match user's registered role"
+            )
+
         token = jwt.encode(
             {
                 "sub": user_id,

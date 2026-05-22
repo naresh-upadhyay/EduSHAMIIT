@@ -17,7 +17,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _studentIdController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  UserRole _selectedRole = UserRole.student;
+  UserRole? _selectedRole;
+  String? _roleErrorText;
 
   @override
   void initState() {
@@ -41,8 +42,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleLogin() async {
     debugPrint('Login button pressed!');
     
+    setState(() {
+      if (_selectedRole == null) {
+        _roleErrorText = 'Please select a role';
+      } else {
+        _roleErrorText = null;
+      }
+    });
+
     // Check form validation
-    if (!_formKey.currentState!.validate()) {
+    final isFormValid = _formKey.currentState!.validate();
+    if (!isFormValid || _selectedRole == null) {
       debugPrint('Form validation failed!');
       return;
     }
@@ -58,6 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final success = await authNotifier.signIn(
         email: email,
         password: password,
+        role: _selectedRole!,
         ref: ref,
       );
 
@@ -213,13 +224,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
+                if (_roleErrorText != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _roleErrorText!,
+                        style: const TextStyle(
+                          color: Color(0xFFFF6B6B),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 20),
 
-                // Email / Student ID field
+                // Email field
                 _buildDarkTextField(
                   controller: _studentIdController,
-                  label: 'Email / Student ID',
-                  hint: 'Enter your email or student ID',
+                  label: 'Email',
+                  hint: 'Enter your email',
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    final emailRegex = RegExp(
+                        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 8),
 
@@ -242,6 +279,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       });
                     },
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (value.length < 8) {
+                      return 'Password must be at least 8 characters long';
+                    }
+                    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                      return 'Password must contain at least one uppercase letter';
+                    }
+                    if (!RegExp(r'[a-z]').hasMatch(value)) {
+                      return 'Password must contain at least one lowercase letter';
+                    }
+                    if (!RegExp(r'\d').hasMatch(value)) {
+                      return 'Password must contain at least one number';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 4),
                 // Forgot Password link
@@ -354,6 +409,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       onTap: () {
         setState(() {
           _selectedRole = role;
+          _roleErrorText = null;
         });
       },
       child: AnimatedContainer(
@@ -421,6 +477,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required String hint,
     bool? obscureText,
     Widget? suffixIcon,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,7 +495,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           controller: controller,
           obscureText: obscureText ?? false,
           style: const TextStyle(color: Colors.white),
-          validator: (value) {
+          validator: validator ?? (value) {
             if (value == null || value.trim().isEmpty) {
               return '$label is required';
             }
