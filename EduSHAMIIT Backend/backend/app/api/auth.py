@@ -754,6 +754,46 @@ async def delete_user(identifier: str):
             if profile.data:
                 auth_uuid = profile.data["id"]
 
+        # If not found yet, try finding by email
+        if not auth_uuid:
+            profile = await sb.table("profiles").select("id").eq("email", identifier).maybe_single().aexecute()
+            if profile.data:
+                auth_uuid = profile.data["id"]
+
+        # If still not found and contains '@', try database function first, fallback to GoTrue admin API
+        if not auth_uuid and "@" in identifier:
+            try:
+                res = await sb.rpc("get_auth_user_id_by_email", {"email_addr": identifier}).aexecute()
+                if res.data:
+                    if isinstance(res.data, list) and res.data[0]:
+                        auth_uuid = res.data[0]
+                    elif isinstance(res.data, str):
+                        auth_uuid = res.data
+            except Exception as ex:
+                logging.warning(f"Failed to query get_auth_user_id_by_email: {str(ex)}")
+
+            if not auth_uuid:
+                try:
+                    client = await sb.get_async_client()
+                    headers = {
+                        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}"
+                    }
+                    response = await client.get(
+                        f"{settings.SUPABASE_URL}/auth/v1/admin/users",
+                        headers=headers,
+                        timeout=10.0
+                    )
+                    if response.status_code == 200:
+                        users_data = response.json()
+                        users = users_data.get("users", [])
+                        for u in users:
+                            if u.get("email") == identifier:
+                                auth_uuid = u.get("id")
+                                break
+                except Exception as ex:
+                    logging.warning(f"Failed to query auth.users by email: {str(ex)}")
+
         # If we still don't have a UUID, and the identifier is a UUID, we assume it's a headless Auth user
         if not auth_uuid and is_uuid:
             auth_uuid = identifier
