@@ -94,8 +94,28 @@ def require_role(required_role: str):
         user_role = user.get("role")
         if user_role != required_role:
             raise HTTPException(
-                status_code=403, 
+                status_code=403,
                 detail=f"Access denied. This endpoint requires {required_role} role."
+            )
+        return user
+    return role_checker
+
+
+def require_any_role(*allowed_roles: str):
+    """Dependency factory to allow access if user has ANY of the listed roles.
+
+    Example:
+        require_any_role('admin', 'student_admin')  — admin OR student_admin can access.
+    """
+    async def role_checker(user: dict = Depends(get_current_user)) -> dict:
+        user_role = user.get("role")
+        if user_role not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Access denied. Required one of: {', '.join(allowed_roles)}. "
+                    f"Your role: {user_role}"
+                ),
             )
         return user
     return role_checker
@@ -105,3 +125,9 @@ def require_role(required_role: str):
 require_teacher = require_role("teacher")
 require_student = require_role("student")
 require_admin = require_role("admin")
+
+# Admin sub-roles
+# student_admin: manages student-side data; admin can also access everything.
+require_student_admin = require_any_role("admin", "student_admin")
+# teacher_admin: manages teacher-side data; admin can also access everything.
+require_teacher_admin = require_any_role("admin", "teacher_admin")

@@ -40,6 +40,55 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
     }).aexecute()
     
     data = res.data[0] if res.data else {}
+    
+    # Map and flatten today's schedule to match Flutter model expectations
+    schedule_list = data.get("today_schedule") or []
+    if not isinstance(schedule_list, list):
+        schedule_list = []
+    teacher_ids = {s.get("teacher_id") for s in schedule_list if s.get("teacher_id")}
+    teacher_names = {}
+    if teacher_ids:
+        profiles_res = await sb.table("profiles").select("id, full_name").in_("id", list(teacher_ids)).aexecute()
+        if profiles_res.data:
+            teacher_names = {p["id"]: p["full_name"] for p in profiles_res.data}
+
+    mapped_schedule = []
+    for item in schedule_list:
+        sub_dict = item.get("subjects") or {}
+        start_t = item.get("start_time", "")
+        end_t = item.get("end_time", "")
+        if start_t and len(start_t) > 5:
+            start_t = start_t[:5]
+        if end_t and len(end_t) > 5:
+            end_t = end_t[:5]
+            
+        mapped_item = {
+            **item,
+            "subject": sub_dict.get("name") or "Unknown",
+            "icon": sub_dict.get("icon") or "📚",
+            "start_time": start_t,
+            "end_time": end_t,
+            "teacher": teacher_names.get(item.get("teacher_id")) or "Teacher",
+            "is_now": False
+        }
+        mapped_schedule.append(mapped_item)
+    data["today_schedule"] = mapped_schedule
+
+    # Map and flatten pending homework to match Flutter model expectations
+    homework_list = data.get("pending_homework") or []
+    if not isinstance(homework_list, list):
+        homework_list = []
+    mapped_homework = []
+    for hw in homework_list:
+        sub_dict = hw.get("subjects") or {}
+        mapped_hw = {
+            **hw,
+            "subject": sub_dict.get("name") or "Unknown",
+            "icon": sub_dict.get("icon") or "📝"
+        }
+        mapped_homework.append(mapped_hw)
+    data["pending_homework"] = mapped_homework
+
     data["quick_access"] = [
         {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
         {"title": "Results", "icon": "📊", "route": "/student/results", "bg": "FDF4FF"},
