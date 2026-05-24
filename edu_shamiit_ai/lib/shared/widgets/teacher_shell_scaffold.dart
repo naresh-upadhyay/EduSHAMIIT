@@ -100,6 +100,11 @@ class TeacherShellScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
 
+    // Don't wrap AI chat in SelectionArea — its streaming ListView
+    // causes !debugNeedsLayout assertions in SelectableRegion.
+    final isAiChat = location.endsWith('/ai-chat');
+    final pageChild = isAiChat ? child : SelectionArea(child: child);
+
     // ── Desktop / wide: Custom sidebar with all routes ──
     if (Responsive.isDesktop(context)) {
       final selected = _selectedIndex(location, _sidebarItems);
@@ -112,14 +117,20 @@ class TeacherShellScaffold extends StatelessWidget {
               items: _sidebarItems,
               selectedIndex: selected,
               isExtended: isExtended,
-              onItemTap: (item) => context.go(item.route),
+              onItemTap: (item) {
+                final nav = Navigator.of(context);
+                while (nav.canPop()) {
+                  nav.pop();
+                }
+                context.go(item.route);
+              },
             ),
             const VerticalDivider(
                 thickness: 1, width: 1, color: Color(0xFFE2E8F0)),
-            Expanded(child: child),
+            Expanded(child: pageChild),
           ],
         ),
-        floatingActionButton: location.endsWith('/ai-chat') ? null : AiFab(
+        floatingActionButton: isAiChat ? null : AiFab(
           gradient: AppGradients.studentPrimary,
           onPressed: () => context.push('/teacher/ai-chat'),
         ),
@@ -128,9 +139,9 @@ class TeacherShellScaffold extends StatelessWidget {
 
     // ── Mobile / tablet: bottom nav bar ──
     return Scaffold(
-      body: child,
+      body: isAiChat ? child : SelectionArea(child: child),
       bottomNavigationBar: const TeacherBottomNav(),
-      floatingActionButton: location.endsWith('/ai-chat') ? null : AiFab(
+      floatingActionButton: isAiChat ? null : AiFab(
         gradient: AppGradients.studentPrimary,
         onPressed: () => context.push('/teacher/ai-chat'),
       ),

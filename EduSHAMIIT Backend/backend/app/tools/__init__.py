@@ -66,5 +66,15 @@ def filter_tools_by_role(tools: list, role: str, school_id: str) -> list:
     """Filter tools based on user role."""
     allowed = ROLE_TOOLS.get(role, [])
     if "*" in allowed:
-        return tools
-    return [t for t in tools if t.name in allowed]
+        filtered = tools
+    else:
+        filtered = [t for t in tools if t.name in allowed]
+
+    # Deduplicate tools by name to prevent "Duplicate function declaration found" errors
+    seen = set()
+    deduped = []
+    for t in filtered:
+        if t.name not in seen:
+            seen.add(t.name)
+            deduped.append(t)
+    return deduped

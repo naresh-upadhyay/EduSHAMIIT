@@ -63,6 +63,10 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
   }
 
   Future<void> _loadGrades() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final assessmentType = _selectedAssessment == 'All' ? null : _selectedAssessment;
       final grades = await _apiService.getGradeRecords(

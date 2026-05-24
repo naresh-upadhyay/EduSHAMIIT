@@ -1,6 +1,7 @@
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -30,6 +31,8 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF4F46E5), Color(0xFF302B63)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
             child: Row(
@@ -52,12 +55,12 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: Colors.white.withAlpha(38),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '${coursesState.courses.length} Subjects',
-                    style: const TextStyle(fontSize: 10, color: Colors.white60, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -91,103 +94,112 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
   }
 
   Widget _buildCourseCard(CourseModel course) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: course.color,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(child: Text(course.icon, style: const TextStyle(fontSize: 18))),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.name,
-                      style: const TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${course.teacher} · ${course.chapters}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: StudentColors.text3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                course.score,
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: course.accentColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Progress Bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: course.progress,
-              backgroundColor: StudentColors.border,
-              valueColor: AlwaysStoppedAnimation(course.accentColor),
-              minHeight: 4,
+    return GestureDetector(
+      onTap: () => _showCourseDetail(course),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: StudentColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(12),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                '${(course.progress * 100).toInt()}% syllabus completed',
-                style: const TextStyle(
-                  fontSize: 9,
-                  color: StudentColors.text3,
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: course.color,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(child: Text(course.icon, style: const TextStyle(fontSize: 18))),
                 ),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: () => _showCourseDetail(course),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: course.accentColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        course.name,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${course.teacher} · ${course.chapters}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: StudentColors.text3,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: const Text('🎥 View', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                Text(
+                  course.score,
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: course.accentColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Progress Bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: course.progress,
+                backgroundColor: StudentColors.border,
+                valueColor: AlwaysStoppedAnimation(course.accentColor),
+                minHeight: 4,
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text(
+                  '${(course.progress * 100).toInt()}% syllabus completed',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: StudentColors.text3,
+                  ),
+                ),
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () => _playRecording(course),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: course.accentColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                  ),
+                  child: const Text('🎥 Play Recording', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _playRecording(CourseModel course) {
+    context.go('/student/live-classes?playSubject=${Uri.encodeComponent(course.name)}');
   }
 
   void _showCourseDetail(CourseModel course) {
@@ -209,12 +221,14 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
             padding: const EdgeInsets.all(20),
             children: [
               // Handle
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: StudentColors.border,
-                  borderRadius: BorderRadius.circular(2),
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: StudentColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -286,13 +300,17 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Sample coverage items (would come from API in real implementation)
-              _buildCoverageItem('Algebra', 1.0, StudentColors.success),
-              _buildCoverageItem('Trigonometry', 1.0, StudentColors.success),
-              _buildCoverageItem('Coordinate Geometry', 0.9, StudentColors.success),
-              _buildCoverageItem('Calculus', 0.6, StudentColors.warning),
-              _buildCoverageItem('Probability', 0.4, StudentColors.error),
-              _buildCoverageItem('Statistics', 0.3, StudentColors.error),
+              if (course.syllabusCoverage.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('No syllabus details available.', style: TextStyle(fontSize: 12, color: StudentColors.text3)),
+                ),
+              ...course.syllabusCoverage.map((item) {
+                Color statusColor = StudentColors.success;
+                if (item.status == 'warning') statusColor = StudentColors.warning;
+                if (item.status == 'error') statusColor = StudentColors.error;
+                return _buildCoverageItem(item.topic, item.progress, statusColor);
+              }),
               const SizedBox(height: 20),
               const Text(
                 'Upcoming Topics:',
@@ -303,10 +321,47 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                 ),
               ),
               const SizedBox(height: 8),
-              _buildUpcomingTopic('Integration Applications'),
-              _buildUpcomingTopic('Probability Distributions'),
-              _buildUpcomingTopic('Statistics — Mean, Median, Mode'),
-              const SizedBox(height: 20),
+              if (course.upcomingTopics.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('No upcoming topics listed.', style: TextStyle(fontSize: 12, color: StudentColors.text3)),
+                ),
+              ...course.upcomingTopics.map((topic) => _buildUpcomingTopic(topic)),
+              
+              if (course.resourcesText.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Text(
+                  'Resources & Statistics:',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: StudentColors.infoBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: StudentColors.info.withAlpha(38)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.auto_stories, size: 16, color: StudentColors.info),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          course.resourcesText,
+                          style: const TextStyle(fontSize: 11, color: StudentColors.text2, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -317,7 +372,10 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                     final success = await ref.read(coursesProvider.notifier).startLearning(course.id);
                     if (success) {
                       messenger.showSnackBar(
-                        SnackBar(content: Text('🎥 Starting video lecture...'.tr(ref))),
+                        SnackBar(
+                          content: Text('🎥 Starting video lecture...'.tr(ref)),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                     }
                   },

@@ -178,11 +178,10 @@ class TeacherApiService {
   Future<List<StudentDirectoryEntry>> getStudentsForClass(
       String classId) async {
     try {
-      final response = await _getWithFallback([
-        '/teacher/attendance/students?class=$classId',
-        '/teacher/students?class=$classId',
-        '/teacher/students?class_name=$classId',
-      ]);
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/students?class_name=$classId'),
+        headers: await _getHeaders(),
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = _toList(
@@ -387,18 +386,15 @@ class TeacherApiService {
     try {
       final params = <String, String>{};
       if (status != null) params['status'] = status;
+      if (homeworkId.trim().isNotEmpty) params['homework_id'] = homeworkId;
+      
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-
-      final response = homeworkId.trim().isEmpty
-          ? await _getWithFallback([
-              '/teacher/submissions?$queryString',
-              '/teacher/submissions',
-            ])
-          : await _getWithFallback([
-              '/teacher/homework/$homeworkId/submissions?$queryString',
-              '/teacher/submissions?homework_id=$homeworkId${queryString.isEmpty ? '' : '&$queryString'}',
-            ]);
+      
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/submissions${queryString.isEmpty ? '' : '?$queryString'}'),
+        headers: await _getHeaders(),
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = _toList(
@@ -453,18 +449,16 @@ class TeacherApiService {
     String? studentId,
   }) async {
     try {
-      final params = <String, String>{'class': classId};
+      final params = <String, String>{'class_name': classId};
       if (assessmentType != null) params['assessment_type'] = assessmentType;
       if (studentId != null) params['student_id'] = studentId;
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final queryStringByClassName =
-          queryString.replaceFirst('class=', 'class_name=');
-      final response = await _getWithFallback([
-        '/teacher/gradebook?$queryString',
-        '/teacher/gradebook?$queryStringByClassName',
-      ]);
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/gradebook?$queryString'),
+        headers: await _getHeaders(),
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = _toList(
@@ -627,11 +621,13 @@ class TeacherApiService {
   Future<List<TeacherTimetablePeriod>> getTimetable({
     String? classId,
     String? dayOfWeek,
+    String? date,
   }) async {
     try {
       final params = <String, String>{};
       if (classId != null) params['class'] = classId;
       if (dayOfWeek != null) params['day'] = dayOfWeek;
+      if (date != null) params['date'] = date;
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
@@ -653,6 +649,41 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error fetching timetable: $e');
+    }
+  }
+
+  /// Schedule a timetable slot (Extra Class, PTM, Staff Meeting, Live Class)
+  Future<void> scheduleTimetableSlot({
+    required String date,
+    required String slotType,
+    required String customSubject,
+    required String classId,
+    required String startTime,
+    required String endTime,
+    required String room,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/timetable'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'date': date,
+          'slot_type': slotType,
+          'custom_subject': customSubject,
+          'class_name': classId,
+          'class': classId,
+          'start_time': startTime,
+          'end_time': endTime,
+          'room': room,
+          'room_number': room,
+        }),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to schedule timetable slot: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error scheduling timetable slot: $e');
     }
   }
 
@@ -796,6 +827,106 @@ class TeacherApiService {
     }
   }
 
+  /// Create a live class or recorded class
+  Future<TeacherLiveClass> createLiveClass({
+    required String title,
+    required String classId,
+    required String subject,
+    required DateTime scheduledAt,
+    required int durationMinutes,
+    String? status, // 'scheduled', 'recorded', 'live'
+    String? streamUrl,
+    String? recordingUrl,
+  }) async {
+    try {
+      final response = await _postWithFallback(
+        paths: ['/teacher/live-classes'],
+        body: {
+          'title': title,
+          'class': classId,
+          'class_id': classId,
+          'subject': subject,
+          'scheduled_at': scheduledAt.toIso8601String(),
+          'duration_minutes': durationMinutes,
+          'status': status ?? 'scheduled',
+          'stream_url': streamUrl,
+          'recording_url': recordingUrl,
+        },
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
+        return TeacherLiveClass.fromJson(data);
+      } else {
+        throw Exception(
+            'Failed to create live class: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error creating live class: $e');
+    }
+  }
+
+  /// Update live class details (PATCH)
+  Future<TeacherLiveClass> patchLiveClass(String liveClassId, Map<String, dynamic> updates) async {
+    try {
+      final response = await _client.patch(
+        Uri.parse('$_baseUrl/teacher/live-classes/$liveClassId'),
+        headers: await _getHeaders(),
+        body: json.encode(updates),
+      );
+
+      if (response.statusCode == 200) {
+        final data = _toMap(json.decode(response.body));
+        return TeacherLiveClass.fromJson(data);
+      } else {
+        throw Exception('Failed to update live class: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error updating live class: $e');
+    }
+  }
+
+  /// Get comments for a live class
+  Future<List<Map<String, dynamic>>> getComments(String liveClassId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/student/live-classes/$liveClassId/comments'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final unwrapped = json.decode(response.body);
+        final List<dynamic> list = unwrapped['data']['comments'] ?? [];
+        return list.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Post a teacher comment or pinned message
+  Future<Map<String, dynamic>?> postComment(String liveClassId, String text, {bool isPinned = false}) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/student/live-classes/$liveClassId/comments'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'comment': text,
+          'is_pinned': isPinned,
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final unwrapped = json.decode(response.body);
+        return Map<String, dynamic>.from(unwrapped['data']);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+
+
   // ========== Teaching Materials API ==========
 
   /// Get teaching materials
@@ -883,19 +1014,17 @@ class TeacherApiService {
   }) async {
     try {
       final params = <String, String>{};
-      if (classId != null) params['class'] = classId;
+      if (classId != null) params['class_name'] = classId;
       if (search != null) params['search'] = search;
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
       final queryString =
           params.entries.map((e) => '${e.key}=${e.value}').join('&');
-      final queryStringByClassName =
-          queryString.replaceFirst('class=', 'class_name=');
-      final response = await _getWithFallback([
-        '/teacher/students?$queryString',
-        '/teacher/students?$queryStringByClassName',
-      ]);
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/students?$queryString'),
+        headers: await _getHeaders(),
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = _toList(

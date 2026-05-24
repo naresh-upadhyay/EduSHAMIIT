@@ -60,8 +60,71 @@ def get_llm(task: str):
 
     from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash-latest",
+        model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
         temperature=0.3,
         max_tokens=2048,
         google_api_key=os.getenv("GOOGLE_API_KEY", "AIza-placeholder-google-key")
     )
+
+
+def get_fallback_llms():
+    """Return a list of fallback ChatOpenAI LLMs in order of preference (higher limits first)."""
+    import os
+    from langchain_openai import ChatOpenAI
+
+    fallbacks = []
+
+    # 1. OpenRouter models (highest weekly tokens limits first)
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_key and openrouter_key != "sk-or-v1-placeholder":
+        # Order of OpenRouter models (highest limit first)
+        or_models = [
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "nvidia/nemotron-3-super-120b-a12b",
+            "poolside/laguna-m1:free",
+            "poolside/laguna-m1",
+            "openai/gpt-oss-120b:free",
+            "openai/gpt-oss-120b",
+            "z-ai/glm-4.5-air:free",
+            "z-ai/glm-4.5-air",
+            "arcee/trinity-large-thinking:free",
+            "arcee/trinity-large-thinking",
+            "deepseek/deepseek-v4-flash:free",
+            "deepseek/deepseek-v4-flash",
+        ]
+        for model in or_models:
+            fallbacks.append(
+                ChatOpenAI(
+                    model=model,
+                    openai_api_key=openrouter_key,
+                    openai_api_base="https://openrouter.ai/api/v1",
+                    temperature=0.3,
+                    max_tokens=2048,
+                    default_headers={
+                        "HTTP-Referer": "https://edushamiit.com",
+                        "X-Title": "EduSHAMIIT AI"
+                    }
+                )
+            )
+
+    # 2. GitHub Models API (as final fallback)
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token:
+        # Common models available on GitHub models
+        gh_models = [
+            "gpt-4o-mini",
+            "meta-llama-3.1-70b-instruct",
+            "gpt-4o",
+        ]
+        for model in gh_models:
+            fallbacks.append(
+                ChatOpenAI(
+                    model=model,
+                    api_key=github_token,
+                    base_url="https://models.github.ai/inference",
+                    temperature=0.3,
+                    max_tokens=2048
+                )
+            )
+
+    return fallbacks

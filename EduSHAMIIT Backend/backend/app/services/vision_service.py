@@ -9,7 +9,7 @@ async def analyze_image(image_b64: str, question: str = "Describe this image") -
     Supports: handwritten answers, diagrams, whiteboard photos, ID cards."""
     try:
         llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash-latest",
+            model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
             temperature=0.3,
             google_api_key=os.getenv("GOOGLE_API_KEY", "AIza-placeholder-google-key")
         )

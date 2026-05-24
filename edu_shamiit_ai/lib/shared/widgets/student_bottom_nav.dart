@@ -37,7 +37,13 @@ class StudentBottomNav extends StatelessWidget {
   Widget _buildNavItem(BuildContext context, String emoji, String label, String route, String currentLocation) {
     final isActive = currentLocation == route;
     return GestureDetector(
-      onTap: () => context.go(route),
+      onTap: () {
+        final nav = Navigator.of(context);
+        while (nav.canPop()) {
+          nav.pop();
+        }
+        context.go(route);
+      },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

@@ -86,6 +86,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       
       final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess;
 
+      // While auth is loading, stay at splash (safety net — should not normally
+      // happen since main.dart awaits initialize() before runApp, but guards
+      // against any brief isLoading=true state during Supabase token refresh).
+      if (authState.isLoading && !isSplash) {
+        return '/splash';
+      }
+
       // If user is NOT authenticated, and trying to access a private route, force to login
       if (!isAuth && !isPublic && !authState.isLoading) {
         return '/login';
@@ -230,6 +237,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/student/live-classes',
           pageBuilder: (_, __) => const NoTransitionPage(child: StudentLiveClasses()),
+          routes: [
+            GoRoute(
+              path: 'play/:id',
+              pageBuilder: (context, state) {
+                final classId = state.pathParameters['id']!;
+                return NoTransitionPage(
+                  child: StudentLiveClassPlayerScreen(classId: classId),
+                );
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/student/leaderboard',

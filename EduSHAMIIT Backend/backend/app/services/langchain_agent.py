@@ -12,23 +12,49 @@ from app.agents.router import TaskType, detect_task, get_llm
 from app.agents.prompts import get_system_prompt
 
 
-def build_agent(role: str, school_id: str, task_type: str = "qa"):
-    """Build a role-scoped, task-appropriate LangChain agent."""
-    from langchain.agents import create_tool_calling_agent, AgentExecutor
+def build_agent(role: str, school_id: str, task_type: str = "qa", user_id: str = None):
+    """Build a role-scoped, task-appropriate LangChain agent with fallback LLMs."""
+    from langchain.agents import AgentExecutor
+    from langchain.agents.format_scratchpad import format_to_tool_messages
+    from langchain.agents.output_parsers import ToolsAgentOutputParser
+    from langchain_core.runnables import RunnablePassthrough
     from app.tools import get_all_tools, filter_tools_by_role
+    from app.agents.router import get_fallback_llms
 
     llm = get_llm(task_type)
     all_tools = get_all_tools(school_id)
     tools = filter_tools_by_role(all_tools, role, school_id)
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", get_system_prompt(role, school_id)),
+        ("system", get_system_prompt(role, school_id, user_id)),
         MessagesPlaceholder("chat_history"),
         ("human", "{input}"),
         MessagesPlaceholder("agent_scratchpad"),
     ])
 
-    agent = create_tool_calling_agent(llm, tools, prompt)
+    # Bind tools to the primary model
+    primary_with_tools = llm.bind_tools(tools)
+
+    # Fetch fallbacks (OpenRouter & GitHub Models) and bind tools to them individually
+    fallbacks = get_fallback_llms()
+    if fallbacks:
+        fallbacks_with_tools = [f.bind_tools(tools) for f in fallbacks]
+        model_with_tools = primary_with_tools.with_fallbacks(fallbacks_with_tools)
+    else:
+        model_with_tools = primary_with_tools
+
+    # Construct the tool-calling agent custom pipeline
+    agent = (
+        RunnablePassthrough.assign(
+            agent_scratchpad=lambda x: format_to_tool_messages(
+                x["intermediate_steps"]
+            )
+        )
+        | prompt
+        | model_with_tools
+        | ToolsAgentOutputParser()
+    )
+
     return AgentExecutor(
         agent=agent,
         tools=tools,
@@ -69,7 +95,7 @@ async def save_message(session_id: str, user_id: str, role: str, content: str, s
             "session_id": session_id,
             "role": role,
             "content": content,
-            "tool_data": tool_data,
+            "tool_calls": tool_data,
         }).execute()
     except Exception as e:
         print(f"Save message error: {e}")
@@ -126,7 +152,7 @@ async def process_message(
     role = user.get("role", "student") if user else "student"
 
     try:
-        agent = build_agent(role, school_id, task)
+        agent = build_agent(role, school_id, task, user_id=user.get("id") if user else None)
         history = load_history(session_id)
 
         # Step 4: Run agent

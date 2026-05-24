@@ -55,6 +55,5 @@ async def voice_chat(
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Session-Id": session_id,
-            "X-Transcript": transcript[:200] if transcript else "",
         },
     )

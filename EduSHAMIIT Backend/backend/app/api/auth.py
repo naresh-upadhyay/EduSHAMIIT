@@ -327,6 +327,7 @@ async def refresh_token(request: RefreshRequest):
                 "sub": auth_response.user.id,
                 "school_id": p["school_id"],
                 "role": p["role"],
+                "class": p.get("class"),
                 "email": p.get("email"),
                 "exp": datetime.now(timezone.utc) + timedelta(days=7),
             },

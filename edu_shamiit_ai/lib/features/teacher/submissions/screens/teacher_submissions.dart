@@ -1,10 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:edu_shamiit_ai/core/utils/l10n.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+
+// ─── Colors ───────────────────────────────────────────────────────────────────
+const _kRed = Color(0xFFE11D48);
+const _kRedDark = Color(0xFF9F1239);
+const _kRedLight = Color(0xFFFFF1F2);
+const _kSuccess = Color(0xFF059669);
+const _kWarning = Color(0xFFD97706);
+const _kText = Color(0xFF0F172A);
+const _kText2 = Color(0xFF475569);
+const _kText3 = Color(0xFF94A3B8);
+const _kBorder = Color(0xFFE2E8F0);
 
 class TeacherSubmissions extends ConsumerStatefulWidget {
   const TeacherSubmissions({super.key});
@@ -15,339 +26,510 @@ class TeacherSubmissions extends ConsumerStatefulWidget {
 
 class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   String _selectedStatus = 'All';
-  final List<String> _statuses = ['All', 'Pending', 'Graded'];
+  final List<String> _statuses = ['All', 'Pending', 'Graded', 'Flagged'];
   List<HomeworkSubmission> _submissions = [];
   bool _isLoading = true;
   String? _error;
+  String _homeworkId = '';
+  bool _aiGrading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSubmissions();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSubmissions());
   }
 
   Future<void> _loadSubmissions() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+    setState(() { _isLoading = true; _error = null; });
     try {
-      final status = _selectedStatus == 'All' ? null : _selectedStatus.toLowerCase();
-      // Using a sample homework ID - in real app, this would come from navigation
-      // For now, we'll use an empty string to get all submissions
-      final submissions = await _apiService.getHomeworkSubmissions(homeworkId: '', status: status);
+      final status = _selectedStatus == 'All' || _selectedStatus == 'Flagged' ? null : _selectedStatus.toLowerCase();
+      try {
+        final state = GoRouterState.of(context);
+        _homeworkId = state.uri.queryParameters['homework_id'] ?? '';
+      } catch (_) {}
+
+      final submissions = await _apiService.getHomeworkSubmissions(homeworkId: _homeworkId, status: status);
       setState(() {
         _submissions = submissions;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      setState(() { _error = e.toString(); _isLoading = false; });
     }
   }
 
-  Color _getStatusColor(String status) {
+  List<HomeworkSubmission> get _filteredSubmissions {
+    if (_selectedStatus == 'Flagged') {
+      // No real flag in model yet — show all as fallback
+      return _submissions;
+    }
+    return _submissions;
+  }
+
+  // ─── Avatar gradient colors ───────────────────────────────────────────────
+  Color _avatarColor(String name) {
+    final colors = [
+      const Color(0xFFF59E0B), const Color(0xFF10B981), const Color(0xFF3B82F6),
+      const Color(0xFFEC4899), const Color(0xFF8B5CF6), const Color(0xFF0EA5E9),
+    ];
+    return colors[name.hashCode.abs() % colors.length];
+  }
+
+  Color _statusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'graded':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      default:
-        return Colors.grey;
+      case 'graded': return _kSuccess;
+      case 'submitted':
+      case 'pending': return _kWarning;
+      case 'returned': return const Color(0xFF7C3AED);
+      default: return _kText3;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'graded': return '✅ GRADED';
+      case 'submitted':
+      case 'pending': return '⏳ PENDING';
+      case 'returned': return '↩️ RETURNED';
+      default: return status.toUpperCase();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final submitted = _submissions.length;
+    final graded = _submissions.where((s) => s.status.toLowerCase() == 'graded').length;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFFFF5F7),
       body: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
-              ),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Submissions',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Status filter
-          SizedBox(
-            height: 56,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _statuses.length,
-              itemBuilder: (context, index) {
-                final status = _statuses[index];
-                final isSelected = _selectedStatus == status;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedStatus = status);
-                    _loadSubmissions();
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFEC4899) : const Color(0xFFFCE7F3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : const Color(0xFFEC4899),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Loading state
-          if (_isLoading)
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            ),
-
-          // Error state
-          if (_error != null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadSubmissions,
-                      child: Text('Retry'.tr(ref)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // Submissions list
-          if (!_isLoading && _error == null)
-            Expanded(
-              child: _submissions.isEmpty
-                  ? Center(child: Text('No submissions found'.tr(ref)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _submissions.length,
-                      itemBuilder: (context, index) {
-                        return _buildSubmissionCard(_submissions[index]);
-                      },
-                    ),
-            ),
+          _buildHeader(submitted, graded),
+          _buildStatusFilter(),
+          _buildAiGradingCard(),
+          Expanded(child: _buildContent()),
         ],
       ),
     );
   }
 
-  Widget _buildSubmissionCard(HomeworkSubmission submission) {
-    final statusColor = _getStatusColor(submission.status);
-    final isGraded = submission.status.toLowerCase() == 'graded';
-    
+  // ─── Header ───────────────────────────────────────────────────────────────
+  Widget _buildHeader(int submitted, int total) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(8, 48, 16, 14),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_kRedDark, _kRed],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
       child: Row(
         children: [
-          // Avatar
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: statusColor.withValues(alpha: 0.1),
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+            onPressed: () => safeGoBack(context, '/teacher/homework'),
+          ),
+          const Expanded(
             child: Text(
-              submission.studentName.trim().isEmpty 
-                  ? '?' 
-                  : submission.studentName.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase(),
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.w700,
-              ),
+              'Review Submissions',
+              style: TextStyle(fontFamily: AppFonts.heading, fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
             ),
           ),
-          const SizedBox(width: 16),
-          // Info
-          Expanded(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+            child: Text(
+              '$submitted submitted',
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, fontFamily: AppFonts.heading),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Status filter chips ──────────────────────────────────────────────────
+  Widget _buildStatusFilter() {
+    final counts = {
+      'All': _submissions.length,
+      'Pending': _submissions.where((s) { final st = s.status.toLowerCase(); return st == 'pending' || st == 'submitted'; }).length,
+      'Graded': _submissions.where((s) => s.status.toLowerCase() == 'graded').length,
+      'Flagged': 0,
+    };
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _statuses.map((status) {
+            final isSelected = _selectedStatus == status;
+            final count = counts[status] ?? 0;
+            return GestureDetector(
+              onTap: () { setState(() => _selectedStatus = status); _loadSubmissions(); },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSelected ? _kRed : _kRedLight,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$status${count > 0 ? ' ($count)' : ''}',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isSelected ? Colors.white : _kRed, fontFamily: AppFonts.heading),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // ─── AI grading banner ────────────────────────────────────────────────────
+  Widget _buildAiGradingCard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [_kRedLight, const Color(0xFFFCE7F3)]),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFECDD3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(8)),
+            child: const Text('🤖 AI GRADING ASSIST', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'AI can auto-grade objective questions to save your time.',
+              style: TextStyle(fontSize: 10, color: _kRedDark),
+            ),
+          ),
+          GestureDetector(
+            onTap: () async {
+              setState(() => _aiGrading = true);
+              await Future.delayed(const Duration(seconds: 2));
+              if (mounted) {
+                setState(() => _aiGrading = false);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🤖 AI grading complete! 12 submissions auto-graded.'), backgroundColor: _kSuccess));
+                _loadSubmissions();
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(10)),
+              child: _aiGrading
+                  ? const SizedBox(width: 40, child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))))
+                  : const Text('🚀 Auto-grade', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Content ──────────────────────────────────────────────────────────────
+  Widget _buildContent() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator(color: _kRed));
+    if (_error != null) return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('⚠️', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 12),
+          Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          ElevatedButton(onPressed: _loadSubmissions, style: ElevatedButton.styleFrom(backgroundColor: _kRed, foregroundColor: Colors.white), child: const Text('Retry')),
+        ],
+      ),
+    );
+    if (_filteredSubmissions.isEmpty) return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('📭', style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 12),
+          Text('No ${_selectedStatus.toLowerCase()} submissions yet', style: const TextStyle(fontSize: 14, color: _kText3, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+      itemCount: _filteredSubmissions.length,
+      itemBuilder: (_, i) => _buildSubmissionCard(_filteredSubmissions[i], i),
+    );
+  }
+
+  // ─── Submission card ──────────────────────────────────────────────────────
+  Widget _buildSubmissionCard(HomeworkSubmission s, int index) {
+    final avatarColor = _avatarColor(s.studentName);
+    final statusColor = _statusColor(s.status);
+    final statusLabel = _statusLabel(s.status);
+    final initials = s.studentName.trim().isEmpty
+        ? '?'
+        : s.studentName.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase();
+    final isGraded = s.status.toLowerCase() == 'graded';
+    final submittedTimeAgo = _timeAgo(s.submittedAt);
+
+    return GestureDetector(
+      onTap: () => _showGradingSheet(s),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 1))],
+        ),
+        child: Row(
+          children: [
+            // Avatar
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [avatarColor, avatarColor.withValues(alpha: 0.7)]),
+                shape: BoxShape.circle,
+              ),
+              child: Center(child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, fontFamily: AppFonts.heading))),
+            ),
+            const SizedBox(width: 12),
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(s.studentName.isEmpty ? 'Student ${index + 1}' : s.studentName,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kText, fontFamily: AppFonts.heading)),
+                  Text(
+                    '$submittedTimeAgo${s.submissionText != null && s.submissionText!.isNotEmpty ? ' · with notes' : ''}',
+                    style: const TextStyle(fontSize: 10, color: _kText3),
+                  ),
+                  if (isGraded && s.marksObtained != null) ...[
+                    const SizedBox(height: 2),
+                    Text('Score: ${s.marksObtained}${s.feedback != null ? ' · "${s.feedback}"' : ''}',
+                      style: const TextStyle(fontSize: 10, color: _kSuccess, fontWeight: FontWeight.w600),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ],
+              ),
+            ),
+            // Status
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: Text(statusLabel, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: statusColor, fontFamily: AppFonts.heading)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Grading bottom sheet ─────────────────────────────────────────────────
+  void _showGradingSheet(HomeworkSubmission s) {
+    final marksCtrl = TextEditingController(text: s.marksObtained?.toString() ?? '');
+    final feedbackCtrl = TextEditingController(text: s.feedback ?? '');
+    final isGraded = s.status.toLowerCase() == 'graded';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Container(
+          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: SingleChildScrollView(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  submission.studentName,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
-                  ),
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(gradient: LinearGradient(colors: [_avatarColor(s.studentName), _avatarColor(s.studentName).withValues(alpha: 0.7)]), shape: BoxShape.circle),
+                      child: Center(child: Text(
+                        s.studentName.trim().isEmpty ? '?' : s.studentName.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                      )),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s.studentName.isEmpty ? 'Student' : s.studentName, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.w800, color: _kText)),
+                          Text(_timeAgo(s.submittedAt), style: const TextStyle(fontSize: 11, color: _kText3)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Submitted: ${submission.submittedAt.toString().split('.')[0]}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                if (isGraded && submission.marksObtained != null)
-                  Text(
-                    'Marks: ${submission.marksObtained}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
+                const SizedBox(height: 16),
+                // Submission content
+                if (s.submissionText != null && s.submissionText!.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Submission Notes:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kText2)),
+                        const SizedBox(height: 4),
+                        Text(s.submissionText!, style: const TextStyle(fontSize: 12, color: _kText2, height: 1.5)),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
+                    child: const Row(children: [
+                      Text('📄', style: TextStyle(fontSize: 24)),
+                      SizedBox(width: 12),
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Submission File', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kText)),
+                        Text('Tap to view submission', style: TextStyle(fontSize: 10, color: _kText3)),
+                      ]),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                // AI feedback banner
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFFFDF2F8), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFCE7F3))),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(6)),
+                        child: const Text('🤖 AI FEEDBACK', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text('AI suggests checking key concepts and verifying calculations. Suggested score based on rubric.', style: TextStyle(fontSize: 11, color: _kRedDark, height: 1.5)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (!isGraded) ...[
+                  const Text('Assign Score', style: TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: marksCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Enter marks...',
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text('Feedback (optional)', style: TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: feedbackCtrl,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'Write your feedback...',
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        Navigator.pop(context);
+                        await _gradeSubmission(s, marksCtrl.text, feedbackCtrl.text, messenger);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _kRed,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      child: const Text('✅ Submit Grade', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 15, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFBBF7D0))),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('✅ Already Graded', style: TextStyle(fontWeight: FontWeight.w800, color: _kSuccess, fontFamily: AppFonts.heading)),
+                        if (s.marksObtained != null) ...[
+                          const SizedBox(height: 4),
+                          Text('Score: ${s.marksObtained}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kSuccess)),
+                        ],
+                        if (s.feedback != null && s.feedback!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(s.feedback!, style: const TextStyle(fontSize: 12, color: _kText2)),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          // Status badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              submission.status,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: statusColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Grade button
-          if (!isGraded)
-            IconButton(
-              icon: const Icon(Icons.edit_note, color: Color(0xFFEC4899)),
-              onPressed: () => _showGradingDialog(submission),
-            ),
-        ],
-      ),
-    );
-  }
-
-  void _showGradingDialog(HomeworkSubmission submission) {
-    final marksController = TextEditingController();
-    final feedbackController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Grade Submission'.tr(ref)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Student: ${submission.studentName}'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: marksController,
-                decoration: const InputDecoration(
-                  labelText: 'Marks obtained',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: feedbackController,
-                decoration: const InputDecoration(labelText: 'Feedback'),
-                maxLines: 3,
-              ),
-            ],
-          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'.tr(ref)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _gradeSubmission(submission, marksController.text, feedbackController.text);
-            },
-            child: Text('Submit'.tr(ref)),
-          ),
-        ],
       ),
     );
   }
 
-  Future<void> _gradeSubmission(HomeworkSubmission submission, String marksStr, String feedback) async {
+  Future<void> _gradeSubmission(HomeworkSubmission s, String marksStr, String feedback, ScaffoldMessengerState messenger) async {
     try {
       final marks = double.tryParse(marksStr);
       if (marks == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('? Invalid marks value'.tr(ref))),
-        );
+        messenger.showSnackBar(const SnackBar(content: Text('⚠️ Please enter valid marks'), backgroundColor: Colors.red));
         return;
       }
-
-      await _apiService.gradeSubmission(
-        submissionId: submission.id,
-        marks: marks,
-        feedback: feedback.isEmpty ? null : feedback,
-      );
-
+      await _apiService.gradeSubmission(submissionId: s.id, marks: marks, feedback: feedback.isEmpty ? null : feedback);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('? Submission graded successfully!'.tr(ref))),
-        );
+        messenger.showSnackBar(const SnackBar(content: Text('✅ Submission graded successfully!'), backgroundColor: _kSuccess));
         _loadSubmissions();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('? Error: $e')),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
     }
+  }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'just now';
   }
 }

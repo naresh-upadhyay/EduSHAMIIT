@@ -69,7 +69,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         email: email,
         password: password,
         role: _selectedRole!,
-        ref: ref,
       );
 
       if (!mounted) return;
@@ -77,7 +76,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       debugPrint('Login result: $success');
 
       if (success) {
-        final role = ref.read(roleProvider).role;
+        final authState = ref.read(authProvider);
+        final role = authState.role;
         debugPrint('User role: $role');
         if (role == UserRole.teacher) {
           context.go('/teacher/dashboard');

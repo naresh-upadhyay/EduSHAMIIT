@@ -388,6 +388,10 @@ async def create_course(
         "description": request.get("description", ""),
         "thumbnail_url": request.get("thumbnail_url"),
         "status": "active",
+        "syllabus_coverage": request.get("syllabus_coverage", []),
+        "upcoming_topics": request.get("upcoming_topics", []),
+        "resources_text": request.get("resources_text", ""),
+        "chapters_count": request.get("chapters_count", ""),
         "created_at": datetime.utcnow().isoformat(),
     }
     result = await sb.table("courses").insert(data).aexecute()
@@ -402,7 +406,10 @@ async def update_course(
     school_id=Depends(require_school_id),
 ):
     sb = get_supabase()
-    allowed = {"title", "description", "thumbnail_url", "subject_id", "status"}
+    allowed = {
+        "title", "description", "thumbnail_url", "subject_id", "status",
+        "syllabus_coverage", "upcoming_topics", "resources_text", "chapters_count"
+    }
     update_data = {k: v for k, v in request.items() if k in allowed}
     if not update_data:
         raise HTTPException(status_code=400, detail="No valid fields provided")

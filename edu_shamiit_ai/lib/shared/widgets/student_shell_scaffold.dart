@@ -130,6 +130,11 @@ class StudentShellScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
 
+    // Don't wrap AI chat in SelectionArea — its streaming ListView
+    // causes !debugNeedsLayout assertions in SelectableRegion.
+    final isAiChat = location.endsWith('/ai-chat');
+    final pageChild = isAiChat ? child : SelectionArea(child: child);
+
     // ── Desktop / wide: Custom sidebar with all routes ──
     if (Responsive.isDesktop(context)) {
       final selected = _selectedIndex(location, _sidebarItems);
@@ -147,10 +152,10 @@ class StudentShellScaffold extends StatelessWidget {
             ),
             const VerticalDivider(
                 thickness: 1, width: 1, color: Color(0xFFE2E8F0)),
-            Expanded(child: child),
+            Expanded(child: pageChild),
           ],
         ),
-        floatingActionButton: location.endsWith('/ai-chat') ? null : AiFab(
+        floatingActionButton: isAiChat ? null : AiFab(
           gradient: AppGradients.studentPrimary,
           onPressed: () => context.push('/student/ai-chat'),
         ),
@@ -159,9 +164,9 @@ class StudentShellScaffold extends StatelessWidget {
 
     // ── Mobile / tablet: bottom nav bar ──
     return Scaffold(
-      body: child,
+      body: isAiChat ? child : SelectionArea(child: child),
       bottomNavigationBar: const StudentBottomNav(),
-      floatingActionButton: location.endsWith('/ai-chat') ? null : AiFab(
+      floatingActionButton: isAiChat ? null : AiFab(
         gradient: AppGradients.studentPrimary,
         onPressed: () => context.push('/student/ai-chat'),
       ),

@@ -17,6 +17,8 @@ class LiveClassModel {
   final Gradient? color;
   final bool isLive;
   final String type; // 'live', 'upcoming', 'recorded'
+  final String? streamUrl;
+  final String? recordingUrl;
 
   LiveClassModel({
     required this.id,
@@ -31,6 +33,8 @@ class LiveClassModel {
     this.color,
     this.isLive = false,
     required this.type,
+    this.streamUrl,
+    this.recordingUrl,
   });
 
   factory LiveClassModel.fromJson(Map<String, dynamic> json) {
@@ -47,6 +51,8 @@ class LiveClassModel {
       color: json['color'] as Gradient?,
       isLive: json['isLive'] ?? false,
       type: json['type'] ?? 'recorded',
+      streamUrl: json['stream_url'],
+      recordingUrl: json['recording_url'],
     );
   }
 
@@ -63,6 +69,8 @@ class LiveClassModel {
       'icon': icon,
       'isLive': isLive,
       'type': type,
+      'stream_url': streamUrl,
+      'recording_url': recordingUrl,
     };
   }
 }
@@ -168,6 +176,8 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
               time: cls.time,
               timeUntil: cls.timeUntil,
               date: cls.date,
+              streamUrl: cls.streamUrl,
+              recordingUrl: cls.recordingUrl,
             );
           }
           return cls;
@@ -207,6 +217,34 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
       return false;
     } catch (e) {
       return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchComments(String classId) async {
+    try {
+      final response = await _apiService.get('/student/live-classes/$classId/comments');
+      if (response['success'] == true) {
+        final list = response['data']['comments'] as List<dynamic>?;
+        return list?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> postComment(String classId, String text) async {
+    try {
+      final response = await _apiService.post(
+        '/student/live-classes/$classId/comments',
+        {'comment': text},
+      );
+      if (response['success'] == true) {
+        return Map<String, dynamic>.from(response['data']);
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 }

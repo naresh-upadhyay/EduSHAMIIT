@@ -1,5 +1,11 @@
+"""
+RAG LangChain Tools — Gemini-powered curriculum search.
+Uses PaddedGoogleEmbeddings from rag_service to embed queries
+and search the school's knowledge base via Supabase pgvector.
+"""
 import os
 from langchain_core.tools import tool
+from app.services.rag_service import PaddedGoogleEmbeddings
 
 
 def get_rag_tools(school_id: str) -> list:
@@ -11,6 +17,7 @@ def get_rag_tools(school_id: str) -> list:
         Search the school's curriculum, textbooks, past papers, and study materials
         to find relevant content for answering academic questions.
         Use this tool FIRST for any academic question before generating an answer.
+
         Args:
             query: the student's question in natural language
             subject: optional filter (e.g. 'Mathematics', 'Physics')
@@ -18,20 +25,16 @@ def get_rag_tools(school_id: str) -> list:
             k: number of results to return (default 5)
         """
         try:
-            from langchain_openai import OpenAIEmbeddings
             from langchain_community.vectorstores import SupabaseVectorStore
             from app.services.supabase_client import get_supabase
 
-            filter_dict = {"school_id": school_id}
+            filter_dict: dict = {"school_id": school_id}
             if subject:
                 filter_dict["subject"] = subject
             if grade:
                 filter_dict["grade"] = grade
 
-            embeddings = OpenAIEmbeddings(
-                model="text-embedding-3-small",
-                openai_api_key=os.getenv("OPENAI_API_KEY", "sk-placeholder-openai-key")
-            )
+            embeddings = PaddedGoogleEmbeddings()
             vector_store = SupabaseVectorStore(
                 client=get_supabase(),
                 embedding=embeddings,
@@ -54,12 +57,17 @@ def get_rag_tools(school_id: str) -> list:
     @tool
     def get_school_info() -> str:
         """Get general information about the school.
-        Use when a guest or prospective parent asks about the school, facilities, admission process, or general info."""
+        Use when a guest or prospective parent asks about the school, facilities,
+        admission process, or general info."""
+        from app.services.supabase_client import get_supabase
         sb = get_supabase()
         try:
             school = sb.table("schools").select("*").eq("id", school_id).single().execute().data
             if not school:
-                return "Welcome to EduSHAMIIT! For more information about our school, please visit our website or contact the admissions office."
+                return (
+                    "Welcome to EduSHAMIIT! For more information about our school, "
+                    "please visit our website or contact the admissions office."
+                )
 
             buf = [f"🏫 {school.get('name', 'EduSHAMIIT Academy')}:"]
             buf.append(f"  📍 Address: {school.get('address', 'Contact office for details')}")
@@ -80,6 +88,9 @@ def get_rag_tools(school_id: str) -> list:
 
             return "\n".join(buf)
         except Exception:
-            return "Welcome to EduSHAMIIT! For more information about our school, facilities, and admission process, please contact our admissions office."
+            return (
+                "Welcome to EduSHAMIIT! For more information about our school, "
+                "facilities, and admission process, please contact our admissions office."
+            )
 
     return [search_curriculum, get_school_info]

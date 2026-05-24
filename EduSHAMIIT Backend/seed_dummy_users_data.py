@@ -182,64 +182,107 @@ def main():
     print("✅ Admins created and authenticated successfully.")
 
     # 4. Create Subjects
-    print("\n📚 Creating subjects for class 10A...")
+    print("\n📚 Creating subjects for classes 10A, 10B, and 11A...")
     subjects = [
+        # Class 10A (Naresh)
         {"name": "Mathematics", "class": STUDENT_CLASS, "icon": "📐", "color": "#4F46E5", "teacher_id": TEACHER_ID},
         {"name": "Physics", "class": STUDENT_CLASS, "icon": "⚡", "color": "#EC4899", "teacher_id": TEACHER_ID},
         {"name": "Chemistry", "class": STUDENT_CLASS, "icon": "🧪", "color": "#10B981", "teacher_id": TEACHER_ID},
-        {"name": "English", "class": STUDENT_CLASS, "icon": "📖", "color": "#F59E0B", "teacher_id": TEACHER_ID}
+        {"name": "English", "class": STUDENT_CLASS, "icon": "📖", "color": "#F59E0B", "teacher_id": TEACHER_ID},
+        # Class 10B
+        {"name": "Mathematics", "class": "10B", "icon": "📐", "color": "#3B82F6", "teacher_id": TEACHER_ID},
+        {"name": "Physics", "class": "10B", "icon": "⚡", "color": "#F43F5E", "teacher_id": TEACHER_ID},
+        # Class 11A
+        {"name": "Chemistry", "class": "11A", "icon": "🧪", "color": "#06B6D4", "teacher_id": TEACHER_ID}
     ]
     subject_ids = {}
     for sub in subjects:
         r = requests.post(f"{BASE_URL}/api/admin/students/subjects", headers=SA, json=sub)
         if r.status_code == 200:
             subj_id = r.json()["data"]["id"]
-            subject_ids[sub["name"]] = subj_id
-            print(f"  [OK] Created subject: {sub['name']} ({subj_id})")
+            subject_ids[(sub["name"], sub["class"])] = subj_id
+            print(f"  [OK] Created subject: {sub['name']} for class {sub['class']} ({subj_id})")
         else:
-            print(f"  [FAIL] Subject {sub['name']}: {r.text}")
+            print(f"  [FAIL] Subject {sub['name']} for class {sub['class']}: {r.text}")
 
     # 5. Create Courses
     print("\n🎓 Creating courses...")
-    for name, s_id in subject_ids.items():
+    for (name, cls_name), s_id in subject_ids.items():
         course_payload = {
             "subject_id": s_id,
-            "title": f"Comprehensive {name} Course",
-            "description": f"Detailed academic course covering the entire {name} curriculum for class {STUDENT_CLASS}.",
+            "title": f"Comprehensive {name} Course for {cls_name}",
+            "description": f"Detailed academic course covering the entire {name} curriculum for class {cls_name}.",
             "is_published": True
         }
         r = requests.post(f"{BASE_URL}/api/admin/students/courses", headers=SA, json=course_payload)
         if r.status_code == 200:
             c_id = r.json()["data"]["id"]
-            print(f"  [OK] Created course for {name} ({c_id})")
+            print(f"  [OK] Created course for {name} - {cls_name} ({c_id})")
         else:
-            print(f"  [FAIL] Course {name}: {r.text}")
+            print(f"  [FAIL] Course {name} - {cls_name}: {r.text}")
 
     # 6. Create Timetable Slots
-    print("\n🗓️ Creating timetable slots (Monday to Saturday)...")
+    print("\n🗓️ Creating timetable slots for multiple classes (10A, 10B, 11A)...")
     # Day mapping: Monday=0, Tuesday=1, Wednesday=2, Thursday=3, Friday=4, Saturday=5
     schedule_plan = [
         # Monday
-        {"day": 0, "slots": [("Mathematics", "08:30", "09:15", "Room 101"), ("Physics", "09:20", "10:05", "Room 101"), ("Chemistry", "10:10", "10:55", "Room 101"), ("English", "11:00", "11:45", "Room 101")]},
+        {"day": 0, "slots": [
+            ("Mathematics", "10A", "08:30", "09:15", "Room 101"),
+            ("Physics", "10A", "09:20", "10:05", "Room 101"),
+            ("Chemistry", "10A", "10:10", "10:55", "Room 101"),
+            ("English", "10A", "11:00", "11:45", "Room 101"),
+            ("Mathematics", "10B", "12:00", "12:45", "Room 102"),
+            ("Chemistry", "11A", "13:00", "13:45", "Room 201")
+        ]},
         # Tuesday
-        {"day": 1, "slots": [("Physics", "08:30", "09:15", "Room 101"), ("Chemistry", "09:20", "10:05", "Room 101"), ("Mathematics", "10:10", "10:55", "Room 101"), ("English", "11:00", "11:45", "Room 101")]},
+        {"day": 1, "slots": [
+            ("Physics", "10A", "08:30", "09:15", "Room 101"),
+            ("Chemistry", "10A", "09:20", "10:05", "Room 101"),
+            ("Mathematics", "10A", "10:10", "10:55", "Room 101"),
+            ("English", "10A", "11:00", "11:45", "Room 101"),
+            ("Physics", "10B", "12:00", "12:45", "Room 102")
+        ]},
         # Wednesday
-        {"day": 2, "slots": [("Chemistry", "08:30", "09:15", "Room 101"), ("Mathematics", "09:20", "10:05", "Room 101"), ("Physics", "10:10", "10:55", "Room 101"), ("English", "11:00", "11:45", "Room 101")]},
+        {"day": 2, "slots": [
+            ("Chemistry", "10A", "08:30", "09:15", "Room 101"),
+            ("Mathematics", "10A", "09:20", "10:05", "Room 101"),
+            ("Physics", "10A", "10:10", "10:55", "Room 101"),
+            ("English", "10A", "11:00", "11:45", "Room 101"),
+            ("Chemistry", "10B", "12:00", "12:45", "Room 102"),
+            ("Chemistry", "11A", "13:00", "13:45", "Room 201")
+        ]},
         # Thursday
-        {"day": 3, "slots": [("English", "08:30", "09:15", "Room 101"), ("Physics", "09:20", "10:05", "Room 101"), ("Chemistry", "10:10", "10:55", "Room 101"), ("Mathematics", "11:00", "11:45", "Room 101")]},
+        {"day": 3, "slots": [
+            ("English", "10A", "08:30", "09:15", "Room 101"),
+            ("Physics", "10A", "09:20", "10:05", "Room 101"),
+            ("Chemistry", "10A", "10:10", "10:55", "Room 101"),
+            ("Mathematics", "10A", "11:00", "11:45", "Room 101"),
+            ("Mathematics", "10B", "12:00", "12:45", "Room 102")
+        ]},
         # Friday
-        {"day": 4, "slots": [("Mathematics", "08:30", "09:15", "Room 101"), ("Chemistry", "09:20", "10:05", "Room 101"), ("Physics", "10:10", "10:55", "Room 101"), ("English", "11:00", "11:45", "Room 101")]},
+        {"day": 4, "slots": [
+            ("Mathematics", "10A", "08:30", "09:15", "Room 101"),
+            ("Chemistry", "10A", "09:20", "10:05", "Room 101"),
+            ("Physics", "10A", "10:10", "10:55", "Room 101"),
+            ("English", "10A", "11:00", "11:45", "Room 101"),
+            ("Physics", "10B", "12:00", "12:45", "Room 102")
+        ]},
         # Saturday
-        {"day": 5, "slots": [("Physics", "08:30", "09:15", "Room 101"), ("Mathematics", "09:20", "10:05", "Room 101"), ("English", "10:10", "10:55", "Room 101")]}
+        {"day": 5, "slots": [
+            ("Physics", "10A", "08:30", "09:15", "Room 101"),
+            ("Mathematics", "10A", "09:20", "10:05", "Room 101"),
+            ("English", "10A", "10:10", "10:55", "Room 101"),
+            ("Chemistry", "11A", "11:00", "11:45", "Room 201")
+        ]}
     ]
     for plan in schedule_plan:
         d = plan["day"]
-        for sub_name, start, end, room in plan["slots"]:
-            s_id = subject_ids.get(sub_name)
+        for sub_name, cls_name, start, end, room in plan["slots"]:
+            s_id = subject_ids.get((sub_name, cls_name))
             if not s_id:
                 continue
             payload = {
-                "class": STUDENT_CLASS,
+                "class": cls_name,
                 "subject_id": s_id,
                 "teacher_id": TEACHER_ID,
                 "day_of_week": d,
@@ -249,7 +292,7 @@ def main():
             }
             r = requests.post(f"{BASE_URL}/api/admin/students/timetable", headers=SA, json=payload)
             if r.status_code != 200:
-                print(f"  [FAIL] Slot for {sub_name} on day {d}: {r.text}")
+                print(f"  [FAIL] Slot for {sub_name} - {cls_name} on day {d}: {r.text}")
     print("✅ Timetable slots seeded.")
 
     # 7. Create Homeworks
@@ -261,7 +304,7 @@ def main():
     ]
     math_hw_id = None
     for hw in hws:
-        s_id = subject_ids.get(hw["subject_name"])
+        s_id = subject_ids.get((hw["subject_name"], STUDENT_CLASS))
         if not s_id:
             continue
         due = (datetime.now() + timedelta(days=hw["due_days"])).date().isoformat()
@@ -328,7 +371,9 @@ def main():
         else:
             status = "present"
             
-        for name, s_id in subject_ids.items():
+        for (name, cls_name), s_id in subject_ids.items():
+            if cls_name != STUDENT_CLASS:
+                continue
             payload = {
                 "subject_id": s_id,
                 "class_name": STUDENT_CLASS,
@@ -344,7 +389,7 @@ def main():
     # Math exam (past -> result entered)
     math_exam_date = (datetime.now() - timedelta(days=5)).date().isoformat()
     r = requests.post(f"{BASE_URL}/api/admin/students/exams", headers=SA, json={
-        "subject_id": subject_ids["Mathematics"],
+        "subject_id": subject_ids.get(("Mathematics", STUDENT_CLASS)),
         "title": "First Term Mathematics Examination",
         "exam_type": "offline",
         "exam_category": "Unit Test",
@@ -361,7 +406,7 @@ def main():
         # Enter Result
         res_r = requests.post(f"{BASE_URL}/api/admin/students/results", headers=SA, json={
             "student_id": STUDENT_ID,
-            "subject_id": subject_ids["Mathematics"],
+            "subject_id": subject_ids.get(("Mathematics", STUDENT_CLASS)),
             "marks_obtained": 92.0,
             "total_marks": 100.0,
             "remarks": "Outstanding performance! Showed deep conceptual understanding.",
@@ -375,7 +420,7 @@ def main():
     # Physics exam (upcoming)
     phys_exam_date = (datetime.now() + timedelta(days=10)).date().isoformat()
     r = requests.post(f"{BASE_URL}/api/admin/students/exams", headers=SA, json={
-        "subject_id": subject_ids["Physics"],
+        "subject_id": subject_ids.get(("Physics", STUDENT_CLASS)),
         "title": "Mid-Term Physics Assessment",
         "exam_type": "offline",
         "exam_category": "Mid Term",

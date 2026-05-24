@@ -65,6 +65,10 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
   }
 
   Future<void> _loadStudents() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final classId = _selectedClass == 'All' ? null : _selectedClass;
       final search = _searchController.text.isEmpty ? null : _searchController.text;

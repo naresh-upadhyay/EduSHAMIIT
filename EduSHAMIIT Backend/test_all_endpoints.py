@@ -1,5 +1,9 @@
 """EduSHAMIIT API - End-to-End Test Suite (all endpoints)"""
 import sys, requests
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except AttributeError:
+    pass
 from datetime import datetime, timedelta
 
 BASE_URL = "http://127.0.0.1:80"
@@ -288,6 +292,26 @@ else:
     check("GET /api/teacher/dashboard",   requests.get(f"{BASE_URL}/api/teacher/dashboard",  headers=T))
     check("GET /api/teacher/profile",     requests.get(f"{BASE_URL}/api/teacher/profile",    headers=T))
     check("GET /api/teacher/timetable",   requests.get(f"{BASE_URL}/api/teacher/timetable?day=monday", headers=T))
+    
+    # Schedule a timetable slot
+    test_sched_payload = {
+        "date": (datetime.now() + timedelta(days=2)).date().isoformat(),
+        "slot_type": "Extra Class",
+        "custom_subject": "Calculus Ch.7",
+        "class": "10A",
+        "start_time": "11:00:00",
+        "end_time": "12:00:00",
+        "room": "Room 302"
+    }
+    b_sched = check("POST /api/teacher/timetable",
+                    requests.post(f"{BASE_URL}/api/teacher/timetable", headers=T, json=test_sched_payload))
+    if b_sched.get("success"):
+        sched_date = test_sched_payload["date"]
+        check(f"GET /api/teacher/timetable?date={sched_date}",
+              requests.get(f"{BASE_URL}/api/teacher/timetable?date={sched_date}", headers=T))
+        check(f"GET /api/student/timetable?date={sched_date}",
+              requests.get(f"{BASE_URL}/api/student/timetable?date={sched_date}", headers=S))
+              
     check("GET /api/teacher/students",    requests.get(f"{BASE_URL}/api/teacher/students",   headers=T))
     check("GET /api/teacher/submissions", requests.get(f"{BASE_URL}/api/teacher/submissions",headers=T))
     check("GET /api/teacher/live-classes",requests.get(f"{BASE_URL}/api/teacher/live-classes",headers=T))
@@ -500,6 +524,61 @@ else:
         "num_subjective": 2,
         "difficulty": "medium"
     }))
+
+    # Teacher create live/recorded classes and student comment interactions
+    if subject_id and first_class:
+        # 1. Post a scheduled live class
+        b_lc = check("POST /api/teacher/live-classes (scheduled)",
+                     requests.post(f"{BASE_URL}/api/teacher/live-classes", headers=T, json={
+                         "title": "E2E Test Scheduled Live Class",
+                         "subject_id": subject_id,
+                         "target_class": first_class,
+                         "scheduled_at": (datetime.now() + timedelta(hours=5)).isoformat(),
+                         "duration_minutes": 60,
+                         "status": "scheduled",
+                         "stream_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                     }))
+        lc_id = (b_lc.get("data") or {}).get("id")
+         
+        # 2. Post a recorded class
+        check("POST /api/teacher/live-classes (recorded)",
+              requests.post(f"{BASE_URL}/api/teacher/live-classes", headers=T, json={
+                  "title": "E2E Test Recorded Lecture",
+                  "subject_id": subject_id,
+                  "target_class": first_class,
+                  "scheduled_at": (datetime.now() - timedelta(days=1)).isoformat(),
+                  "duration_minutes": 45,
+                  "status": "recorded",
+                  "recording_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+              }))
+
+        if lc_id:
+            # 2.5. PATCH live class status and viewer count
+            check("PATCH /api/teacher/live-classes/{id} (go live)",
+                  requests.patch(f"{BASE_URL}/api/teacher/live-classes/{lc_id}", headers=T, json={
+                      "status": "live",
+                      "viewer_count": 15
+                  }))
+                  
+            # 3. Post a student comment on the live class
+            b_comment = check("POST /api/student/live-classes/{id}/comments",
+                              requests.post(f"{BASE_URL}/api/student/live-classes/{lc_id}/comments", headers=S, json={
+                                  "comment": "Outstanding E2E dynamic test comment!"
+                              }))
+            
+            # 3.5. Post a pinned teacher comment on the live class
+            check("POST /api/student/live-classes/{id}/comments (teacher pinned)",
+                  requests.post(f"{BASE_URL}/api/student/live-classes/{lc_id}/comments", headers=T, json={
+                      "comment": "Teacher pinned announcement comment!",
+                      "is_pinned": True
+                  }))
+            
+            # 4. Get student comments
+            check("GET /api/student/live-classes/{id}/comments",
+                  requests.get(f"{BASE_URL}/api/student/live-classes/{lc_id}/comments", headers=S))
+    else:
+        warn("POST teacher live-classes / comments (skipped: subject_id or class missing)")
+
 
 # ================================================================
 # 4. SHARED ENDPOINTS
@@ -752,7 +831,12 @@ else:
     check("GET /api/admin/students/leave", requests.get(f"{BASE_URL}/api/admin/students/leave", headers=SA))
 
     # CRUD Subject + Course
-    sub_data = {"name": "Temp Test Subject", "class": student_class, "icon": "📚", "color": "#4F46E5"}
+    s_profile_resp = requests.get(f"{BASE_URL}/api/student/profile", headers=S)
+    s_class = s_profile_resp.json().get("data", {}).get("class") if s_profile_resp.status_code == 200 else None
+    if not s_class:
+        s_class = student_class
+
+    sub_data = {"name": "Temp Test Subject", "class": s_class, "icon": "📚", "color": "#4F46E5"}
     b_sub = check("POST /api/admin/students/subjects", requests.post(f"{BASE_URL}/api/admin/students/subjects", headers=SA, json=sub_data))
     new_sub_id = (b_sub.get("data") or {}).get("id")
 
@@ -761,13 +845,46 @@ else:
             "subject_id": new_sub_id,
             "title": "Temp Test Course",
             "description": "Auto generated course",
-            "is_published": True
+            "is_published": True,
+            "syllabus_coverage": [
+                {"topic": "Calculus", "progress": 0.85, "status": "success"},
+                {"topic": "Linear Algebra", "progress": 0.5, "status": "warning"}
+            ],
+            "upcoming_topics": ["Fourier Series", "Complex Analysis"],
+            "resources_text": "8 lecture videos, 4 tutorial sheets",
+            "chapters_count": "32 chapters"
         }
         b_course = check("POST /api/admin/students/courses", requests.post(f"{BASE_URL}/api/admin/students/courses", headers=SA, json=course_data))
         new_course_id = (b_course.get("data") or {}).get("id")
 
         if new_course_id:
-            check("PUT /api/admin/students/courses/{id}", requests.put(f"{BASE_URL}/api/admin/students/courses/{new_course_id}", headers=SA, json={"title": "Updated Temp Course"}))
+            update_payload = {
+                "title": "Updated Temp Course",
+                "upcoming_topics": ["Fourier Series", "Complex Analysis", "Numerical Methods"]
+            }
+            check("PUT /api/admin/students/courses/{id}", requests.put(f"{BASE_URL}/api/admin/students/courses/{new_course_id}", headers=SA, json=update_payload))
+            
+            s_courses_resp = requests.get(f"{BASE_URL}/api/student/courses", headers=S)
+            s_courses = s_courses_resp.json().get("courses", []) if s_courses_resp.status_code == 200 else []
+            if not s_courses and s_courses_resp.status_code == 200:
+                # Backend returns {"success": true, "school_id": ..., "data": {"courses": [...]}} or similar
+                s_courses = s_courses_resp.json().get("data", {}).get("courses", [])
+            created_course = next((c for c in s_courses if c["id"] == new_course_id), None)
+            if created_course:
+                print(f"  [PASS] GET /api/student/courses contains created high-fidelity course!")
+                if created_course.get("resources_text") == "8 lecture videos, 4 tutorial sheets" and \
+                   len(created_course.get("upcoming_topics", [])) == 3:
+                    _r["passed"] += 1
+                    print(f"  [PASS] Course dynamic DB fields successfully fetched and verified!")
+                else:
+                    _r["failed"] += 1
+                    _r["errors"].append("Course dynamic DB fields verification failed")
+                    print(f"  [FAIL] Course dynamic DB fields verification failed: {created_course}")
+            else:
+                _r["failed"] += 1
+                _r["errors"].append("Created course not found in student courses list")
+                print(f"  [FAIL] Created course not found in student courses list")
+
             check("DELETE /api/admin/students/courses/{id}", requests.delete(f"{BASE_URL}/api/admin/students/courses/{new_course_id}", headers=SA))
 
         # Cleanup Subject

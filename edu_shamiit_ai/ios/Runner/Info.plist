@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
+	<!-- Shami AI Voice Chat Permissions -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>EduSHAMIIT uses your microphone to let you send voice messages to Shami AI for hands-free academic help.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>EduSHAMIIT transcribes your voice using AI to provide accurate answers to your academic questions.</string>
 </dict>
 </plist>

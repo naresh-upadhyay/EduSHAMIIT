@@ -441,13 +441,18 @@ class StudentApiService {
 
   /// Get timetable for a specific day
   Future<List<TimetablePeriod>> getTimetable({
-    required String day, // 'monday', 'tuesday', etc. or 'today'
+    String? day, // 'monday', 'tuesday', etc. or 'today'
+    String? date,
   }) async {
     try {
+      final queryParams = <String, String>{};
+      if (day != null) queryParams['day'] = day;
+      if (date != null) queryParams['date'] = date;
+
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/timetable').replace(
-              queryParameters: {'day': day},
+              queryParameters: queryParams,
             ),
             headers: await _headers,
           )
@@ -475,6 +480,24 @@ class StudentApiService {
           .map((e) => TimetablePeriod.fromJson(e as Map<String, dynamic>))
           .toList();
     }
+  }
+
+  /// Get student's class name from profile
+  Future<String> getStudentClass() async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/profile'),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        return (data['class'] ?? data['class_name'] ?? '').toString();
+      }
+    } catch (_) {}
+    return '';
   }
 
   /// Get full week timetable

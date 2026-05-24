@@ -12,22 +12,68 @@ from app.services.supabase_client import get_supabase
 from app.middleware.auth import get_current_user_id
 
 
+def parse_date_to_weekday(day_str: str) -> Optional[str]:
+    """Resolve relative dates, full dates, and weekdays into a standard lowercase weekday name."""
+    import re
+    from datetime import datetime, timedelta
+
+    day_str = day_str.strip().lower()
+    if not day_str or day_str in ("week", "full week", "all"):
+        return None
+
+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    for d in day_names:
+        if d in day_str:
+            return d
+
+    now = datetime.now()
+    if day_str == "today":
+        return now.strftime("%A").lower()
+    elif day_str == "tomorrow":
+        return (now + timedelta(days=1)).strftime("%A").lower()
+    elif day_str == "yesterday":
+        return (now - timedelta(days=1)).strftime("%A").lower()
+
+    # Try parsing as date
+    # Remove ordinal suffixes: 25th -> 25
+    cleaned = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', day_str)
+    
+    # Try parsing with various formats
+    formats = [
+        "%d %B %Y", "%d %b %Y", "%B %d %Y", "%b %d %Y",
+        "%d %B", "%d %b", "%B %d", "%b %d",
+        "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d",
+        "%d/%m", "%d-%m"
+    ]
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(cleaned, fmt)
+            # If year is not parsed, set it to current year
+            if "%Y" not in fmt and "%y" not in fmt:
+                dt = dt.replace(year=now.year)
+            return dt.strftime("%A").lower()
+        except ValueError:
+            continue
+
+    return None
+
+
 def get_student_tools(school_id: str) -> list:
     """Return all 20 student tools scoped to this school."""
 
     def _llm():
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash-latest",
-            temperature=0.3,
-            google_api_key=os.getenv("GOOGLE_API_KEY", "AIza-placeholder-google-key")
-        )
+        from app.agents.router import get_llm, get_fallback_llms
+        base = get_llm("qa")
+        fallbacks = get_fallback_llms()
+        if fallbacks:
+            return base.with_fallbacks(fallbacks)
+        return base
 
     @tool
-    def get_timetable(day: str = "today") -> str:
-        """Get the student's class timetable for a specific day.
-        Input: day name like 'monday', 'tuesday', etc., or 'today', or 'week' for full week.
-        Use when student asks about their schedule, classes, or what they have today."""
+    def get_timetable(day: str = "week") -> str:
+        """Get the student's class timetable.
+        Input: a day name like 'monday', a date like '25 May', 'today', 'tomorrow', or 'week' for the full week timetable.
+        Use when student asks about their schedule, timetable, classes, or what they have on a specific day/date."""
         sb = get_supabase()
         user_id = get_current_user_id()
         profile = sb.table("profiles").select("class").eq("id", user_id).single().execute().data
@@ -36,14 +82,22 @@ def get_student_tools(school_id: str) -> list:
 
         student_class = profile["class"]
         day_map = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5}
+        
+        # Resolve day string to a weekday name
+        resolved_day = parse_date_to_weekday(day)
+        
+        if resolved_day == "sunday":
+            return "No classes scheduled for Sunday. Enjoy! 🎉"
+
         query = sb.table("timetable").select("*, subjects(name, icon, color)").eq("school_id", school_id).eq("class", student_class).order("start_time")
 
-        if day.lower() in day_map:
-            query = query.eq("day_of_week", day_map[day.lower()])
+        if resolved_day in day_map:
+            query = query.eq("day_of_week", day_map[resolved_day])
 
         data = query.execute().data
         if not data:
-            return f"No classes scheduled for {day}. Enjoy! 🎉"
+            day_display = resolved_day if resolved_day else day
+            return f"No classes scheduled for {day_display}. Enjoy! 🎉"
 
         days_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         buf = []
@@ -498,12 +552,13 @@ def get_student_tools(school_id: str) -> list:
         return response.content
 
     @tool
-    def generate_practice(subject: str, topic: str, count: int = 5) -> str:
+    def generate_practice(subject: str, topic: str = "", count: int = 5) -> str:
         """Generate practice questions for a subject and topic.
-        Input: subject name, topic, number of questions (default 5).
+        Input: subject name, topic (optional), number of questions (default 5).
         Use when student wants practice questions or revision material."""
         llm = _llm()
-        prompt = f"Generate {count} practice questions for {subject} on topic: {topic}.\nMix of MCQ and short answer. Include answers. NCERT aligned."
+        topic_str = f"on topic: {topic}" if topic else "general concepts"
+        prompt = f"Generate {count} practice questions for {subject} {topic_str}.\nMix of MCQ and short answer. Include answers. NCERT aligned."
         response = llm.invoke(prompt)
         return response.content
 

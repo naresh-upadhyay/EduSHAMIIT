@@ -35,18 +35,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     _loadingAnimation = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _loadingController, curve: Curves.easeInOut));
     _loadingController.forward();
     
-    // Initialize auth state to check for existing token
-    Future.microtask(() async {
-      await ref.read(authProvider.notifier).initialize();
+    // Auth was already initialized in main.dart before runApp.
+    // On web refresh we must NOT call initialize() again — that would briefly
+    // set isLoading=true, which causes GoRouter to re-evaluate and can show a
+    // blank screen. Instead, just read the already-resolved state and redirect.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      
-      final authState = ref.read(authProvider);
-      
-      // Add a slight delay just to show the cool splash animation
+
+      // Wait for the splash animation to finish
       await Future.delayed(const Duration(milliseconds: 1500));
-      
       if (!mounted) return;
-      
+
+      final authState = ref.read(authProvider);
+
       if (authState.isAuthenticated) {
         if (authState.role == UserRole.teacher) {
           context.go('/teacher/dashboard');

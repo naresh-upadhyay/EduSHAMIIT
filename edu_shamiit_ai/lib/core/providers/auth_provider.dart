@@ -85,7 +85,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String email,
     required String password,
     required UserRole role,
-    required WidgetRef ref,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -120,7 +119,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         ApiService().clearCache();
         await _saveSession(token: token, role: role, userData: user);
 
-        // Sync role provider
+        // Sync role provider using the provider's own Ref (never disposed)
         ref.read(roleProvider.notifier).setRole(role);
 
         state = AuthState(

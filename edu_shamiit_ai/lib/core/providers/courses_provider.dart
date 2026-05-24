@@ -3,6 +3,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api_service.dart';
 import 'api_provider.dart';
 
+/// Model class for syllabus coverage item
+class SyllabusCoverageItem {
+  final String topic;
+  final double progress;
+  final String status;
+
+  SyllabusCoverageItem({
+    required this.topic,
+    required this.progress,
+    required this.status,
+  });
+
+  factory SyllabusCoverageItem.fromJson(Map<String, dynamic> json) {
+    return SyllabusCoverageItem(
+      topic: json['topic'] ?? '',
+      progress: (json['progress'] ?? 0.0).toDouble(),
+      status: json['status'] ?? 'success',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'topic': topic,
+      'progress': progress,
+      'status': status,
+    };
+  }
+}
+
 /// Model class for course data
 class CourseModel {
   final String id;
@@ -15,6 +44,9 @@ class CourseModel {
   final Gradient color;
   final Color accentColor;
   final List<ChapterModel>? chaptersList;
+  final List<SyllabusCoverageItem> syllabusCoverage;
+  final List<String> upcomingTopics;
+  final String resourcesText;
 
   CourseModel({
     required this.id,
@@ -27,9 +59,61 @@ class CourseModel {
     required this.color,
     required this.accentColor,
     this.chaptersList,
+    required this.syllabusCoverage,
+    required this.upcomingTopics,
+    required this.resourcesText,
   });
 
   factory CourseModel.fromJson(Map<String, dynamic> json) {
+    final String nameLower = (json['name'] ?? '').toString().toLowerCase();
+    Gradient grad;
+    Color accent;
+    
+    if (nameLower.contains('math')) {
+      grad = const LinearGradient(
+        colors: [Color(0xFF4F46E5), Color(0xFF302B63)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      accent = const Color(0xFF4F46E5);
+    } else if (nameLower.contains('phys')) {
+      grad = const LinearGradient(
+        colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      accent = const Color(0xFF3B82F6);
+    } else if (nameLower.contains('chem')) {
+      grad = const LinearGradient(
+        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      accent = const Color(0xFFF59E0B);
+    } else if (nameLower.contains('eng')) {
+      grad = const LinearGradient(
+        colors: [Color(0xFF059669), Color(0xFF047857)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      accent = const Color(0xFF059669);
+    } else {
+      final colorHexStr = json['color_hex'] ?? '';
+      Color baseColor = const Color(0xFF4F46E5);
+      if (colorHexStr.isNotEmpty) {
+        try {
+          final hex = colorHexStr.replaceAll('#', '');
+          baseColor = Color(int.parse('FF$hex', radix: 16));
+        } catch (_) {}
+      }
+      grad = LinearGradient(
+        colors: [baseColor, baseColor.withAlpha(180)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+      accent = baseColor;
+    }
+
     return CourseModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
@@ -38,13 +122,21 @@ class CourseModel {
       score: json['score'] ?? '',
       progress: (json['progress'] ?? 0).toDouble(),
       icon: json['icon'] ?? '',
-      color: json['color'] as Gradient? ??
-          const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-      accentColor: json['accentColor'] as Color? ?? Colors.blue,
+      color: grad,
+      accentColor: accent,
       chaptersList: (json['chaptersList'] as List<dynamic>?)
               ?.map((ch) => ChapterModel.fromJson(ch))
               .toList() ??
           [],
+      syllabusCoverage: (json['syllabus_coverage'] as List<dynamic>?)
+              ?.map((item) => SyllabusCoverageItem.fromJson(item))
+              .toList() ??
+          [],
+      upcomingTopics: (json['upcoming_topics'] as List<dynamic>?)
+              ?.map((item) => item.toString())
+              .toList() ??
+          [],
+      resourcesText: json['resources_text'] ?? '',
     );
   }
 
@@ -57,8 +149,11 @@ class CourseModel {
       'score': score,
       'progress': progress,
       'icon': icon,
-      'accentColor': accentColor,
+      'accentColor': accentColor.toARGB32(),
       'chaptersList': chaptersList?.map((ch) => ch.toJson()).toList(),
+      'syllabus_coverage': syllabusCoverage.map((item) => item.toJson()).toList(),
+      'upcoming_topics': upcomingTopics,
+      'resources_text': resourcesText,
     };
   }
 }

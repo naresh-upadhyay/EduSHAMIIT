@@ -54,7 +54,46 @@ Do not share private student data. Encourage them to apply.""",
 }
 
 
-def get_system_prompt(role: str, school_id: str) -> str:
-    """Get the complete system prompt for a given role and school."""
+def get_system_prompt(role: str, school_id: str, user_id: str = None) -> str:
+    """Get the complete system prompt for a given role, school, and user profile."""
+    from datetime import datetime
+    from app.services.supabase_client import get_supabase
+    
+    now_str = datetime.now().strftime("%A, %B %d, %Y %I:%M %p")
+    time_context = f"\n\nCURRENT CONTEXT:\n- Today's Date/Time: {now_str}\n"
+    
+    user_context_str = ""
+    if user_id:
+        try:
+            sb = get_supabase()
+            profile = sb.table("profiles").select("*").eq("id", user_id).single().execute().data
+            if profile:
+                user_context_str = "\nLOGGED IN USER PROFILE:\n"
+                user_context_str += f"- Name: {profile.get('full_name', 'Unknown')}\n"
+                user_context_str += f"- Role: {profile.get('role', 'Unknown')}\n"
+                if profile.get('class'):
+                    user_context_str += f"- Class/Grade: {profile.get('class')}\n"
+                if profile.get('roll_number'):
+                    user_context_str += f"- Roll Number: {profile.get('roll_number')}\n"
+                if profile.get('admission_number'):
+                    user_context_str += f"- Admission Number: {profile.get('admission_number')}\n"
+                if profile.get('email'):
+                    user_context_str += f"- Email: {profile.get('email')}\n"
+                if profile.get('phone'):
+                    user_context_str += f"- Phone: {profile.get('phone')}\n"
+                if profile.get('gender'):
+                    user_context_str += f"- Gender: {profile.get('gender')}\n"
+                if profile.get('father_name'):
+                    user_context_str += f"- Father's Name: {profile.get('father_name')}\n"
+                if profile.get('employee_id'):
+                    user_context_str += f"- Employee ID: {profile.get('employee_id')}\n"
+                if profile.get('department'):
+                    user_context_str += f"- Department: {profile.get('department')}\n"
+                if profile.get('designation'):
+                    user_context_str += f"- Designation: {profile.get('designation')}\n"
+                user_context_str += "IMPORTANT: You are talking to this user. You already know their name, class, roll number, department, etc. from this profile. Do NOT ask them for their name, class, or grade if it is already in this profile; use it directly to answer their queries (e.g. if they ask for timetable, notes, homework, etc., you already know their class from the profile above).\n\n"
+        except Exception as e:
+            print(f"Error fetching profile for system prompt: {e}")
+
     context = ROLE_CONTEXT.get(role, "You are a helpful school assistant.")
-    return BASE_PROMPT.format(school_id=school_id) + "\n\n" + context
+    return BASE_PROMPT.format(school_id=school_id) + time_context + user_context_str + context

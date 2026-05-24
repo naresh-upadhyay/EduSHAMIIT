@@ -12,16 +12,62 @@ from app.services.supabase_client import get_supabase
 from app.middleware.auth import get_current_user_id
 
 
+def parse_date_to_weekday(day_str: str) -> Optional[str]:
+    """Resolve relative dates, full dates, and weekdays into a standard lowercase weekday name."""
+    import re
+    from datetime import datetime, timedelta
+
+    day_str = day_str.strip().lower()
+    if not day_str or day_str in ("week", "full week", "all"):
+        return None
+
+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    for d in day_names:
+        if d in day_str:
+            return d
+
+    now = datetime.now()
+    if day_str == "today":
+        return now.strftime("%A").lower()
+    elif day_str == "tomorrow":
+        return (now + timedelta(days=1)).strftime("%A").lower()
+    elif day_str == "yesterday":
+        return (now - timedelta(days=1)).strftime("%A").lower()
+
+    # Try parsing as date
+    # Remove ordinal suffixes: 25th -> 25
+    cleaned = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', day_str)
+    
+    # Try parsing with various formats
+    formats = [
+        "%d %B %Y", "%d %b %Y", "%B %d %Y", "%b %d %Y",
+        "%d %B", "%d %b", "%B %d", "%b %d",
+        "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d",
+        "%d/%m", "%d-%m"
+    ]
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(cleaned, fmt)
+            # If year is not parsed, set it to current year
+            if "%Y" not in fmt and "%y" not in fmt:
+                dt = dt.replace(year=now.year)
+            return dt.strftime("%A").lower()
+        except ValueError:
+            continue
+
+    return None
+
+
 def get_teacher_tools(school_id: str) -> list:
     """Return all 19 teacher tools scoped to this school."""
 
     def _llm():
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash-latest",
-            temperature=0.3,
-            google_api_key=os.getenv("GOOGLE_API_KEY", "AIza-placeholder-google-key")
-        )
+        from app.agents.router import get_llm, get_fallback_llms
+        base = get_llm("qa")
+        fallbacks = get_fallback_llms()
+        if fallbacks:
+            return base.with_fallbacks(fallbacks)
+        return base
 
     @tool
     def get_class_students(class_name: str) -> str:
@@ -277,23 +323,32 @@ def get_teacher_tools(school_id: str) -> list:
         return "\n".join(buf)
 
     @tool
-    def get_teacher_schedule(day: str = "today") -> str:
-        """Get the teacher's own schedule for a day.
-        Input: day name or 'today'.
-        Use when teacher asks about their schedule, classes, or what they have today."""
+    def get_teacher_schedule(day: str = "week") -> str:
+        """Get the teacher's own schedule.
+        Input: a day name like 'monday', a date like '25 May', 'today', 'tomorrow', or 'week' for the full week schedule.
+        Use when teacher asks about their schedule, classes, or timetable on a specific day/date."""
         sb = get_supabase()
         teacher_id = get_current_user_id()
         day_map = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5}
+        
+        # Resolve day string to a weekday name
+        resolved_day = parse_date_to_weekday(day)
+        
+        if resolved_day == "sunday":
+            return "No classes scheduled for Sunday. Free day! Enjoy! 🎉"
+
         query = sb.table("timetable").select("*, subjects(name, icon)").eq("school_id", school_id).eq("teacher_id", teacher_id).order("start_time")
 
-        if day.lower() in day_map:
-            query = query.eq("day_of_week", day_map[day.lower()])
+        if resolved_day in day_map:
+            query = query.eq("day_of_week", day_map[resolved_day])
 
         schedule = query.execute().data
         if not schedule:
-            return f"No classes scheduled for {day}. Free day! 🎉"
+            day_display = resolved_day if resolved_day else day
+            return f"No classes scheduled for {day_display}. Free day! 🎉"
 
-        buf = [f"📅 Your Schedule ({day.title()}):"]
+        day_title = resolved_day.title() if resolved_day else "Full Week"
+        buf = [f"📅 Your Schedule ({day_title}):"]
         for item in schedule:
             subj = item.get("subjects", {})
             buf.append(f"  {subj.get('icon', '📚')} {subj.get('name', 'Unknown')} — {item.get('start_time', '')} to {item.get('end_time', '')}")
