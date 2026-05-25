@@ -4,11 +4,21 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 
 class TeacherBottomNav extends StatelessWidget {
-  const TeacherBottomNav({super.key});
+  final String? currentLocation;
+  const TeacherBottomNav({super.key, this.currentLocation});
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
+    String location = currentLocation ?? '';
+    if (location.isEmpty) {
+      try {
+        location = GoRouterState.of(context).uri.toString();
+      } catch (_) {
+        try {
+          location = GoRouter.of(context).routeInformationProvider.value.uri.toString();
+        } catch (_) {}
+      }
+    }
 
     return Container(
       height: 60,

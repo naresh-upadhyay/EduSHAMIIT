@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,8 +11,9 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/ai_chat_provider.dart';
-import 'package:edu_shamiit_ai/core/services/voice_recorder_service.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
+import 'package:edu_shamiit_ai/core/services/voice_recorder_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Shami AI Chat Screen
@@ -29,16 +31,22 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocus = FocusNode();
-  final VoiceRecorderService _voice = VoiceRecorderService.instance;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Real-time speech-to-text (Google mic style)
+  final SpeechToText _stt = SpeechToText();
+  bool _sttAvailable = false;
+  bool _isListening = false;
+  bool _isRecordingFallback = false; // fallback when STT is not available
+  String _liveWords = '';       // words recognised so far in current session
+  String _sttLocale = 'en_US'; // default listening language
 
   late final AnimationController _pulseController;
   late final AnimationController _waveController;
   late final AnimationController _micPulseController;
 
   bool _showSuggestions = true;
-  bool _isRecording = false;
-  double _micAmplitude = 0.0;     // 0.0 – 1.0 for live waveform
+  XFile? _selectedImage;
 
   // ── Palette ──────────────────────────────────────────────
   static const _darkBg      = Color(0xFF0A0C1B);
@@ -82,7 +90,38 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(aiChatProvider.notifier).loadChatHistory();
+      _initStt();
     });
+  }
+
+  Future<void> _initStt() async {
+    try {
+      _sttAvailable = await _stt.initialize(
+        onError: (e) {
+          debugPrint('STT error: $e');
+          if (mounted) setState(() { _isListening = false; });
+        },
+        onStatus: (s) {
+          debugPrint('STT status: $s');
+          // Auto-stop when device finishes listening
+          if ((s == 'done' || s == 'notListening') && mounted && _isListening) {
+            _onSttDone();
+          }
+        },
+      );
+      if (_sttAvailable) {
+        final systemLoc = await _stt.systemLocale();
+        if (systemLoc != null) {
+          setState(() {
+            _sttLocale = systemLoc.localeId;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('STT initialization error: $e');
+      _sttAvailable = false;
+    }
+    if (mounted) setState(() {});
   }
 
   @override
@@ -93,7 +132,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     _pulseController.dispose();
     _waveController.dispose();
     _micPulseController.dispose();
-    if (_isRecording) _voice.cancelRecording();
+    if (_isListening) {
+      if (_isRecordingFallback) {
+        VoiceRecorderService.instance.cancelRecording();
+      } else {
+        try {
+          _stt.stop();
+        } catch (_) {}
+      }
+    }
     super.dispose();
   }
 
@@ -115,8 +162,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
         children: [
           _buildHeader(chatState),
           Expanded(child: _buildMessageList(chatState)),
-          if (_isRecording) _buildVoiceRecordingBar(),
-          if (!_isRecording &&
+          if (_isListening) _buildVoiceListeningBar(),
+          if (!_isListening &&
               _showSuggestions &&
               chatState.messages.length <= 2 &&
               chatState.suggestions.isNotEmpty)
@@ -196,7 +243,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                       width: 7,
                       height: 7,
                       decoration: BoxDecoration(
-                        color: _isRecording
+                        color: _isListening
                             ? _recordRed
                             : chatState.isTyping
                                 ? _gradEnd
@@ -204,7 +251,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (_isRecording
+                            color: (_isListening
                                     ? _recordRed
                                     : chatState.isTyping
                                         ? _gradEnd
@@ -217,8 +264,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      _isRecording
-                          ? 'Recording...'
+                      _isListening
+                          ? 'Listening...'
                           : chatState.isTyping
                               ? 'Typing...'
                               : 'Always Online',
@@ -354,10 +401,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                         if (msg.imagePath != null) ...[
                           ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Image.file(File(msg.imagePath!),
-                                height: 160,
-                                width: double.infinity,
-                                fit: BoxFit.cover),
+                            child: kIsWeb
+                                ? Image.network(msg.imagePath!,
+                                    height: 160,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover)
+                                : Image.file(File(msg.imagePath!),
+                                    height: 160,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover),
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -374,23 +426,33 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                             selectable: true,
                             styleSheet: MarkdownStyleSheet(
                               p: const TextStyle(
-                                  fontSize: 13.5, color: _textPrimary, height: 1.55),
+                                  fontSize: 13.8, color: _textPrimary, height: 1.6),
                               code: TextStyle(
                                 fontFamily: 'monospace',
                                 backgroundColor:
                                     Colors.white.withValues(alpha: 0.07),
                                 color: _gradEnd,
-                                fontSize: 12,
+                                fontSize: 12.5,
                               ),
                               codeblockDecoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.black.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                               ),
+                              codeblockPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               strong: const TextStyle(
                                   color: _textPrimary,
                                   fontWeight: FontWeight.w700),
                               listBullet:
-                                  const TextStyle(color: _gradEnd),
+                                  const TextStyle(color: _gradEnd, fontSize: 13.8),
+                              h1: const TextStyle(fontSize: 18, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
+                              h2: const TextStyle(fontSize: 16, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
+                              h3: const TextStyle(fontSize: 14.5, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
+                              blockquote: const TextStyle(color: _textMuted, fontStyle: FontStyle.italic),
+                              blockquoteDecoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.02),
+                                border: const Border(left: BorderSide(color: _gradEnd, width: 4)),
+                              ),
                             ),
                           )
                         // User text with selectability
@@ -509,64 +571,122 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   //  Voice Recording Bar (shown while recording)
   // ─────────────────────────────────────────────────────────
 
-  Widget _buildVoiceRecordingBar() {
+  /// Live listening bar — shows real-time transcript as you speak
+  Widget _buildVoiceListeningBar() {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: _recordRed.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
+        color: _recordRed.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _recordRed.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
-          // Pulsing red dot
+          // Pulsing red mic icon
           AnimatedBuilder(
             animation: _micPulseController,
-            builder: (_, __) => Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _recordRed,
-                boxShadow: [
-                  BoxShadow(
-                    color: _recordRed.withValues(
-                        alpha: 0.4 + 0.4 * _micPulseController.value),
-                    blurRadius: 8 + 6 * _micPulseController.value,
-                  ),
-                ],
-              ),
+            builder: (_, __) => Icon(
+              Icons.mic_rounded,
+              color: _recordRed.withValues(
+                  alpha: 0.5 + 0.5 * _micPulseController.value),
+              size: 20 + 4 * _micPulseController.value,
             ),
           ),
           const SizedBox(width: 10),
 
-          // Live waveform bars
+          // Live transcript text
           Expanded(
-            child: AnimatedBuilder(
-              animation: _waveController,
-              builder: (_, __) => Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(20, (i) {
-                  final phase = _waveController.value + i * 0.15;
-                  final base = _micAmplitude * 28;
-                  final h = (sin(phase * pi * 2) * base * 0.5 + base * 0.5)
-                      .clamp(3.0, 30.0);
-                  return Container(
-                    width: 3,
-                    height: h,
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                    decoration: BoxDecoration(
-                      color: Color.lerp(_recordRed, _gradEnd,
-                          (i / 20) * _micAmplitude),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  );
-                }),
+            child: Text(
+              _isRecordingFallback
+                  ? 'Recording audio... speak now'
+                  : _liveWords.isEmpty
+                      ? 'Listening... speak now'
+                      : _liveWords,
+              style: TextStyle(
+                fontSize: 13.5,
+                color: (_isRecordingFallback || _liveWords.isEmpty)
+                    ? _textMuted
+                    : _textPrimary,
+                fontStyle: (_isRecordingFallback || _liveWords.isEmpty)
+                    ? FontStyle.italic
+                    : FontStyle.normal,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 10),
+
+          // Language selector pill (floating switcher)
+          if (!_isRecordingFallback) ...[
+            GestureDetector(
+              onTap: () {
+                final nextLocale = _sttLocale.startsWith('hi') ? 'en_US' : 'hi_IN';
+                setState(() {
+                  _sttLocale = nextLocale;
+                  _liveWords = '';
+                  _controller.clear();
+                });
+                _stt.stop().then((_) {
+                  if (_isListening) {
+                    _stt.listen(
+                      onResult: (result) {
+                        if (!mounted) return;
+                        if (!_isListening) return;
+                        setState(() {
+                          _liveWords = result.recognizedWords;
+                          _controller.text = _liveWords;
+                          _controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: _liveWords.length),
+                          );
+                        });
+                        if (result.finalResult && _liveWords.trim().isNotEmpty) {
+                          _stopAndSendVoice();
+                        }
+                      },
+                      listenFor: const Duration(seconds: 30),
+                      pauseFor: const Duration(seconds: 3),
+                      localeId: _sttLocale,
+                      listenOptions: SpeechListenOptions(
+                        cancelOnError: true,
+                        partialResults: true,
+                      ),
+                    );
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  gradient: _botGrad,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _gradStart.withValues(alpha: 0.35),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _sttLocale.startsWith('hi') ? '🇮🇳 HI' : '🇬🇧 EN',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.swap_horiz_rounded, size: 12, color: Colors.white),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           // Cancel button
           GestureDetector(
@@ -636,6 +756,63 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   //  Input Bar
   // ─────────────────────────────────────────────────────────
 
+  Widget _buildSelectedImagePreview() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8, left: 4),
+      height: 80,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.5),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: kIsWeb
+                  ? Image.network(
+                      _selectedImage!.path,
+                      height: 76,
+                      width: 76,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.file(
+                      File(_selectedImage!.path),
+                      height: 76,
+                      width: 76,
+                      fit: BoxFit.cover,
+                    ),
+            ),
+          ),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedImage = null;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: _recordRed,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.2, end: 0);
+  }
+
   Widget _buildInputBar(AiChatState chatState) {
     final hasText = _controller.text.trim().isNotEmpty;
 
@@ -653,58 +830,67 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Attachment button
-          _AttachButton(
-            onImagePicked: (file) {
-              setState(() => _showSuggestions = false);
-              ref.read(aiChatProvider.notifier).sendImage(file);
-              _scrollToBottom();
-            },
-          ),
-          const SizedBox(width: 8),
-
-          // Text Field — listens to changes to toggle send/mic
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: _inputBg,
-                borderRadius: BorderRadius.circular(24),
-                border:
-                    Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          if (_selectedImage != null) _buildSelectedImagePreview(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Attachment button
+              _AttachButton(
+                onImagePicked: (file) {
+                  setState(() {
+                    _selectedImage = file;
+                    _showSuggestions = false;
+                  });
+                  _scrollToBottom();
+                },
               ),
-              child: TextField(
-                controller: _controller,
-                focusNode: _inputFocus,
-                style: const TextStyle(fontSize: 14, color: _textPrimary),
-                minLines: 1,
-                maxLines: 5,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _sendText(),
-                decoration: InputDecoration(
-                  hintText: 'Ask Shami anything...',
-                  hintStyle: TextStyle(
-                      fontSize: 14,
-                      color: _textMuted.withValues(alpha: 0.7)),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
-                  fillColor: Colors.transparent,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+              const SizedBox(width: 8),
+
+              // Text Field — listens to changes to toggle send/mic
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _inputBg,
+                    borderRadius: BorderRadius.circular(24),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _inputFocus,
+                    style: const TextStyle(fontSize: 14, color: _textPrimary),
+                    minLines: 1,
+                    maxLines: 5,
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _sendTextOrImage(),
+                    decoration: InputDecoration(
+                      hintText: 'Ask Shami anything...',
+                      hintStyle: TextStyle(
+                          fontSize: 14,
+                          color: _textMuted.withValues(alpha: 0.7)),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      fillColor: Colors.transparent,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
+              const SizedBox(width: 8),
 
-          // Right action button: Send (if text) | Mic (if empty, not recording)
-          // | Stop (if recording)
-          _buildActionButton(chatState, hasText),
+              // Right action button: Send (if text or image) | Mic (if empty, not recording)
+              // | Stop (if recording)
+              _buildActionButton(chatState, hasText),
+            ],
+          ),
         ],
       ),
     );
@@ -712,7 +898,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
 
   Widget _buildActionButton(AiChatState chatState, bool hasText) {
     // While AI is responding — show spinner
-    if (chatState.isTyping && !_isRecording) {
+    if (chatState.isTyping && !_isListening) {
       return Container(
         width: 44,
         height: 44,
@@ -727,8 +913,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       );
     }
 
-    // While recording — show STOP button (red)
-    if (_isRecording) {
+    // While listening — show SEND button (green/red, send what was heard so far)
+    if (_isListening) {
       return GestureDetector(
         onTap: _stopAndSendVoice,
         child: AnimatedBuilder(
@@ -747,17 +933,17 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                 ),
               ],
             ),
-            child: const Icon(Icons.stop_rounded,
-                color: Colors.white, size: 24),
+            child: const Icon(Icons.send_rounded,
+                color: Colors.white, size: 22),
           ),
         ),
       );
     }
 
-    // Has text — SEND button
-    if (hasText) {
+    // Has text OR attached image — SEND button
+    if (hasText || _selectedImage != null) {
       return GestureDetector(
-        onTap: _sendText,
+        onTap: _sendTextOrImage,
         child: Container(
           width: 44,
           height: 44,
@@ -795,83 +981,214 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   }
 
   // ─────────────────────────────────────────────────────────
-  //  Voice Actions
+  //  Real-time Voice Actions (Google-mic style)
   // ─────────────────────────────────────────────────────────
 
   Future<void> _startVoice() async {
-    final started = await _voice.startRecording();
-    if (!started) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text(
-            '🎤 Microphone access denied. Please allow it in Settings.'),
-        backgroundColor: _recordRed,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
+    debugPrint('[_startVoice] mic tapped');
+    
+    // Try to initialize STT if not available yet
+    if (!_sttAvailable) {
+      try {
+        debugPrint('[_startVoice] STT not available, trying to initialize...');
+        _sttAvailable = await _stt.initialize(
+          onError: (e) {
+            debugPrint('STT error: $e');
+            if (mounted) setState(() { _isListening = false; });
+          },
+          onStatus: (s) {
+            debugPrint('STT status: $s');
+            if ((s == 'done' || s == 'notListening') && mounted && _isListening) {
+              _onSttDone();
+            }
+          },
+        );
+        debugPrint('[_startVoice] STT initialization result: $_sttAvailable');
+      } catch (e) {
+        debugPrint('STT initialize exception in _startVoice: $e');
+        _sttAvailable = false;
+      }
+    }
+
+    if (!_sttAvailable) {
+      // Fallback to standard voice recording
+      debugPrint('[_startVoice] STT not available. Falling back to standard voice recording...');
+      final voice = VoiceRecorderService.instance;
+      
+      setState(() {
+        _isListening = true;
+        _isRecordingFallback = true;
+        _liveWords = '';
+        _showSuggestions = false;
+      });
+      _micPulseController.repeat(reverse: true);
+
+      final success = await voice.startRecording();
+      if (!success) {
+        debugPrint('[_startVoice] Failed to start standard recording.');
+        if (mounted) {
+          setState(() {
+            _isListening = false;
+            _isRecordingFallback = false;
+          });
+          _micPulseController.stop();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text(
+                'Microphone permission denied or recording failed.'),
+            backgroundColor: _recordRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ));
+        }
+      }
       return;
     }
 
+    // SpeechToText path
     setState(() {
-      _isRecording = true;
+      _isListening = true;
+      _isRecordingFallback = false;
+      _liveWords = '';
       _showSuggestions = false;
     });
     _micPulseController.repeat(reverse: true);
 
-    // Drive amplitude updates from the service stream
-    _voice.amplitudeStream.listen((amp) {
-      if (mounted && _isRecording) {
-        setState(() => _micAmplitude = amp);
+    try {
+      await _stt.listen(
+        onResult: (result) {
+          if (!mounted) return;
+          if (!_isListening) return;
+          setState(() {
+            _liveWords = result.recognizedWords;
+            _controller.text = _liveWords;
+            _controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: _liveWords.length),
+            );
+          });
+          if (result.finalResult && _liveWords.trim().isNotEmpty) {
+            _stopAndSendVoice();
+          }
+        },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+        localeId: _sttLocale,
+        listenOptions: SpeechListenOptions(
+          cancelOnError: true,
+          partialResults: true,
+        ),
+      );
+    } catch (e) {
+      debugPrint('STT listen exception: $e');
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+        });
+        _micPulseController.stop();
       }
-    });
+    }
   }
 
+  /// Called when user taps Send during listening, OR when STT auto-finishes.
   Future<void> _stopAndSendVoice() async {
-    _micPulseController.stop();
-    final file = await _voice.stopRecording();
+    if (!_isListening) return;
 
-    setState(() {
-      _isRecording = false;
-      _micAmplitude = 0.0;
-    });
+    if (_isRecordingFallback) {
+      final voice = VoiceRecorderService.instance;
+      _micPulseController.stop();
+      setState(() {
+        _isListening = false;
+        _isRecordingFallback = false;
+        _liveWords = '';
+        _controller.clear();
+      });
 
-    if (file == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('⚠️ Recording failed. Please try again.'),
-        backgroundColor: _aiBubble,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
+      final file = await voice.stopRecording();
+      if (file != null) {
+        setState(() => _showSuggestions = false);
+        ref.read(aiChatProvider.notifier).sendVoice(file, locale: _sttLocale);
+        _scrollToBottom();
+      }
       return;
     }
 
-    ref.read(aiChatProvider.notifier).sendVoice(file);
+    // SpeechToText path
+    final text = _liveWords.trim();
+    setState(() {
+      _isListening = false;
+      _liveWords = '';
+      _controller.clear();
+    });
+    _micPulseController.stop();
+    try {
+      _stt.stop();
+    } catch (_) {}
+
+    if (text.isEmpty) return;
+
+    // Send as normal text message — no upload needed!
+    setState(() => _showSuggestions = false);
+    ref.read(aiChatProvider.notifier).sendMessage(text);
     _scrollToBottom();
   }
 
+  /// Called when STT auto-finishes (status done/notListening)
+  void _onSttDone() {
+    if (!_isListening) return;
+    _stopAndSendVoice();
+  }
+
   Future<void> _cancelVoice() async {
-    _micPulseController.stop();
-    await _voice.cancelRecording();
+    if (_isRecordingFallback) {
+      final voice = VoiceRecorderService.instance;
+      await voice.cancelRecording();
+      _micPulseController.stop();
+      setState(() {
+        _isListening = false;
+        _isRecordingFallback = false;
+        _liveWords = '';
+        _controller.clear();
+      });
+      return;
+    }
+
     setState(() {
-      _isRecording = false;
-      _micAmplitude = 0.0;
+      _isListening = false;
+      _liveWords = '';
+      _controller.clear();
     });
+    _micPulseController.stop();
+    try {
+      _stt.stop();
+    } catch (_) {}
   }
 
   // ─────────────────────────────────────────────────────────
   //  Text Actions
   // ─────────────────────────────────────────────────────────
 
-  void _sendText() {
+  void _sendTextOrImage() {
+    // If listening/recording, stop it first!
+    if (_isListening) {
+      _stopAndSendVoice();
+      return;
+    }
+
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    final image = _selectedImage;
+    if (text.isEmpty && image == null) return;
+
     _controller.clear();
+    setState(() {
+      _selectedImage = null;
+      _showSuggestions = false;
+    });
     _inputFocus.unfocus();
-    setState(() => _showSuggestions = false);
-    ref.read(aiChatProvider.notifier).sendMessage(text);
+
+    if (image != null) {
+      ref.read(aiChatProvider.notifier).sendMessageWithImage(text, image);
+    } else {
+      ref.read(aiChatProvider.notifier).sendMessage(text);
+    }
     _scrollToBottom();
   }
 
@@ -918,8 +1235,31 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     return input.split('').map((char) => map[char] ?? char).join();
   }
 
-  String _cleanMathExpressions(String text) {
-    var result = text;
+  String _formatChemicalFormulas(String text) {
+    // Match element symbol (1 capital + optional 1 lowercase) followed by 1 or more digits
+    // e.g. H2, O2, CO2, H2SO4, C6H12O6
+    final regex = RegExp(r'\b([A-Z][a-z]?)(\d+)\b|([A-Z][a-z]?)(\d+)(?=[A-Z\d])|([A-Z][a-z]?)(\d+)');
+    return text.replaceAllMapped(regex, (match) {
+      final element = match.group(1) ?? match.group(3) ?? match.group(5) ?? '';
+      final digits = match.group(2) ?? match.group(4) ?? match.group(6) ?? '';
+      if (element.isEmpty || digits.isEmpty) return match.group(0)!;
+      
+      const commonChem = {
+        'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 
+        'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 
+        'Fe', 'Cu', 'Zn', 'Ag', 'Au', 'Pt', 'Hg', 'Pb', 'Sn', 'I', 'Br', 'Co', 'Ni', 'Mn', 'Cr'
+      };
+      if (!commonChem.contains(element)) {
+        return match.group(0)!;
+      }
+      
+      return '$element${_toSubscript(digits)}';
+    });
+  }
+
+  String _cleanSingleMathBlock(String math) {
+    var result = math;
+    
     // 1. Remove LaTeX layout directives
     result = result.replaceAll(r'\displaystyle', '');
     result = result.replaceAll(r'\limits', '');
@@ -948,8 +1288,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     result = result.replaceAll(r'\leq', '≤');
     result = result.replaceAll(r'\neq', '≠');
     result = result.replaceAll(r'\approx', '≈');
-    result = result.replaceAll(r'\times', '×');
-    result = result.replaceAll(r'\cdot', '·');
+    result = result.replaceAll(r'\times', ' × ');
+    result = result.replaceAll(r'\cdot', ' · ');
+    result = result.replaceAll(r'\div', ' ÷ ');
     result = result.replaceAll(r'\sum', '∑');
     result = result.replaceAll(r'\prod', '∏');
     result = result.replaceAll(r'\le', '≤');
@@ -973,7 +1314,13 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     result = result.replaceAll(r'\eta', 'η');
     result = result.replaceAll(r'\rho', 'ρ');
 
-    // 3. Format fractions: \frac{num}{den} -> num/den
+    // 3. Extract text from \text{...}
+    final textRegex = RegExp(r'\\text\{([^{}]+)\}');
+    while (textRegex.hasMatch(result)) {
+      result = result.replaceAllMapped(textRegex, (match) => match.group(1)!);
+    }
+
+    // 4. Format fractions: \frac{num}{den} -> num/den
     final fracRegex = RegExp(r'\\frac\{([^{}]+)\}\{([^{}]+)\}');
     while (fracRegex.hasMatch(result)) {
       result = result.replaceAllMapped(fracRegex, (match) {
@@ -985,7 +1332,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       });
     }
 
-    // 4. Format superscripts: ^{2} or ^2
+    // 5. Format superscripts: ^{2} or ^2
     final superRegex = RegExp(r'\^\{([^{}]+)\}');
     while (superRegex.hasMatch(result)) {
       result = result.replaceAllMapped(superRegex, (match) {
@@ -997,7 +1344,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       return _toSuperscript(match.group(1)!);
     });
 
-    // 5. Format subscripts: _{i} or _i
+    // 6. Format subscripts: _{i} or _i
     final subRegex = RegExp(r'_\{([^{}]+)\}');
     while (subRegex.hasMatch(result)) {
       result = result.replaceAllMapped(subRegex, (match) {
@@ -1008,8 +1355,56 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     result = result.replaceAllMapped(subSingleRegex, (match) {
       return _toSubscript(match.group(1)!);
     });
+    
+    // 7. General cleanup of double spaces or backslashes
+    result = result.replaceAll(r'\\', '\n');
 
-    // 6. Remove remaining LaTeX inline math delimiters and replace display math delimiters with newlines
+    return result;
+  }
+
+  String _cleanMathExpressions(String text) {
+    var result = text;
+
+    // A. Format chemical equations globally across the entire text
+    result = _formatChemicalFormulas(result);
+
+    // B. Clean double dollar display math blocks: $$...$$
+    final displayMathRegex = RegExp(r'\$\$([^\$]+)\$\$');
+    while (displayMathRegex.hasMatch(result)) {
+      result = result.replaceAllMapped(displayMathRegex, (match) {
+        final math = match.group(1)!;
+        return '\n${_cleanSingleMathBlock(math)}\n';
+      });
+    }
+
+    // C. Clean single dollar inline math blocks: $...$
+    final inlineMathRegex = RegExp(r'\$([^\$\n]+)\$');
+    while (inlineMathRegex.hasMatch(result)) {
+      result = result.replaceAllMapped(inlineMathRegex, (match) {
+        final math = match.group(1)!;
+        return _cleanSingleMathBlock(math);
+      });
+    }
+
+    // D. Clean \( ... \) LaTeX inline blocks
+    final parenMathRegex = RegExp(r'\\\(([^\\]+)\\\)');
+    while (parenMathRegex.hasMatch(result)) {
+      result = result.replaceAllMapped(parenMathRegex, (match) {
+        final math = match.group(1)!;
+        return _cleanSingleMathBlock(math);
+      });
+    }
+
+    // E. Clean \[ ... \] LaTeX display blocks
+    final bracketMathRegex = RegExp(r'\\\[([^\\\]]+)\\\]');
+    while (bracketMathRegex.hasMatch(result)) {
+      result = result.replaceAllMapped(bracketMathRegex, (match) {
+        final math = match.group(1)!;
+        return '\n${_cleanSingleMathBlock(math)}\n';
+      });
+    }
+
+    // F. Final failsafe strip of general math wrappers if any remain unclosed
     result = result.replaceAll(r'\(', '').replaceAll(r'\)', '');
     result = result.replaceAll(r'\[', '\n').replaceAll(r'\]', '\n');
 
@@ -1340,7 +1735,7 @@ class _VoiceMessageBubble extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────
 
 class _AttachButton extends StatelessWidget {
-  final void Function(File) onImagePicked;
+  final void Function(XFile) onImagePicked;
   const _AttachButton({required this.onImagePicked});
 
   static const _inputBg   = Color(0xFF1A1E35);
@@ -1403,7 +1798,7 @@ class _AttachButton extends StatelessWidget {
                     Navigator.pop(context);
                     final f = await ImagePicker().pickImage(
                         source: ImageSource.gallery, imageQuality: 80);
-                    if (f != null) onImagePicked(File(f.path));
+                    if (f != null) onImagePicked(f);
                   },
                 ),
                 _AttachOption(
@@ -1415,7 +1810,7 @@ class _AttachButton extends StatelessWidget {
                     Navigator.pop(context);
                     final f = await ImagePicker().pickImage(
                         source: ImageSource.camera, imageQuality: 80);
-                    if (f != null) onImagePicked(File(f.path));
+                    if (f != null) onImagePicked(f);
                   },
                 ),
                 _AttachOption(

@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
+import 'package:edu_shamiit_ai/core/utils/sse_client_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/sse_client_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/sse_client_mobile.dart';
 
 // ═══════════════════════════════════════════════════════════
 //  Chat Message Model
@@ -276,65 +280,87 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   }
 
   // ── Send text message via SSE stream ──────────────────────
-  Future<void> sendMessage(String text) async {
+  Future<void> sendMessage(String text, {bool appendUserBubble = true}) async {
     if (text.trim().isEmpty) return;
 
-    // 1. Append user bubble
-    final userMsg = ChatMessage(isUser: true, text: text.trim());
-    // 2. Append empty AI bubble that will fill in via SSE
-    final aiMsg = ChatMessage(isUser: false, text: '', isStreaming: true);
+    if (appendUserBubble) {
+      // 1. Append user bubble
+      final userMsg = ChatMessage(isUser: true, text: text.trim());
+      // 2. Append empty AI bubble that will fill in via SSE
+      final aiMsg = ChatMessage(isUser: false, text: '', isStreaming: true);
 
-    state = state.copyWith(
-      messages: [...state.messages, userMsg, aiMsg],
-      isTyping: true,
-      error: null,
-    );
+      state = state.copyWith(
+        messages: [...state.messages, userMsg, aiMsg],
+        isTyping: true,
+        error: null,
+      );
+    } else {
+      // Just append empty AI bubble (since user voice bubble already exists)
+      final aiMsg = ChatMessage(isUser: false, text: '', isStreaming: true);
+
+      state = state.copyWith(
+        messages: [...state.messages, aiMsg],
+        isTyping: true,
+        error: null,
+      );
+    }
 
     try {
       final token = await _token();
       final uri = Uri.parse('${AppConfig.apiBaseUrl}/chat/message');
-
-      final request = http.Request('POST', uri)
-        ..headers.addAll(_authHeaders(token))
-        ..body = jsonEncode({
-          'message': text.trim(),
-          'session_id': state.sessionId,
-        });
-
-      final streamed = await request.send().timeout(
-        const Duration(seconds: 90),
-      );
+      final client = getSseClient();
 
       String accumulated = '';
+      final completer = Completer<void>();
 
-      await for (final chunk in streamed.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
-        if (!chunk.startsWith('data:')) continue;
-        final raw = chunk.substring(5).trim();
-        if (raw.isEmpty) continue;
+      await client.sendRequest(
+        uri: uri,
+        headers: _authHeaders(token),
+        body: {
+          'message': text.trim(),
+          'session_id': state.sessionId,
+        },
+        onChunk: (chunk) {
+          if (!chunk.startsWith('data:')) return;
+          final raw = chunk.substring(5).trim();
+          if (raw.isEmpty) return;
 
-        try {
-          final parsed = jsonDecode(raw) as Map<String, dynamic>;
-          final type = parsed['type'] as String? ?? '';
-          final content = parsed['content'] as String? ?? '';
+          try {
+            final parsed = jsonDecode(raw) as Map<String, dynamic>;
+            final type = parsed['type'] as String? ?? '';
+            final content = parsed['content'] as String? ?? '';
 
-          if (type == 'text') {
-            accumulated += content;
-            _updateLastAiMessage(accumulated, isStreaming: true);
-          } else if (type == 'done') {
-            _updateLastAiMessage(accumulated, isStreaming: false);
-            break;
-          } else if (type == 'error') {
-            _updateLastAiMessage(
-                '⚠️ ${content.isNotEmpty ? content : 'Something went wrong. Please try again.'}',
-                isStreaming: false);
-            break;
+            if (type == 'text') {
+              accumulated += content;
+              _updateLastAiMessage(accumulated, isStreaming: true);
+            } else if (type == 'done') {
+              _updateLastAiMessage(accumulated, isStreaming: false);
+              if (!completer.isCompleted) completer.complete();
+            } else if (type == 'error') {
+              _updateLastAiMessage(
+                  '⚠️ ${content.isNotEmpty ? content : 'Something went wrong. Please try again.'}',
+                  isStreaming: false);
+              if (!completer.isCompleted) completer.complete();
+            }
+          } catch (_) {
+            // Silently skip unparseable SSE frames
           }
-        } catch (_) {
-          // Silently skip unparseable SSE frames
-        }
-      }
+        },
+        onDone: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+        onError: (err) {
+          _updateLastAiMessage(
+              '⚠️ Connection error: $err',
+              isStreaming: false);
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      // Wait for stream to finish or timeout
+      await completer.future.timeout(const Duration(seconds: 90), onTimeout: () {
+        if (!completer.isCompleted) completer.complete();
+      });
 
       // Safety: stop typing indicator even if 'done' was missed
       if (state.isTyping) {
@@ -364,7 +390,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   }
 
   // ── Send image via multipart upload ───────────────────────
-  Future<void> sendImage(File imageFile, {String question = 'Describe this image'}) async {
+  Future<void> sendImage(XFile imageFile, {String question = 'Describe this image'}) async {
     final userMsg = ChatMessage(
       isUser: true,
       text: '📷 Image sent',
@@ -382,7 +408,10 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       final token = await _token();
       final uri = Uri.parse('${AppConfig.apiBaseUrl}/chat/image');
       final imageBytes = await imageFile.readAsBytes();
-      final filename = imageFile.path.split('/').last.split('\\').last;
+      String filename = imageFile.name;
+      if (filename.isEmpty || filename == 'image') {
+        filename = 'image.png';
+      }
       final request = http.MultipartRequest('POST', uri)
         ..headers['Authorization'] = 'Bearer ${token ?? ''}'
         ..fields['question'] = question
@@ -411,77 +440,226 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     }
   }
 
-  // ── Send voice recording via multipart upload ─────────────
-  Future<void> sendVoice(File audioFile) async {
+  // ── Send text and image together via SSE stream ───────────
+  Future<void> sendMessageWithImage(String text, XFile imageFile) async {
+    final displayUserText = text.trim().isNotEmpty ? text.trim() : '📷 Image sent';
     final userMsg = ChatMessage(
       isUser: true,
-      text: '🎤 Voice message',
-      type: MessageType.voice,
+      text: displayUserText,
+      type: MessageType.image,
+      imagePath: imageFile.path,
     );
     final aiMsg = ChatMessage(isUser: false, text: '', isStreaming: true);
 
     state = state.copyWith(
       messages: [...state.messages, userMsg, aiMsg],
       isTyping: true,
+      error: null,
     );
 
     try {
       final token = await _token();
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}/chat/voice');
-      final audioBytes = await audioFile.readAsBytes();
-      final filename = audioFile.path.split('/').last.split('\\').last;
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/chat/message');
+      final client = getSseClient();
+
+      final imageBytes = await imageFile.readAsBytes();
+      final imageB64 = base64Encode(imageBytes);
+
+      String accumulated = '';
+      final completer = Completer<void>();
+
+      await client.sendRequest(
+        uri: uri,
+        headers: _authHeaders(token),
+        body: {
+          'message': text.trim().isNotEmpty ? text.trim() : 'Describe this image',
+          'session_id': state.sessionId,
+          'image_b64': imageB64,
+        },
+        onChunk: (chunk) {
+          if (!chunk.startsWith('data:')) return;
+          final raw = chunk.substring(5).trim();
+          if (raw.isEmpty) return;
+
+          try {
+            final parsed = jsonDecode(raw) as Map<String, dynamic>;
+            final type = parsed['type'] as String? ?? '';
+            final content = parsed['content'] as String? ?? '';
+
+            if (type == 'text') {
+              accumulated += content;
+              _updateLastAiMessage(accumulated, isStreaming: true);
+            } else if (type == 'done') {
+              _updateLastAiMessage(accumulated, isStreaming: false);
+              if (!completer.isCompleted) completer.complete();
+            } else if (type == 'error') {
+              _updateLastAiMessage(
+                  '⚠️ ${content.isNotEmpty ? content : 'Something went wrong. Please try again.'}',
+                  isStreaming: false);
+              if (!completer.isCompleted) completer.complete();
+            }
+          } catch (_) {
+            // Silently skip unparseable SSE frames
+          }
+        },
+        onDone: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+        onError: (err) {
+          _updateLastAiMessage(
+              '⚠️ Connection error: $err',
+              isStreaming: false);
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      // Wait for stream to finish or timeout
+      await completer.future.timeout(const Duration(seconds: 90), onTimeout: () {
+        if (!completer.isCompleted) completer.complete();
+      });
+
+      // Safety: stop typing indicator even if 'done' was missed
+      if (state.isTyping) {
+        _updateLastAiMessage(
+            accumulated.isNotEmpty ? accumulated : '🤔 No response received.',
+            isStreaming: false);
+      }
+    } catch (e) {
+      _updateLastAiMessage(
+          '⚠️ Connection error. Please check your internet and try again.',
+          isStreaming: false);
+      debugPrint('AiChat SSE with image error: $e');
+    } finally {
+      await loadSessions();
+    }
+  }
+
+  // ── Send voice recording ──────────────────────────────────
+  // Flow: record audio → POST /chat/voice/transcribe → get text
+  //       → sendMessage(text) [exact same flow as typing]
+  Future<void> sendVoice(XFile audioFile, {String? locale}) async {
+    // Show a "transcribing..." placeholder in the user bubble
+    final placeholderMsg = ChatMessage(
+      isUser: true,
+      text: '🎤 Transcribing...',
+      type: MessageType.voice,
+    );
+    state = state.copyWith(
+      messages: [...state.messages, placeholderMsg],
+      isTyping: true,
+    );
+
+    try {
+      // ── Step 1: Read audio bytes & detect MIME type ────────
+      final Uint8List audioBytes;
+      String mimeType;
+      String filename;
+
+      if (kIsWeb && audioFile.path.startsWith('blob:')) {
+        final resp = await http.get(Uri.parse(audioFile.path));
+        audioBytes = resp.bodyBytes;
+        final rawMime = resp.headers['content-type'] ?? 'audio/webm';
+        mimeType = rawMime.split(';').first.trim();
+      } else {
+        audioBytes = await audioFile.readAsBytes();
+        final ext = audioFile.path.split('.').last.toLowerCase();
+        const extToMime = {
+          'wav': 'audio/wav', 'mp3': 'audio/mpeg',
+          'webm': 'audio/webm', 'ogg': 'audio/ogg',
+          'm4a': 'audio/m4a', 'mp4': 'audio/mp4',
+        };
+        mimeType = extToMime[ext] ?? 'audio/m4a';
+      }
+
+      // Detect WAV by magic bytes RIFF....WAVE
+      if (audioBytes.length >= 12 &&
+          audioBytes[0] == 0x52 && audioBytes[1] == 0x49 &&
+          audioBytes[2] == 0x46 && audioBytes[3] == 0x46 &&
+          audioBytes[8] == 0x57 && audioBytes[9] == 0x41 &&
+          audioBytes[10] == 0x56 && audioBytes[11] == 0x45) {
+        mimeType = 'audio/wav';
+      }
+
+      // Pick filename from mime type
+      const mimeToFilename = {
+        'audio/wav': 'audio.wav', 'audio/x-wav': 'audio.wav',
+        'audio/mpeg': 'audio.mp3', 'audio/mp3': 'audio.mp3',
+        'audio/webm': 'audio.webm', 'audio/ogg': 'audio.ogg',
+        'audio/mp4': 'audio.m4a', 'audio/m4a': 'audio.m4a',
+      };
+      filename = mimeToFilename[mimeType] ?? 'audio.m4a';
+
+      // ── Step 2: POST to /chat/voice/transcribe ─────────────
+      final token = await _token();
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/chat/voice/transcribe');
+
       final request = http.MultipartRequest('POST', uri)
         ..headers['Authorization'] = 'Bearer ${token ?? ''}'
-        ..fields['session_id'] = state.sessionId
         ..files.add(http.MultipartFile.fromBytes(
           'audio',
           audioBytes,
           filename: filename,
+          contentType: MediaType.parse(mimeType),
         ));
 
-      final streamed = await request.send();
-      String accumulated = '';
-
-      await for (final chunk in streamed.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
-        if (!chunk.startsWith('data:')) continue;
-        final raw = chunk.substring(5).trim();
-        if (raw.isEmpty) continue;
-        try {
-          final parsed = jsonDecode(raw) as Map<String, dynamic>;
-          final type = parsed['type'] as String? ?? '';
-          final content = parsed['content'] as String? ?? '';
-          if (type == 'transcript') {
-            // Update the user voice bubble with transcript text
-            final msgs = List<ChatMessage>.from(state.messages);
-            for (int i = msgs.length - 1; i >= 0; i--) {
-              if (msgs[i].isUser && msgs[i].type == MessageType.voice) {
-                msgs[i] = msgs[i].copyWith(text: '🎤 "$content"');
-                break;
-              }
-            }
-            state = state.copyWith(messages: msgs);
-          } else if (type == 'text') {
-            accumulated += content;
-            _updateLastAiMessage(accumulated, isStreaming: true);
-          } else if (type == 'done') {
-            _updateLastAiMessage(accumulated, isStreaming: false);
-            break;
-          }
-        } catch (_) {}
+      if (locale != null) {
+        request.fields['locale'] = locale;
       }
 
-      if (state.isTyping) {
+      final streamed = await request.send();
+      final body = await streamed.stream.bytesToString();
+
+      if (streamed.statusCode != 200) {
+        // Transcription failed — update bubble and stop
+        _replaceLastUserVoiceBubble('🎤 Could not transcribe audio. Please type instead.');
         _updateLastAiMessage(
-          accumulated.isNotEmpty ? accumulated : '🎤 Could not process audio.',
+          '⚠️ Sorry, I could not understand the audio.\n\n'
+          'Please try again or just type your message!',
           isStreaming: false,
         );
+        return;
       }
+
+      // ── Step 3: Extract transcript ─────────────────────────
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      final transcript = ((json['data'] as Map?)??{})['transcript'] as String? ?? '';
+
+      if (transcript.trim().isEmpty) {
+        _replaceLastUserVoiceBubble('🎤 No speech detected.');
+        _updateLastAiMessage(
+          "I couldn't hear anything. Please try again!",
+          isStreaming: false,
+        );
+        return;
+      }
+
+      // ── Step 4: Show transcript as user bubble ─────────────
+      _replaceLastUserVoiceBubble('🎤 "$transcript"');
+
+      // Remove the AI typing placeholder we added above — sendMessage adds its own
+      final msgs = List<ChatMessage>.from(state.messages);
+      state = state.copyWith(messages: msgs, isTyping: false);
+
+      // ── Step 5: Send transcript as normal text message ─────
+      // This reuses the exact same SSE flow as typing
+      await sendMessage(transcript, appendUserBubble: false);
+
     } catch (e) {
+      _replaceLastUserVoiceBubble('🎤 Voice error');
       _updateLastAiMessage('⚠️ Voice error: $e', isStreaming: false);
-    } finally {
-      await loadSessions();
+      debugPrint('sendVoice error: $e');
+    }
+  }
+
+  /// Replace the most recent user voice bubble text.
+  void _replaceLastUserVoiceBubble(String text) {
+    final msgs = List<ChatMessage>.from(state.messages);
+    for (int i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].isUser && msgs[i].type == MessageType.voice) {
+        msgs[i] = msgs[i].copyWith(text: text);
+        state = state.copyWith(messages: msgs);
+        return;
+      }
     }
   }
 

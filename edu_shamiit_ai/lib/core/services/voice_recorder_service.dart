@@ -1,15 +1,20 @@
-import 'dart:io';
+import 'dart:io' show File;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 
 /// Singleton service that manages the full voice recording lifecycle:
 ///   1. Request microphone permission
-///   2. Start recording to a temp .m4a file
+///   2. Start recording to a temp .wav file (preferred) or .m4a fallback
 ///   3. Stop and return the File for upload
 ///   4. Expose real-time amplitude stream for the animated waveform
+///
+/// WAV is preferred because:
+///   - The backend's SpeechRecognition fallback works natively with WAV
+///   - No ffmpeg conversion needed → simpler backend, faster response
 class VoiceRecorderService {
   VoiceRecorderService._();
   static final VoiceRecorderService instance = VoiceRecorderService._();
@@ -52,19 +57,70 @@ class VoiceRecorderService {
     if (!await requestPermission()) return false;
 
     try {
-      final dir = await getTemporaryDirectory();
-      final filename = 'shami_voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      _currentPath = p.join(dir.path, filename);
+      final RecordConfig config;
+      String extension;
 
-      await _recorder.start(
-        const RecordConfig(
-          encoder: AudioEncoder.aacLc,   // produces .m4a — Gemini accepts audio/mp4
-          bitRate: 128000,
-          sampleRate: 44100,
-          numChannels: 1,
-        ),
-        path: _currentPath!,
-      );
+      if (kIsWeb) {
+        // Web: prefer WAV → AAC/M4A → Opus/WebM
+        if (await _recorder.isEncoderSupported(AudioEncoder.wav)) {
+          config = const RecordConfig(
+            encoder: AudioEncoder.wav,
+            bitRate: 128000,
+            sampleRate: 16000,  // 16 kHz is ideal for speech recognition
+            numChannels: 1,
+          );
+          extension = 'wav';
+        } else if (await _recorder.isEncoderSupported(AudioEncoder.aacLc)) {
+          config = const RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            bitRate: 64000,
+            sampleRate: 16000,
+            numChannels: 1,
+          );
+          extension = 'm4a';
+        } else {
+          config = const RecordConfig(
+            encoder: AudioEncoder.opus,
+            bitRate: 64000,
+            sampleRate: 16000,
+            numChannels: 1,
+          );
+          extension = 'webm';
+        }
+        _currentPath = 'shami_voice_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      } else {
+        // Mobile (Android / iOS): prefer WAV for best transcription compatibility
+        // WAV works natively with the backend's SpeechRecognition fallback
+        bool wavSupported = false;
+        try {
+          wavSupported = await _recorder.isEncoderSupported(AudioEncoder.wav);
+        } catch (_) {}
+
+        if (wavSupported) {
+          config = const RecordConfig(
+            encoder: AudioEncoder.wav,
+            bitRate: 128000,
+            sampleRate: 16000,  // 16 kHz speech-optimised
+            numChannels: 1,
+          );
+          extension = 'wav';
+        } else {
+          // Fallback to M4A (AAC) – Gemini handles this natively
+          config = const RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            bitRate: 64000,
+            sampleRate: 16000,
+            numChannels: 1,
+          );
+          extension = 'm4a';
+        }
+
+        final dir = await getTemporaryDirectory();
+        final filename = 'shami_voice_${DateTime.now().millisecondsSinceEpoch}.$extension';
+        _currentPath = p.join(dir.path, filename);
+      }
+
+      await _recorder.start(config, path: _currentPath!);
 
       _isRecording = true;
       debugPrint('VoiceRecorder: started → $_currentPath');
@@ -78,7 +134,7 @@ class VoiceRecorderService {
 
   /// Stop recording and return the recorded file.
   /// Returns null if nothing was being recorded.
-  Future<File?> stopRecording() async {
+  Future<XFile?> stopRecording() async {
     if (!_isRecording) return null;
     try {
       final path = await _recorder.stop();
@@ -88,13 +144,19 @@ class VoiceRecorderService {
         debugPrint('VoiceRecorder: stop returned null path');
         return null;
       }
-      final file = File(path);
-      if (!file.existsSync() || file.lengthSync() == 0) {
-        debugPrint('VoiceRecorder: output file missing or empty');
-        return null;
+
+      if (kIsWeb) {
+        debugPrint('VoiceRecorder: stopped on web → $path');
+        return XFile(path);
+      } else {
+        final file = File(path);
+        if (!file.existsSync() || file.lengthSync() == 0) {
+          debugPrint('VoiceRecorder: output file missing or empty');
+          return null;
+        }
+        debugPrint('VoiceRecorder: stopped → $path (${file.lengthSync()} bytes)');
+        return XFile(path);
       }
-      debugPrint('VoiceRecorder: stopped → $path (${file.lengthSync()} bytes)');
-      return file;
     } catch (e) {
       debugPrint('VoiceRecorder: stop failed — $e');
       _isRecording = false;
@@ -109,8 +171,10 @@ class VoiceRecorderService {
       await _recorder.cancel();
     } catch (_) {}
     _isRecording = false;
-    if (_currentPath != null) {
-      try { File(_currentPath!).deleteSync(); } catch (_) {}
+    if (_currentPath != null && !kIsWeb) {
+      try {
+        File(_currentPath!).deleteSync();
+      } catch (_) {}
     }
   }
 

@@ -18,7 +18,8 @@ ROLE_TOOLS = {
         "generate_study_plan", "explain_concept", "get_notifications",
         "get_library_status", "get_achievements", "get_events",
         "get_leaderboard", "submit_homework", "apply_leave",
-        "get_notices", "answer_general", "generate_practice", "get_live_class"
+        "get_notices", "answer_general", "generate_practice", "get_live_class",
+        "convert_audio_to_text"
     ],
     "teacher": [
         "search_curriculum", "get_class_students", "get_class_performance",
@@ -29,7 +30,8 @@ ROLE_TOOLS = {
         "generate_remedial_plan", "create_notice", "get_attendance_stats",
         "get_teacher_schedule", "get_pending_tasks", "generate_report",
         "explain_pedagogy", "get_leave_balance", "get_salary_info",
-        "upload_material", "get_exam_analytics", "answer_general"
+        "upload_material", "get_exam_analytics", "answer_general",
+        "convert_audio_to_text"
     ],
     "parent": [
         "get_child_attendance", "get_child_results", "get_fee_status",

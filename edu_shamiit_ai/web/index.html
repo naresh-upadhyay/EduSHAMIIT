@@ -46,5 +46,40 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.shamiFetchStream = async function(url, headers, body, onChunk, onDone, onError) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error('HTTP ' + response.status + ': ' + text);
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          let lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (const line of lines) {
+            onChunk(line);
+          }
+        }
+        if (buffer.length > 0) {
+          onChunk(buffer);
+        }
+        onDone();
+      } catch (e) {
+        onError(e.message || e.toString());
+      }
+    }
+  </script>
 </body>
 </html>

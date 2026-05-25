@@ -55,14 +55,15 @@ async def chat_message(
     """
     message = request.get("message", "")
     session_id = request.get("session_id", str(uuid.uuid4()))
+    image_b64 = request.get("image_b64", None)
 
-    if not message:
-        raise HTTPException(status_code=400, detail="Message is required")
+    if not message and not image_b64:
+        raise HTTPException(status_code=400, detail="Message or image is required")
 
     return StreamingResponse(
         _sse_generator(
             text=message,
-            image_b64=None,
+            image_b64=image_b64,
             audio_path=None,
             user=user,
             session_id=session_id,

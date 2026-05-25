@@ -2,7 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y gcc libpq-dev curl && rm -rf /var/lib/apt/lists/*
+# Only curl is needed for the HEALTHCHECK.
+# gcc and libpq-dev are NOT needed — no C-extension DB drivers are used.
+# ffmpeg is NOT needed — Flutter records WAV which SpeechRecognition handles natively.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

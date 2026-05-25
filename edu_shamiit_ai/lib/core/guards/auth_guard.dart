@@ -42,7 +42,14 @@ class AuthGuard {
   static bool redirectIfNotAuthenticated(WidgetRef ref, BuildContext context) {
     if (!isAuthenticated(ref)) {
       // Store the attempted URL for redirecting after login
-      final location = GoRouterState.of(context).uri.toString();
+      String location = '';
+      try {
+        location = GoRouterState.of(context).uri.toString();
+      } catch (_) {
+        try {
+          location = GoRouter.of(context).routeInformationProvider.value.uri.toString();
+        } catch (_) {}
+      }
       context.go('${AppConfig.loginRoute}?redirect=$location');
       return true;
     }

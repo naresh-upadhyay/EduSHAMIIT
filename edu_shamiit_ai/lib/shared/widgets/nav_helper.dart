@@ -24,7 +24,14 @@ void safeGoBack(BuildContext context, String fallbackRoute) {
 
 /// Returns the correct dashboard fallback route based on the current location.
 String dashboardFallback(BuildContext context) {
-  final location = GoRouterState.of(context).uri.toString();
+  String location = '';
+  try {
+    location = GoRouterState.of(context).uri.toString();
+  } catch (_) {
+    try {
+      location = GoRouter.of(context).routeInformationProvider.value.uri.toString();
+    } catch (_) {}
+  }
   if (location.startsWith('/teacher')) {
     return '/teacher/dashboard';
   }

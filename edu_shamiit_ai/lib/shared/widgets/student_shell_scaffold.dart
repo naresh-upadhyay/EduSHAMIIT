@@ -11,8 +11,9 @@ import 'package:edu_shamiit_ai/shared/widgets/ai_fab.dart';
 /// On mobile/tablet shows bottom nav with 5 key routes.
 class StudentShellScaffold extends StatelessWidget {
   final Widget child;
+  final String? location;
 
-  const StudentShellScaffold({super.key, required this.child});
+  const StudentShellScaffold({super.key, required this.child, this.location});
 
 
   // Full sidebar items (desktop) — all routes with proper icons
@@ -128,16 +129,25 @@ class StudentShellScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
+    String currentLoc = location ?? '';
+    if (currentLoc.isEmpty) {
+      try {
+        currentLoc = GoRouterState.of(context).uri.toString();
+      } catch (_) {
+        try {
+          currentLoc = GoRouter.of(context).routeInformationProvider.value.uri.toString();
+        } catch (_) {}
+      }
+    }
 
     // Don't wrap AI chat in SelectionArea — its streaming ListView
     // causes !debugNeedsLayout assertions in SelectableRegion.
-    final isAiChat = location.endsWith('/ai-chat');
+    final isAiChat = currentLoc.endsWith('/ai-chat');
     final pageChild = isAiChat ? child : SelectionArea(child: child);
 
     // ── Desktop / wide: Custom sidebar with all routes ──
     if (Responsive.isDesktop(context)) {
-      final selected = _selectedIndex(location, _sidebarItems);
+      final selected = _selectedIndex(currentLoc, _sidebarItems);
       final isExtended = MediaQuery.sizeOf(context).width >= 1200;
 
       return Scaffold(
@@ -165,7 +175,7 @@ class StudentShellScaffold extends StatelessWidget {
     // ── Mobile / tablet: bottom nav bar ──
     return Scaffold(
       body: isAiChat ? child : SelectionArea(child: child),
-      bottomNavigationBar: const StudentBottomNav(),
+      bottomNavigationBar: StudentBottomNav(currentLocation: currentLoc),
       floatingActionButton: isAiChat ? null : AiFab(
         gradient: AppGradients.studentPrimary,
         onPressed: () => context.push('/student/ai-chat'),

@@ -172,7 +172,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     // ─────────────── STUDENT SHELL (persistent bottom nav) ───────────────
     ShellRoute(
       navigatorKey: _studentShellKey,
-      builder: (context, state, child) => StudentShellScaffold(child: child),
+      builder: (context, state, child) => StudentShellScaffold(
+        location: state.uri.toString(),
+        child: child,
+      ),
       routes: [
         GoRoute(
           path: '/student/dashboard',
@@ -280,7 +283,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
     ShellRoute(
       navigatorKey: _teacherShellKey,
-      builder: (context, state, child) => TeacherShellScaffold(child: child),
+      builder: (context, state, child) => TeacherShellScaffold(
+        location: state.uri.toString(),
+        child: child,
+      ),
       routes: [
         GoRoute(
           path: '/teacher/dashboard',

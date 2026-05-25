@@ -628,12 +628,16 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
       body: Column(
         children: [
           // Video Player Area (Premium Full-Width Theater/Cinematic backdrop)
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Container(
-              color: Colors.black,
-              child: Stack(
-                children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.55,
+            ),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Container(
+                color: Colors.black,
+                child: Stack(
+                  children: [
                   // Full-bleed Video elements (cinematic theater styling)
                   Positioned.fill(
                     child: kIsWeb
@@ -811,6 +815,7 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
               ),
             ),
           ),
+         ),
 
           // Scrollable Body containing Info Block, Divider, Comments Header, and Comments list (removes nested layout constraints)
           Expanded(

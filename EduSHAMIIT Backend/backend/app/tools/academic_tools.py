@@ -127,4 +127,49 @@ def get_academic_tools(school_id: str):
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    return [generate_questions, create_lesson_plan, get_timetable]
+    @tool
+    async def convert_audio_to_text(file_path: str) -> dict:
+        """Convert an audio file to text.
+        Input: path to the audio file on disk (e.g. WAV, MP3, M4A, or WEBM file).
+        Use when asked to transcribe a file, convert voice/audio to text, or get the text of an audio recording.
+        This runs offline or free-of-cost depending on the audio format."""
+        import speech_recognition as sr
+        try:
+            r = sr.Recognizer()
+            with sr.AudioFile(file_path) as source:
+                audio = r.record(source)
+            try:
+                text = r.recognize_sphinx(audio)
+                return {
+                    "success": True,
+                    "method": "offline_sphinx",
+                    "transcript": text
+                }
+            except Exception:
+                text = r.recognize_google(audio)
+                return {
+                    "success": True,
+                    "method": "free_google_web",
+                    "transcript": text
+                }
+        except Exception as e:
+            try:
+                from app.services.whisper_service import transcribe_file
+                text = await transcribe_file(file_path)
+                if text.startswith("Transcription error:"):
+                    return {
+                        "success": False,
+                        "error": f"SpeechRecognition error: {str(e)}. Gemini error: {text}"
+                    }
+                return {
+                    "success": True,
+                    "method": "free_gemini_multimodal",
+                    "transcript": text
+                }
+            except Exception as ge:
+                return {
+                    "success": False,
+                    "error": f"Offline SpeechRecognition error: {str(e)}. Gemini error: {str(ge)}"
+                }
+
+    return [generate_questions, create_lesson_plan, get_timetable, convert_audio_to_text]

@@ -71,11 +71,11 @@ def load_history(session_id: str) -> list:
         messages = sb.table("ai_chat_history") \
             .select("role, content") \
             .eq("session_id", session_id) \
-            .order("created_at") \
-            .limit(20).execute()
+            .order("created_at", ascending=False) \
+            .limit(40).execute()
 
         history = []
-        for msg in messages.data:
+        for msg in reversed(messages.data):
             if msg["role"] == "user":
                 history.append(HumanMessage(content=msg["content"]))
             elif msg["role"] == "assistant":
@@ -138,6 +138,13 @@ async def process_message(
     if image_b64:
         from app.services.vision_service import analyze_image
         result = await analyze_image(image_b64, text)
+        
+        # Persist messages in database history
+        user_id = user.get("id", "") if user else ""
+        user_content = text if text else "Describe this image"
+        await save_message(session_id, user_id, "user", f"📷 [Image] {user_content}", school_id)
+        await save_message(session_id, user_id, "assistant", result, school_id)
+        
         yield {"type": "text", "content": result}
         yield {"type": "done"}
         return

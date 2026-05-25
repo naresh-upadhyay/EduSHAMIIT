@@ -1,11 +1,17 @@
-"""Voice API - Audio upload, transcription via Whisper, and SSE streaming response."""
-import uuid
-import json
+"""
+Voice API — Audio transcription only.
+
+POST /api/chat/voice/transcribe
+  Accepts audio upload, returns the transcript as plain JSON.
+  The Flutter client then sends the transcript via the normal
+  POST /api/chat/message endpoint (SSE streaming).
+
+This keeps voice and chat completely separate, reusing the
+battle-tested text message flow for AI responses.
+"""
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
 from app.middleware.auth import get_current_user
 from app.services.whisper_service import transcribe
-from app.services.langchain_agent import process_message
 
 router = APIRouter()
 
@@ -16,44 +22,68 @@ SUPPORTED_AUDIO_TYPES = [
 ]
 
 
-@router.post("/voice")
-async def voice_chat(
+@router.post("/voice/transcribe")
+async def transcribe_audio(
     audio: UploadFile = File(...),
-    session_id: str = Form(""),
+    locale: str | None = Form(None),
     user: dict = Depends(get_current_user),
 ):
-    """Upload audio, transcribe via Whisper, and stream AI response via SSE."""
-    if not audio.content_type:
-        raise HTTPException(status_code=400, detail="Could not determine audio content type")
-    if audio.content_type not in SUPPORTED_AUDIO_TYPES:
-        raise HTTPException(status_code=400, detail=f"Unsupported audio type: {audio.content_type}")
+    """
+    Transcribe an audio file and return the text.
+
+    Returns:
+        { "success": true, "data": { "transcript": "..." } }
+    """
+    if not audio.content_type or audio.content_type not in SUPPORTED_AUDIO_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported audio type: {audio.content_type}. "
+                   f"Supported: {', '.join(SUPPORTED_AUDIO_TYPES)}",
+        )
+
     audio_bytes = await audio.read()
+
     if len(audio_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Empty audio file")
+        raise HTTPException(status_code=400, detail="Empty audio file received.")
     if len(audio_bytes) > 25 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Audio too large. Max 25MB.")
-    if not session_id:
-        session_id = str(uuid.uuid4())
-    school_id = user.get("school_id", "")
-    transcript = await transcribe(audio_bytes, audio.filename or "audio.m4a", audio.content_type)
+
+    print(
+        f"[TRANSCRIBE] file={audio.filename}, "
+        f"type={audio.content_type}, size={len(audio_bytes)} bytes, locale={locale}",
+        flush=True,
+    )
+
+    transcript = await transcribe(
+        audio_bytes,
+        audio.filename or "audio.wav",
+        audio.content_type,
+        locale=locale,
+    )
+
+    print(f"[TRANSCRIBE] result={transcript[:120]}", flush=True)
+
     if transcript.startswith("Transcription error:"):
-        raise HTTPException(status_code=500, detail=transcript)
+        raise HTTPException(status_code=422, detail=transcript)
 
-    async def event_generator():
-        """Generate SSE events."""
-        try:
-            yield "data: " + json.dumps({"type": "transcript", "content": transcript}) + "\n\n"
-            async for chunk in process_message(text=transcript, user=user, session_id=session_id, school_id=school_id):
-                yield "data: " + json.dumps(chunk) + "\n\n"
-        except Exception as e:
-            yield "data: " + json.dumps({"type": "error", "content": str(e)}) + "\n\n"
-            yield "data: " + json.dumps({"type": "done"}) + "\n\n"
+    return {
+        "success": True,
+        "data": {"transcript": transcript},
+    }
 
-    return StreamingResponse(
-        event_generator(), media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Session-Id": session_id,
-        },
+
+# Keep the old /voice endpoint alive but redirect to the new flow
+# (returns a helpful message if someone calls it directly)
+@router.post("/voice")
+async def voice_chat_deprecated(
+    user: dict = Depends(get_current_user),
+):
+    """Deprecated — use POST /api/chat/voice/transcribe instead."""
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "This endpoint is no longer used. "
+            "POST audio to /api/chat/voice/transcribe to get a transcript, "
+            "then send the text via /api/chat/message."
+        ),
     )
