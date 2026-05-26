@@ -112,7 +112,7 @@ def get_student_tools(school_id: str) -> list:
             elif item.get('is_free_period'):
                 buf.append(f"  🆓 Free Period ({item.get('start_time', '')} - {item.get('end_time', '')})")
             else:
-                subj = item.get('subjects', {})
+                subj = item.get('subjects') or {}
                 buf.append(f"  {subj.get('icon', '📚')} {subj.get('name', 'Unknown')} - {item.get('start_time', '')} to {item.get('end_time', '')} (Room {item.get('room', 'TBD')})")
 
         return "\n".join(buf)
@@ -128,7 +128,7 @@ def get_student_tools(school_id: str) -> list:
         if not profile:
             return "Could not find your class."
 
-        homework = sb.table("homework").select("*, subjects(name, icon)").eq("school_id", school_id).eq("target_class", profile["class"]).eq("status", "active").order("due_date").execute().data
+        homework = sb.table("homework").select("*, subjects(name, icon)").eq("school_id", school_id).eq("class", profile["class"]).eq("status", "active").order("due_date").execute().data
         submissions = sb.table("homework_submissions").select("homework_id, status, marks, grade").eq("student_id", user_id).execute().data
         sub_map = {s["homework_id"]: s for s in submissions}
 
@@ -139,8 +139,8 @@ def get_student_tools(school_id: str) -> list:
             if status == "all" or (status == "pending" and not sub) or (status == "submitted" and hw_status == "submitted") or (status == "graded" and hw_status == "graded"):
                 filtered.append({
                     "title": hw.get("title", ""),
-                    "subject": hw.get("subjects", {}).get("name", "Unknown"),
-                    "icon": hw.get("subjects", {}).get("icon", "📝"),
+                    "subject": (hw.get("subjects") or {}).get("name", "Unknown"),
+                    "icon": (hw.get("subjects") or {}).get("icon", "📝"),
                     "due_date": hw.get("due_date", "")[:10],
                     "max_marks": hw.get("max_marks"),
                     "status": hw_status,
@@ -214,7 +214,7 @@ def get_student_tools(school_id: str) -> list:
 
         subject_wise = {}
         for a in attendance:
-            subj = a.get("subjects", {}).get("name", "Unknown")
+            subj = (a.get("subjects") or {}).get("name", "Unknown")
             subject_wise.setdefault(subj, {"total": 0, "present": 0})
             subject_wise[subj]["total"] += 1
             if a["status"] == "present":
@@ -248,7 +248,7 @@ def get_student_tools(school_id: str) -> list:
 
         buf = ["📝 Upcoming Exams:"]
         for ex in exams:
-            subj = ex.get("subjects", {})
+            subj = ex.get("subjects") or {}
             buf.append(f"  {subj.get('icon', '📝')} {ex.get('title', 'Exam')} ({subj.get('name', 'Unknown')})")
             buf.append(f"     📅 {ex.get('exam_date', '')} | ⏰ {ex.get('start_time', 'TBD')} | ⏱️ {ex.get('duration_minutes', 90)} min")
             buf.append(f"     📍 {ex.get('venue', 'TBD')} | 📊 Total Marks: {ex.get('total_marks', 100)}")
@@ -269,8 +269,8 @@ def get_student_tools(school_id: str) -> list:
 
         bus_location = sb.table("bus_locations").select("*").eq("school_id", school_id).eq("route_id", transport.get("route_id")).order("recorded_at", ascending=False).limit(1).maybe_single().execute().data
 
-        route = transport.get("bus_routes", {})
-        stop = transport.get("bus_stops", {})
+        route = transport.get("bus_routes") or {}
+        stop = transport.get("bus_stops") or {}
 
         buf = [f"🚌 Bus Tracking:"]
         buf.append(f"  Route: {route.get('route_name', 'N/A')}")
@@ -314,8 +314,8 @@ def get_student_tools(school_id: str) -> list:
 
         subj_scores = {}
         for r in results:
-            subj = r.get("subjects", {}).get("name", "Unknown")
-            icon = r.get("subjects", {}).get("icon", "📚")
+            subj = (r.get("subjects") or {}).get("name", "Unknown")
+            icon = (r.get("subjects") or {}).get("icon", "📚")
             subj_scores.setdefault(subj, {"total": 0, "max": 0, "icon": icon, "count": 0})
             subj_scores[subj]["total"] += float(r.get("marks_obtained", 0))
             subj_scores[subj]["max"] += float(r.get("max_marks", 100))
@@ -344,7 +344,7 @@ def get_student_tools(school_id: str) -> list:
 
         exams = sb.table("exams").select("title, exam_date, subjects(name)").eq("school_id", school_id).contains("target_classes", f'["{profile.get("class", "")}"]').gte("exam_date", datetime.now().date().isoformat()).order("exam_date").limit(5).execute().data
 
-        exam_info = "\n".join([f"- {e.get('title', '')} ({e.get('subjects', {}).get('name', '')}) on {e.get('exam_date', '')}" for e in exams]) if exams else "No upcoming exams found"
+        exam_info = "\n".join([f"- {e.get('title', '')} ({(e.get('subjects') or {}).get('name', '')}) on {e.get('exam_date', '')}" for e in exams]) if exams else "No upcoming exams found"
 
         prompt = f"Create a practical study plan for a Class {profile.get('class', '')} student.\n\nUpcoming exams:\n{exam_info}\n\nWeak subjects: {weak_subjects if weak_subjects else 'Auto-detect from exam dates'}\n\nInclude: Daily schedule, subject prioritization, break times, revision strategies, quick tips. Keep it concise and actionable."
 
@@ -396,7 +396,7 @@ def get_student_tools(school_id: str) -> list:
 
         buf = ["📚 Library Books:"]
         for b in borrows:
-            book = b.get("library_books", {})
+            book = b.get("library_books") or {}
             status = "⚠️ OVERDUE" if b.get("status") == "overdue" else "📖 Borrowed"
             buf.append(f"  {status}: {book.get('title', 'Unknown')} by {book.get('author', 'Unknown')}")
             buf.append(f"     Due: {b.get('due_at', '')[:10]} | Fine: ₹{b.get('fine_amount', 0)}")
@@ -422,7 +422,7 @@ def get_student_tools(school_id: str) -> list:
         if achievements:
             buf.append("🎖️ Badges Earned:")
             for a in achievements:
-                ach = a.get("achievements", {})
+                ach = a.get("achievements") or {}
                 buf.append(f"  {ach.get('icon', '🏆')} {ach.get('name', 'Unknown')} ({ach.get('rarity', 'common')})")
                 buf.append(f"     +{ach.get('xp_reward', 0)} XP | {ach.get('description', '')}")
         else:
@@ -577,7 +577,7 @@ def get_student_tools(school_id: str) -> list:
 
         buf = ["🎥 Live Classes:"]
         for lc in classes:
-            subj = lc.get("subjects", {})
+            subj = lc.get("subjects") or {}
             status = "🔴 LIVE NOW" if lc.get("is_live") else "📅 Scheduled"
             buf.append(f"  {status}: {subj.get('icon', '🎥')} {lc.get('title', '')}")
             buf.append(f"     ⏰ {lc.get('scheduled_at', '')[:16]} | ⏱️ {lc.get('duration_minutes', 60)} min")
@@ -607,7 +607,7 @@ def get_student_tools(school_id: str) -> list:
 
         subject_wise = {}
         for a in attendance:
-            subj = a.get("subjects", {}).get("name", "Unknown")
+            subj = (a.get("subjects") or {}).get("name", "Unknown")
             subject_wise.setdefault(subj, {"total": 0, "present": 0})
             subject_wise[subj]["total"] += 1
             if a["status"] == "present":
@@ -657,7 +657,7 @@ def get_student_tools(school_id: str) -> list:
         buf.append("")
         buf.append("📝 Recent Exams:")
         for r in results:
-            subj = r.get("subjects", {})
+            subj = r.get("subjects") or {}
             marks = float(r.get("marks_obtained", 0))
             max_marks = float(r.get("max_marks", 100))
             pct = (marks / max_marks * 100) if max_marks > 0 else 0

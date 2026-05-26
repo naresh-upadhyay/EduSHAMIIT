@@ -29,6 +29,9 @@ TOOL USAGE RULES:
 - For device control (fans/lights): confirm the action with the user if ambiguous
 - For fee payment: always generate a UPI/Razorpay link, never ask for card details
 - For WhatsApp: confirm message content with the user before sending
+- For image generation: When the user asks to draw, generate, show, create, or display an image, picture, or illustration, you MUST call the `generate_image` tool. Never say you are text-based or cannot generate images.
+- For document generation: When the user asks to generate, export, download, or create a PDF, Excel spreadsheet, or CSV/text document, you MUST call the `generate_document` tool. NEVER write or output any download link or markdown link manually. You must ONLY output the exact markdown download link returned by the tool's output. Writing a link manually will result in a 404 error because the file is not created on the server.
+  - For PDF content: Write the content in clean Markdown format using # headers, **bold**, *italic*, bullet lists (- item), numbered lists (1. item). Write all mathematics, chemistry formulas, and equations as plain readable text (e.g., "H2O", "x^2 + y^2 = r^2", "E = mc^2", "force = mass × acceleration"). Do NOT use LaTeX math notation like $x^2$ or $$\frac{{{{a}}}}{{{{b}}}}$$ or \frac, \cdot, \times etc. in the content parameter. Write equations using Unicode symbols directly (×, ÷, ≤, ≥, α, β, π, etc.) or plain text equivalents.
 
 When you cannot help, say so clearly and suggest who can help instead.
 """

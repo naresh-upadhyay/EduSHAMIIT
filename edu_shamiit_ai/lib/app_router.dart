@@ -11,6 +11,7 @@ import 'package:edu_shamiit_ai/features/shared/login/screens/reset_password_scre
 import 'package:edu_shamiit_ai/features/shared/login/screens/password_reset_success_screen.dart';
 import 'package:edu_shamiit_ai/features/shared/settings/screens/settings_screen.dart';
 import 'package:edu_shamiit_ai/features/shared/ai_chat/screens/ai_chat_screen.dart';
+import 'package:edu_shamiit_ai/features/shared/documents/screens/documents_screen.dart';
 import 'package:edu_shamiit_ai/features/student/dashboard/screens/student_dashboard.dart';
 import 'package:edu_shamiit_ai/features/student/timetable/screens/student_timetable.dart';
 import 'package:edu_shamiit_ai/features/student/results/screens/student_results.dart';
@@ -276,6 +277,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/student/ai-chat',
           pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
         ),
+        GoRoute(
+          path: '/student/documents',
+          pageBuilder: (_, __) => const NoTransitionPage(child: DocumentsScreen()),
+        ),
       ],
     ),
 
@@ -383,6 +388,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/teacher/ai-chat',
           pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
+        ),
+        GoRoute(
+          path: '/teacher/documents',
+          pageBuilder: (_, __) => const NoTransitionPage(child: DocumentsScreen()),
         ),
       ],
     ),

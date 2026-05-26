@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
@@ -200,7 +201,7 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(0, 50, 16, 16),
+      padding: EdgeInsets.fromLTRB(0, Responsive.headerTopPadding(context), 16, 16),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF134E4A), Color(0xFF0F766E)],

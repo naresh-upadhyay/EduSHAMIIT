@@ -231,14 +231,14 @@ def get_teacher_tools(school_id: str) -> list:
         Input: homework_id.
         Use when teacher asks who submitted, submission count, or grading status."""
         sb = get_supabase()
-        homework = sb.table("homework").select("title, target_class, max_marks").eq("id", homework_id).single().execute().data
+        homework = sb.table("homework").select("title, class, max_marks").eq("id", homework_id).single().execute().data
         submissions = sb.table("homework_submissions").select("*, profiles(full_name)").eq("homework_id", homework_id).eq("school_id", school_id).execute().data
 
         total_submitted = len(submissions)
         graded = sum(1 for s in submissions if s.get("status") == "graded")
         pending = total_submitted - graded
 
-        buf = [f"📝 Homework: {homework.get('title', '')} ({homework.get('target_class', '')})"]
+        buf = [f"📝 Homework: {homework.get('title', '')} ({homework.get('class', '')})"]
         buf.append(f"  Total Submitted: {total_submitted}")
         buf.append(f"  ✅ Graded: {graded}")
         buf.append(f"  ⏳ Pending: {pending}")
@@ -247,7 +247,7 @@ def get_teacher_tools(school_id: str) -> list:
             buf.append("\n📋 Pending Submissions:")
             for s in submissions:
                 if s.get("status") != "graded":
-                    student_name = s.get("profiles", {}).get("full_name", "Unknown")
+                    student_name = (s.get("profiles") or {}).get("full_name", "Unknown")
                     buf.append(f"  • {student_name} (submitted {s.get('submitted_at', '')[:10]})")
 
         return "\n".join(buf)
@@ -350,7 +350,7 @@ def get_teacher_tools(school_id: str) -> list:
         day_title = resolved_day.title() if resolved_day else "Full Week"
         buf = [f"📅 Your Schedule ({day_title}):"]
         for item in schedule:
-            subj = item.get("subjects", {})
+            subj = item.get("subjects") or {}
             buf.append(f"  {subj.get('icon', '📚')} {subj.get('name', 'Unknown')} — {item.get('start_time', '')} to {item.get('end_time', '')}")
             buf.append(f"     Class: {item.get('class', '?')} | Room: {item.get('room', 'TBD')}")
 
@@ -513,7 +513,7 @@ def get_teacher_tools(school_id: str) -> list:
         buf.append("")
         buf.append("🏆 Top 5:")
         for i, s in enumerate(sessions[:5]):
-            name = s.get("profiles", {}).get("full_name", "Unknown")
+            name = (s.get("profiles") or {}).get("full_name", "Unknown")
             buf.append(f"  #{i + 1} {name}: {s.get('total_marks', 0):.1f} ({s.get('total_correct', 0)} correct)")
 
         return "\n".join(buf)

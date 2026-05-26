@@ -525,6 +525,7 @@ services:
         condition: service_healthy
     volumes:
       - "./EduSHAMIIT Backend/backend/app:/app/app"
+      - "./volumes/assets:/app/assets"
     networks:
       - edushamiit-net
 
@@ -553,6 +554,7 @@ services:
         condition: service_healthy
     volumes:
       - "./EduSHAMIIT Backend/backend/app:/app/app"
+      - "./volumes/assets:/app/assets"
     networks:
       - edushamiit-net
 
@@ -581,6 +583,7 @@ services:
         condition: service_healthy
     volumes:
       - "./EduSHAMIIT Backend/backend/app:/app/app"
+      - "./volumes/assets:/app/assets"
     networks:
       - edushamiit-net
 

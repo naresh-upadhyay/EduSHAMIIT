@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
@@ -90,7 +91,7 @@ class _TeacherNotificationsState extends ConsumerState<TeacherNotifications> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFFEC4899), Color(0xFFF472B6)],

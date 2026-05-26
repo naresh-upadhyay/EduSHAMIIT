@@ -81,6 +81,10 @@ class TeacherShellScaffold extends StatelessWidget {
         label: 'AI Chat',
         route: '/teacher/ai-chat'),
     _NavItem(
+        icon: Icons.folder_special_rounded,
+        label: 'Documents',
+        route: '/teacher/documents'),
+    _NavItem(
         icon: Icons.person_rounded,
         label: 'Profile',
         route: '/teacher/profile'),

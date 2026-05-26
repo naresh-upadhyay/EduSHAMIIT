@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
@@ -118,7 +119,7 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
   // ─── Header ───────────────────────────────────────────────────────────────
   Widget _buildHeader(int submitted, int total) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 48, 16, 14),
+      padding: EdgeInsets.fromLTRB(8, Responsive.headerTopPadding(context), 16, 14),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [_kRedDark, _kRed],

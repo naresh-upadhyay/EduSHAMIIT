@@ -32,6 +32,10 @@ def detect_task(message: str, has_image: bool = False) -> str:
 
     msg = message.lower()
 
+    # Force tool call for document/image creation requests
+    if any(k in msg for k in ["pdf", "excel", "xlsx", "csv", "document", "spreadsheet", "report", "image", "picture", "illustration", "draw"]):
+        return TaskType.TOOL_CALL
+
     if any(k in msg for k in IOT_KEYWORDS):
         return TaskType.IOT_CONTROL
 
@@ -47,22 +51,26 @@ def detect_task(message: str, has_image: bool = False) -> str:
 def get_llm(task: str):
     """Return the appropriate LLM for this task type."""
     if task in (TaskType.TOOL_CALL, TaskType.IOT_CONTROL):
-        try:
-            from langchain_anthropic import ChatAnthropic
-            return ChatAnthropic(
-                model="claude-haiku-4-5-20251001",
-                temperature=0.0,
-                max_tokens=1024,
-                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY", "sk-ant-placeholder")
-            )
-        except Exception:
-            pass
+        ant_key = os.getenv("ANTHROPIC_API_KEY", "")
+        if ant_key and not ant_key.startswith("sk-ant-placeholder"):
+            try:
+                from langchain_anthropic import ChatAnthropic
+                return ChatAnthropic(
+                    model="claude-haiku-4-5-20251001",
+                    temperature=0.0,
+                    max_tokens=2048,
+                    streaming=True,
+                    anthropic_api_key=ant_key
+                )
+            except Exception:
+                pass
 
     from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(
         model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
         temperature=0.3,
-        max_tokens=2048,
+        max_tokens=8192,
+        streaming=True,
         google_api_key=os.getenv("GOOGLE_API_KEY", "AIza-placeholder-google-key")
     )
 
@@ -99,7 +107,8 @@ def get_fallback_llms():
                     openai_api_key=openrouter_key,
                     openai_api_base="https://openrouter.ai/api/v1",
                     temperature=0.3,
-                    max_tokens=2048,
+                    max_tokens=8192,
+                    streaming=True,
                     default_headers={
                         "HTTP-Referer": "https://edushamiit.com",
                         "X-Title": "EduSHAMIIT AI"
@@ -123,7 +132,8 @@ def get_fallback_llms():
                     api_key=github_token,
                     base_url="https://models.github.ai/inference",
                     temperature=0.3,
-                    max_tokens=2048
+                    max_tokens=8192,
+                    streaming=True
                 )
             )
 

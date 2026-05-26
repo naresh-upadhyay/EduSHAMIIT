@@ -109,6 +109,11 @@ class StudentShellScaffold extends StatelessWidget {
         label: 'AI Chat',
         route: '/student/ai-chat'),
     _NavItem(
+        icon: Icons.folder_special_rounded,
+        emoji: '📁',
+        label: 'Documents',
+        route: '/student/documents'),
+    _NavItem(
         icon: Icons.person_rounded,
         emoji: '👤',
         label: 'Profile',

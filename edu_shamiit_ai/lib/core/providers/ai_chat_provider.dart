@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show File;
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart' show XFile;
+import 'package:file_picker/file_picker.dart' show PlatformFile;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -64,19 +66,25 @@ class AiChatState {
   final List<String> suggestions;
   final List<Map<String, dynamic>> sessions;
   final bool isLoading;
+  final bool isLoadingMore;
   final bool isTyping;
   final bool isRecording;
   final String? error;
   final String sessionId;
+  final bool hasMoreHistory;
+  final int historyOffset;
 
   const AiChatState({
     required this.messages,
     required this.suggestions,
     required this.sessions,
     required this.isLoading,
+    this.isLoadingMore = false,
     required this.isTyping,
     required this.isRecording,
     required this.sessionId,
+    this.hasMoreHistory = true,
+    this.historyOffset = 0,
     this.error,
   });
 
@@ -104,8 +112,11 @@ class AiChatState {
         ],
         sessions: const [],
         isLoading: false,
+        isLoadingMore: false,
         isTyping: false,
         isRecording: false,
+        hasMoreHistory: true,
+        historyOffset: 0,
       );
 
   AiChatState copyWith({
@@ -113,19 +124,25 @@ class AiChatState {
     List<String>? suggestions,
     List<Map<String, dynamic>>? sessions,
     bool? isLoading,
+    bool? isLoadingMore,
     bool? isTyping,
     bool? isRecording,
     String? error,
     String? sessionId,
+    bool? hasMoreHistory,
+    int? historyOffset,
   }) =>
       AiChatState(
         messages: messages ?? this.messages,
         suggestions: suggestions ?? this.suggestions,
         sessions: sessions ?? this.sessions,
         isLoading: isLoading ?? this.isLoading,
+        isLoadingMore: isLoadingMore ?? this.isLoadingMore,
         isTyping: isTyping ?? this.isTyping,
         isRecording: isRecording ?? this.isRecording,
         sessionId: sessionId ?? this.sessionId,
+        hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
+        historyOffset: historyOffset ?? this.historyOffset,
         error: error,
       );
 }
@@ -147,7 +164,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     } else {
       await prefs.setString('shami_chat_session_id', state.sessionId);
     }
-    await loadChatHistory();
+    await loadChatHistory(clearExisting: true);
     await loadSessions();
   }
 
@@ -164,45 +181,70 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       };
 
   // ── Load history from server ───────────────────────────────
-  Future<void> loadChatHistory() async {
+  Future<void> loadChatHistory({bool clearExisting = false}) async {
+    if (clearExisting) {
+      state = state.copyWith(
+        isLoading: true,
+        historyOffset: 0,
+        hasMoreHistory: true,
+        messages: [state.messages.first],
+      );
+    } else {
+      if (!state.hasMoreHistory || state.isLoadingMore) return;
+      state = state.copyWith(isLoadingMore: true);
+    }
+
     try {
-      state = state.copyWith(isLoading: true);
       final token = await _token();
       if (token == null) {
-        state = state.copyWith(isLoading: false);
+        state = state.copyWith(isLoading: false, isLoadingMore: false);
         return;
       }
+
+      const int limit = 20;
+      final int offset = state.historyOffset;
+
       final uri = Uri.parse(
-          '${AppConfig.apiBaseUrl}/chat/history/${state.sessionId}');
+          '${AppConfig.apiBaseUrl}/chat/history/${state.sessionId}?limit=$limit&offset=$offset');
       final resp = await http.get(uri, headers: _authHeaders(token))
           .timeout(AppConfig.apiTimeout);
+
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body) as Map<String, dynamic>;
         final data = (body['data'] as Map<String, dynamic>?)?['messages'] as List? ?? [];
-        if (data.isNotEmpty) {
-          final loaded = data.map((m) => ChatMessage(
-                isUser: m['role'] == 'user',
-                text: (m['content'] as String?) ?? '',
-                timestamp: DateTime.tryParse(m['created_at'] ?? '') ?? DateTime.now(),
-              )).toList();
-          // Prepend the greeting to history
+        final loaded = data.map((m) => ChatMessage(
+              isUser: m['role'] == 'user',
+              text: (m['content'] as String?) ?? '',
+              timestamp: DateTime.tryParse(m['created_at'] ?? '') ?? DateTime.now(),
+            )).toList();
+
+        final bool hasMore = loaded.length >= limit;
+        final int newOffset = offset + loaded.length;
+
+        if (clearExisting) {
           state = state.copyWith(
             messages: [state.messages.first, ...loaded],
+            historyOffset: newOffset,
+            hasMoreHistory: hasMore,
             isLoading: false,
           );
-          return;
         } else {
-          // If no messages on server, reset list to only contain initial greeting
+          final existing = state.messages.length > 1
+              ? state.messages.sublist(1)
+              : <ChatMessage>[];
           state = state.copyWith(
-            messages: [state.messages.first],
-            isLoading: false,
+            messages: [state.messages.first, ...loaded, ...existing],
+            historyOffset: newOffset,
+            hasMoreHistory: hasMore,
+            isLoadingMore: false,
           );
         }
       } else {
-        state = state.copyWith(isLoading: false);
+        state = state.copyWith(isLoading: false, isLoadingMore: false);
       }
-    } catch (_) {
-      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      debugPrint('Error loading chat history: $e');
+      state = state.copyWith(isLoading: false, isLoadingMore: false);
     }
   }
 
@@ -237,13 +279,16 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       sessionId: sessionId,
       messages: [state.messages.first], // Keep initial greeting only
       isLoading: true,
+      isLoadingMore: false,
+      historyOffset: 0,
+      hasMoreHistory: true,
       error: null,
     );
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('shami_chat_session_id', sessionId);
 
-    await loadChatHistory();
+    await loadChatHistory(clearExisting: true);
   }
 
   // ── Start a brand new chat session ─────────────────────────
@@ -293,6 +338,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         messages: [...state.messages, userMsg, aiMsg],
         isTyping: true,
         error: null,
+        historyOffset: state.historyOffset + 2,
       );
     } else {
       // Just append empty AI bubble (since user voice bubble already exists)
@@ -302,6 +348,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         messages: [...state.messages, aiMsg],
         isTyping: true,
         error: null,
+        historyOffset: state.historyOffset + 1,
       );
     }
 
@@ -332,6 +379,9 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
             if (type == 'text') {
               accumulated += content;
+              _updateLastAiMessage(accumulated, isStreaming: true);
+            } else if (type == 'replace_text') {
+              accumulated = content;
               _updateLastAiMessage(accumulated, isStreaming: true);
             } else if (type == 'done') {
               _updateLastAiMessage(accumulated, isStreaming: false);
@@ -364,15 +414,20 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
       // Safety: stop typing indicator even if 'done' was missed
       if (state.isTyping) {
+        final hasNoResponse = accumulated.isEmpty;
         _updateLastAiMessage(
-            accumulated.isNotEmpty ? accumulated : '🤔 No response received.',
+            !hasNoResponse ? accumulated : '🤔 No response received.',
             isStreaming: false);
+        if (hasNoResponse) {
+          _runHistoryPollingFallback(state.sessionId);
+        }
       }
     } catch (e) {
       _updateLastAiMessage(
           '⚠️ Connection error. Please check your internet and try again.',
           isStreaming: false);
       debugPrint('AiChat SSE error: $e');
+      _runHistoryPollingFallback(state.sessionId);
     } finally {
       await loadSessions();
     }
@@ -402,6 +457,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     state = state.copyWith(
       messages: [...state.messages, userMsg, aiMsg],
       isTyping: true,
+      historyOffset: state.historyOffset + 2,
     );
 
     try {
@@ -455,6 +511,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       messages: [...state.messages, userMsg, aiMsg],
       isTyping: true,
       error: null,
+      historyOffset: state.historyOffset + 2,
     );
 
     try {
@@ -489,6 +546,9 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
             if (type == 'text') {
               accumulated += content;
               _updateLastAiMessage(accumulated, isStreaming: true);
+            } else if (type == 'replace_text') {
+              accumulated = content;
+              _updateLastAiMessage(accumulated, isStreaming: true);
             } else if (type == 'done') {
               _updateLastAiMessage(accumulated, isStreaming: false);
               if (!completer.isCompleted) completer.complete();
@@ -520,15 +580,20 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
       // Safety: stop typing indicator even if 'done' was missed
       if (state.isTyping) {
+        final hasNoResponse = accumulated.isEmpty;
         _updateLastAiMessage(
-            accumulated.isNotEmpty ? accumulated : '🤔 No response received.',
+            !hasNoResponse ? accumulated : '🤔 No response received.',
             isStreaming: false);
+        if (hasNoResponse) {
+          _runHistoryPollingFallback(state.sessionId);
+        }
       }
     } catch (e) {
       _updateLastAiMessage(
           '⚠️ Connection error. Please check your internet and try again.',
           isStreaming: false);
       debugPrint('AiChat SSE with image error: $e');
+      _runHistoryPollingFallback(state.sessionId);
     } finally {
       await loadSessions();
     }
@@ -547,6 +612,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     state = state.copyWith(
       messages: [...state.messages, placeholderMsg],
       isTyping: true,
+      historyOffset: state.historyOffset + 1,
     );
 
     try {
@@ -671,6 +737,49 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     state = AiChatState.initial();
   }
 
+  // ── Regenerate AI message ───────────────────────────────
+  Future<void> regenerateMessage(ChatMessage aiMsg) async {
+    final aiIndex = state.messages.indexOf(aiMsg);
+    if (aiIndex == -1) return;
+    
+    // Find the nearest preceding user message
+    ChatMessage? userMsg;
+    for (int i = aiIndex - 1; i >= 0; i--) {
+      if (state.messages[i].isUser) {
+        userMsg = state.messages[i];
+        break;
+      }
+    }
+    
+    if (userMsg == null) return;
+    
+    String userPrompt = userMsg.text;
+    // Clean voice formatting if any (e.g. 🎤 "Hello")
+    if (userMsg.type == MessageType.voice && userPrompt.startsWith('🎤 "') && userPrompt.endsWith('"')) {
+      userPrompt = userPrompt.substring(4, userPrompt.length - 1);
+    }
+    
+    // Truncate list up to the user message
+    final userIndex = state.messages.indexOf(userMsg);
+    final keptMessages = state.messages.sublist(0, userIndex + 1);
+    
+    state = state.copyWith(
+      messages: keptMessages,
+      isTyping: true,
+      error: null,
+      historyOffset: keptMessages.length,
+    );
+    
+    // Stream new response
+    if (userMsg.imagePath != null) {
+      final imageFile = XFile(userMsg.imagePath!);
+      final cleanPrompt = userPrompt == '📷 Image sent' ? 'Describe this image' : userPrompt;
+      await sendMessageWithImage(cleanPrompt, imageFile);
+    } else {
+      await sendMessage(userPrompt, appendUserBubble: false);
+    }
+  }
+
   // ── Export ───────────────────────────────────────────────
   String exportChat() {
     final buf = StringBuffer()
@@ -683,6 +792,161 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
       buf.writeln('[${msg.formattedTime}] $who: ${msg.text}');
     }
     return buf.toString();
+  }
+
+  // ── Send text and document together via SSE stream ────────
+  Future<void> sendMessageWithDocument(String text, PlatformFile docFile) async {
+    final displayUserText = '📄 [Document: ${docFile.name}]${text.trim().isNotEmpty ? '\n\n${text.trim()}' : ''}';
+    final userMsg = ChatMessage(
+      isUser: true,
+      text: displayUserText,
+      type: MessageType.text,
+    );
+    final aiMsg = ChatMessage(isUser: false, text: '', isStreaming: true);
+
+    state = state.copyWith(
+      messages: [...state.messages, userMsg, aiMsg],
+      isTyping: true,
+      error: null,
+      historyOffset: state.historyOffset + 2,
+    );
+
+    try {
+      final token = await _token();
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/chat/message');
+      final client = getSseClient();
+
+      final Uint8List docBytes;
+      if (kIsWeb) {
+        docBytes = docFile.bytes!;
+      } else {
+        docBytes = await File(docFile.path!).readAsBytes();
+      }
+      final docB64 = base64Encode(docBytes);
+
+      String accumulated = '';
+      final completer = Completer<void>();
+
+      await client.sendRequest(
+        uri: uri,
+        headers: _authHeaders(token),
+        body: {
+          'message': text.trim().isNotEmpty ? text.trim() : 'Process this document',
+          'session_id': state.sessionId,
+          'doc_b64': docB64,
+          'doc_name': docFile.name,
+        },
+        onChunk: (chunk) {
+          if (!chunk.startsWith('data:')) return;
+          final raw = chunk.substring(5).trim();
+          if (raw.isEmpty) return;
+
+          try {
+            final parsed = jsonDecode(raw) as Map<String, dynamic>;
+            final type = parsed['type'] as String? ?? '';
+            final content = parsed['content'] as String? ?? '';
+
+            if (type == 'text') {
+              accumulated += content;
+              _updateLastAiMessage(accumulated, isStreaming: true);
+            } else if (type == 'replace_text') {
+              accumulated = content;
+              _updateLastAiMessage(accumulated, isStreaming: true);
+            } else if (type == 'done') {
+              _updateLastAiMessage(accumulated, isStreaming: false);
+              if (!completer.isCompleted) completer.complete();
+            } else if (type == 'error') {
+              _updateLastAiMessage(
+                  '⚠️ ${content.isNotEmpty ? content : 'Something went wrong. Please try again.'}',
+                  isStreaming: false);
+              if (!completer.isCompleted) completer.complete();
+            }
+          } catch (_) {
+            // Silently skip unparseable SSE frames
+          }
+        },
+        onDone: () {
+          if (!completer.isCompleted) completer.complete();
+        },
+        onError: (err) {
+          _updateLastAiMessage(
+              '⚠️ Connection error: $err',
+              isStreaming: false);
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      // Wait for stream to finish or timeout
+      await completer.future.timeout(const Duration(seconds: 90), onTimeout: () {
+        if (!completer.isCompleted) completer.complete();
+      });
+
+      // Safety: stop typing indicator even if 'done' was missed
+      if (state.isTyping) {
+        final hasNoResponse = accumulated.isEmpty;
+        _updateLastAiMessage(
+            !hasNoResponse ? accumulated : '🤔 No response received.',
+            isStreaming: false);
+        if (hasNoResponse) {
+          _runHistoryPollingFallback(state.sessionId);
+        }
+      }
+    } catch (e) {
+      _updateLastAiMessage(
+          '⚠️ Connection error. Please check your internet and try again.',
+          isStreaming: false);
+      debugPrint('AiChat SSE with document error: $e');
+      _runHistoryPollingFallback(state.sessionId);
+    } finally {
+      await loadSessions();
+    }
+  }
+
+  void _runHistoryPollingFallback(String targetSessionId, {int attemptsLeft = 3}) {
+    if (attemptsLeft <= 0) return;
+    
+    Future.delayed(const Duration(seconds: 3), () async {
+      // Check if we are still on the same session
+      if (state.sessionId != targetSessionId) return;
+      
+      try {
+        final token = await _token();
+        if (token == null) return;
+        
+        final int limit = state.historyOffset > 20 ? state.historyOffset : 20;
+        final uri = Uri.parse(
+            '${AppConfig.apiBaseUrl}/chat/history/$targetSessionId?limit=$limit&offset=0');
+        final resp = await http.get(uri, headers: _authHeaders(token))
+            .timeout(const Duration(seconds: 10));
+            
+        if (resp.statusCode == 200) {
+          final body = jsonDecode(resp.body) as Map<String, dynamic>;
+          if (body['success'] == true) {
+            final data = (body['data'] as Map<String, dynamic>?)?['messages'] as List? ?? [];
+            if (data.isNotEmpty) {
+              final loaded = data.map((m) => ChatMessage(
+                    isUser: m['role'] == 'user',
+                    text: (m['content'] as String?) ?? '',
+                    timestamp: DateTime.tryParse(m['created_at'] ?? '') ?? DateTime.now(),
+                  )).toList();
+              
+              if (loaded.isNotEmpty) {
+                state = state.copyWith(
+                  messages: [state.messages.first, ...loaded],
+                  historyOffset: loaded.length,
+                  isTyping: false,
+                );
+                return;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Fallback polling error: $e');
+      }
+      
+      _runHistoryPollingFallback(targetSessionId, attemptsLeft: attemptsLeft - 1);
+    });
   }
 }
 

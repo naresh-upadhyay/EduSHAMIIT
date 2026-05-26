@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
@@ -151,7 +152,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
         children: [
           // Header Gradient matching Mockup style
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],

@@ -1,3 +1,4 @@
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -145,7 +146,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   // ─── Header ───────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 48, 16, 12),
+      padding: EdgeInsets.fromLTRB(8, Responsive.headerTopPadding(context), 16, 12),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [_kPink, Color(0xFFDB2777)],

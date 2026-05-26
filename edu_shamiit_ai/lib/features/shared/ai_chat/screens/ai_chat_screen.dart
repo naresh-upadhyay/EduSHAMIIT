@@ -1,5 +1,7 @@
+import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,12 +10,20 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart' show PlatformFile, FilePicker, FileType;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:edu_shamiit_ai/core/config/app_config.dart';
 
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/ai_chat_provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:edu_shamiit_ai/core/services/voice_recorder_service.dart';
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
+import 'package:edu_shamiit_ai/core/providers/documents_provider.dart';
+import 'package:edu_shamiit_ai/core/services/tts_service.dart';
 
 // ─────────────────────────────────────────────────────────────
 //  Shami AI Chat Screen
@@ -47,6 +57,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
 
   bool _showSuggestions = true;
   XFile? _selectedImage;
+  PlatformFile? _selectedDocument;
+  String? _currentlySpeakingMsgId;
 
   // ── Palette ──────────────────────────────────────────────
   static const _darkBg      = Color(0xFF0A0C1B);
@@ -88,8 +100,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       duration: const Duration(milliseconds: 600),
     );
 
+    _scrollController.addListener(_scrollListener);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(aiChatProvider.notifier).loadChatHistory();
+      ref.read(aiChatProvider.notifier).loadChatHistory(clearExisting: true);
       _initStt();
     });
   }
@@ -126,6 +140,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
 
   @override
   void dispose() {
+    TtsService.instance.stop();
+    _scrollController.removeListener(_scrollListener);
     _controller.dispose();
     _scrollController.dispose();
     _inputFocus.dispose();
@@ -151,8 +167,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(aiChatProvider);
-
-    ref.listen<AiChatState>(aiChatProvider, (_, __) => _scrollToBottom());
 
     return Scaffold(
       key: _scaffoldKey,
@@ -180,7 +194,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
 
   Widget _buildHeader(AiChatState chatState) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 48, 8, 12),
+      padding: EdgeInsets.fromLTRB(8, Responsive.headerTopPadding(context), 8, 12),
       decoration: BoxDecoration(
         color: _cardBg,
         border: Border(
@@ -322,16 +336,117 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   // ─────────────────────────────────────────────────────────
 
   Widget _buildMessageList(AiChatState chatState) {
+    if (chatState.isLoading) {
+      return _buildLoadingState();
+    }
+
     final msgs = chatState.messages;
+    final showLoading = chatState.isLoadingMore;
+
     return ListView.builder(
       controller: _scrollController,
+      reverse: true, // Native reverse list - pins scroll to bottom and reverses indices
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      itemCount: msgs.length,
-      itemBuilder: (_, i) => _buildBubble(msgs[i])
-          .animate()
-          .fadeIn(duration: 250.ms)
-          .slideY(begin: 0.15, end: 0, curve: Curves.easeOut, duration: 250.ms),
+      itemCount: msgs.length + (showLoading ? 1 : 0),
+      itemBuilder: (_, i) {
+        if (showLoading && i == msgs.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(_gradStart),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final msgIndex = msgs.length - 1 - i;
+        final msg = msgs[msgIndex];
+
+        // Animate only the newly added complete/static bubble at index 0 (bottom).
+        // Skip streaming SSE chunks to avoid laggy animation loops.
+        if (i == 0 && !msg.isStreaming) {
+          return KeepAliveWrapper(
+            key: ValueKey(msg.id),
+            child: _buildBubble(msg)
+                .animate()
+                .fadeIn(duration: 200.ms)
+                .slideY(begin: 0.1, end: 0, curve: Curves.easeOut, duration: 200.ms),
+          );
+        }
+
+        return KeepAliveWrapper(
+          key: ValueKey(msg.id),
+          child: _buildBubble(msg),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (_, __) => Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                gradient: _botGrad,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _gradStart.withValues(
+                        alpha: 0.25 + 0.2 * _pulseController.value),
+                    blurRadius: 20 + 10 * _pulseController.value,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Text('🤖', style: TextStyle(fontSize: 32)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(_gradEnd),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Syncing with Shami AI…',
+            style: TextStyle(
+              fontFamily: AppFonts.heading,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _textPrimary.withValues(alpha: 0.85),
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Retrieving your conversation history',
+            style: TextStyle(
+              fontFamily: AppFonts.body,
+              fontSize: 12,
+              color: _textMuted.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ).animate().fadeIn(duration: 300.ms),
     );
   }
 
@@ -419,42 +534,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                           _VoiceMessageBubble(text: msg.text)
                         // AI markdown with math formatting and selectability
                         else if (!isUser)
-                          MarkdownBody(
-                            data: msg.text.isEmpty && msg.isStreaming
-                                ? '▋'
-                                : _cleanMathExpressions(msg.text),
-                            selectable: true,
-                            styleSheet: MarkdownStyleSheet(
-                              p: const TextStyle(
-                                  fontSize: 13.8, color: _textPrimary, height: 1.6),
-                              code: TextStyle(
-                                fontFamily: 'monospace',
-                                backgroundColor:
-                                    Colors.white.withValues(alpha: 0.07),
-                                color: _gradEnd,
-                                fontSize: 12.5,
-                              ),
-                              codeblockDecoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.35),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                              ),
-                              codeblockPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              strong: const TextStyle(
-                                  color: _textPrimary,
-                                  fontWeight: FontWeight.w700),
-                              listBullet:
-                                  const TextStyle(color: _gradEnd, fontSize: 13.8),
-                              h1: const TextStyle(fontSize: 18, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
-                              h2: const TextStyle(fontSize: 16, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
-                              h3: const TextStyle(fontSize: 14.5, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
-                              blockquote: const TextStyle(color: _textMuted, fontStyle: FontStyle.italic),
-                              blockquoteDecoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.02),
-                                border: const Border(left: BorderSide(color: _gradEnd, width: 4)),
-                              ),
-                            ),
-                          )
+                          _buildAiResponseContent(msg.text, msg.isStreaming)
                         // User text with selectability
                         else
                           SelectableText(msg.text,
@@ -490,9 +570,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Copy Button
                         _buildBubbleActionButton(
                           icon: Icons.copy_rounded,
                           tooltip: 'Copy Response',
+                          label: 'Copy',
                           onTap: () {
                             Clipboard.setData(ClipboardData(text: _cleanMathExpressions(msg.text)));
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -507,6 +589,66 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                             );
                           },
                         ),
+                        const SizedBox(width: 6),
+                        // Speak/Stop Button (TTS)
+                        _buildBubbleActionButton(
+                          icon: _currentlySpeakingMsgId == msg.id
+                              ? Icons.volume_off_rounded
+                              : Icons.volume_up_rounded,
+                          tooltip: _currentlySpeakingMsgId == msg.id
+                              ? 'Stop Speaking'
+                              : 'Speak Out Loud',
+                          label: _currentlySpeakingMsgId == msg.id ? 'Stop' : 'Speak',
+                          iconColor: _currentlySpeakingMsgId == msg.id
+                              ? const Color(0xFFFF3B5C)
+                              : _textMuted,
+                          textColor: _currentlySpeakingMsgId == msg.id
+                              ? const Color(0xFFFF3B5C)
+                              : _textMuted,
+                          bgColor: _currentlySpeakingMsgId == msg.id
+                              ? const Color(0xFFFF3B5C).withValues(alpha: 0.08)
+                              : null,
+                          onTap: () {
+                            if (_currentlySpeakingMsgId == msg.id) {
+                              TtsService.instance.stop();
+                              setState(() {
+                                _currentlySpeakingMsgId = null;
+                              });
+                            } else {
+                              final cleanText = _cleanMathExpressions(msg.text);
+                              setState(() {
+                                _currentlySpeakingMsgId = msg.id;
+                              });
+                              TtsService.instance.speak(cleanText, onComplete: () {
+                                if (mounted) {
+                                  setState(() {
+                                    _currentlySpeakingMsgId = null;
+                                  });
+                                }
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        // Regenerate Button
+                        _buildBubbleActionButton(
+                          icon: Icons.refresh_rounded,
+                          tooltip: 'Regenerate Response',
+                          label: 'Regenerate',
+                          onTap: () {
+                            // Stop speaking if currently speaking this message
+                            if (_currentlySpeakingMsgId == msg.id) {
+                              TtsService.instance.stop();
+                              setState(() {
+                                _currentlySpeakingMsgId = null;
+                              });
+                            }
+                            ref.read(aiChatProvider.notifier).regenerateMessage(msg);
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        // Save Button
+                        _buildSaveToDocsButton(msg),
                       ],
                     ),
                   ),
@@ -633,7 +775,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                     _stt.listen(
                       onResult: (result) {
                         if (!mounted) return;
-                        if (!_isListening) return;
+                        if (!_isListening) {
+                          _controller.clear();
+                          return;
+                        }
                         setState(() {
                           _liveWords = result.recognizedWords;
                           _controller.text = _liveWords;
@@ -813,6 +958,58 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.2, end: 0);
   }
 
+  Widget _buildSelectedDocumentPreview() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8, left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: _inputBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.description_rounded, color: _gradEnd, size: 24),
+          const SizedBox(width: 8),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Text(
+                _selectedDocument!.name,
+                style: const TextStyle(
+                  color: _textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '(${(_selectedDocument!.size / 1024).toStringAsFixed(1)} KB)',
+            style: const TextStyle(color: _textMuted, fontSize: 11),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedDocument = null;
+              });
+            },
+            child: const Icon(
+              Icons.close_rounded,
+              color: Colors.redAccent,
+              size: 16,
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.2, end: 0);
+  }
+
   Widget _buildInputBar(AiChatState chatState) {
     final hasText = _controller.text.trim().isNotEmpty;
 
@@ -835,6 +1032,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_selectedImage != null) _buildSelectedImagePreview(),
+          if (_selectedDocument != null) _buildSelectedDocumentPreview(),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -843,6 +1041,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                 onImagePicked: (file) {
                   setState(() {
                     _selectedImage = file;
+                    _selectedDocument = null;
+                    _showSuggestions = false;
+                  });
+                  _scrollToBottom();
+                },
+                onDocumentPicked: (file) {
+                  setState(() {
+                    _selectedDocument = file;
+                    _selectedImage = null;
                     _showSuggestions = false;
                   });
                   _scrollToBottom();
@@ -867,7 +1074,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                     maxLines: 5,
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _sendTextOrImage(),
+                    onSubmitted: (_) => _sendTextOrImageOrDocument(),
                     decoration: InputDecoration(
                       hintText: 'Ask Shami anything...',
                       hintStyle: TextStyle(
@@ -886,7 +1093,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
               ),
               const SizedBox(width: 8),
 
-              // Right action button: Send (if text or image) | Mic (if empty, not recording)
+              // Right action button: Send (if text or image or doc) | Mic (if empty, not recording)
               // | Stop (if recording)
               _buildActionButton(chatState, hasText),
             ],
@@ -940,10 +1147,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       );
     }
 
-    // Has text OR attached image — SEND button
-    if (hasText || _selectedImage != null) {
+    // Has text OR attached image OR attached document — SEND button
+    if (hasText || _selectedImage != null || _selectedDocument != null) {
       return GestureDetector(
-        onTap: _sendTextOrImage,
+        onTap: _sendTextOrImageOrDocument,
         child: Container(
           width: 44,
           height: 44,
@@ -1057,7 +1264,10 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       await _stt.listen(
         onResult: (result) {
           if (!mounted) return;
-          if (!_isListening) return;
+          if (!_isListening) {
+            _controller.clear();
+            return;
+          }
           setState(() {
             _liveWords = result.recognizedWords;
             _controller.text = _liveWords;
@@ -1166,7 +1376,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   //  Text Actions
   // ─────────────────────────────────────────────────────────
 
-  void _sendTextOrImage() {
+  void _sendTextOrImageOrDocument() {
     // If listening/recording, stop it first!
     if (_isListening) {
       _stopAndSendVoice();
@@ -1175,16 +1385,20 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
 
     final text = _controller.text.trim();
     final image = _selectedImage;
-    if (text.isEmpty && image == null) return;
+    final doc = _selectedDocument;
+    if (text.isEmpty && image == null && doc == null) return;
 
     _controller.clear();
     setState(() {
       _selectedImage = null;
+      _selectedDocument = null;
       _showSuggestions = false;
     });
     _inputFocus.unfocus();
 
-    if (image != null) {
+    if (doc != null) {
+      ref.read(aiChatProvider.notifier).sendMessageWithDocument(text, doc);
+    } else if (image != null) {
       ref.read(aiChatProvider.notifier).sendMessageWithImage(text, image);
     } else {
       ref.read(aiChatProvider.notifier).sendMessage(text);
@@ -1192,18 +1406,33 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     _scrollToBottom();
   }
 
-  void _scrollToBottom({bool instant = false}) {
-    Future.delayed(const Duration(milliseconds: 80), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: instant
-              ? const Duration(milliseconds: 100)
-              : const Duration(milliseconds: 350),
-          curve: Curves.easeOut,
-        );
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _scrollListener() {
+    if (!_scrollController.hasClients) return;
+    // With reverse: true, the top of the list (older messages) is at maxScrollExtent
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      final chatState = ref.read(aiChatProvider);
+      if (!chatState.isLoading &&
+          !chatState.isLoadingMore &&
+          chatState.hasMoreHistory) {
+        _loadMoreHistory();
       }
-    });
+    }
+  }
+
+  Future<void> _loadMoreHistory() async {
+    if (!mounted) return;
+    await ref.read(aiChatProvider.notifier).loadChatHistory(clearExisting: false);
   }
 
   void _exportChat() {
@@ -1218,203 +1447,837 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     ));
   }
 
+  // ─── Unicode conversion helpers ───────────────────────────────────────────
+
   String _toSuperscript(String input) {
     const map = {
-      '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
-      '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', 'n': 'ⁿ', 'x': 'ˣ', 'i': 'ⁱ', 'r': 'ʳ', 't': 'ᵗ'
+      '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+      '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+      '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾',
+      'n': 'ⁿ', 'x': 'ˣ', 'i': 'ⁱ', 'r': 'ʳ', 't': 'ᵗ',
+      'a': 'ᵃ', 'b': 'ᵇ', 'c': 'ᶜ', 'd': 'ᵈ', 'e': 'ᵉ',
+      'f': 'ᶠ', 'g': 'ᵍ', 'h': 'ʰ', 'j': 'ʲ', 'k': 'ᵏ',
+      'l': 'ˡ', 'm': 'ᵐ', 'o': 'ᵒ', 'p': 'ᵖ', 's': 'ˢ',
+      'u': 'ᵘ', 'v': 'ᵛ', 'w': 'ʷ', 'y': 'ʸ', 'z': 'ᶻ',
     };
     return input.split('').map((char) => map[char] ?? char).join();
   }
 
   String _toSubscript(String input) {
     const map = {
-      '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
-      '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎', 'n': 'ₙ', 'x': 'ₓ', 'i': 'ᵢ', 'r': 'ᵣ', 't': 'ₜ',
-      'a': 'ₐ', 'e': 'ₑ', 'o': 'ₒ', 'j': 'ⱼ', 'k': 'ₖ', 'l': 'ₗ', 'm': 'ₘ', 'p': 'ₚ', 's': 'ₛ', 'u': 'ᵤ', 'v': 'ᵥ'
+      '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+      '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+      '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
+      'a': 'ₐ', 'e': 'ₑ', 'i': 'ᵢ', 'j': 'ⱼ', 'k': 'ₖ',
+      'l': 'ₗ', 'm': 'ₘ', 'n': 'ₙ', 'o': 'ₒ', 'p': 'ₚ',
+      'r': 'ᵣ', 's': 'ₛ', 't': 'ₜ', 'u': 'ᵤ', 'v': 'ᵥ',
+      'x': 'ₓ',
     };
     return input.split('').map((char) => map[char] ?? char).join();
   }
 
+  /// Master LaTeX → Unicode conversion table (used everywhere in text).
+  static const Map<String, String> _latexMap = {
+    // Operators
+    r'\cdot':       '·',
+    r'\times':      '×',
+    r'\div':        '÷',
+    r'\pm':         '±',
+    r'\mp':         '∓',
+    r'\approx':     '≈',
+    r'\neq':        '≠',
+    r'\ne':         '≠',
+    r'\leq':        '≤',
+    r'\geq':        '≥',
+    r'\le':         '≤',
+    r'\ge':         '≥',
+    r'\ll':         '≪',
+    r'\gg':         '≫',
+    r'\sim':        '~',
+    r'\simeq':      '≃',
+    r'\equiv':      '≡',
+    r'\propto':     '∝',
+    r'\in':         '∈',
+    r'\notin':      '∉',
+    r'\subset':     '⊂',
+    r'\supset':     '⊃',
+    r'\cup':        '∪',
+    r'\cap':        '∩',
+    r'\emptyset':   '∅',
+    // Arrows
+    r'\rightarrow': '→',
+    r'\leftarrow':  '←',
+    r'\Rightarrow': '⇒',
+    r'\Leftarrow':  '⇐',
+    r'\leftrightarrow': '↔',
+    r'\Leftrightarrow': '⟺',
+    r'\leftharpoons': '⇌',
+    r'\rightleftharpoons': '⇌',
+    r'\to':         '→',
+    r'\gets':       '←',
+    r'\uparrow':    '↑',
+    r'\downarrow':  '↓',
+    // Dots & misc
+    r'\ldots':      '…',
+    r'\cdots':      '···',
+    r'\vdots':      '⋮',
+    r'\ddots':      '⋱',
+    r'\therefore':  '∴',
+    r'\because':    '∵',
+    r'\forall':     '∀',
+    r'\exists':     '∃',
+    // Geometry / trig
+    r'\angle':      '∠',
+    r'\perp':       '⊥',
+    r'\parallel':   '∥',
+    r'\circ':       '°',
+    r'\degree':     '°',
+    r'^\circ':      '°',
+    r'^\degree':    '°',
+    r'^o':          '°',
+    // Calc / analysis
+    r'\int':        '∫',
+    r'\iint':       '∬',
+    r'\iiint':      '∭',
+    r'\oint':       '∮',
+    r'\sum':        '∑',
+    r'\prod':       '∏',
+    r'\partial':    '∂',
+    r'\nabla':      '∇',
+    r'\infty':      '∞',
+    r'\sqrt':       '√',
+    // Named functions (keep as text)
+    r'\sin':  'sin',
+    r'\cos':  'cos',
+    r'\tan':  'tan',
+    r'\cot':  'cot',
+    r'\sec':  'sec',
+    r'\csc':  'csc',
+    r'\arcsin': 'arcsin',
+    r'\arccos': 'arccos',
+    r'\arctan': 'arctan',
+    r'\sinh': 'sinh',
+    r'\cosh': 'cosh',
+    r'\tanh': 'tanh',
+    r'\log':  'log',
+    r'\ln':   'ln',
+    r'\exp':  'exp',
+    r'\lim':  'lim',
+    r'\max':  'max',
+    r'\min':  'min',
+    r'\gcd':  'gcd',
+    r'\lcm':  'lcm',
+    r'\det':  'det',
+    r'\dim':  'dim',
+    r'\ker':  'ker',
+    // Lowercase Greek
+    r'\alpha':   'α',
+    r'\beta':    'β',
+    r'\gamma':   'γ',
+    r'\delta':   'δ',
+    r'\epsilon': 'ε',
+    r'\varepsilon': 'ε',
+    r'\zeta':    'ζ',
+    r'\eta':     'η',
+    r'\theta':   'θ',
+    r'\vartheta':'ϑ',
+    r'\iota':    'ι',
+    r'\kappa':   'κ',
+    r'\lambda':  'λ',
+    r'\mu':      'μ',
+    r'\nu':      'ν',
+    r'\xi':      'ξ',
+    r'\pi':      'π',
+    r'\varpi':   'ϖ',
+    r'\rho':     'ρ',
+    r'\varrho':  'ϱ',
+    r'\sigma':   'σ',
+    r'\varsigma':'ς',
+    r'\tau':     'τ',
+    r'\upsilon': 'υ',
+    r'\phi':     'φ',
+    r'\varphi':  'φ',
+    r'\chi':     'χ',
+    r'\psi':     'ψ',
+    r'\omega':   'ω',
+    // Uppercase Greek
+    r'\Gamma':   'Γ',
+    r'\Delta':   'Δ',
+    r'\Theta':   'Θ',
+    r'\Lambda':  'Λ',
+    r'\Xi':      'Ξ',
+    r'\Pi':      'Π',
+    r'\Sigma':   'Σ',
+    r'\Upsilon': 'Υ',
+    r'\Phi':     'Φ',
+    r'\Psi':     'Ψ',
+    r'\Omega':   'Ω',
+    // Brackets
+    r'\lfloor': '⌊', r'\rfloor': '⌋',
+    r'\lceil':  '⌈', r'\rceil':  '⌉',
+    r'\langle': '⟨', r'\rangle': '⟩',
+    // Font/style wrappers (remove, keep content via regex later)
+    r'\text':    '',
+    r'\mathrm':  '',
+    r'\mathbf':  '',
+    r'\mathit':  '',
+    r'\mathbb':  '',
+    r'\boldsymbol': '',
+    r'\displaystyle': '',
+    r'\textstyle': '',
+    // Spacing (collapse to space or nothing)
+    r'\,': ' ', r'\;': ' ', r'\:': ' ', r'\!': '',
+    r'\quad': '  ', r'\qquad': '   ',
+    // Brackets \left / \right (strip)
+    r'\left(':  '(',  r'\right)': ')',
+    r'\left[':  '[',  r'\right]': ']',
+    r'\left\{': '{',  r'\right\}': '}',
+    r'\left|':  '|',  r'\right|': '|',
+    r'\left':   '',   r'\right':  '',
+    // Misc
+    r'\limits': '',
+    r'\bullet': '•',
+    r'\star':   '★',
+    r'\dagger': '†',
+    r'\ddagger': '‡',
+    r'\hbar':   'ℏ',
+    r'\ell':    'ℓ',
+    r'\Re':     'ℜ',
+    r'\Im':     'ℑ',
+    r'\aleph':  'ℵ',
+  };
+
   String _formatChemicalFormulas(String text) {
-    // Match element symbol (1 capital + optional 1 lowercase) followed by 1 or more digits
-    // e.g. H2, O2, CO2, H2SO4, C6H12O6
-    final regex = RegExp(r'\b([A-Z][a-z]?)(\d+)\b|([A-Z][a-z]?)(\d+)(?=[A-Z\d])|([A-Z][a-z]?)(\d+)');
+    // Match known element symbol followed by digits: H2O, CO2, H2SO4, C6H12O6
+    const commonChem = {
+      'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne',
+      'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca',
+      'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+      'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr',
+      'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe',
+      'Ba', 'La', 'Ce', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+      'Tl', 'Pb', 'Bi', 'Ra', 'U', 'Pu',
+    };
+    final regex = RegExp(
+      r'\b([A-Z][a-z]?)([0-9]+)(?=[A-Z0-9])|\b([A-Z][a-z]?)([0-9]+)\b',
+    );
     return text.replaceAllMapped(regex, (match) {
-      final element = match.group(1) ?? match.group(3) ?? match.group(5) ?? '';
-      final digits = match.group(2) ?? match.group(4) ?? match.group(6) ?? '';
+      final element = match.group(1) ?? match.group(3) ?? '';
+      final digits  = match.group(2) ?? match.group(4) ?? '';
       if (element.isEmpty || digits.isEmpty) return match.group(0)!;
-      
-      const commonChem = {
-        'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 
-        'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 
-        'Fe', 'Cu', 'Zn', 'Ag', 'Au', 'Pt', 'Hg', 'Pb', 'Sn', 'I', 'Br', 'Co', 'Ni', 'Mn', 'Cr'
-      };
-      if (!commonChem.contains(element)) {
-        return match.group(0)!;
-      }
-      
+      if (!commonChem.contains(element)) return match.group(0)!;
       return '$element${_toSubscript(digits)}';
     });
   }
 
+  /// Convert the inside of a math block (already stripped of delimiters) to
+  /// readable Unicode plain text.
   String _cleanSingleMathBlock(String math) {
-    var result = math;
-    
-    // 1. Remove LaTeX layout directives
-    result = result.replaceAll(r'\displaystyle', '');
-    result = result.replaceAll(r'\limits', '');
-    result = result.replaceAll(r'\,', ' ').replaceAll(r'\;', ' ').replaceAll(r'\!', '');
-    result = result.replaceAll(r'\quad', '  ').replaceAll(r'\qquad', '    ');
-    result = result.replaceAll(r'\left(', '(').replaceAll(r'\right)', ')');
-    result = result.replaceAll(r'\left[', '[').replaceAll(r'\right]', ']');
-    result = result.replaceAll(r'\left\{', '{').replaceAll(r'\right\}', '}');
-    
-    // 2. Replaces basic symbols/functions
-    result = result.replaceAll(r'\int', '∫');
-    result = result.replaceAll(r'\ln', 'ln');
-    result = result.replaceAll(r'\log', 'log');
-    result = result.replaceAll(r'\sin', 'sin');
-    result = result.replaceAll(r'\cos', 'cos');
-    result = result.replaceAll(r'\tan', 'tan');
-    result = result.replaceAll(r'\partial', '∂');
-    result = result.replaceAll(r'\rightarrow', '→');
-    result = result.replaceAll(r'\to', '→');
-    result = result.replaceAll(r'\Rightarrow', '⇒');
-    result = result.replaceAll(r'\pi', 'π');
-    result = result.replaceAll(r'\infty', '∞');
-    result = result.replaceAll(r'\sqrt', '√');
-    result = result.replaceAll(r'\pm', '±');
-    result = result.replaceAll(r'\geq', '≥');
-    result = result.replaceAll(r'\leq', '≤');
-    result = result.replaceAll(r'\neq', '≠');
-    result = result.replaceAll(r'\approx', '≈');
-    result = result.replaceAll(r'\times', ' × ');
-    result = result.replaceAll(r'\cdot', ' · ');
-    result = result.replaceAll(r'\div', ' ÷ ');
-    result = result.replaceAll(r'\sum', '∑');
-    result = result.replaceAll(r'\prod', '∏');
-    result = result.replaceAll(r'\le', '≤');
-    result = result.replaceAll(r'\ge', '≥');
-    result = result.replaceAll(r'\ne', '≠');
-    result = result.replaceAll(r'\theta', 'θ');
-    result = result.replaceAll(r'\alpha', 'α');
-    result = result.replaceAll(r'\beta', 'β');
-    result = result.replaceAll(r'\gamma', 'γ');
-    result = result.replaceAll(r'\delta', 'δ');
-    result = result.replaceAll(r'\Delta', 'Δ');
-    result = result.replaceAll(r'\lambda', 'λ');
-    result = result.replaceAll(r'\sigma', 'σ');
-    result = result.replaceAll(r'\omega', 'ω');
-    result = result.replaceAll(r'\phi', 'φ');
-    result = result.replaceAll(r'\psi', 'ψ');
-    result = result.replaceAll(r'\mu', 'μ');
-    result = result.replaceAll(r'\nu', 'ν');
-    result = result.replaceAll(r'\tau', 'τ');
-    result = result.replaceAll(r'\epsilon', 'ε');
-    result = result.replaceAll(r'\eta', 'η');
-    result = result.replaceAll(r'\rho', 'ρ');
+    var r = math.trim();
 
-    // 3. Extract text from \text{...}
-    final textRegex = RegExp(r'\\text\{([^{}]+)\}');
-    while (textRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(textRegex, (match) => match.group(1)!);
+    // 1. \text{...}, \mathrm{...} etc. → extract inner text
+    final wrapperRx = RegExp(r'\\(?:text|mathrm|mathbf|mathit|mathbb|boldsymbol)\{([^{}]*)\}');
+    while (wrapperRx.hasMatch(r)) {
+      r = r.replaceAllMapped(wrapperRx, (m) => m.group(1)!);
     }
 
-    // 4. Format fractions: \frac{num}{den} -> num/den
-    final fracRegex = RegExp(r'\\frac\{([^{}]+)\}\{([^{}]+)\}');
-    while (fracRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(fracRegex, (match) {
-        final num = match.group(1)!;
-        final den = match.group(2)!;
-        final displayNum = num.length > 1 && (num.contains('+') || num.contains('-') || num.contains('x')) ? '($num)' : num;
-        final displayDen = den.length > 1 && (den.contains('+') || den.contains('-') || den.contains('x')) ? '($den)' : den;
-        return '$displayNum/$displayDen';
+    // 2. \sqrt{x} → √(x),  \sqrt[n]{x} → ⁿ√(x)
+    final sqrtNRx = RegExp(r'\\sqrt\[([^\]]+)\]\{([^{}]*)\}');
+    while (sqrtNRx.hasMatch(r)) {
+      r = r.replaceAllMapped(sqrtNRx, (m) => '${_toSuperscript(m.group(1)!)}√(${m.group(2)!})');
+    }
+    final sqrtRx = RegExp(r'\\sqrt\{([^{}]*)\}');
+    while (sqrtRx.hasMatch(r)) {
+      r = r.replaceAllMapped(sqrtRx, (m) => '√(${m.group(1)!})');
+    }
+    // bare \sqrt (no braces)
+    r = r.replaceAll(r'\sqrt', '√');
+
+    // 3. \frac{num}{den} → (num)/(den)  [handle nested up to 3 passes]
+    final fracRx = RegExp(r'\\frac\{([^{}]*)\}\{([^{}]*)\}');
+    for (int pass = 0; pass < 4; pass++) {
+      if (!fracRx.hasMatch(r)) break;
+      r = r.replaceAllMapped(fracRx, (m) {
+        final n = m.group(1)!.trim();
+        final d = m.group(2)!.trim();
+        final nd = (n.contains(RegExp(r'[+\-]')) && n.length > 1) ? '($n)' : n;
+        final dd = (d.contains(RegExp(r'[+\-]')) && d.length > 1) ? '($d)' : d;
+        return '$nd/$dd';
       });
     }
 
-    // 5. Format superscripts: ^{2} or ^2
-    final superRegex = RegExp(r'\^\{([^{}]+)\}');
-    while (superRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(superRegex, (match) {
-        return _toSuperscript(match.group(1)!);
-      });
+    // 4. Apply the master symbol map (longest keys first to avoid partial hits)
+    final keys = _latexMap.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final key in keys) {
+      r = r.replaceAll(key, _latexMap[key]!);
     }
-    final superSingleRegex = RegExp(r'\^([0-9a-zA-Z\+\-\(\)])');
-    result = result.replaceAllMapped(superSingleRegex, (match) {
-      return _toSuperscript(match.group(1)!);
-    });
 
-    // 6. Format subscripts: _{i} or _i
-    final subRegex = RegExp(r'_\{([^{}]+)\}');
-    while (subRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(subRegex, (match) {
-        return _toSubscript(match.group(1)!);
-      });
+    // 5. Remove remaining unknown \cmd{...} → keep inner text
+    final unknownCmd = RegExp(r'\\[a-zA-Z]+\{([^{}]*)\}');
+    while (unknownCmd.hasMatch(r)) {
+      r = r.replaceAllMapped(unknownCmd, (m) => m.group(1)!);
     }
-    final subSingleRegex = RegExp(r'_([0-9a-zA-Z\+\-\(\)])');
-    result = result.replaceAllMapped(subSingleRegex, (match) {
-      return _toSubscript(match.group(1)!);
-    });
-    
-    // 7. General cleanup of double spaces or backslashes
-    result = result.replaceAll(r'\\', '\n');
+    // Remove remaining bare \cmd
+    r = r.replaceAll(RegExp(r'\\[a-zA-Z]+'), '');
 
-    return result;
+    // 6. Superscripts ^{...} and ^x
+    final supBrace = RegExp(r'\^\{([^{}]*)\}');
+    while (supBrace.hasMatch(r)) {
+      r = r.replaceAllMapped(supBrace, (m) => _toSuperscript(m.group(1)!));
+    }
+    r = r.replaceAllMapped(
+      RegExp(r'\^([0-9a-zA-Z+\-])'),
+      (m) => _toSuperscript(m.group(1)!),
+    );
+
+    // 7. Subscripts _{...} and _x
+    final subBrace = RegExp(r'_\{([^{}]*)\}');
+    while (subBrace.hasMatch(r)) {
+      r = r.replaceAllMapped(subBrace, (m) => _toSubscript(m.group(1)!));
+    }
+    r = r.replaceAllMapped(
+      RegExp(r'_([0-9a-zA-Z+\-])'),
+      (m) => _toSubscript(m.group(1)!),
+    );
+
+    // 8. Braces remaining → strip
+    r = r.replaceAll('{', '').replaceAll('}', '');
+
+    // 9. Collapse \\\\ (newline in math) → space
+    r = r.replaceAll(r'\\', ' ');
+
+    // 10. Collapse multiple spaces
+    r = r.replaceAll(RegExp(r'  +'), ' ').trim();
+
+    return r;
   }
 
+  /// Master entry point: converts ALL LaTeX in a full AI response to Unicode.
+  /// Works on $...$, $$...$$, \(...\), \[...\], AND bare \cmd anywhere.
   String _cleanMathExpressions(String text) {
-    var result = text;
+    var r = text;
 
-    // A. Format chemical equations globally across the entire text
-    result = _formatChemicalFormulas(result);
+    // ── 1. Display math blocks  $$...$$  (multiline) ─────────────────────────
+    r = r.replaceAllMapped(
+      RegExp(r'\$\$(.+?)\$\$', dotAll: true),
+      (m) => '\n${_cleanSingleMathBlock(m.group(1)!)}\n',
+    );
 
-    // B. Clean double dollar display math blocks: $$...$$
-    final displayMathRegex = RegExp(r'\$\$([^\$]+)\$\$');
-    while (displayMathRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(displayMathRegex, (match) {
-        final math = match.group(1)!;
-        return '\n${_cleanSingleMathBlock(math)}\n';
+    // ── 2. Display math blocks  \[...\] ──────────────────────────────────────
+    r = r.replaceAllMapped(
+      RegExp(r'\\\[(.+?)\\\]', dotAll: true),
+      (m) => '\n${_cleanSingleMathBlock(m.group(1)!)}\n',
+    );
+
+    // ── 3. Inline math blocks  $...$  (single line only) ─────────────────────
+    r = r.replaceAllMapped(
+      RegExp(r'\$([^\$\n]+)\$'),
+      (m) => _cleanSingleMathBlock(m.group(1)!),
+    );
+
+    // ── 4. Inline math blocks  \(...\) ────────────────────────────────────────
+    r = r.replaceAllMapped(
+      RegExp(r'\\\((.+?)\\\)', dotAll: true),
+      (m) => _cleanSingleMathBlock(m.group(1)!),
+    );
+
+    // ── 5. Bare LaTeX commands anywhere (outside delimiters) ──────────────────
+    //  Apply in longest-key-first order to avoid partial replacements.
+    final keys = _latexMap.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final key in keys) {
+      // Skip font-wrapper keys — they need the {arg} form handled below.
+      if (_latexMap[key]!.isEmpty) continue;
+      r = r.replaceAll(key, _latexMap[key]!);
+    }
+
+    // ── 6. Bare \frac{a}{b} outside delimiters ────────────────────────────────
+    final fracRx = RegExp(r'\\frac\{([^{}]*)\}\{([^{}]*)\}');
+    for (int pass = 0; pass < 4; pass++) {
+      if (!fracRx.hasMatch(r)) break;
+      r = r.replaceAllMapped(fracRx, (m) {
+        final n = m.group(1)!.trim();
+        final d = m.group(2)!.trim();
+        return '$n/$d';
       });
     }
 
-    // C. Clean single dollar inline math blocks: $...$
-    final inlineMathRegex = RegExp(r'\$([^\$\n]+)\$');
-    while (inlineMathRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(inlineMathRegex, (match) {
-        final math = match.group(1)!;
-        return _cleanSingleMathBlock(math);
-      });
+    // ── 7. Bare \sqrt{x} outside delimiters ──────────────────────────────────
+    final sqrtBrace = RegExp(r'√\{([^{}]*)\}');
+    while (sqrtBrace.hasMatch(r)) {
+      r = r.replaceAllMapped(sqrtBrace, (m) => '√(${m.group(1)!})');
     }
-
-    // D. Clean \( ... \) LaTeX inline blocks
-    final parenMathRegex = RegExp(r'\\\(([^\\]+)\\\)');
-    while (parenMathRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(parenMathRegex, (match) {
-        final math = match.group(1)!;
-        return _cleanSingleMathBlock(math);
-      });
+    // Remove remaining \cmd{...} font wrappers → keep content
+    final wrapRx = RegExp(r'\\[a-zA-Z]+\{([^{}]*)\}');
+    while (wrapRx.hasMatch(r)) {
+      r = r.replaceAllMapped(wrapRx, (m) => m.group(1)!);
     }
+    // Remove any remaining bare \cmd (unknown)
+    r = r.replaceAll(RegExp(r'\\[a-zA-Z]+'), '');
 
-    // E. Clean \[ ... \] LaTeX display blocks
-    final bracketMathRegex = RegExp(r'\\\[([^\\\]]+)\\\]');
-    while (bracketMathRegex.hasMatch(result)) {
-      result = result.replaceAllMapped(bracketMathRegex, (match) {
-        final math = match.group(1)!;
-        return '\n${_cleanSingleMathBlock(math)}\n';
-      });
+    // ── 8. Bare superscripts ^2 / ^{n+1} outside math (in plain text) ────────
+    //  Only convert when preceded by a word char (so markdown ^ headers are safe)
+    r = r.replaceAllMapped(
+      RegExp(r'(?<=\w)\^\{([^{}]+)\}'),
+      (m) => _toSuperscript(m.group(1)!),
+    );
+    r = r.replaceAllMapped(
+      RegExp(r'(?<=\w)\^([0-9+\-])'),
+      (m) => _toSuperscript(m.group(1)!),
+    );
+
+    // ── 9. Bare subscripts _2 / _{i} outside math (in plain text) ────────────
+    //  Only convert when preceded by a letter (avoids Markdown _italic_ clash)
+    r = r.replaceAllMapped(
+      RegExp(r'(?<=[A-Za-z])_\{([^{}]+)\}'),
+      (m) => _toSubscript(m.group(1)!),
+    );
+    r = r.replaceAllMapped(
+      RegExp(r'(?<=[A-Za-z])_([0-9])'),
+      (m) => _toSubscript(m.group(1)!),
+    );
+
+    // ── 10. Chemical formula subscripts (e.g. H2O → H₂O) ────────────────────
+    r = _formatChemicalFormulas(r);
+
+    // ── 11. Strip any leftover stray dollar signs ─────────────────────────────
+    //  (but preserve markdown \$ escape — convert it to literal $)
+    r = r.replaceAll(r'\$', '\u0024'); // \$ → $ (escaped dollars)
+    r = r.replaceAll(r'$', '');         // bare $ → remove
+
+    // ── 12. Strip leftover bracket wrappers ──────────────────────────────────
+    r = r.replaceAll(r'\(', '').replaceAll(r'\)', '');
+    r = r.replaceAll(r'\[', '').replaceAll(r'\]', '');
+
+    // ── 13. Replace caret-degree / caret-circle patterns ─────────────────────
+    r = r.replaceAll('^°', '°').replaceAll('^∘', '°').replaceAll('^o', '°');
+
+    return r;
+  }
+
+  Future<void> _handleLinkTap(String? href) async {
+    if (href != null) {
+      try {
+        final uri = Uri.parse(href);
+        final finalUri = href.startsWith('/api')
+            ? Uri.parse('${AppConfig.baseUrl}$href')
+            : href.startsWith('/') 
+                ? Uri.parse('${AppConfig.apiBaseUrl}$href')
+                : uri;
+        
+        final pathLower = href.toLowerCase();
+        final isDownload = pathLower.contains('/download') ||
+            pathLower.endsWith('.pdf') ||
+            pathLower.endsWith('.xlsx') ||
+            pathLower.endsWith('.csv') ||
+            pathLower.endsWith('.docx') ||
+            pathLower.endsWith('.txt');
+
+        if (isDownload) {
+          final fileName = uri.pathSegments.isNotEmpty
+              ? Uri.decodeComponent(uri.pathSegments.last)
+              : 'downloaded_file';
+          await getDownloadHelper().downloadFile(finalUri.toString(), fileName);
+        } else {
+          await launchUrl(finalUri, mode: LaunchMode.externalApplication);
+        }
+      } catch (e) {
+        debugPrint('Error launching URL: $e');
+        if (mounted) {
+          final errMsg = e.toString().contains('404')
+              ? 'Document not found on server. It may not have been generated yet.'
+              : 'Download failed: $e';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errMsg),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      }
     }
+  }
 
-    // F. Final failsafe strip of general math wrappers if any remain unclosed
-    result = result.replaceAll(r'\(', '').replaceAll(r'\)', '');
-    result = result.replaceAll(r'\[', '\n').replaceAll(r'\]', '\n');
+  MarkdownStyleSheet _getMarkdownStyle() {
+    return MarkdownStyleSheet(
+      p: const TextStyle(
+          fontSize: 13.8, color: _textPrimary, height: 1.6),
+      code: TextStyle(
+        fontFamily: 'monospace',
+        backgroundColor:
+            Colors.white.withValues(alpha: 0.07),
+        color: _gradEnd,
+        fontSize: 12.5,
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      codeblockPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      strong: const TextStyle(
+          color: _textPrimary,
+          fontWeight: FontWeight.w700),
+      listBullet:
+          const TextStyle(color: _gradEnd, fontSize: 13.8),
+      h1: const TextStyle(fontSize: 18, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
+      h2: const TextStyle(fontSize: 16, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
+      h3: const TextStyle(fontSize: 14.5, color: _textPrimary, fontWeight: FontWeight.bold, height: 1.5),
+      blockquote: const TextStyle(color: _textMuted, fontStyle: FontStyle.italic),
+      blockquoteDecoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        border: const Border(left: BorderSide(color: _gradEnd, width: 4)),
+      ),
+    );
+  }
 
-    return result;
+  Widget _buildAiResponseContent(String text, bool isStreaming) {
+    final imgRegex = RegExp(r'!\[(.*?)\]\((https?://.*?)\)');
+    
+    if (!imgRegex.hasMatch(text)) {
+      return MarkdownBody(
+        data: text.isEmpty && isStreaming ? '▋' : _cleanMathExpressions(text),
+        selectable: true,
+        onTapLink: (t, href, tl) => _handleLinkTap(href),
+        styleSheet: _getMarkdownStyle(),
+      );
+    }
+    
+    final List<Widget> children = [];
+    int lastIndex = 0;
+    
+    for (final match in imgRegex.allMatches(text)) {
+      if (match.start > lastIndex) {
+        final precedingText = text.substring(lastIndex, match.start).trim();
+        if (precedingText.isNotEmpty) {
+          children.add(
+            MarkdownBody(
+              data: precedingText.isEmpty && isStreaming ? '▋' : _cleanMathExpressions(precedingText),
+              selectable: true,
+              onTapLink: (t, href, tl) => _handleLinkTap(href),
+              styleSheet: _getMarkdownStyle(),
+            ),
+          );
+          children.add(const SizedBox(height: 12));
+        }
+      }
+      
+      final altText = match.group(1) ?? 'Image';
+      var imageUrl = match.group(2) ?? '';
+      
+      if (imageUrl.isNotEmpty) {
+        if (imageUrl.startsWith('http')) {
+          imageUrl = '${AppConfig.apiBaseUrl}/chat/image-proxy?url=${Uri.encodeComponent(imageUrl)}';
+        }
+        children.add(_buildPremiumAiImageCard(imageUrl, altText));
+        children.add(const SizedBox(height: 12));
+      }
+      
+      lastIndex = match.end;
+    }
+    
+    if (lastIndex < text.length) {
+      final remainingText = text.substring(lastIndex).trim();
+      if (remainingText.isNotEmpty) {
+        children.add(
+          MarkdownBody(
+            data: remainingText.isEmpty && isStreaming ? '▋' : _cleanMathExpressions(remainingText),
+            selectable: true,
+            onTapLink: (t, href, tl) => _handleLinkTap(href),
+            styleSheet: _getMarkdownStyle(),
+          ),
+        );
+      }
+    }
+    
+    if (children.isNotEmpty && children.last is SizedBox) {
+      children.removeLast();
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+  }
+
+  Widget _buildPremiumAiImageCard(String url, String alt) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            GestureDetector(
+              onTap: () => _showFullScreenImagePreview(url, alt),
+              child: SizedBox(
+                height: 280,
+                width: double.infinity,
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    
+                    final totalBytes = loadingProgress.expectedTotalBytes;
+                    final loadedBytes = loadingProgress.cumulativeBytesLoaded;
+                    final progressValue = totalBytes != null ? loadedBytes / totalBytes : null;
+                    
+                    return Container(
+                      color: _inputBg,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 45,
+                              height: 45,
+                              padding: const EdgeInsets.all(4),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                value: progressValue,
+                                valueColor: const AlwaysStoppedAnimation<Color>(_gradEnd),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Generating premium image...',
+                              style: TextStyle(
+                                color: _textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: _inputBg,
+                      padding: const EdgeInsets.all(16),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image_rounded, color: _recordRed, size: 40),
+                          SizedBox(height: 8),
+                          Text(
+                            'Failed to render image',
+                            style: TextStyle(color: _textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Please verify your connection or try again.',
+                            style: TextStyle(color: _textMuted, fontSize: 11),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.black.withValues(alpha: 0.85), Colors.transparent],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      alt.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: _gradEnd,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      final fileName = 'shami_ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                      getDownloadHelper().downloadFile(url, fileName);
+                    },
+                    child: const Tooltip(
+                      message: 'Download Image',
+                      child: Icon(
+                        Icons.download_for_offline_rounded,
+                        color: _gradEnd,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: _gradEnd,
+                    size: 14,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImagePreview(String url, String alt) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close Preview',
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Hero(
+                    tag: url,
+                    child: InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(_gradEnd),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(Icons.broken_image_rounded, color: _recordRed, size: 60),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          alt,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.download_for_offline_rounded, color: _gradEnd, size: 28),
+                        tooltip: 'Download Image',
+                        onPressed: () {
+                          final fileName = 'shami_ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                          getDownloadHelper().downloadFile(url, fileName);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Starting image download...'),
+                              duration: Duration(seconds: 2),
+                              backgroundColor: _inputBg,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildBubbleActionButton({
     required IconData icon,
     required String tooltip,
+    required String label,
     required VoidCallback onTap,
+    Color? iconColor,
+    Color? textColor,
+    Color? bgColor,
+    Border? border,
   }) {
     return Tooltip(
       message: tooltip.tr(ref),
@@ -1423,26 +2286,161 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
+            color: bgColor ?? Colors.white.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+            border: border ?? Border.all(color: Colors.white.withValues(alpha: 0.04)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 12, color: _textMuted),
+              Icon(icon, size: 12, color: iconColor ?? _textMuted),
               const SizedBox(width: 4),
               Text(
-                'Copy'.tr(ref),
-                style: const TextStyle(
+                label.tr(ref),
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: _textMuted,
+                  color: textColor ?? _textMuted,
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// "Save to Documents" button shown below each completed AI response.
+  Widget _buildSaveToDocsButton(ChatMessage msg) {
+    return Tooltip(
+      message: 'Save to Documents',
+      child: GestureDetector(
+        onTap: () => _showSaveToDocsDialog(msg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: const Color(0xFF4F46E5).withValues(alpha: 0.2)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.bookmark_add_rounded, size: 12, color: Color(0xFF4F46E5)),
+              SizedBox(width: 4),
+              Text(
+                'Save',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF4F46E5),
+                  fontFamily: AppFonts.body,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSaveToDocsDialog(ChatMessage msg) {
+    final chatState = ref.read(aiChatProvider);
+    final titleCtrl = TextEditingController(
+      text: msg.text.length > 60
+          ? '${msg.text.substring(0, 60).trim()}…'
+          : msg.text.trim(),
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '💾 Save to Documents',
+          style: TextStyle(
+            fontFamily: AppFonts.heading,
+            fontWeight: FontWeight.w800,
+            fontSize: 17,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Give this document a title and it will appear in your Documents Hub.',
+              style: TextStyle(fontFamily: AppFonts.body, fontSize: 13),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: titleCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Document title',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                      color: Color(0xFF4F46E5), width: 2),
+                ),
+              ),
+              style: const TextStyle(fontFamily: AppFonts.body),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.save_rounded,
+                color: Colors.white, size: 16),
+            label: const Text('Save',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: AppFonts.heading,
+                    fontWeight: FontWeight.w700)),
+            onPressed: () async {
+              final title = titleCtrl.text.trim();
+              if (title.isEmpty) return;
+              Navigator.pop(ctx);
+              final saved = await ref
+                  .read(documentsProvider.notifier)
+                  .saveAiDocument(
+                    title: title,
+                    content: msg.text,
+                    sessionId: chatState.sessionId,
+                  );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(saved
+                        ? '✅ Saved to Documents Hub!'
+                        : '❌ Failed to save document'),
+                    backgroundColor: saved
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFEF4444),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }
@@ -1736,7 +2734,8 @@ class _VoiceMessageBubble extends StatelessWidget {
 
 class _AttachButton extends StatelessWidget {
   final void Function(XFile) onImagePicked;
-  const _AttachButton({required this.onImagePicked});
+  final void Function(PlatformFile) onDocumentPicked;
+  const _AttachButton({required this.onImagePicked, required this.onDocumentPicked});
 
   static const _inputBg   = Color(0xFF1A1E35);
   static const _textMuted = Color(0xFF6E7AAB);
@@ -1794,11 +2793,15 @@ class _AttachButton extends StatelessWidget {
                   label: 'Gallery',
                   gradient: const LinearGradient(
                       colors: [Color(0xFF5B4FFF), Color(0xFF00D4FF)]),
-                  onTap: () async {
+                  onTap: () {
                     Navigator.pop(context);
-                    final f = await ImagePicker().pickImage(
-                        source: ImageSource.gallery, imageQuality: 80);
-                    if (f != null) onImagePicked(f);
+                    ImagePicker()
+                        .pickImage(source: ImageSource.gallery, imageQuality: 80)
+                        .then((f) {
+                      if (f != null) onImagePicked(f);
+                    }).catchError((e) {
+                      debugPrint('Gallery picker error: $e');
+                    });
                   },
                 ),
                 _AttachOption(
@@ -1806,11 +2809,15 @@ class _AttachButton extends StatelessWidget {
                   label: 'Camera',
                   gradient: const LinearGradient(
                       colors: [Color(0xFF00E676), Color(0xFF00BCD4)]),
-                  onTap: () async {
+                  onTap: () {
                     Navigator.pop(context);
-                    final f = await ImagePicker().pickImage(
-                        source: ImageSource.camera, imageQuality: 80);
-                    if (f != null) onImagePicked(f);
+                    ImagePicker()
+                        .pickImage(source: ImageSource.camera, imageQuality: 80)
+                        .then((f) {
+                      if (f != null) onImagePicked(f);
+                    }).catchError((e) {
+                      debugPrint('Camera picker error: $e');
+                    });
                   },
                 ),
                 _AttachOption(
@@ -1820,13 +2827,20 @@ class _AttachButton extends StatelessWidget {
                       colors: [Color(0xFFFF6B35), Color(0xFFFF9800)]),
                   onTap: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: const Text('Document upload coming soon!'),
-                      backgroundColor: const Color(0xFF1E2240),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ));
+                    FilePicker.platform.pickFiles(
+                      type: FileType.custom,
+                      allowedExtensions: ['pdf', 'xlsx', 'xls', 'csv', 'docx', 'doc', 'txt'],
+                      withData: true,
+                    ).then((result) {
+                      if (result != null && result.files.isNotEmpty) {
+                        final file = result.files.first;
+                        if (kIsWeb ? (file.bytes != null) : (file.path != null || file.bytes != null)) {
+                          onDocumentPicked(file);
+                        }
+                      }
+                    }).catchError((e) {
+                      debugPrint('File picking error: $e');
+                    });
                   },
                 ),
               ],
@@ -1881,4 +2895,28 @@ class _AttachOption extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Keep Alive Wrapper for Smooth Scroll Rendering
+// ─────────────────────────────────────────────────────────────
+
+class KeepAliveWrapper extends StatefulWidget {
+  final Widget child;
+  const KeepAliveWrapper({super.key, required this.child});
+
+  @override
+  State<KeepAliveWrapper> createState() => _KeepAliveWrapperState();
+}
+
+class _KeepAliveWrapperState extends State<KeepAliveWrapper>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+
+  @override
+  bool get wantKeepAlive => true;
 }

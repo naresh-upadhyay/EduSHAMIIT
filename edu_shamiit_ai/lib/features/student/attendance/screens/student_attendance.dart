@@ -167,7 +167,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF1D4ED8), Color(0xFF3B82F6)],
