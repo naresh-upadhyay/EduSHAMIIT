@@ -194,6 +194,7 @@ async def login(request: LoginRequest):
             data={
                 "token": token,
                 "refresh_token": auth_response.session.refresh_token,
+                "supabase_access_token": auth_response.session.access_token,
                 "user": {
                     "id": user_id,
                     "full_name": p["full_name"],

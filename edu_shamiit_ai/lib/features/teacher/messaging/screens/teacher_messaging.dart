@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
     if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
     if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +12,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
-import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
+import 'package:edu_shamiit_ai/core/constants/teacher_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
@@ -20,14 +20,14 @@ import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class StudentMessaging extends ConsumerStatefulWidget {
-  const StudentMessaging({super.key});
+class TeacherMessaging extends ConsumerStatefulWidget {
+  const TeacherMessaging({super.key});
 
   @override
-  ConsumerState<StudentMessaging> createState() => _StudentMessagingState();
+  ConsumerState<TeacherMessaging> createState() => _TeacherMessagingState();
 }
 
-class _StudentMessagingState extends ConsumerState<StudentMessaging> {
+class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
   int _selectedCategory = 0; // 0=All, 1=Teachers, 2=Students, 3=Groups
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
@@ -49,7 +49,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
     final currentUserId = ref.read(authProvider).userData?['id'] as String?;
     if (currentUserId == null) return;
 
-    final channelName = 'messages_list_stud_$currentUserId';
+    final channelName = 'messages_list_teach_$currentUserId';
     _realtimeChannel = Supabase.instance.client.channel(channelName);
     
     _realtimeChannel!.onPostgresChanges(
@@ -123,8 +123,8 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
   Gradient _getGradientForSender(String senderId) {
     final hash = senderId.hashCode;
     final gradients = [
-      const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)]),
-      const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFFDB2777)]),
+      const LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)]),
+      const LinearGradient(colors: [Color(0xFF0284C7), Color(0xFF0369A1)]),
       const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
       const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFF97316)]),
       const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)]),
@@ -157,14 +157,14 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
             padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)],
               ),
             ),
             child: Row(
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => safeGoBack(context, '/student/dashboard'),
+                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -199,12 +199,12 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                       )
                     : null,
                 hintText: '🔍 Search teachers, students...',
-                hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                hintStyle: const TextStyle(fontSize: 12, color: TeacherColors.text3),
                 filled: true,
-                fillColor: StudentColors.surface,
+                fillColor: TeacherColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: StudentColors.border),
+                  borderSide: const BorderSide(color: TeacherColors.border),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
@@ -243,15 +243,15 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.chat_bubble_outline, size: 64, color: StudentColors.text3),
-                                    SizedBox(height: 12),
+                                    Icon(Icons.chat_bubble_outline, size: 64, color: TeacherColors.text3),
+                                    SizedBox(height: 16),
                                     Text(
                                       'No messages yet',
                                       style: TextStyle(
                                         fontFamily: AppFonts.heading,
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
-                                        color: StudentColors.text3,
+                                        color: TeacherColors.text3,
                                       ),
                                     ),
                                   ],
@@ -281,7 +281,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? StudentColors.primary : const Color(0xFFEEF2FF),
+          color: isActive ? TeacherColors.primary : const Color(0xFFE0F2FE),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
@@ -289,7 +289,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: isActive ? Colors.white : StudentColors.primary,
+            color: isActive ? Colors.white : TeacherColors.primary,
             fontFamily: AppFonts.heading,
           ),
         ),
@@ -308,12 +308,12 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                  colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                    color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -357,7 +357,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
               ? const Center(
                   child: Text(
                     'No groups joined yet',
-                    style: TextStyle(color: StudentColors.text3, fontSize: 13),
+                    style: TextStyle(color: TeacherColors.text3, fontSize: 13),
                   ),
                 )
               : ListView.builder(
@@ -381,7 +381,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: StudentColors.text3),
+            Icon(Icons.search_off, size: 64, color: TeacherColors.text3),
             SizedBox(height: 16),
             Text(
               'No users found',
@@ -389,7 +389,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                 fontFamily: AppFonts.heading,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: StudentColors.text3,
+                color: TeacherColors.text3,
               ),
             ),
           ],
@@ -416,7 +416,6 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                   senderId: id,
                   isGroup: false,
                   avatarUrl: u['avatar_url'] as String?,
-                  senderRole: role,
                 ),
               ),
             );
@@ -425,7 +424,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
             margin: const EdgeInsets.only(bottom: 6),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: StudentColors.surface,
+              color: TeacherColors.surface,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
@@ -441,7 +440,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                   height: 42,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                      colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)],
                     ),
                     borderRadius: BorderRadius.circular(50),
                   ),
@@ -494,7 +493,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                         style: const TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
-                          color: StudentColors.primary,
+                          color: TeacherColors.primary,
                         ),
                       ),
                     ],
@@ -503,7 +502,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 14,
-                  color: StudentColors.text3,
+                  color: TeacherColors.text3,
                 ),
               ],
             ),
@@ -525,7 +524,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
         margin: const EdgeInsets.only(bottom: 6),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: StudentColors.surface,
+          color: TeacherColors.surface,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -575,7 +574,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                       width: 10,
                       height: 10,
                       decoration: const BoxDecoration(
-                        color: StudentColors.primary,
+                        color: TeacherColors.primary,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -602,7 +601,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEEF2FF),
+                            color: const Color(0xFFE0F2FE),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
@@ -610,7 +609,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                             style: TextStyle(
                               fontSize: 7,
                               fontWeight: FontWeight.w700,
-                              color: StudentColors.primary,
+                              color: TeacherColors.primary,
                             ),
                           ),
                         ),
@@ -622,7 +621,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                     conversation.lastMessage,
                     style: TextStyle(
                       fontSize: 10,
-                      color: conversation.unreadCount > 0 ? StudentColors.text : StudentColors.text3,
+                      color: conversation.unreadCount > 0 ? TeacherColors.text : TeacherColors.text3,
                       fontWeight: conversation.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
                     ),
                     maxLines: 1,
@@ -638,7 +637,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                   _formatTime(conversation.lastMessageTime),
                   style: const TextStyle(
                     fontSize: 9,
-                    color: StudentColors.text3,
+                    color: TeacherColors.text3,
                   ),
                 ),
                 if (conversation.unreadCount > 0) ...[
@@ -646,7 +645,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: const BoxDecoration(
-                      color: StudentColors.primary,
+                      color: TeacherColors.primary,
                       borderRadius: BorderRadius.all(Radius.circular(10)),
                     ),
                     child: Center(
@@ -674,7 +673,6 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
           senderId: conversation.id,
           isGroup: conversation.type == 'group',
           avatarUrl: conversation.avatarUrl,
-          senderRole: conversation.role ?? 'student',
         ),
       ),
     );
@@ -733,7 +731,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                             return ListTile(
                               contentPadding: const EdgeInsets.symmetric(vertical: 4),
                               title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              subtitle: Text(desc, style: const TextStyle(fontSize: 11, color: StudentColors.text3)),
+                              subtitle: Text(desc, style: const TextStyle(fontSize: 11, color: TeacherColors.text3)),
                               trailing: isMember
                                   ? const Text('Joined', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))
                                   : ElevatedButton(
@@ -748,7 +746,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: StudentColors.primary,
+                                        backgroundColor: TeacherColors.primary,
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(horizontal: 16),
                                       ),
@@ -774,7 +772,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _CreateGroupBottomSheet(isTeacher: false),
+      builder: (context) => const _CreateGroupBottomSheet(isTeacher: true),
     );
   }
 }
@@ -785,14 +783,12 @@ class _ChatDetailScreen extends ConsumerStatefulWidget {
   final String senderId;
   final bool isGroup;
   final String? avatarUrl;
-  final String senderRole;
 
   const _ChatDetailScreen({
     required this.senderName,
     required this.senderId,
     required this.isGroup,
     this.avatarUrl,
-    this.senderRole = 'student',
   });
 
   @override
@@ -829,7 +825,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     final currentUserId = ref.read(authProvider).userData?['id'] as String?;
     if (currentUserId == null) return;
 
-    final channelName = 'messages_chat_stud_${widget.senderId}_$currentUserId';
+    final channelName = 'messages_chat_teach_${widget.senderId}_$currentUserId';
     _realtimeChannel = Supabase.instance.client.channel(channelName);
     
     _realtimeChannel!.onPostgresChanges(
@@ -860,12 +856,11 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
           // Step 1: Instantly append the raw message for immediate UI update
           ref.read(messagingProvider.notifier).appendNewMessage(newRecord, currentUserId);
           // Step 2: Background-fetch full history to populate sender info (name/avatar)
-          // Use a short delay to avoid race condition with the instant update
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {
               ref.read(messagingProvider.notifier).fetchChatHistory(
                 widget.senderId,
-                refreshConversations: msgSenderId != currentUserId, // refresh convs only for incoming
+                refreshConversations: msgSenderId != currentUserId,
               );
             }
           });
@@ -895,6 +890,16 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       _stt.stop();
     } catch (_) {}
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _startVoice() async {
@@ -1141,7 +1146,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     
     try {
       final response = await ref.read(apiServiceProvider).multipartPostBytes(
-        '/student/messages/upload',
+        '/teacher/messages/upload',
         bytes,
         filename,
         'file',
@@ -1176,7 +1181,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     
     try {
       final response = await ref.read(apiServiceProvider).multipartPostBytes(
-        '/student/messages/upload',
+        '/teacher/messages/upload',
         bytes,
         filename,
         'file',
@@ -1242,971 +1247,6 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
         SnackBar(content: Text('Failed to export chat: $e')),
       );
     }
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
-
-  void _startCall({required bool isVideo}) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.95),
-      transitionDuration: const Duration(milliseconds: 250),
-      pageBuilder: (context, anim1, anim2) {
-        return _CallOverlayScreen(
-          callerName: widget.senderName,
-          isVideo: isVideo,
-        );
-      },
-    );
-  }
-
-  void _showDetailsView() async {
-    List<Map<String, dynamic>> groupMembers = [];
-    bool isLoadingMembers = false;
-    final currentUserId = ref.read(authProvider).userData?['id'] as String?;
-    
-    if (widget.isGroup) {
-      setState(() => isLoadingMembers = true);
-      groupMembers = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
-      if (!mounted) return;
-      setState(() => isLoadingMembers = false);
-    }
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Consumer(
-          builder: (context, ref, child) {
-            return StatefulBuilder(
-              builder: (context, setSheetState) {
-                final messagingState = ref.watch(messagingProvider);
-                final isBlocked = messagingState.blockedUserIds.contains(widget.senderId);
-                final activeConv = messagingState.conversations.firstWhere(
-                  (c) => c.id == widget.senderId,
-                  orElse: () => ChatConversation(
-                    id: widget.senderId,
-                    name: widget.senderName,
-                    type: widget.isGroup ? 'group' : 'direct',
-                    unreadCount: 0,
-                    role: widget.senderRole,
-                    avatarUrl: widget.avatarUrl,
-                    lastMessage: '',
-                    lastMessageTime: DateTime.now(),
-                  ),
-                );
-
-                // Determine if current user is admin of this group
-                final currentUserMember = groupMembers.firstWhere(
-                  (m) => m['id'] == currentUserId,
-                  orElse: () => <String, dynamic>{},
-                );
-                final isCurrentUserAdmin = currentUserMember['group_role'] == 'admin';
-
-                return DraggableScrollableSheet(
-                  initialChildSize: 0.85,
-                  maxChildSize: 0.95,
-                  minChildSize: 0.5,
-                  builder: (context, scrollController) {
-                    return Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                      ),
-                      child: ListView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.all(20),
-                        children: [
-                          Center(
-                            child: Container(
-                              width: 40,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Center(
-                            child: Column(
-                              children: [
-                                GestureDetector(
-                                  onTap: widget.isGroup && isCurrentUserAdmin
-                                      ? () => _updateGroupAvatar(setSheetState)
-                                      : null,
-                                  child: Stack(
-                                    children: [
-                                      Container(
-                                        width: 80,
-                                        height: 80,
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
-                                          ),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(color: Colors.indigo.shade100, width: 3),
-                                        ),
-                                        child: activeConv.avatarUrl != null && activeConv.avatarUrl!.isNotEmpty
-                                            ? ClipOval(
-                                                child: Image.network(
-                                                  activeConv.avatarUrl!,
-                                                  fit: BoxFit.cover,
-                                                  width: 80,
-                                                  height: 80,
-                                                  errorBuilder: (context, error, stackTrace) => Center(
-                                                    child: Text(
-                                                      activeConv.name.isNotEmpty ? activeConv.name[0].toUpperCase() : 'U',
-                                                      style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
-                                                    ),
-                                                  ),
-                                                ),
-                                              )
-                                            : Center(
-                                                child: Text(
-                                                  activeConv.name.isNotEmpty ? activeConv.name[0].toUpperCase() : 'U',
-                                                  style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
-                                                ),
-                                              ),
-                                      ),
-                                      if (widget.isGroup && isCurrentUserAdmin)
-                                        Positioned(
-                                          bottom: 0,
-                                          right: 0,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: const BoxDecoration(
-                                              color: StudentColors.primary,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 12),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  activeConv.name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    fontFamily: AppFonts.heading,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.isGroup ? "Study Group" : "School Member",
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Divider(),
-                          const SizedBox(height: 12),
-                          if (widget.isGroup) ...[
-                            Row(
-                              children: [
-                                const Icon(Icons.info_outline, color: StudentColors.primary, size: 20),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text("Description", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        "Active collaboration, notes sharing, and revision queries squad.",
-                                        style: TextStyle(fontSize: 12, color: Colors.grey[800]),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            const Divider(),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Group Members (${groupMembers.length})",
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.person_add_alt_1_rounded, color: StudentColors.primary, size: 20),
-                                  onPressed: () => _showAddMemberDialog(setSheetState, groupMembers),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            if (isLoadingMembers)
-                              const Center(child: CircularProgressIndicator())
-                            else if (groupMembers.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Center(child: Text("No members in this group", style: TextStyle(fontSize: 12, color: Colors.grey))),
-                              )
-                            else
-                              ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: groupMembers.length,
-                                itemBuilder: (context, index) {
-                                  final member = groupMembers[index];
-                                  final mName = member['full_name'] as String? ?? 'Member';
-                                  final mRole = member['role'] as String? ?? 'student';
-                                  final gRole = member['group_role'] as String? ?? 'member';
-                                  final isCreator = gRole == 'admin';
-                                  final mId = member['id'] as String;
-                                  final isSelf = mId == currentUserId;
-                                  
-                                  return ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: member['avatar_url'] != null && (member['avatar_url'] as String).isNotEmpty
-                                        ? SizedBox(
-                                            width: 40,
-                                            height: 40,
-                                            child: ClipOval(
-                                              child: Image.network(
-                                                member['avatar_url'] as String,
-                                                fit: BoxFit.cover,
-                                                width: 40,
-                                                height: 40,
-                                                errorBuilder: (context, error, stackTrace) => Container(
-                                                  color: StudentColors.primary.withValues(alpha: 0.1),
-                                                  alignment: Alignment.center,
-                                                  child: Text(mName.isNotEmpty ? mName[0].toUpperCase() : 'M', style: const TextStyle(color: StudentColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        : CircleAvatar(
-                                            backgroundColor: StudentColors.primary.withValues(alpha: 0.1),
-                                            child: Text(mName.isNotEmpty ? mName[0].toUpperCase() : 'M', style: const TextStyle(color: StudentColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
-                                          ),
-                                    title: Text(mName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                    subtitle: Text(mRole.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (isCreator)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.orange.shade50,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: const Text('Admin', style: TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold)),
-                                          ),
-                                        if (isCurrentUserAdmin && !isSelf) ...[
-                                          const SizedBox(width: 8),
-                                          TextButton(
-                                            onPressed: () async {
-                                              final messenger = ScaffoldMessenger.of(context);
-                                              final ok = await ref.read(messagingProvider.notifier).removeGroupMember(widget.senderId, mId);
-                                              if (ok) {
-                                                final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
-                                                setSheetState(() {
-                                                  groupMembers.clear();
-                                                  groupMembers.addAll(updated);
-                                                });
-                                                messenger.showSnackBar(
-                                                  SnackBar(content: Text('Removed $mName from group')),
-                                                );
-                                              } else {
-                                                messenger.showSnackBar(
-                                                  const SnackBar(content: Text('Failed to remove member')),
-                                                );
-                                              }
-                                            },
-                                            child: const Text("Remove", style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _leaveGroupAction(context),
-                                icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 16),
-                                label: const Text("Leave Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                              ),
-                            ),
-                            if (isCurrentUserAdmin) ...[
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed: () => _deleteGroupAction(context),
-                                  icon: const Icon(Icons.delete_forever, color: Colors.red, size: 16),
-                                  label: const Text("Delete Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(color: Colors.red),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ] else ...[
-                            const ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(Icons.person_outline, color: StudentColors.primary),
-                              title: Text("Role", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                              subtitle: Text("Student", style: TextStyle(fontSize: 13)),
-                            ),
-                            const ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(Icons.school_outlined, color: StudentColors.primary),
-                              title: Text("Institution", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                              subtitle: Text("EduSHAMIIT Public School", style: TextStyle(fontSize: 13)),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  final messenger = ScaffoldMessenger.of(context);
-                                  bool ok = false;
-                                  if (isBlocked) {
-                                    ok = await ref.read(messagingProvider.notifier).unblockUser(widget.senderId);
-                                    if (ok) {
-                                      messenger.showSnackBar(
-                                        const SnackBar(content: Text('User unblocked successfully.')),
-                                      );
-                                    }
-                                  } else {
-                                    ok = await ref.read(messagingProvider.notifier).blockUser(widget.senderId);
-                                    if (ok) {
-                                      messenger.showSnackBar(
-                                        const SnackBar(content: Text('User blocked successfully.')),
-                                      );
-                                    }
-                                  }
-                                  if (ok && mounted) {
-                                    setSheetState(() {});
-                                  }
-                                },
-                                icon: Icon(
-                                  isBlocked ? Icons.check_circle_outline_rounded : Icons.block_flipped,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                                label: Text(
-                                  isBlocked ? "Unblock Contact" : "Block Contact",
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isBlocked ? Colors.green : Colors.red,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showAddMemberDialog(void Function(void Function()) setSheetState, List<Map<String, dynamic>> currentMembers) {
-    final searchMemberController = TextEditingController();
-    List<Map<String, dynamic>> searchMemberResults = [];
-    bool isSearching = false;
-    
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Add Group Member', style: TextStyle(fontFamily: AppFonts.heading)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: searchMemberController,
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
-                      hintText: 'Search by name...',
-                    ),
-                    onChanged: (val) async {
-                      if (val.trim().isNotEmpty) {
-                        setDialogState(() => isSearching = true);
-                        final res = await ref.read(messagingProvider.notifier).searchUsers(val.trim());
-                        if (!mounted) return;
-                        setDialogState(() {
-                          searchMemberResults = res;
-                          isSearching = false;
-                        });
-                      } else {
-                        setDialogState(() {
-                          searchMemberResults = [];
-                          isSearching = false;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  if (isSearching)
-                    const Center(child: CircularProgressIndicator())
-                  else if (searchMemberResults.isEmpty && searchMemberController.text.trim().isNotEmpty)
-                    const Center(child: Text('No results found', style: TextStyle(fontSize: 12, color: Colors.grey)))
-                  else
-                    SizedBox(
-                      height: 150,
-                      width: double.maxFinite,
-                      child: ListView.builder(
-                        itemCount: searchMemberResults.length,
-                        itemBuilder: (context, index) {
-                          final u = searchMemberResults[index];
-                          final uName = u['full_name'] as String? ?? 'User';
-                          final uId = u['id'] as String;
-                          final uRole = u['role'] as String? ?? 'student';
-                          
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(uName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            subtitle: Text(uRole.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.add_circle, color: StudentColors.primary),
-                              onPressed: () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                Navigator.pop(context);
-                                try {
-                                  final client = ref.read(apiServiceProvider);
-                                  // First add member in group_members table
-                                  await client.post('/groups/${widget.senderId}/members', {
-                                    'member_id': uId,
-                                  });
-                                  
-                                  // Then send direct system announcement
-                                  await client.post('/student/messages/send', {
-                                    'group_id': widget.senderId,
-                                    'content': '📢 $uName joined the squad revision!'
-                                  });
-                                  
-                                  final updatedMembers = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
-                                  if (!mounted) return;
-                                  setSheetState(() {
-                                    currentMembers.clear();
-                                    currentMembers.addAll(updatedMembers);
-                                  });
-                                  messenger.showSnackBar(
-                                    SnackBar(content: Text('Added $uName to group!')),
-                                  );
-                                } catch (e) {
-                                  if (!mounted) return;
-                                  messenger.showSnackBar(
-                                    const SnackBar(content: Text('Added member to group!')),
-                                  );
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _leaveGroupAction(BuildContext sheetContext) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Leave Group?', style: TextStyle(fontFamily: AppFonts.heading)),
-          content: Text('Are you sure you want to leave the study group "${widget.senderName}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final navigator = Navigator.of(context);
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
-                
-                Navigator.pop(dialogContext);
-                Navigator.pop(sheetContext);
-                
-                final ok = await ref.read(messagingProvider.notifier).leaveGroup(widget.senderId);
-                if (ok) {
-                  navigator.pop();
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('You left group "${widget.senderName}"')),
-                  );
-                } else {
-                  scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Failed to leave group. Please try again.')),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              child: const Text('Leave'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _deleteGroupAction(BuildContext sheetContext) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Delete Group", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-          content: const Text("Are you sure you want to permanently delete this group? All messages and members will be removed."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final messenger = ScaffoldMessenger.of(context);
-                final navigator = Navigator.of(context);
-                
-                Navigator.pop(dialogContext); // close dialog
-                Navigator.pop(sheetContext);  // close sheet
-                
-                final ok = await ref.read(messagingProvider.notifier).deleteGroup(widget.senderId);
-                if (ok) {
-                  navigator.pop(); // return from ChatDetailScreen to Conversation list
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Group deleted successfully.')),
-                  );
-                } else {
-                  messenger.showSnackBar(
-                    const SnackBar(content: Text('Failed to delete group.')),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _updateGroupAvatar(void Function(void Function()) setSheetState) async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1000, imageQuality: 90);
-    if (picked == null) return;
-    
-    final croppedBytes = await _cropImage(picked.path);
-    if (croppedBytes == null) return;
-    
-    String filename = picked.name;
-    if (!filename.contains('.')) {
-      filename += '.jpg';
-    }
-    
-    final success = await ref.read(messagingProvider.notifier).updateGroupAvatar(
-      widget.senderId,
-      croppedBytes,
-      filename,
-    );
-    
-    if (success) {
-      await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
-      if (mounted) {
-        setSheetState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('🎉 Group icon updated successfully!')),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Failed to update group icon.')),
-        );
-      }
-    }
-  }
-
-  Future<Uint8List?> _cropImage(String sourcePath) async {
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: sourcePath,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Crop Photo',
-          toolbarColor: const Color(0xFF0F172A),
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.square,
-          lockAspectRatio: true,
-        ),
-        IOSUiSettings(
-          title: 'Crop Photo',
-          aspectRatioLockEnabled: true,
-        ),
-        WebUiSettings(
-          context: context,
-          presentStyle: WebPresentStyle.dialog,
-          size: const CropperSize(width: 220, height: 220),
-        ),
-      ],
-    );
-    if (croppedFile != null) {
-      return await croppedFile.readAsBytes();
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final messagingState = ref.watch(messagingProvider);
-    final history = messagingState.chatHistory;
-    final currentUserId = ref.watch(authProvider).userData?['id'] as String?;
-    final activeConv = messagingState.conversations.firstWhere(
-      (c) => c.id == widget.senderId,
-      orElse: () => ChatConversation(
-        id: widget.senderId,
-        name: widget.senderName,
-        type: widget.isGroup ? 'group' : 'direct',
-        unreadCount: 0,
-        role: widget.senderRole,
-        avatarUrl: widget.avatarUrl,
-        lastMessage: '',
-        lastMessageTime: DateTime.now(),
-      ),
-    );
-
-    // Auto-scroll to bottom once list loads or updates
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F4FF),
-      appBar: AppBar(
-        backgroundColor: StudentColors.primary,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: GestureDetector(
-          onTap: _showDetailsView,
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Colors.white24,
-                  shape: BoxShape.circle,
-                ),
-                child: activeConv.avatarUrl != null && activeConv.avatarUrl!.isNotEmpty
-                    ? ClipOval(
-                        child: Image.network(
-                          activeConv.avatarUrl!,
-                          fit: BoxFit.cover,
-                          width: 36,
-                          height: 36,
-                          errorBuilder: (context, error, stackTrace) => Center(
-                            child: Text(
-                              activeConv.name.isNotEmpty ? activeConv.name[0].toUpperCase() : 'U',
-                              style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: Text(
-                          activeConv.name.isNotEmpty ? activeConv.name[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      activeConv.name,
-                      style: const TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      widget.isGroup ? 'Study Group' : 'Online',
-                      style: const TextStyle(fontSize: 10, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.phone, color: Colors.white),
-            onPressed: () => _startCall(isVideo: false),
-          ),
-          IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.white),
-            onPressed: () => _startCall(isVideo: true),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            onSelected: (val) {
-              if (val == 'clear') {
-                _clearChat();
-              } else if (val == 'export') {
-                _exportChatHistory();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear',
-                child: Text('Clear Chat', style: TextStyle(fontSize: 13)),
-              ),
-              const PopupMenuItem(
-                value: 'export',
-                child: Text('Export Chat (.txt)', style: TextStyle(fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: history.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No messages yet. Say hello! 👋',
-                      style: TextStyle(color: StudentColors.text3, fontSize: 13),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                    itemCount: history.length,
-                    itemBuilder: (context, index) {
-                      final msg = history[index];
-                      final isMe = msg.senderId == currentUserId;
-                      return _buildMessageBubble(msg, isMe);
-                    },
-                  ),
-          ),
-          if (_isListening) _buildVoiceListeningBar(),
-          if (_replyingTo != null) _buildReplyPreview(),
-          _buildComposeBar(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble(MessageItem msg, bool isMe) {
-    final timeStr = '${msg.createdAt.hour.toString().padLeft(2, '0')}:${msg.createdAt.minute.toString().padLeft(2, '0')}';
-    
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onLongPressStart: (details) => _showMessageContextMenu(details.globalPosition, msg, isMe),
-            child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe ? StudentColors.primary : StudentColors.surface,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isMe ? 18 : 0),
-                  bottomRight: Radius.circular(isMe ? 0 : 18),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (widget.isGroup && !isMe) ...[
-                    Text(
-                      msg.senderName ?? 'Anonymous',
-                      style: const TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: StudentColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                  ],
-                  if (msg.content.startsWith('[IMAGE]')) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          msg.content.substring('[IMAGE]'.length),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            padding: const EdgeInsets.all(12),
-                            color: Colors.black12,
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.broken_image, color: Colors.grey, size: 16),
-                                SizedBox(width: 8),
-                                Text('Failed to load image', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ] else if (msg.content.startsWith('[DOCUMENT]')) ...[
-                    Builder(
-                      builder: (context) {
-                        final parts = msg.content.substring('[DOCUMENT]'.length).split('|');
-                        final url = parts[0];
-                        final name = parts.length > 1 ? parts[1] : 'Attachment';
-                        return InkWell(
-                          onTap: () async {
-                            try {
-                              final uri = Uri.parse(url);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              }
-                            } catch (_) {}
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isMe ? Colors.white.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.insert_drive_file, color: isMe ? Colors.white : StudentColors.primary, size: 24),
-                                const SizedBox(width: 10),
-                                Flexible(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: isMe ? Colors.white : Colors.black87,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Tap to view / download',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          color: isMe ? Colors.white70 : Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
-                    ),
-                  ] else ...[
-                    Text(
-                      msg.content,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isMe ? Colors.white : StudentColors.text,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        timeStr,
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: isMe ? Colors.white70 : StudentColors.text3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showMessageContextMenu(Offset position, MessageItem msg, bool isMe) {
@@ -2291,7 +1331,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       ),
       child: Row(
         children: [
-          const Icon(Icons.reply, color: StudentColors.primary, size: 18),
+          const Icon(Icons.reply, color: TeacherColors.primary, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -2299,7 +1339,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               children: [
                 Text(
                   'Replying to ${msgName(_replyingTo!)}',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: StudentColors.primary),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: TeacherColors.primary),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -2329,54 +1369,723 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     if (msg.senderId == currentUserId) return 'You';
     return msg.senderName ?? 'User';
   }
-  Widget _buildComposeBar() {
-    final messagingState = ref.watch(messagingProvider);
-    final isBlocked = messagingState.blockedUserIds.contains(widget.senderId);
 
-    if (isBlocked && !widget.isGroup) {
-      return SafeArea(
-        top: false,
-        bottom: true,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          decoration: const BoxDecoration(
-            color: StudentColors.surface,
-            border: Border(top: BorderSide(color: StudentColors.border)),
-          ),
-          child: const Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.lock_outline_rounded, color: Colors.grey, size: 16),
-                SizedBox(width: 8),
-                Text(
-                  "You have blocked this contact. Unblock to send messages.",
-                  style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600),
+  void _startCall({required bool isVideo}) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.95),
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (context, anim1, anim2) {
+        return _CallOverlayScreen(
+          callerName: widget.senderName,
+          isVideo: isVideo,
+        );
+      },
+    );
+  }
+
+  void _showDetailsView() async {
+    List<Map<String, dynamic>> groupMembers = [];
+    bool isLoadingMembers = false;
+    
+    if (widget.isGroup) {
+      setState(() => isLoadingMembers = true);
+      groupMembers = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+      if (!mounted) return;
+      setState(() => isLoadingMembers = false);
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.85,
+              maxChildSize: 0.95,
+              minChildSize: 0.5,
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Center(
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
+                                ),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.lightBlue.shade100, width: 3),
+                              ),
+                              child: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        widget.avatarUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 80,
+                                        height: 80,
+                                        errorBuilder: (context, error, stackTrace) => Center(
+                                          child: Text(
+                                            widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
+                                            style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
+                                        style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.senderName,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                fontFamily: AppFonts.heading,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.isGroup ? "Study Group" : "School Member",
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      if (widget.isGroup) ...[
+                        Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: TeacherColors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text("Description", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "Active collaboration, notes sharing, and revision queries squad.",
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Divider(),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Group Members (${groupMembers.length})",
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.person_add_alt_1_rounded, color: TeacherColors.primary, size: 20),
+                              onPressed: () => _showAddMemberDialog(setSheetState, groupMembers),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (isLoadingMembers)
+                          const Center(child: CircularProgressIndicator())
+                        else if (groupMembers.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Center(child: Text("No members in this group", style: TextStyle(fontSize: 12, color: Colors.grey))),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: groupMembers.length,
+                            itemBuilder: (context, index) {
+                              final member = groupMembers[index];
+                              final mName = member['full_name'] as String? ?? 'Member';
+                              final mRole = member['role'] as String? ?? 'student';
+                              final gRole = member['group_role'] as String? ?? 'member';
+                              final isCreator = gRole == 'admin';
+                              
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: member['avatar_url'] != null && (member['avatar_url'] as String).isNotEmpty
+                                    ? SizedBox(
+                                        width: 40,
+                                        height: 40,
+                                        child: ClipOval(
+                                          child: Image.network(
+                                            member['avatar_url'] as String,
+                                            fit: BoxFit.cover,
+                                            width: 40,
+                                            height: 40,
+                                            errorBuilder: (context, error, stackTrace) => Container(
+                                              color: TeacherColors.primary.withValues(alpha: 0.1),
+                                              alignment: Alignment.center,
+                                              child: Text(mName.isNotEmpty ? mName[0].toUpperCase() : 'M', style: const TextStyle(color: TeacherColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : CircleAvatar(
+                                        backgroundColor: TeacherColors.primary.withValues(alpha: 0.1),
+                                        child: Text(mName.isNotEmpty ? mName[0].toUpperCase() : 'M', style: const TextStyle(color: TeacherColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                                      ),
+                                title: Text(mName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                subtitle: Text(mRole.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                trailing: isCreator
+                                    ? Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text('Admin', style: TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold)),
+                                      )
+                                    : null,
+                              );
+                            },
+                          ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () => _leaveGroupAction(context),
+                          icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 16),
+                          label: const Text("Leave Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ] else ...[
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.email_outlined, color: TeacherColors.primary),
+                          title: const Text("Email Address", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                          subtitle: Text("${widget.senderName.toLowerCase().replaceAll(' ', '.')}@edushamiit.edu", style: const TextStyle(fontSize: 13)),
+                        ),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.verified_user_outlined, color: TeacherColors.primary),
+                          title: const Text("Role & Identity", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                          subtitle: Text(widget.senderName.contains('Sharma') || widget.senderName.contains('Verma') ? "Teacher (Faculty)" : "Student classmate (Class X-A)", style: const TextStyle(fontSize: 13)),
+                        ),
+                        const ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.school_outlined, color: TeacherColors.primary),
+                          title: Text("Institution", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                          subtitle: Text("EduSHAMIIT Public School", style: TextStyle(fontSize: 13)),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddMemberDialog(void Function(void Function()) setSheetState, List<Map<String, dynamic>> currentMembers) {
+    final searchMemberController = TextEditingController();
+    List<Map<String, dynamic>> searchMemberResults = [];
+    bool isSearching = false;
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Add Group Member', style: TextStyle(fontFamily: AppFonts.heading)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: searchMemberController,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      hintText: 'Search by name...',
+                    ),
+                    onChanged: (val) async {
+                      if (val.trim().isNotEmpty) {
+                        setDialogState(() => isSearching = true);
+                        final res = await ref.read(messagingProvider.notifier).searchUsers(val.trim());
+                        setDialogState(() {
+                          searchMemberResults = res;
+                          isSearching = false;
+                        });
+                      } else {
+                        setDialogState(() {
+                          searchMemberResults = [];
+                          isSearching = false;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (isSearching)
+                    const Center(child: CircularProgressIndicator())
+                  else if (searchMemberResults.isEmpty && searchMemberController.text.trim().isNotEmpty)
+                    const Center(child: Text('No results found', style: TextStyle(fontSize: 12, color: Colors.grey)))
+                  else
+                    SizedBox(
+                      height: 150,
+                      width: double.maxFinite,
+                      child: ListView.builder(
+                        itemCount: searchMemberResults.length,
+                        itemBuilder: (context, index) {
+                          final u = searchMemberResults[index];
+                          final uName = u['full_name'] as String? ?? 'User';
+                          final uId = u['id'] as String;
+                          final uRole = u['role'] as String? ?? 'student';
+                          
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(uName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            subtitle: Text(uRole.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.add_circle, color: TeacherColors.primary),
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                Navigator.pop(context);
+                                try {
+                                  final client = ref.read(apiServiceProvider);
+                                  // First add member in group_members table
+                                  await client.post('/groups/${widget.senderId}/members', {
+                                    'member_id': uId,
+                                  });
+                                  
+                                  // Then send direct system announcement
+                                  await client.post('/student/messages/send', {
+                                    'group_id': widget.senderId,
+                                    'content': '📢 $uName joined the squad revision!'
+                                  });
+                                  
+                                  final updatedMembers = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+                                  if (!mounted) return;
+                                  setSheetState(() {
+                                    currentMembers.clear();
+                                    currentMembers.addAll(updatedMembers);
+                                  });
+                                  
+                                  messenger.showSnackBar(
+                                    SnackBar(content: Text('Added $uName to group!')),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('Added member to group!')),
+                                  );
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
               ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _leaveGroupAction(BuildContext sheetContext) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Leave Group?', style: TextStyle(fontFamily: AppFonts.heading)),
+          content: Text('Are you sure you want to leave the study group "${widget.senderName}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
             ),
+            ElevatedButton(
+              onPressed: () async {
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                
+                Navigator.pop(dialogContext);
+                Navigator.pop(sheetContext);
+                
+                final ok = await ref.read(messagingProvider.notifier).leaveGroup(widget.senderId);
+                if (ok) {
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(content: Text('You left group "${widget.senderName}"')),
+                  );
+                } else {
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(content: Text('Failed to leave group. Please try again.')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('Leave'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final messagingState = ref.watch(messagingProvider);
+    final history = messagingState.chatHistory;
+    final currentUserId = ref.watch(authProvider).userData?['id'] as String?;
+
+    // Auto-scroll to bottom once list loads or updates
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F7FF),
+      appBar: AppBar(
+        backgroundColor: TeacherColors.primary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: GestureDetector(
+          onTap: _showDetailsView,
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  color: Colors.white24,
+                  shape: BoxShape.circle,
+                ),
+                child: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
+                    ? ClipOval(
+                        child: Image.network(
+                          widget.avatarUrl!,
+                          fit: BoxFit.cover,
+                          width: 36,
+                          height: 36,
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Text(
+                              widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
+                              style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
+                          style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.senderName,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      widget.isGroup ? 'Study Group' : 'Online',
+                      style: const TextStyle(fontSize: 10, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      );
-    }
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.phone, color: Colors.white),
+            onPressed: () => _startCall(isVideo: false),
+          ),
+          IconButton(
+            icon: const Icon(Icons.videocam, color: Colors.white),
+            onPressed: () => _startCall(isVideo: true),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (val) {
+              if (val == 'clear') {
+                _clearChat();
+              } else if (val == 'export') {
+                _exportChatHistory();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'clear',
+                child: Text('Clear Chat', style: TextStyle(fontSize: 13)),
+              ),
+              const PopupMenuItem(
+                value: 'export',
+                child: Text('Export Chat (.txt)', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: history.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No messages yet. Say hello! 👋',
+                      style: TextStyle(color: TeacherColors.text3, fontSize: 13),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                    itemCount: history.length,
+                    itemBuilder: (context, index) {
+                      final msg = history[index];
+                      final isMe = msg.senderId == currentUserId;
+                      return _buildMessageBubble(msg, isMe);
+                    },
+                  ),
+          ),
+          if (_isListening) _buildVoiceListeningBar(),
+          if (_replyingTo != null) _buildReplyPreview(),
+          _buildComposeBar(),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildMessageBubble(MessageItem msg, bool isMe) {
+    final timeStr = '${msg.createdAt.hour.toString().padLeft(2, '0')}:${msg.createdAt.minute.toString().padLeft(2, '0')}';
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onLongPressStart: (details) => _showMessageContextMenu(details.globalPosition, msg, isMe),
+            child: Container(
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isMe ? TeacherColors.primary : TeacherColors.surface,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isMe ? 18 : 0),
+                  bottomRight: Radius.circular(isMe ? 0 : 18),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.isGroup && !isMe) ...[
+                    Text(
+                      msg.senderName ?? 'Anonymous',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: TeacherColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                  if (msg.content.startsWith('[IMAGE]')) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          msg.content.substring('[IMAGE]'.length),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            padding: const EdgeInsets.all(12),
+                            color: Colors.black12,
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.broken_image, color: Colors.grey, size: 16),
+                                SizedBox(width: 8),
+                                Text('Failed to load image', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else if (msg.content.startsWith('[DOCUMENT]')) ...[
+                    Builder(
+                      builder: (context) {
+                        final parts = msg.content.substring('[DOCUMENT]'.length).split('|');
+                        final url = parts[0];
+                        final name = parts.length > 1 ? parts[1] : 'Attachment';
+                        return InkWell(
+                          onTap: () async {
+                            try {
+                              final uri = Uri.parse(url);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              }
+                            } catch (_) {}
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isMe ? Colors.white.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.insert_drive_file, color: isMe ? Colors.white : TeacherColors.primary, size: 24),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isMe ? Colors.white : Colors.black87,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Tap to view / download',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          color: isMe ? Colors.white70 : Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                    ),
+                  ] else ...[
+                    Text(
+                      msg.content,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isMe ? Colors.white : TeacherColors.text,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        timeStr,
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: isMe ? Colors.white70 : TeacherColors.text3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComposeBar() {
     final text = _messageController.text.trim();
     final isEmpty = text.isEmpty;
-
+ 
     return SafeArea(
       top: false,
       bottom: true,
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: const BoxDecoration(
-          color: StudentColors.surface,
-          border: Border(top: BorderSide(color: StudentColors.border)),
+          color: TeacherColors.surface,
+          border: Border(top: BorderSide(color: TeacherColors.border)),
         ),
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: StudentColors.primary, size: 26),
+              icon: const Icon(Icons.add_circle_outline, color: TeacherColors.primary, size: 26),
               onPressed: _showAttachMenu,
             ),
             Expanded(
@@ -2384,7 +2093,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                 controller: _messageController,
                 decoration: InputDecoration(
                   hintText: 'Type a message...',
-                  hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                  hintStyle: const TextStyle(fontSize: 12, color: TeacherColors.text3),
                   filled: true,
                   fillColor: const Color(0xFFF1F5F9),
                   border: OutlineInputBorder(
@@ -2415,7 +2124,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: pulsing ? Colors.red : StudentColors.primary,
+                      color: pulsing ? Colors.red : TeacherColors.primary,
                       shape: BoxShape.circle,
                       boxShadow: pulsing ? [
                         BoxShadow(
@@ -2437,13 +2146,13 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
             ),
             const SizedBox(width: 6),
             GestureDetector(
-              onTap: () => context.push('/student/ai-chat'),
+              onTap: () => context.push('/teacher/ai-chat'),
               child: Container(
                 width: 36,
                 height: 36,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+                    colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
                   ),
                   shape: BoxShape.circle,
                 ),
@@ -2455,7 +2164,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       ),
     );
   }
-
+ 
   void _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
     
@@ -2569,7 +2278,7 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                   child: Center(
                     child: Opacity(
                       opacity: 0.15,
-                      child: Icon(Icons.videocam, size: 200, color: Colors.indigo.shade200),
+                      child: Icon(Icons.videocam, size: 200, color: Colors.lightBlue.shade200),
                     ),
                   ),
                 ),
@@ -2589,11 +2298,11 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                         height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.indigo.shade900.withValues(alpha: 0.5),
-                          border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.5), width: 4),
+                          color: Colors.lightBlue.shade900.withValues(alpha: 0.5),
+                          border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.5), width: 4),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
                               blurRadius: 20,
                               spreadRadius: 10,
                             ),
@@ -2622,7 +2331,7 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                     isRinging ? 'Ringing...' : _formatDuration(_duration),
                     style: TextStyle(
                       fontSize: 14,
-                      color: isRinging ? Colors.indigo.shade300 : Colors.green.shade400,
+                      color: isRinging ? Colors.lightBlue.shade300 : Colors.green.shade400,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
                     ),
@@ -2794,9 +2503,8 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
   String? _groupAvatarName;
   Timer? _searchDebounceTimer;
 
-  // Level & Role Tabs selection state
-  int _activeTab = 0; // 0=All, 1=Students, 2=Teachers, 3=HOD/Seniors, 4=Parents
-  String _groupLevel = 'class'; // 'class' or 'school'
+  int _activeTab = 0; 
+  String _groupLevel = 'class'; 
   String _selectedClassName = '10A';
   final List<String> _classOptions = ['10A', '10B', '11A', '11B', '12A', '12B'];
 
@@ -2854,7 +2562,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
         WebUiSettings(
           context: context,
           presentStyle: WebPresentStyle.dialog,
-          size: const CropperSize(width: 220, height: 220),
+          size: const CropperSize(width: 300, height: 300),
           zoomable: true,
           rotatable: true,
           scalable: true,
@@ -2894,16 +2602,16 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
   }
 
   List<Map<String, dynamic>> _getFilteredByRole(int tabIndex) {
-    if (tabIndex == 0) return _filteredCandidates; // All
-    if (tabIndex == 1) return _filteredCandidates.where((u) => u['role'] == 'student').toList(); // Students
-    if (tabIndex == 2) return _filteredCandidates.where((u) => u['role'] == 'teacher').toList(); // Teachers
+    if (tabIndex == 0) return _filteredCandidates;
+    if (tabIndex == 1) return _filteredCandidates.where((u) => u['role'] == 'student').toList();
+    if (tabIndex == 2) return _filteredCandidates.where((u) => u['role'] == 'teacher').toList();
     if (tabIndex == 3) {
       return _filteredCandidates.where((u) {
         final role = (u['role'] as String? ?? '').toLowerCase();
         return role == 'hod' || role == 'principal' || role == 'admin';
       }).toList();
     }
-    if (tabIndex == 4) return _filteredCandidates.where((u) => u['role'] == 'parent').toList(); // Parents
+    if (tabIndex == 4) return _filteredCandidates.where((u) => u['role'] == 'parent').toList();
     return _filteredCandidates;
   }
 
@@ -2960,7 +2668,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
         children: [
           Column(
             children: [
-              // Header styled exactly like mockup
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: [primaryColor, accentColor]),
@@ -2986,13 +2693,10 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   ],
                 ),
               ),
-              
-              // Scrollable body
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 100 + bottomOffset),
                   children: [
-                    // Group Icon Selector mockup
                     Center(
                       child: Column(
                         children: [
@@ -3038,8 +2742,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Group Name Input
                     const Text(
                       'Group Name',
                       style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
@@ -3064,8 +2766,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                       ),
                     ),
                     const SizedBox(height: 14),
-
-                    // Description Input
                     const Text(
                       'Description (Optional)',
                       style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
@@ -3093,110 +2793,37 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
 
                     // Group Privacy Type Selection
                     const Text(
-                      'GROUP PRIVACY',
+                      'GROUP PRIVACY & TYPE',
                       style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
-                    // Both students AND teachers get the privacy toggle
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _groupLevel = 'class'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: _groupLevel == 'class'
-                                    ? primaryColor.withValues(alpha: 0.1)
-                                    : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _groupLevel == 'class' ? primaryColor : const Color(0xFFCBD5E1),
-                                  width: _groupLevel == 'class' ? 1.5 : 1,
+                    if (isStudent) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.lock_outline_rounded, color: primaryColor, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '🔒 Private (Class Level Group Only)',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
                                 ),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.lock_outline_rounded, color: _groupLevel == 'class' ? primaryColor : Colors.grey, size: 16),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '🔒 Private',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: _groupLevel == 'class' ? primaryColor : Colors.grey[700],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Hidden from Explore\nOnly invited members',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: _groupLevel == 'class' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _groupLevel = 'school'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: _groupLevel == 'school'
-                                    ? primaryColor.withValues(alpha: 0.1)
-                                    : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _groupLevel == 'school' ? primaryColor : const Color(0xFFCBD5E1),
-                                  width: _groupLevel == 'school' ? 1.5 : 1,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.public_rounded, color: _groupLevel == 'school' ? primaryColor : Colors.grey, size: 16),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '🌐 Public',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: _groupLevel == 'school' ? primaryColor : Colors.grey[700],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Visible in Explore\nAnyone can join freely',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: _groupLevel == 'school' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    if (!isStudent) ...[
+                      ),
+                      const SizedBox(height: 14),
+                    ] else ...[
                       Row(
                         children: [
                           Expanded(
@@ -3243,45 +2870,90 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                       const SizedBox(height: 14),
                     ],
 
-                    // Class Dropdown Selection (only for teachers, completely hidden for students)
-                    if (!isStudent && _groupLevel == 'class') ...[
+                    if (_groupLevel == 'class') ...[
                       const Text(
                         'TARGET CLASS',
                         style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedClassName,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          border: OutlineInputBorder(
+                      if (isStudent)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                            border: Border.all(color: Colors.grey[300]!),
                           ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.class_outlined, color: Colors.grey, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Class $userClass',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedClassName,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                            ),
+                          ),
+                          items: _classOptions.map((c) {
+                            return DropdownMenuItem<String>(
+                              value: c,
+                              child: Text('Class $c', style: const TextStyle(fontSize: 12)),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedClassName = val;
+                              });
+                            }
+                          },
                         ),
-                        items: _classOptions.map((c) {
-                          return DropdownMenuItem<String>(
-                            value: c,
-                            child: Text('Class $c', style: const TextStyle(fontSize: 12)),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedClassName = val;
-                            });
-                          }
-                        },
-                      ),
                       const SizedBox(height: 16),
                     ],
 
-                    // Always show participant search for everyone
-                    const SizedBox(height: 4),
-                    if (true) ...[
-                      // Add Participants section header
+                    if (isStudent && _groupLevel == 'class') ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFC7D2FE)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: Color(0xFF4F46E5), size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Class Level Group: This will automatically add all students of your class ($userClass) as members by default.',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  color: Color(0xFF3730A3),
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    if (!isStudent || _groupLevel != 'class') ...[
                       const Text(
                         'ADD PARTICIPANTS',
                         style: TextStyle(
@@ -3293,8 +2965,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                         ),
                       ),
                       const SizedBox(height: 8),
-
-                      // Search input box inside bottom sheet
                       TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
@@ -3315,8 +2985,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                         ),
                       ),
                       const SizedBox(height: 14),
-
-                      // Role tabs
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -3334,8 +3002,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                         ),
                       ),
                       const SizedBox(height: 12),
-
-                      // Select All check-row
                       if (activeList.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -3375,8 +3041,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                             ],
                           ),
                         ),
-
-                      // Participants list box
                       Container(
                         height: 200,
                         decoration: BoxDecoration(
@@ -3400,7 +3064,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                       final isSelected = _selectedUserIds.contains(id);
                                       final avatarUrl = u['avatar_url'] as String?;
                                       
-                                      // Generate initials/emojis beautifully
                                       final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
                                       final isTeacher = role == 'teacher';
                                       final bg = isTeacher ? const Color(0xFFEEF2FF) : const Color(0xFFFFF1F2);
@@ -3491,8 +3154,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
               ),
             ],
           ),
-
-          // Sticky bottom Create Group button styled exactly like mockup
           Positioned(
             bottom: 0,
             left: 0,
@@ -3524,10 +3185,8 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
                   
-                  final level = _groupLevel;
-                  final className = isStudent
-                      ? (level == 'class' ? userClass : null)
-                      : (level == 'class' ? _selectedClassName : null);
+                  final level = isStudent ? 'class' : _groupLevel;
+                  final className = isStudent ? userClass : (level == 'class' ? _selectedClassName : null);
 
                   final ok = await ref.read(messagingProvider.notifier).createGroup(
                     name,
@@ -3556,9 +3215,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   elevation: 2,
                 ),
                 child: Text(
-                  _groupLevel == 'class'
-                      ? 'Create Private Group (${_selectedUserIds.length})'
-                      : 'Create Public Group (${_selectedUserIds.length})',
+                  isStudent && _groupLevel == 'class'
+                      ? 'Create Class Group'
+                      : 'Create Group (${_selectedUserIds.length})',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),

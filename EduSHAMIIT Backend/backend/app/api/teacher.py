@@ -845,39 +845,48 @@ async def teacher_update_settings(request: dict, user=Depends(get_current_user),
 
 @router.get("/messages")
 async def teacher_get_messages(user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    sb = get_supabase()
-    messages = (await sb.table("messages").select("*, profiles!sender_id(full_name, avatar_url, role)").eq("school_id", school_id).or_(f"sender_id.eq.{user['id']},receiver_id.eq.{user['id']}").order("created_at", ascending=False).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"messages": messages}}
+    from app.api.shared import get_messages as shared_get_messages
+    return await shared_get_messages(user, school_id)
 
 
 @router.post("/messages/send")
 async def teacher_send_message(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    sb = get_supabase()
-    message = await sb.table("messages").insert({"school_id": school_id, "sender_id": user["id"], "receiver_id": request.get("receiver_id"), "content": request.get("content")}).aexecute()
-    return {"success": True, "school_id": school_id, "data": {"message_id": message.data[0]["id"]}}
+    from app.api.shared import send_message as shared_send_message
+    return await shared_send_message(request, user, school_id)
 
 
 @router.get("/messages/chat")
 async def teacher_get_chat(chat_id: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    sb = get_supabase()
-    if not chat_id:
-        return {"success": True, "school_id": school_id, "data": {"messages": []}}
-    messages = (await sb.table("messages").select("*, profiles!sender_id(full_name, avatar_url)").eq("school_id", school_id).or_(f"sender_id.eq.{chat_id},receiver_id.eq.{chat_id}").order("created_at").aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"messages": messages}}
+    from app.api.shared import get_chat as shared_get_chat
+    return await shared_get_chat(chat_id, user, school_id)
 
 
 @router.post("/groups/create")
 async def teacher_create_group(request: dict, user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    sb = get_supabase()
-    group = await sb.table("groups").insert({"school_id": school_id, "name": request.get("name"), "description": request.get("description"), "created_by": user["id"]}).aexecute()
-    return {"success": True, "school_id": school_id, "data": {"group_id": group.data[0]["id"]}}
+    from app.api.shared import create_group as shared_create_group
+    return await shared_create_group(request, user, school_id)
 
 
 @router.get("/groups")
 async def teacher_get_groups(user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    sb = get_supabase()
-    groups = (await sb.table("groups").select("*").eq("school_id", school_id).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"groups": groups}}
+    from app.api.shared import get_groups as shared_get_groups
+    return await shared_get_groups(user, school_id)
+
+
+@router.post("/groups/{group_id}/join")
+async def teacher_join_group(group_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    from app.api.shared import join_group as shared_join_group
+    return await shared_join_group(group_id, user, school_id)
+
+
+@router.post("/messages/upload")
+async def upload_message_file(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    from app.api.shared import upload_message_file as shared_upload_message_file
+    return await shared_upload_message_file(file, user, school_id)
 
 
 @router.get("/homework")

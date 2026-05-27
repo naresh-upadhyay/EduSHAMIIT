@@ -30,6 +30,7 @@ import 'package:edu_shamiit_ai/features/student/achievements/screens/student_ach
 import 'package:edu_shamiit_ai/features/student/live_classes/screens/student_live_classes.dart';
 import 'package:edu_shamiit_ai/features/student/leaderboard/screens/student_leaderboard.dart';
 import 'package:edu_shamiit_ai/features/student/messaging/screens/student_messaging.dart';
+import 'package:edu_shamiit_ai/features/teacher/messaging/screens/teacher_messaging.dart';
 import 'package:edu_shamiit_ai/features/student/settings/screens/student_settings.dart';
 import 'package:edu_shamiit_ai/features/student/exams/screens/student_exams.dart';
 import 'package:edu_shamiit_ai/features/student/exams/screens/online_exam_screen.dart';
@@ -86,13 +87,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isResetSuccess = path == '/password-reset-success';
       
       final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess;
-
-      // While auth is loading, stay at splash (safety net — should not normally
-      // happen since main.dart awaits initialize() before runApp, but guards
-      // against any brief isLoading=true state during Supabase token refresh).
-      if (authState.isLoading && !isSplash) {
-        return '/splash';
-      }
 
       // If user is NOT authenticated, and trying to access a private route, force to login
       if (!isAuth && !isPublic && !authState.isLoading) {
@@ -392,6 +386,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/teacher/documents',
           pageBuilder: (_, __) => const NoTransitionPage(child: DocumentsScreen()),
+        ),
+        GoRoute(
+          path: '/teacher/messaging',
+          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMessaging()),
         ),
       ],
     ),

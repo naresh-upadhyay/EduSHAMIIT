@@ -23,3 +23,8 @@ Thumbs.db
 
 # Uploaded assets
 volumes/assets
+
+# Generated and stored PDFs
+*.pdf
+**/*.pdf
+volumes/**/*.pdf

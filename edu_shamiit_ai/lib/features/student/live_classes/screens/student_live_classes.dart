@@ -504,7 +504,7 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
   bool _isNotesSelected = false;
 
   int _likeCount = 342;
-  int _dislikeCount = 12;
+  final int _dislikeCount = 12;
 
   final TextEditingController _commentController = TextEditingController();
 
@@ -681,7 +681,7 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: isLive ? Colors.red.withOpacity(0.5) : Colors.black26,
+                                          color: isLive ? Colors.red.withValues(alpha: 0.5) : Colors.black26,
                                           blurRadius: 12,
                                           spreadRadius: 2,
                                         ),
@@ -706,7 +706,7 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isLive ? Colors.red.withOpacity(0.9) : const Color(0xFF64748B).withOpacity(0.9),
+                        color: isLive ? Colors.red.withValues(alpha: 0.9) : const Color(0xFF64748B).withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -1037,8 +1037,8 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
                       margin: const EdgeInsets.only(bottom: 12, left: 14, right: 14),
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.15),
-                        border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.3)),
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(

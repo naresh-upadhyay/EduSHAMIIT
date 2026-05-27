@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -65,6 +66,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
         if (userDataStr != null) {
           userData = jsonDecode(userDataStr) as Map<String, dynamic>;
         }
+        
+        // Restore Supabase session for realtime to work
+        final supabaseAccessToken = prefs.getString('supabase_access_token');
+        final supabaseRefreshToken = prefs.getString('supabase_refresh_token');
+        
+        final currentSession = Supabase.instance.client.auth.currentSession;
+        if (currentSession != null) {
+          debugPrint('[AuthProvider] Supabase session automatically restored by SDK');
+        } else if (supabaseRefreshToken != null) {
+          try {
+            await Supabase.instance.client.auth.setSession(supabaseRefreshToken);
+            debugPrint('[AuthProvider] Supabase session restored for realtime');
+          } catch (e) {
+            debugPrint('[AuthProvider] Could not restore Supabase session: $e');
+          }
+        } else {
+          debugPrint('[AuthProvider] Missing Supabase refresh token for active session. Clearing session to force re-login.');
+          await _clearSession();
+          state = AuthState(isLoading: false);
+          return;
+        }
+        
         state = AuthState(
           isLoading: false,
           isAuthenticated: true,
@@ -110,14 +133,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (response.statusCode == 200 && body['success'] == true) {
         final data = body['data'] as Map<String, dynamic>;
         final token = data['token'] as String;
+        final supabaseAccessToken = data['supabase_access_token'] as String?;
+        final refreshToken = data['refresh_token'] as String?;
         final user = data['user'] as Map<String, dynamic>;
         final roleStr = user['role'] as String? ?? 'unknown';
         final role = UserRoleExtension.fromString(roleStr);
 
+        // Authenticate the Supabase Flutter client so realtime subscriptions
+        // use the authenticated user's session (not anon role).
+        // setSession() in gotrue v2 takes the refresh_token to exchange for a full session.
+        if (refreshToken != null) {
+          try {
+            await Supabase.instance.client.auth.setSession(refreshToken);
+            debugPrint('[AuthProvider] Supabase client session set for realtime');
+          } catch (e) {
+            debugPrint('[AuthProvider] Could not set Supabase session: $e');
+          }
+        }
+
         // Persist session
         // Clear API cache before saving new session
         ApiService().clearCache();
-        await _saveSession(token: token, role: role, userData: user);
+        await _saveSession(
+          token: token,
+          role: role,
+          userData: user,
+          supabaseAccessToken: supabaseAccessToken,
+          supabaseRefreshToken: refreshToken,
+        );
 
         // Sync role provider using the provider's own Ref (never disposed)
         ref.read(roleProvider.notifier).setRole(role);
@@ -150,6 +193,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signOut() async {
     // Clear API cache
     ApiService().clearCache();
+    // Sign out of Supabase client to clean up realtime subscriptions
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
     await _clearSession();
     state = AuthState();
   }
@@ -158,11 +205,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String token,
     required UserRole role,
     required Map<String, dynamic> userData,
+    String? supabaseAccessToken,
+    String? supabaseRefreshToken,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
     await prefs.setString('user_role', role.value);
     await prefs.setString('user_data', jsonEncode(userData));
+    if (supabaseAccessToken != null) {
+      await prefs.setString('supabase_access_token', supabaseAccessToken);
+    }
+    if (supabaseRefreshToken != null) {
+      await prefs.setString('supabase_refresh_token', supabaseRefreshToken);
+    }
   }
 
   Future<void> _clearSession() async {
@@ -170,6 +225,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.remove('auth_token');
     await prefs.remove('user_role');
     await prefs.remove('user_data');
+    await prefs.remove('supabase_access_token');
+    await prefs.remove('supabase_refresh_token');
   }
 
   /// Get stored role (static helper for splash screen).

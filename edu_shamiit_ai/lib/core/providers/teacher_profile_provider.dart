@@ -109,9 +109,10 @@ class TeacherProfileNotifier extends StateNotifier<TeacherProfileState> {
       if (response['success'] == true) {
         final newUrl = response['data']?['avatar_url'] as String?;
         if (newUrl != null && state.profile != null) {
+          final cacheBustedUrl = '$newUrl?t=${DateTime.now().millisecondsSinceEpoch}';
           state = state.copyWith(
             isUploadingAvatar: false,
-            profile: state.profile!.copyWith(profileImageUrl: newUrl),
+            profile: state.profile!.copyWith(profileImageUrl: cacheBustedUrl),
           );
         } else {
           await loadProfile();

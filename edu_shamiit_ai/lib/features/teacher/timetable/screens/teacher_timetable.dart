@@ -790,7 +790,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                   const Text('Meeting Type', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: typeFilter,
+                    initialValue: typeFilter,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(color: isDark ? Colors.white : Colors.black),
                     items: ['Extra Class', 'Parent-Teacher Meeting', 'Staff Meeting', 'Live Class']
@@ -810,7 +810,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                   const Text('Class Target', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: classFilter,
+                    initialValue: classFilter,
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     style: TextStyle(color: isDark ? Colors.white : Colors.black),
                     items: _classFilters.where((c) => c != 'All')
@@ -858,7 +858,9 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                                 onPrimary: Colors.white,
                                 onSurface: isDark ? Colors.white : Colors.black,
                               ),
-                              dialogBackgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              dialogTheme: DialogThemeData(
+                                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              ),
                             ),
                             child: child!,
                           );
@@ -969,6 +971,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                         final endStr = "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00";
                         final dateStr = "${selectedModalDate.year}-${selectedModalDate.month.toString().padLeft(2, '0')}-${selectedModalDate.day.toString().padLeft(2, '0')}";
                         
+                        final messenger = ScaffoldMessenger.of(context);
                         Navigator.pop(context);
                         
                         setState(() {
@@ -992,7 +995,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                           await _loadTimetable();
                           
                           if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text('$typeFilter scheduled successfully!'),
                                 backgroundColor: const Color(0xFF059669),
@@ -1004,7 +1007,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             setState(() {
                               _isLoading = false;
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text('Error: ${e.toString()}'),
                                 backgroundColor: Colors.red,

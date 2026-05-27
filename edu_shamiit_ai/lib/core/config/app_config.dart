@@ -5,9 +5,9 @@ class AppConfig {
   static const String apiBaseUrl = '$baseUrl/api';
 
   // Supabase Configuration (from backend .env)
-  static const String supabaseUrl = 'http://127.0.0.1:54321';
+  static const String supabaseUrl = 'http://127.0.0.1:8000';
   static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI4OTZ9.ZqeGrbU0Kf9G4jX8aK5e7f9H2j3L4m5N6o7P8q9R0';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNjAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMDB9.V-Nq7_uazFUYvZFXyq_whGnFkWy4W_3o4k6m04sGc5Q';
 
   // App Information
   static const String appName = 'EduSHAMIIT AI';

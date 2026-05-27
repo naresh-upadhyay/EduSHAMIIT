@@ -148,7 +148,8 @@ class StudentShellScaffold extends StatelessWidget {
     // Don't wrap AI chat in SelectionArea — its streaming ListView
     // causes !debugNeedsLayout assertions in SelectableRegion.
     final isAiChat = currentLoc.endsWith('/ai-chat');
-    final pageChild = isAiChat ? child : SelectionArea(child: child);
+    final isMessaging = currentLoc.contains('/messaging');
+    final pageChild = child;
 
     // ── Desktop / wide: Custom sidebar with all routes ──
     if (Responsive.isDesktop(context)) {
@@ -170,7 +171,7 @@ class StudentShellScaffold extends StatelessWidget {
             Expanded(child: pageChild),
           ],
         ),
-        floatingActionButton: isAiChat ? null : AiFab(
+        floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
           gradient: AppGradients.studentPrimary,
           onPressed: () => context.push('/student/ai-chat'),
         ),
@@ -179,9 +180,9 @@ class StudentShellScaffold extends StatelessWidget {
 
     // ── Mobile / tablet: bottom nav bar ──
     return Scaffold(
-      body: isAiChat ? child : SelectionArea(child: child),
+      body: child,
       bottomNavigationBar: StudentBottomNav(currentLocation: currentLoc),
-      floatingActionButton: isAiChat ? null : AiFab(
+      floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
         gradient: AppGradients.studentPrimary,
         onPressed: () => context.push('/student/ai-chat'),
       ),

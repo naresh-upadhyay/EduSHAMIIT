@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
 import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
@@ -802,30 +803,73 @@ final leaderboardProvider = StateNotifierProvider<LeaderboardNotifier, Leaderboa
 // MESSAGING PROVIDER
 // ============================================================================
 
+class ChatConversation {
+  final String id;
+  final String name;
+  final String? avatarUrl;
+  final String type; // 'direct' or 'group'
+  final String lastMessage;
+  final DateTime lastMessageTime;
+  final int unreadCount;
+  final String? role; // 'student' or 'teacher' (only for direct type)
+
+  ChatConversation({
+    required this.id,
+    required this.name,
+    this.avatarUrl,
+    required this.type,
+    required this.lastMessage,
+    required this.lastMessageTime,
+    required this.unreadCount,
+    this.role,
+  });
+
+  factory ChatConversation.fromJson(Map<String, dynamic> json) {
+    return ChatConversation(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      avatarUrl: json['avatar_url'] as String?,
+      type: json['type'] as String,
+      lastMessage: json['last_message'] as String? ?? '',
+      lastMessageTime: DateTime.parse(json['last_message_time'] as String),
+      unreadCount: json['unread_count'] as int? ?? 0,
+      role: json['role'] as String?,
+    );
+  }
+}
+
 class MessagingState {
   final bool isLoading;
   final String? error;
-  final List<MessageItem> messages;
+  final List<ChatConversation> conversations;
+  final List<MessageItem> chatHistory;
   final int unreadCount;
+  final List<String> blockedUserIds;
 
   MessagingState({
     this.isLoading = false,
     this.error,
-    this.messages = const [],
+    this.conversations = const [],
+    this.chatHistory = const [],
     this.unreadCount = 0,
+    this.blockedUserIds = const [],
   });
 
   MessagingState copyWith({
     bool? isLoading,
     String? error,
-    List<MessageItem>? messages,
+    List<ChatConversation>? conversations,
+    List<MessageItem>? chatHistory,
     int? unreadCount,
+    List<String>? blockedUserIds,
   }) {
     return MessagingState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
-      messages: messages ?? this.messages,
+      conversations: conversations ?? this.conversations,
+      chatHistory: chatHistory ?? this.chatHistory,
       unreadCount: unreadCount ?? this.unreadCount,
+      blockedUserIds: blockedUserIds ?? this.blockedUserIds,
     );
   }
 }
@@ -836,30 +880,302 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
   MessagingNotifier(this._apiService) : super(MessagingState());
 
   Future<void> fetchMessages() async {
-    if (state.messages.isEmpty) {
+    if (state.conversations.isEmpty) {
       state = state.copyWith(isLoading: true, error: null);
     }
     try {
+      try {
+        await fetchBlockedUsers();
+      } catch (_) {}
+      
       final response = await _apiService.get('/student/messages');
       final data = response.containsKey('data') ? response['data'] : response;
-      final messagesList = (data['messages'] ?? []).map((m) => MessageItem.fromJson(m)).toList();
-      final unread = messagesList.where((m) => !m.isRead).length;
+      final rawConvs = data['conversations'] as List? ?? [];
+      final conversationsList = rawConvs.map((c) => ChatConversation.fromJson(c as Map<String, dynamic>)).toList();
+      final totalUnread = conversationsList.fold<int>(0, (sum, c) => sum + c.unreadCount);
+      
       state = state.copyWith(
         isLoading: false,
-        messages: messagesList,
-        unreadCount: unread,
+        conversations: conversationsList,
+        unreadCount: totalUnread,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<bool> sendMessage(String content, String receiverId) async {
+  Future<void> fetchChatHistory(String chatId, {bool refreshConversations = true}) async {
+    if (state.chatHistory.isEmpty) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
     try {
-      await _apiService.post('/student/messages/send', {
+      final response = await _apiService.get('/student/messages/chat?chat_id=$chatId', useCache: false);
+      final data = response.containsKey('data') ? response['data'] : response;
+      final rawMsgs = data['messages'] as List? ?? [];
+      final history = rawMsgs.map((m) => MessageItem.fromJson(m as Map<String, dynamic>)).toList();
+      state = state.copyWith(
+        isLoading: false,
+        chatHistory: history,
+      );
+      // Refresh conversations to clear unread counts locally
+      if (refreshConversations) {
+        fetchMessages();
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  /// Directly append a new message from realtime payload to avoid an extra API call.
+  /// Falls back to a full fetchChatHistory if the payload is incomplete.
+  void appendNewMessage(Map<String, dynamic> rawPayload, String currentUserId) {
+    try {
+      final id = rawPayload['id'] as String?;
+      final senderId = rawPayload['sender_id'] as String?;
+      final content = rawPayload['content'] as String?;
+      final createdAtStr = rawPayload['created_at'] as String?;
+      if (id == null || senderId == null || content == null || createdAtStr == null) return;
+
+      // Avoid duplicates (our own send already optimistically refreshes)
+      if (state.chatHistory.any((m) => m.id == id)) return;
+
+      final newMsg = MessageItem(
+        id: id,
+        senderId: senderId,
+        senderName: null, // will be filled when full history is fetched next time
+        senderAvatar: null,
+        senderRole: null,
+        content: content,
+        createdAt: DateTime.parse(createdAtStr),
+        isRead: senderId == currentUserId,
+      );
+
+      state = state.copyWith(chatHistory: [...state.chatHistory, newMsg]);
+    } catch (_) {
+      // ignore parse errors – the subscription callback will do a fallback fetchChatHistory
+    }
+  }
+
+
+  Future<bool> sendMessage(String content, {String? receiverId, String? groupId}) async {
+    try {
+      final body = {
         'content': content,
-        'receiver_id': receiverId,
+      };
+      if (groupId != null) {
+        body['group_id'] = groupId;
+      } else {
+        body['receiver_id'] = receiverId ?? '';
+      }
+
+      await _apiService.post('/student/messages/send', body);
+      
+      // If we are currently viewing this chat, refresh its history
+      final activeChatId = groupId ?? receiverId;
+      if (activeChatId != null) {
+        await fetchChatHistory(activeChatId);
+      } else {
+        await fetchMessages();
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      final response = await _apiService.get('/users/search?q=$query');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final users = data['users'] as List? ?? [];
+      return List<Map<String, dynamic>>.from(users);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchGroups() async {
+    try {
+      final response = await _apiService.get('/student/groups');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final groups = data['groups'] as List? ?? [];
+      return List<Map<String, dynamic>>.from(groups);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> createGroup(
+    String name,
+    String description, {
+    List<String> memberIds = const [],
+    Uint8List? avatarBytes,
+    String? avatarFilename,
+    String groupLevel = 'school',
+    String? className,
+  }) async {
+    try {
+      final response = await _apiService.post('/student/groups/create', {
+        'name': name,
+        'description': description,
+        'group_level': groupLevel,
+        'class_name': className,
       });
+      final data = response.containsKey('data') ? response['data'] : response;
+      final group = data['group'] as Map<String, dynamic>?;
+      final groupId = group?['id'] as String?;
+
+      if (groupId != null) {
+        if (avatarBytes != null && avatarFilename != null) {
+          try {
+            await _apiService.multipartPostBytes(
+              '/groups/$groupId/avatar',
+              avatarBytes,
+              avatarFilename,
+              'avatar',
+            );
+          } catch (_) {}
+        }
+
+        if (memberIds.isNotEmpty) {
+          for (final mid in memberIds) {
+            try {
+              await _apiService.post('/groups/$groupId/members', {
+                'member_id': mid,
+              });
+            } catch (_) {}
+          }
+          
+          try {
+            await _apiService.post('/student/messages/send', {
+              'group_id': groupId,
+              'content': '📢 Group squad revision formed with ${memberIds.length + 1} members!'
+            });
+          } catch (_) {}
+        }
+      }
+
+      _apiService.clearCache();
+      await fetchMessages();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+
+
+  Future<bool> joinGroup(String groupId) async {
+    try {
+      await _apiService.post('/groups/$groupId/join', {});
+      _apiService.clearCache();
+      await fetchMessages();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> leaveGroup(String groupId) async {
+    try {
+      await _apiService.post('/groups/$groupId/leave', {});
+      _apiService.clearCache();
+      await fetchMessages();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchGroupMembers(String groupId) async {
+    try {
+      final response = await _apiService.get('/groups/$groupId/members');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final members = data['members'] as List? ?? [];
+      return List<Map<String, dynamic>>.from(members);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> deleteMessage(String messageId, String chatId) async {
+    try {
+      await _apiService.delete('/student/messages/$messageId');
+      await fetchChatHistory(chatId);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> clearChat(String chatId) async {
+    try {
+      await _apiService.post('/student/messages/clear', {'chat_id': chatId});
+      await fetchChatHistory(chatId);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> fetchBlockedUsers() async {
+    try {
+      final response = await _apiService.get('/users/blocked');
+      final data = response.containsKey('data') ? response['data'] : response;
+      final blocked = data['blocked_ids'] as List? ?? [];
+      state = state.copyWith(blockedUserIds: List<String>.from(blocked));
+    } catch (_) {}
+  }
+
+  Future<bool> blockUser(String userId) async {
+    try {
+      await _apiService.post('/users/$userId/block', {});
+      await fetchBlockedUsers();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> unblockUser(String userId) async {
+    try {
+      await _apiService.post('/users/$userId/unblock', {});
+      await fetchBlockedUsers();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteGroup(String groupId) async {
+    try {
+      await _apiService.delete('/groups/$groupId');
+      _apiService.clearCache();
+      await fetchMessages();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> removeGroupMember(String groupId, String memberId) async {
+    try {
+      await _apiService.delete('/groups/$groupId/members/$memberId');
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> updateGroupAvatar(String groupId, Uint8List bytes, String filename) async {
+    try {
+      await _apiService.multipartPostBytes(
+        '/groups/$groupId/avatar',
+        bytes,
+        filename,
+        'avatar',
+      );
+      _apiService.clearCache();
       await fetchMessages();
       return true;
     } catch (e) {

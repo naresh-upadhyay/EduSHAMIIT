@@ -186,52 +186,52 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
   SubjectTheme _getSubjectTheme(String subject) {
     final s = subject.toLowerCase();
     if (s.contains('math')) {
-      return SubjectTheme(
-        bg: const Color(0xFFEFF6FF),
-        border: const Color(0xFFBFDBFE),
-        accent: const Color(0xFF4F46E5),
+      return const SubjectTheme(
+        bg: Color(0xFFEFF6FF),
+        border: Color(0xFFBFDBFE),
+        accent: Color(0xFF4F46E5),
         icon: '📐',
       );
     } else if (s.contains('physics')) {
-      return SubjectTheme(
-        bg: const Color(0xFFECFDF5),
-        border: const Color(0xFFBBF7D0),
-        accent: const Color(0xFF059669),
+      return const SubjectTheme(
+        bg: Color(0xFFECFDF5),
+        border: Color(0xFFBBF7D0),
+        accent: Color(0xFF059669),
         icon: '⚛️',
       );
     } else if (s.contains('chemistry')) {
-      return SubjectTheme(
-        bg: const Color(0xFFFFFBEB),
-        border: const Color(0xFFFDE68A),
-        accent: const Color(0xFFD97706),
+      return const SubjectTheme(
+        bg: Color(0xFFFFFBEB),
+        border: Color(0xFFFDE68A),
+        accent: Color(0xFFD97706),
         icon: '⚗️',
       );
     } else if (s.contains('english')) {
-      return SubjectTheme(
-        bg: const Color(0xFFFFF1F2),
-        border: const Color(0xFFFECDD3),
-        accent: const Color(0xFFE11D48),
+      return const SubjectTheme(
+        bg: Color(0xFFFFF1F2),
+        border: Color(0xFFFECDD3),
+        accent: Color(0xFFE11D48),
         icon: '📖',
       );
     } else if (s.contains('computer') || s.contains('cs')) {
-      return SubjectTheme(
-        bg: const Color(0xFFECFDF5),
-        border: const Color(0xFFA7F3D0),
-        accent: const Color(0xFF10B981),
+      return const SubjectTheme(
+        bg: Color(0xFFECFDF5),
+        border: Color(0xFFA7F3D0),
+        accent: Color(0xFF10B981),
         icon: '💻',
       );
     } else if (s.contains('history') || s.contains('library')) {
-      return SubjectTheme(
-        bg: const Color(0xFFF5F3FF),
-        border: const Color(0xFFDDD6FE),
-        accent: const Color(0xFF8B5CF6),
+      return const SubjectTheme(
+        bg: Color(0xFFF5F3FF),
+        border: Color(0xFFDDD6FE),
+        accent: Color(0xFF8B5CF6),
         icon: '📜',
       );
     }
-    return SubjectTheme(
-      bg: const Color(0xFFF8FAFC),
-      border: const Color(0xFFE2E8F0),
-      accent: const Color(0xFF475569),
+    return const SubjectTheme(
+      bg: Color(0xFFF8FAFC),
+      border: Color(0xFFE2E8F0),
+      accent: Color(0xFF475569),
       icon: '📚',
     );
   }

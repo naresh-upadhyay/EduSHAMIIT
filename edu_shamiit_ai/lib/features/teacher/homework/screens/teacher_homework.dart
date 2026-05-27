@@ -248,7 +248,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         color: _kSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border(left: BorderSide(color: color, width: 4)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -262,7 +262,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -334,7 +334,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
             margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _kPink.withOpacity(0.05),
+              color: _kPink.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
@@ -362,7 +362,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
       decoration: BoxDecoration(
         color: _kSurface,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
       ),
       child: Row(
         children: [
@@ -439,7 +439,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
       decoration: BoxDecoration(
         color: _kSurface,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
       ),
       child: Row(
         children: [
@@ -503,15 +503,15 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.15)),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
             Container(
               width: 40, height: 40,
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
               child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
             ),
             const SizedBox(width: 12),
@@ -524,7 +524,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.5), size: 18),
+            Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.5), size: 18),
           ],
         ),
       ),
@@ -830,7 +830,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   Widget _buildStatBox(String value, String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
           Text(value, style: TextStyle(fontFamily: AppFonts.heading, fontSize: 20, fontWeight: FontWeight.w900, color: color)),

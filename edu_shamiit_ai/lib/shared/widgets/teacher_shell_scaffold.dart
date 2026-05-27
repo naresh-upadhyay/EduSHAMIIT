@@ -85,6 +85,10 @@ class TeacherShellScaffold extends StatelessWidget {
         label: 'Documents',
         route: '/teacher/documents'),
     _NavItem(
+        icon: Icons.chat_bubble_rounded,
+        label: 'Messages',
+        route: '/teacher/messaging'),
+    _NavItem(
         icon: Icons.person_rounded,
         label: 'Profile',
         route: '/teacher/profile'),
@@ -117,7 +121,8 @@ class TeacherShellScaffold extends StatelessWidget {
     // Don't wrap AI chat in SelectionArea — its streaming ListView
     // causes !debugNeedsLayout assertions in SelectableRegion.
     final isAiChat = currentLoc.endsWith('/ai-chat');
-    final pageChild = isAiChat ? child : SelectionArea(child: child);
+    final isMessaging = currentLoc.contains('/messaging');
+    final pageChild = child;
 
     // ── Desktop / wide: Custom sidebar with all routes ──
     if (Responsive.isDesktop(context)) {
@@ -144,7 +149,7 @@ class TeacherShellScaffold extends StatelessWidget {
             Expanded(child: pageChild),
           ],
         ),
-        floatingActionButton: isAiChat ? null : AiFab(
+        floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
           gradient: AppGradients.studentPrimary,
           onPressed: () => context.push('/teacher/ai-chat'),
         ),
@@ -153,9 +158,9 @@ class TeacherShellScaffold extends StatelessWidget {
 
     // ── Mobile / tablet: bottom nav bar ──
     return Scaffold(
-      body: isAiChat ? child : SelectionArea(child: child),
+      body: child,
       bottomNavigationBar: TeacherBottomNav(currentLocation: currentLoc),
-      floatingActionButton: isAiChat ? null : AiFab(
+      floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
         gradient: AppGradients.studentPrimary,
         onPressed: () => context.push('/teacher/ai-chat'),
       ),

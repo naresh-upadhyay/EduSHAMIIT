@@ -304,9 +304,10 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       if (response['success'] == true) {
         final newUrl = response['data']?['avatar_url'] as String?;
         if (newUrl != null && state.profile != null) {
+          final cacheBustedUrl = '$newUrl?t=${DateTime.now().millisecondsSinceEpoch}';
           state = state.copyWith(
             isUploadingAvatar: false,
-            profile: state.profile!.copyWith(avatarUrl: newUrl),
+            profile: state.profile!.copyWith(avatarUrl: cacheBustedUrl),
           );
         } else {
           await loadProfile();

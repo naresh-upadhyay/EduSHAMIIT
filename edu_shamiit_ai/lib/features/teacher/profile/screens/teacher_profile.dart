@@ -70,7 +70,7 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         WebUiSettings(
           context: context,
           presentStyle: WebPresentStyle.dialog,
-          size: const CropperSize(width: 300, height: 300),
+          size: const CropperSize(width: 220, height: 220),
           zoomable: true,
           rotatable: true,
           scalable: true,

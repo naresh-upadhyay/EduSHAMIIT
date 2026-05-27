@@ -468,7 +468,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                               const Text('Target Class', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               DropdownButtonFormField<String>(
-                                value: selectedClass,
+                                initialValue: selectedClass,
                                 dropdownColor: const Color(0xFF1E293B),
                                 style: const TextStyle(color: Colors.white, fontSize: 13),
                                 decoration: InputDecoration(
@@ -493,7 +493,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                               const Text('Subject', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               DropdownButtonFormField<String>(
-                                value: selectedSubject,
+                                initialValue: selectedSubject,
                                 dropdownColor: const Color(0xFF1E293B),
                                 style: const TextStyle(color: Colors.white, fontSize: 13),
                                 decoration: InputDecoration(
@@ -526,7 +526,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                             firstDate: DateTime.now(),
                             lastDate: DateTime.now().add(const Duration(days: 30)),
                           );
-                          if (date != null) {
+                          if (date != null && context.mounted) {
                             final time = await showTimePicker(
                               context: context,
                               initialTime: TimeOfDay.fromDateTime(selectedDateTime),
@@ -644,6 +644,8 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                             return;
                           }
 
+                          final messenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(context);
                           setDialogState(() => isSubmitting = true);
 
                           try {
@@ -658,10 +660,10 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                               recordingUrl: isUploadRecording ? link : null,
                             );
 
-                            Navigator.pop(context);
+                            navigator.pop();
                             _loadLiveClasses();
 
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 backgroundColor: const Color(0xFF10B981),
                                 content: Row(
@@ -680,7 +682,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                             );
                           } catch (e) {
                             setDialogState(() => isSubmitting = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(content: Text('❌ Error: $e')),
                             );
                           }
@@ -719,7 +721,7 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
   bool _isVideoOff = false;
   bool _isSharing = false;
   bool _isEnding = false;
-  int _viewers = 35;
+  final int _viewers = 35;
   
   final TextEditingController _replyController = TextEditingController();
   Map<String, dynamic>? _pinnedComment;
@@ -945,7 +947,7 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                   if (_isSharing)
                     Positioned.fill(
                       child: Container(
-                        color: Colors.indigo.withOpacity(0.9),
+                        color: Colors.indigo.withValues(alpha: 0.9),
                         child: const Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -976,7 +978,7 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withOpacity(0.9),
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
                         ),

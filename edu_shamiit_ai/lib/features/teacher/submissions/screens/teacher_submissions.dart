@@ -198,7 +198,7 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
       margin: const EdgeInsets.fromLTRB(14, 8, 14, 0),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [_kRedLight, const Color(0xFFFCE7F3)]),
+        gradient: const LinearGradient(colors: [_kRedLight, Color(0xFFFCE7F3)]),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFECDD3)),
       ),
@@ -242,29 +242,32 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
   // ─── Content ──────────────────────────────────────────────────────────────
   Widget _buildContent() {
     if (_isLoading) return const Center(child: CircularProgressIndicator(color: _kRed));
-    if (_error != null) return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('⚠️', style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: _loadSubmissions, style: ElevatedButton.styleFrom(backgroundColor: _kRed, foregroundColor: Colors.white), child: const Text('Retry')),
-        ],
-      ),
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('⚠️', style: TextStyle(fontSize: 40)),
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            ElevatedButton(onPressed: _loadSubmissions, style: ElevatedButton.styleFrom(backgroundColor: _kRed, foregroundColor: Colors.white), child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    if (_filteredSubmissions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('📭', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 12),
+            Text('No ${_selectedStatus.toLowerCase()} submissions yet', style: const TextStyle(fontSize: 14, color: _kText3, fontWeight: FontWeight.w600)),
+          ],
+        ),
     );
-    if (_filteredSubmissions.isEmpty) return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('📭', style: TextStyle(fontSize: 48)),
-          const SizedBox(height: 12),
-          Text('No ${_selectedStatus.toLowerCase()} submissions yet', style: const TextStyle(fontSize: 14, color: _kText3, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-
+    }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
       itemCount: _filteredSubmissions.length,

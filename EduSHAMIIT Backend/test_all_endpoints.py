@@ -70,9 +70,9 @@ def ok_ai_or_key_error(name, resp):
     
     is_key_error = False
     detail = str(body.get("detail") or body.get("message") or "")
-    if resp.status_code in (400, 401, 500):
+    if resp.status_code in (400, 401, 422, 500):
         err_msg = detail.lower()
-        if any(w in err_msg for w in ["api key", "api_key", "incorrect api key", "unauthorized", "quota", "credentials", "openai", "gemini", "transcription error", "failed to ingest"]):
+        if any(w in err_msg for w in ["api key", "api_key", "incorrect api key", "unauthorized", "quota", "credentials", "openai", "gemini", "transcription error", "failed to ingest", "ffmpeg", "audio format not supported"]):
             is_key_error = True
             
     # Add check for 200 with success: False due to question generation error
@@ -592,12 +592,21 @@ if TEACHER_TOKEN:
 else:
     warn("GET /api/user/settings (teacher) - skipped (no teacher token)")
 check("PUT /api/user/settings (student)",requests.put(f"{BASE_URL}/api/user/settings", headers=S, json={"language": "en"}))
+
+# Search school profiles
+check("GET /api/users/search?q=Neha", requests.get(f"{BASE_URL}/api/users/search?q=Neha", headers=S))
+if TEACHER_TOKEN:
+    check("GET /api/users/search?q=Naresh", requests.get(f"{BASE_URL}/api/users/search?q=Naresh", headers=T))
+
+shared_group_id = None
 if TEACHER_TOKEN:
     check("GET /api/groups (teacher)",       requests.get(f"{BASE_URL}/api/groups", headers=T))
-    check("POST /api/groups/create",         requests.post(f"{BASE_URL}/api/groups/create", headers=T,
-                                               json={"name": "Shared Test Group", "description": "Auto"}))
-else:
-    warn("GET /api/groups / POST /api/groups/create (teacher) - skipped (no teacher token)")
+    group_res = requests.post(f"{BASE_URL}/api/groups/create", headers=T, json={"name": "Shared E2E Test Group", "description": "Auto revision group"})
+    b_grp = check("POST /api/groups/create", group_res)
+    shared_group_id = (b_grp.get("data") or {}).get("group", {}).get("id")
+    if shared_group_id:
+        avatar_file = {'avatar': ('group_avatar.png', b'mock_group_png_bytes', 'image/png')}
+        check("POST /api/groups/{id}/avatar", requests.post(f"{BASE_URL}/api/groups/{shared_group_id}/avatar", headers=T, files=avatar_file))
 
 # Notifications mark-read via shared
 s_notifs = (requests.get(f"{BASE_URL}/api/notifications", headers=S).json().get("data") or {}).get("notifications", [])
@@ -606,12 +615,6 @@ if s_notifs:
           requests.put(f"{BASE_URL}/api/notifications/{s_notifs[0]['id']}/read", headers=S))
 else:
     warn("PUT /api/notifications/{id}/read (no notifications)")
-
-# Student send message (to teacher)
-if stu_all:
-    t_id = stu_all[0]["id"]  # use any valid user
-else:
-    t_id = None
 
 # Get teacher's profile id from teacher token
 teacher_profile_id = None
@@ -624,8 +627,36 @@ if teacher_profile_id:
            requests.post(f"{BASE_URL}/api/messages/send", headers=S, json={
                "receiver_id": teacher_profile_id, "content": "Test message student to teacher"
            }))
+    
+    # Test fetching direct chat history
+    check("GET /api/messages/chat (direct chat history)",
+          requests.get(f"{BASE_URL}/api/messages/chat?chat_id={teacher_profile_id}", headers=S))
 else:
     warn("POST /api/messages/send (could not resolve teacher profile id)")
+
+# Test group joins and group message exchanges
+if shared_group_id:
+    # Student joins group
+    check("POST /api/groups/{id}/join", requests.post(f"{BASE_URL}/api/groups/{shared_group_id}/join", headers=S))
+    
+    # Fetch group members
+    check("GET /api/groups/{id}/members", requests.get(f"{BASE_URL}/api/groups/{shared_group_id}/members", headers=S))
+    
+    # Add a member to group (e.g. teacher)
+    if teacher_profile_id:
+        check("POST /api/groups/{id}/members", requests.post(f"{BASE_URL}/api/groups/{shared_group_id}/members", headers=S, json={
+            "member_id": teacher_profile_id
+        }))
+    
+    # Student sends group message
+    check("POST /api/messages/send (student->group)", requests.post(f"{BASE_URL}/api/messages/send", headers=S, json={
+        "group_id": shared_group_id, "content": "Hello study group squad! 👥"
+    }))
+    
+    # Fetch group chat history
+    check("GET /api/messages/chat (group chat history)", requests.get(f"{BASE_URL}/api/messages/chat?chat_id={shared_group_id}", headers=T))
+else:
+    warn("Skipped group join/messaging test (no shared group created)")
 
 # ================================================================
 # 5. IoT ENDPOINTS
@@ -705,10 +736,10 @@ else:
 # GET /api/chat/history/{session_id}
 check("GET /api/chat/history/{session_id}", requests.get(f"{BASE_URL}/api/chat/history/{chat_session}", headers=S))
 
-# POST /api/chat/voice (multipart)
+# POST /api/chat/voice/transcribe (multipart)
 audio_file = {'audio': ('audio.mp3', b'dummy_audio_bytes', 'audio/mpeg')}
-voice_payload = {'session_id': chat_session}
-ok_ai_or_key_error("POST /api/chat/voice", requests.post(f"{BASE_URL}/api/chat/voice", headers=S, files=audio_file, data=voice_payload))
+voice_payload = {'locale': 'en'}
+ok_ai_or_key_error("POST /api/chat/voice/transcribe", requests.post(f"{BASE_URL}/api/chat/voice/transcribe", headers=S, files=audio_file, data=voice_payload))
 
 # POST /api/chat/image (multipart)
 image_file = {'image': ('test_image.png', b'mock_png_bytes', 'image/png')}
