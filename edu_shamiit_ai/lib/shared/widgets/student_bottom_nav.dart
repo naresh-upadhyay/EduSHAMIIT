@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/app_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 
 class StudentBottomNav extends StatelessWidget {
@@ -48,9 +49,11 @@ class StudentBottomNav extends StatelessWidget {
     final isActive = currentLocation == route;
     return GestureDetector(
       onTap: () {
-        final nav = Navigator.of(context);
-        while (nav.canPop()) {
-          nav.pop();
+        final shellNav = studentShellKey.currentState;
+        if (shellNav != null) {
+          while (shellNav.canPop()) {
+            shellNav.pop();
+          }
         }
         context.go(route);
       },

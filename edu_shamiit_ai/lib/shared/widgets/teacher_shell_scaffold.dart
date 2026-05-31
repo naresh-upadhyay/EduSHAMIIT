@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/app_router.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
@@ -137,9 +138,11 @@ class TeacherShellScaffold extends StatelessWidget {
               selectedIndex: selected,
               isExtended: isExtended,
               onItemTap: (item) {
-                final nav = Navigator.of(context);
-                while (nav.canPop()) {
-                  nav.pop();
+                final shellNav = teacherShellKey.currentState;
+                if (shellNav != null) {
+                  while (shellNav.canPop()) {
+                    shellNav.pop();
+                  }
                 }
                 context.go(item.route);
               },

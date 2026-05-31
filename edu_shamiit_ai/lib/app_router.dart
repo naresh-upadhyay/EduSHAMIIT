@@ -56,8 +56,8 @@ import 'package:edu_shamiit_ai/shared/widgets/student_shell_scaffold.dart';
 import 'package:edu_shamiit_ai/shared/widgets/teacher_shell_scaffold.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final _studentShellKey = GlobalKey<NavigatorState>(debugLabel: 'studentShell');
-final _teacherShellKey = GlobalKey<NavigatorState>(debugLabel: 'teacherShell');
+final studentShellKey = GlobalKey<NavigatorState>(debugLabel: 'studentShell');
+final teacherShellKey = GlobalKey<NavigatorState>(debugLabel: 'teacherShell');
 
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -168,7 +168,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
     // ─────────────── STUDENT SHELL (persistent bottom nav) ───────────────
     ShellRoute(
-      navigatorKey: _studentShellKey,
+      navigatorKey: studentShellKey,
       builder: (context, state, child) => StudentShellScaffold(
         location: state.uri.toString(),
         child: child,
@@ -283,7 +283,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
     // ─────────────── TEACHER SHELL (persistent bottom nav) ───────────────
     ShellRoute(
-      navigatorKey: _teacherShellKey,
+      navigatorKey: teacherShellKey,
       builder: (context, state, child) => TeacherShellScaffold(
         location: state.uri.toString(),
         child: child,

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
     if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
     if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
+import 'package:edu_shamiit_ai/core/widgets/image_preview_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -2117,23 +2118,30 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                     const SizedBox(height: 2),
                   ],
                   if (msg.content.startsWith('[IMAGE]')) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          msg.content.substring('[IMAGE]'.length),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            padding: const EdgeInsets.all(12),
-                            color: Colors.black12,
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.broken_image, color: Colors.grey, size: 16),
-                                SizedBox(width: 8),
-                                Text('Failed to load image', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                              ],
+                    GestureDetector(
+                      onTap: () {
+                        final rawUrl = msg.content.substring('[IMAGE]'.length);
+                        final imageUrl = rawUrl.replaceAll('http://kong:8000', 'http://127.0.0.1:8000');
+                        ImagePreviewDialog.show(context, imageUrl, title: 'Image View');
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            msg.content.substring('[IMAGE]'.length).replaceAll('http://kong:8000', 'http://127.0.0.1:8000'),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              padding: const EdgeInsets.all(12),
+                              color: Colors.black12,
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.broken_image, color: Colors.grey, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Failed to load image', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -2145,14 +2153,19 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                         final parts = msg.content.substring('[DOCUMENT]'.length).split('|');
                         final url = parts[0];
                         final name = parts.length > 1 ? parts[1] : 'Attachment';
+                        final resolvedUrl = url.replaceAll('http://kong:8000', 'http://127.0.0.1:8000');
                         return InkWell(
                           onTap: () async {
                             try {
-                              final uri = Uri.parse(url);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              }
-                            } catch (_) {}
+                              await getDownloadHelper().downloadFile(resolvedUrl, name);
+                            } catch (_) {
+                              try {
+                                final uri = Uri.parse(resolvedUrl);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              } catch (_) {}
+                            }
                           },
                           child: Container(
                             margin: const EdgeInsets.symmetric(vertical: 4),

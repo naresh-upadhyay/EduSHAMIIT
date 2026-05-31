@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
 
 class ImagePreviewDialog extends StatelessWidget {
   final String imageUrl;
@@ -13,6 +16,9 @@ class ImagePreviewDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dynamically replace kong:8000 with 127.0.0.1:8000 for local development resolution
+    final String resolvedUrl = imageUrl.replaceAll('http://kong:8000', 'http://127.0.0.1:8000');
+
     return Dialog(
       backgroundColor: Colors.black,
       insetPadding: EdgeInsets.zero,
@@ -24,7 +30,7 @@ class ImagePreviewDialog extends StatelessWidget {
               maxScale: 4.0,
               child: Center(
                 child: CachedNetworkImage(
-                  imageUrl: imageUrl,
+                  imageUrl: resolvedUrl,
                   fit: BoxFit.contain,
                   placeholder: (context, url) => const Center(
                     child: CircularProgressIndicator(color: Colors.white),
@@ -60,7 +66,26 @@ class ImagePreviewDialog extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                const SizedBox(width: 48), // Spacer to balance the close button
+                IconButton(
+                  icon: const Icon(Icons.download, color: Colors.white, size: 30),
+                  onPressed: () async {
+                    try {
+                      final filename = resolvedUrl.split('/').last.split('?').first;
+                      await getDownloadHelper().downloadFile(resolvedUrl, filename);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Download started...')),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Download failed: $e')),
+                        );
+                      }
+                    }
+                  },
+                ),
               ],
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/app_router.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
@@ -164,7 +165,15 @@ class StudentShellScaffold extends StatelessWidget {
               items: _sidebarItems,
               selectedIndex: selected,
               isExtended: isExtended,
-              onItemTap: (item) => context.go(item.route),
+              onItemTap: (item) {
+                final shellNav = studentShellKey.currentState;
+                if (shellNav != null) {
+                  while (shellNav.canPop()) {
+                    shellNav.pop();
+                  }
+                }
+                context.go(item.route);
+              },
             ),
             const VerticalDivider(
                 thickness: 1, width: 1, color: Color(0xFFE2E8F0)),

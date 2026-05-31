@@ -571,7 +571,8 @@ async def upload_message_file(
             if put_response.status_code not in (200, 201):
                 raise HTTPException(status_code=500, detail=f"Upload failed: {put_response.text}")
                 
-    public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
+    public_url_base_replaced = public_url_base.replace("http://kong:8000", "http://127.0.0.1:8000")
+    public_url = f"{public_url_base_replaced}/storage/v1/object/public/{storage_path}"
     return {
         "success": True, 
         "data": {
