@@ -8,6 +8,7 @@ import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/settings_provider.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
+import 'package:edu_shamiit_ai/shared/widgets/call_notification_overlay.dart';
 
 class EduShamiitApp extends ConsumerWidget {
   const EduShamiitApp({super.key});
@@ -43,6 +44,13 @@ class EduShamiitApp extends ConsumerWidget {
       darkTheme: darkTheme,
       themeMode: (settingsState.settings?.darkMode ?? false) ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
+      // Wrap the entire app with the incoming call notification overlay
+      // so call banners appear on top of any route
+      builder: (context, child) {
+        return CallNotificationOverlay(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

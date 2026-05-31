@@ -7,6 +7,7 @@ import 'package:edu_shamiit_ai/core/config/app_config.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
+import 'package:edu_shamiit_ai/core/services/call_service.dart';
 
 /// Auth provider state — no longer holds a Supabase User object,
 /// just the fields we get back from the FastAPI /api/auth/login response.
@@ -95,6 +96,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
           token: token,
           userData: userData,
         );
+        // Initialize CallService for incoming call listener
+        final userId = userData?['id'] as String? ?? '';
+        if (userId.isNotEmpty) {
+          CallService.instance.initialize(userId, AppConfig.baseUrl);
+        }
         return;
       }
     } catch (e) {
@@ -172,6 +178,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
           token: token,
           userData: user,
         );
+        // Initialize CallService so incoming calls work from this login
+        final userId = user['id'] as String? ?? '';
+        if (userId.isNotEmpty) {
+          CallService.instance.initialize(userId, AppConfig.baseUrl);
+        }
         return true;
       }
 
@@ -193,6 +204,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signOut() async {
     // Clear API cache
     ApiService().clearCache();
+    // Dispose CallService incoming listener
+    CallService.instance.dispose();
     // Sign out of Supabase client to clean up realtime subscriptions
     try {
       await Supabase.instance.client.auth.signOut();
@@ -212,6 +225,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.setString('auth_token', token);
     await prefs.setString('user_role', role.value);
     await prefs.setString('user_data', jsonEncode(userData));
+    await prefs.setString('user_name', userData['full_name'] as String? ?? '');
     if (supabaseAccessToken != null) {
       await prefs.setString('supabase_access_token', supabaseAccessToken);
     }

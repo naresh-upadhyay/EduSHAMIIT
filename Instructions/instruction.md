@@ -162,7 +162,7 @@ supabase start
 
 # Terminal 2: Run Flutter
 flutter pub get
-flutter run -d chrome    # For web
+flutter run -d web-server --web-port 63305 --web-hostname 0.0.0.0    # For web (fixed port for LAN/firewall, avoids debug connection errors)
 flutter run              # For mobile/emulator
 ```
 

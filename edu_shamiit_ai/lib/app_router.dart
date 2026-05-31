@@ -55,6 +55,7 @@ import 'package:edu_shamiit_ai/features/teacher/student_directory/screens/teache
 import 'package:edu_shamiit_ai/shared/widgets/student_shell_scaffold.dart';
 import 'package:edu_shamiit_ai/shared/widgets/teacher_shell_scaffold.dart';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _studentShellKey = GlobalKey<NavigatorState>(debugLabel: 'studentShell');
 final _teacherShellKey = GlobalKey<NavigatorState>(debugLabel: 'teacherShell');
 
@@ -72,6 +73,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: (context, state) {

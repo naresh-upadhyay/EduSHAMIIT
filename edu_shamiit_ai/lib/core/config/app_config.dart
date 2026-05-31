@@ -1,11 +1,24 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:edu_shamiit_ai/core/config/app_config_host.dart';
+
 /// Application configuration constants
 class AppConfig {
+  // ─── Dynamic host detection ───────────────────────────────────────────────
+  // On Flutter Web, reads window.location.hostname so the app works from any
+  // device on the LAN (e.g. http://192.168.1.10:63305) not just localhost.
+  static String get _host {
+    if (kIsWeb) {
+      return getWebHostname();
+    }
+    return '127.0.0.1';
+  }
+
   // API Configuration
-  static const String baseUrl = 'http://127.0.0.1:80';
-  static const String apiBaseUrl = '$baseUrl/api';
+  static String get baseUrl => 'http://$_host:80';
+  static String get apiBaseUrl => '$baseUrl/api';
 
   // Supabase Configuration (from backend .env)
-  static const String supabaseUrl = 'http://127.0.0.1:8000';
+  static String get supabaseUrl => 'http://$_host:8000';
   static const String supabaseAnonKey =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNjAwMDAwMDAwLCJleHAiOjIwMDAwMDAwMDB9.V-Nq7_uazFUYvZFXyq_whGnFkWy4W_3o4k6m04sGc5Q';
 

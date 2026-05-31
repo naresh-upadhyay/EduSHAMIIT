@@ -19,6 +19,8 @@ import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:edu_shamiit_ai/core/services/call_service.dart';
+import 'package:edu_shamiit_ai/shared/screens/call_screen.dart';
 
 class StudentMessaging extends ConsumerStatefulWidget {
   const StudentMessaging({super.key});
@@ -1255,17 +1257,36 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   }
 
   void _startCall({required bool isVideo}) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.95),
-      transitionDuration: const Duration(milliseconds: 250),
-      pageBuilder: (context, anim1, anim2) {
-        return _CallOverlayScreen(
-          callerName: widget.senderName,
-          isVideo: isVideo,
-        );
-      },
+    if (widget.isGroup) return; // Group calls not supported (P2P only)
+
+    final authState = ref.read(authProvider);
+    final currentUserId = authState.userData?['id'] as String?;
+    if (currentUserId == null) return;
+
+    final callService = CallService.instance;
+
+    // Re-initialize CallService if needed (e.g., after login on same session)
+    if (callService.activeCall.value != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You are already in a call.')),
+      );
+      return;
+    }
+
+    // Initiate the WebRTC call
+    callService.initiateCall(
+      calleeId: widget.senderId,
+      calleeName: widget.senderName,
+      calleeAvatarUrl: widget.avatarUrl,
+      callType: isVideo ? CallType.video : CallType.audio,
+    );
+
+    // Navigate to call screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const CallScreen(),
+      ),
     );
   }
 
