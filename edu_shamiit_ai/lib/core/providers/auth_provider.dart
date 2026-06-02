@@ -77,8 +77,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
           debugPrint('[AuthProvider] Supabase session automatically restored by SDK');
         } else if (supabaseRefreshToken != null) {
           try {
-            await Supabase.instance.client.auth.setSession(supabaseRefreshToken);
+            final authRes = await Supabase.instance.client.auth.setSession(supabaseRefreshToken);
             debugPrint('[AuthProvider] Supabase session restored for realtime');
+            final newSession = authRes.session;
+            if (newSession != null) {
+              final newRefreshToken = newSession.refreshToken;
+              if (newRefreshToken != null) {
+                await prefs.setString('supabase_access_token', newSession.accessToken);
+                await prefs.setString('supabase_refresh_token', newRefreshToken);
+              }
+            }
           } catch (e) {
             debugPrint('[AuthProvider] Could not restore Supabase session: $e');
           }
@@ -145,13 +153,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final roleStr = user['role'] as String? ?? 'unknown';
         final role = UserRoleExtension.fromString(roleStr);
 
-        // Authenticate the Supabase Flutter client so realtime subscriptions
-        // use the authenticated user's session (not anon role).
-        // setSession() in gotrue v2 takes the refresh_token to exchange for a full session.
+        String? finalSupabaseAccessToken = supabaseAccessToken;
+        String? finalSupabaseRefreshToken = refreshToken;
         if (refreshToken != null) {
           try {
-            await Supabase.instance.client.auth.setSession(refreshToken);
+            final authRes = await Supabase.instance.client.auth.setSession(refreshToken);
             debugPrint('[AuthProvider] Supabase client session set for realtime');
+            final newSession = authRes.session;
+            if (newSession != null) {
+              finalSupabaseAccessToken = newSession.accessToken;
+              finalSupabaseRefreshToken = newSession.refreshToken;
+            }
           } catch (e) {
             debugPrint('[AuthProvider] Could not set Supabase session: $e');
           }
@@ -164,8 +176,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           token: token,
           role: role,
           userData: user,
-          supabaseAccessToken: supabaseAccessToken,
-          supabaseRefreshToken: refreshToken,
+          supabaseAccessToken: finalSupabaseAccessToken,
+          supabaseRefreshToken: finalSupabaseRefreshToken,
         );
 
         // Sync role provider using the provider's own Ref (never disposed)

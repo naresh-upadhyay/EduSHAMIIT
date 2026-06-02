@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
@@ -11,6 +12,7 @@ import 'package:edu_shamiit_ai/core/models/teacher_models.dart' as models;
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/core/providers/teacher_profile_provider.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -24,11 +26,49 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
   models.TeacherDashboard? _dashboardData;
   bool _isLoading = true;
   String? _error;
+  int _unreadCount = 0;
+  RealtimeChannel? _notifChannel;
 
   @override
   void initState() {
     super.initState();
     _loadDashboard();
+  }
+
+  @override
+  void dispose() {
+    if (_notifChannel != null) {
+      Supabase.instance.client.removeChannel(_notifChannel!);
+    }
+    super.dispose();
+  }
+
+  void _setupRealtimeNotifications(String userId) {
+    _notifChannel = Supabase.instance.client
+        .channel('teacher_dash_notif_$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notifications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+            _refreshUnreadCount();
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    try {
+      final notifications = await _apiService.getNotifications(isRead: false);
+      if (!mounted) return;
+      setState(() => _unreadCount = notifications.length);
+    } catch (_) {}
   }
 
   Future<void> _loadDashboard() async {
@@ -39,11 +79,20 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
 
     try {
       final dashboard = await _apiService.getDashboard();
+      final notifications = await _apiService.getNotifications(isRead: false);
+      if (!mounted) return;
       setState(() {
         _dashboardData = dashboard;
+        _unreadCount = notifications.length;
         _isLoading = false;
       });
+      // Setup realtime after we know the userId
+      final userId = ref.read(authProvider).userData?['id'] as String?;
+      if (userId != null && _notifChannel == null) {
+        _setupRealtimeNotifications(userId);
+      }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -170,23 +219,27 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                                onPressed: () => context.push('/teacher/notifications'),
+                                onPressed: () async {
+                                  await context.push('/teacher/notifications');
+                                  _loadDashboard();
+                                },
                               ),
-                              Positioned(
-                                right: 8,
-                                top: 8,
-                                child: Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Center(
-                                    child: Text('5', style: TextStyle(color: Colors.white, fontSize: 10)),
+                              if (_unreadCount > 0)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    width: 18,
+                                    height: 18,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFEF4444),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: Text('$_unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                           const SizedBox(width: 8),

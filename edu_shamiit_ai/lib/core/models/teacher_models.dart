@@ -35,7 +35,31 @@ bool _toBool(dynamic value, {bool fallback = false}) {
 DateTime? _toDateTime(dynamic value) {
   if (value == null) return null;
   if (value is DateTime) return value;
-  return DateTime.tryParse(value.toString());
+  final str = value.toString().trim();
+  if (str.isEmpty) return null;
+  
+  String cleaned = str;
+  if (cleaned.endsWith('+00')) {
+    cleaned = cleaned.substring(0, cleaned.length - 3) + 'Z';
+  } else if (cleaned.contains('+') && !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
+    final plusIndex = cleaned.lastIndexOf('+');
+    final offset = cleaned.substring(plusIndex + 1);
+    if (offset.length == 2) {
+      cleaned = cleaned.substring(0, plusIndex) + '+$offset:00';
+    } else if (offset.length == 4) {
+      cleaned = cleaned.substring(0, plusIndex) + '+${offset.substring(0, 2)}:${offset.substring(2)}';
+    }
+  } else if (cleaned.contains('-') && cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') && !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
+    final minusIndex = cleaned.lastIndexOf('-');
+    final offset = cleaned.substring(minusIndex + 1);
+    if (offset.length == 2) {
+      cleaned = cleaned.substring(0, minusIndex) + '-$offset:00';
+    } else if (offset.length == 4) {
+      cleaned = cleaned.substring(0, minusIndex) + '-${offset.substring(0, 2)}:${offset.substring(2)}';
+    }
+  }
+  cleaned = cleaned.replaceAll(' ', 'T');
+  return DateTime.tryParse(cleaned) ?? DateTime.tryParse(str);
 }
 
 String _normalizeTeacherRoute(dynamic value, {String fallback = '/teacher/dashboard'}) {
@@ -1500,9 +1524,10 @@ class TeacherNotification {
   final String id;
   final String title;
   final String message;
-  final String type; // general, homework, attendance, exam, system
+  final String type; // general, homework, attendance, exam, system, message
   final bool isRead;
   final String? actionUrl;
+  final String? referenceId;
   final DateTime createdAt;
   final DateTime? readAt;
 
@@ -1513,6 +1538,7 @@ class TeacherNotification {
     required this.type,
     required this.isRead,
     this.actionUrl,
+    this.referenceId,
     required this.createdAt,
     this.readAt,
   });
@@ -1521,10 +1547,11 @@ class TeacherNotification {
     return TeacherNotification(
       id: _toStr(json['id']),
       title: _toStr(json['title']),
-      message: (json['message'] ?? json['content'] ?? '').toString(),
+      message: (json['message'] ?? json['content'] ?? json['body'] ?? '').toString(),
       type: _toStr(json['type']),
       isRead: _toBool(json['is_read']),
       actionUrl: _toStr(json['action_url']).isEmpty ? null : _toStr(json['action_url']),
+      referenceId: json['reference_id'] as String?,
       createdAt: _toDateTime(json['created_at']) ?? DateTime.now(),
       readAt: _toDateTime(json['read_at']),
     );
@@ -1538,6 +1565,7 @@ class TeacherNotification {
       'type': type,
       'is_read': isRead,
       'action_url': actionUrl,
+      'reference_id': referenceId,
       'created_at': createdAt.toIso8601String(),
       'read_at': readAt?.toIso8601String(),
     };

@@ -613,8 +613,37 @@ s_notifs = (requests.get(f"{BASE_URL}/api/notifications", headers=S).json().get(
 if s_notifs:
     check("PUT /api/notifications/{id}/read",
           requests.put(f"{BASE_URL}/api/notifications/{s_notifs[0]['id']}/read", headers=S))
+    check("PATCH /api/notifications/{id}/read",
+          requests.patch(f"{BASE_URL}/api/notifications/{s_notifs[0]['id']}/read", headers=S))
 else:
     warn("PUT /api/notifications/{id}/read (no notifications)")
+
+# Notifications is_read filter (student)
+check("GET /api/notifications?is_read=false (student unread)",
+      requests.get(f"{BASE_URL}/api/notifications?is_read=false", headers=S))
+check("GET /api/notifications?is_read=true (student read)",
+      requests.get(f"{BASE_URL}/api/notifications?is_read=true", headers=S))
+check("GET /api/student/notifications?is_read=false",
+      requests.get(f"{BASE_URL}/api/student/notifications?is_read=false", headers=S))
+
+# Teacher notification endpoints
+if TEACHER_TOKEN:
+    t_notifs = (requests.get(f"{BASE_URL}/api/teacher/notifications", headers=T).json().get("data") or {}).get("notifications", [])
+    check("GET /api/teacher/notifications", requests.get(f"{BASE_URL}/api/teacher/notifications", headers=T))
+    check("GET /api/teacher/notifications?is_read=false",
+          requests.get(f"{BASE_URL}/api/teacher/notifications?is_read=false", headers=T))
+    check("GET /api/teacher/notifications?is_read=true",
+          requests.get(f"{BASE_URL}/api/teacher/notifications?is_read=true", headers=T))
+    if t_notifs:
+        check("PUT /api/teacher/notifications/{id}/read",
+              requests.put(f"{BASE_URL}/api/teacher/notifications/{t_notifs[0]['id']}/read", headers=T))
+
+# Mark all as read
+check("PATCH /api/notifications/read-all (student)",
+      requests.patch(f"{BASE_URL}/api/notifications/read-all", headers=S))
+if TEACHER_TOKEN:
+    check("PATCH /api/notifications/read-all (teacher)",
+          requests.patch(f"{BASE_URL}/api/notifications/read-all", headers=T))
 
 # Get teacher's profile id from teacher token
 teacher_profile_id = None
@@ -622,8 +651,13 @@ if TEACHER_TOKEN:
     tp = (requests.get(f"{BASE_URL}/api/teacher/profile", headers=T).json().get("data") or {}).get("profile", {})
     teacher_profile_id = tp.get("id")
 
+# Get student's profile id from student token
+student_profile_id = None
+sp = (requests.get(f"{BASE_URL}/api/student/profile", headers=S).json().get("data") or {}).get("profile", {})
+student_profile_id = sp.get("id")
+
 if teacher_profile_id:
-    ok_200("POST /api/messages/send (student->teacher)",
+    ok_200("POST /api/messages/send (student→teacher)",
            requests.post(f"{BASE_URL}/api/messages/send", headers=S, json={
                "receiver_id": teacher_profile_id, "content": "Test message student to teacher"
            }))
@@ -631,8 +665,58 @@ if teacher_profile_id:
     # Test fetching direct chat history
     check("GET /api/messages/chat (direct chat history)",
           requests.get(f"{BASE_URL}/api/messages/chat?chat_id={teacher_profile_id}", headers=S))
+
+    # Test teacher→student notification bidirectionality
+    if student_profile_id and TEACHER_TOKEN:
+        ok_200("POST /api/teacher/messages/send (teacher→student bidirectional)",
+               requests.post(f"{BASE_URL}/api/teacher/messages/send", headers=T, json={
+                   "receiver_id": student_profile_id, "content": "Teacher notification test message"
+               }))
+        import time; time.sleep(0.5)  # Let trigger fire
+        student_notifs_after = (requests.get(f"{BASE_URL}/api/student/notifications?is_read=false", headers=S).json().get("data") or {}).get("notifications", [])
+        if any(n.get("type") == "message" for n in student_notifs_after):
+            print(f"  ✅ PASS  Bidirectional: teacher→student notification confirmed ({len(student_notifs_after)} unread)")
+        else:
+            print(f"  ⚠️  WARN  Bidirectional: teacher→student notification not yet visible (may need DB trigger)")
+    
+    # Test notification deduplication: send 3 messages, expect only 1 notification
+    if student_profile_id and TEACHER_TOKEN:
+        pre_count = len((requests.get(f"{BASE_URL}/api/student/notifications?is_read=false", headers=S).json().get("data") or {}).get("notifications", []))
+        for i in range(3):
+            requests.post(f"{BASE_URL}/api/teacher/messages/send", headers=T, json={
+                "receiver_id": student_profile_id, "content": f"Dedup test message {i+1}"
+            })
+        import time; time.sleep(0.5)
+        post_count = len((requests.get(f"{BASE_URL}/api/student/notifications?is_read=false", headers=S).json().get("data") or {}).get("notifications", []))
+        if post_count <= pre_count + 1:
+            print(f"  ✅ PASS  Notification dedup: {pre_count}→{post_count} (max +1 per conversation)")
+        else:
+            print(f"  ⚠️  WARN  Dedup may not be working: {pre_count}→{post_count}")
 else:
     warn("POST /api/messages/send (could not resolve teacher profile id)")
+
+# Test DELETE notification endpoint
+fresh_notifs = (requests.get(f"{BASE_URL}/api/student/notifications", headers=S).json().get("data") or {}).get("notifications", [])
+if fresh_notifs:
+    del_id = fresh_notifs[0]['id']
+    check("DELETE /api/student/notifications/{id}",
+          requests.delete(f"{BASE_URL}/api/student/notifications/{del_id}", headers=S))
+    # Verify it's gone
+    after_del = (requests.get(f"{BASE_URL}/api/student/notifications", headers=S).json().get("data") or {}).get("notifications", [])
+    if not any(n['id'] == del_id for n in after_del):
+        print(f"  ✅ PASS  DELETE /api/student/notifications - notification removed from list")
+    else:
+        print(f"  ❌ FAIL  DELETE /api/student/notifications - notification still in list after delete")
+else:
+    warn("DELETE /api/student/notifications/{id} (no notifications to delete)")
+
+if TEACHER_TOKEN:
+    t_fresh = (requests.get(f"{BASE_URL}/api/teacher/notifications", headers=T).json().get("data") or {}).get("notifications", [])
+    if t_fresh:
+        check("DELETE /api/teacher/notifications/{id}",
+              requests.delete(f"{BASE_URL}/api/teacher/notifications/{t_fresh[0]['id']}", headers=T))
+    else:
+        warn("DELETE /api/teacher/notifications/{id} (no teacher notifications)")
 
 # Test group joins and group message exchanges
 if shared_group_id:
@@ -649,12 +733,64 @@ if shared_group_id:
         }))
     
     # Student sends group message
-    check("POST /api/messages/send (student->group)", requests.post(f"{BASE_URL}/api/messages/send", headers=S, json={
+    check("POST /api/messages/send (student→group)", requests.post(f"{BASE_URL}/api/messages/send", headers=S, json={
         "group_id": shared_group_id, "content": "Hello study group squad! 👥"
     }))
     
     # Fetch group chat history
     check("GET /api/messages/chat (group chat history)", requests.get(f"{BASE_URL}/api/messages/chat?chat_id={shared_group_id}", headers=T))
+
+    # Test group privacy and admin controls (make/dismiss admin)
+    priv_res = requests.post(f"{BASE_URL}/api/groups/create", headers=T, json={
+        "name": "Teacher Private Group", "description": "Private auto test", "is_private": True
+    })
+    b_priv = check("POST /api/groups/create (private group)", priv_res)
+    priv_group_id = (b_priv.get("data") or {}).get("group", {}).get("id")
+    
+    if priv_group_id:
+        # Check that student cannot see it in GET /api/groups
+        s_groups = requests.get(f"{BASE_URL}/api/groups", headers=S).json().get("data", {}).get("groups", [])
+        visible = any(g["id"] == priv_group_id for g in s_groups)
+        if not visible:
+            _r["passed"] += 1
+            print("  [PASS] Private group is invisible to non-member student")
+        else:
+            _r["failed"] += 1
+            _r["errors"].append("Private group is visible to non-member student")
+            print("  [FAIL] Private group is visible to non-member student")
+            
+        # Check that student cannot join it (should get 403)
+        join_resp = requests.post(f"{BASE_URL}/api/groups/{priv_group_id}/join", headers=S)
+        check("POST /api/groups/{id}/join (private -> 403)", join_resp, expected_status=403, check_success=False)
+        
+        # Add student as member (using teacher admin token)
+        if student_profile_id:
+            check("POST /api/groups/{id}/members (invite to private)", requests.post(f"{BASE_URL}/api/groups/{priv_group_id}/members", headers=T, json={
+                "member_id": student_profile_id
+            }))
+            
+            # Now student is member, check role change to admin
+            check("POST /api/groups/{id}/members/{mid}/role (make admin)", requests.post(f"{BASE_URL}/api/groups/{priv_group_id}/members/{student_profile_id}/role", headers=T, json={
+                "role": "admin"
+            }))
+            
+            # Attempt to demote teacher from admin to member
+            teacher_prof_res = requests.get(f"{BASE_URL}/api/teacher/profile", headers=T).json()
+            teacher_id = teacher_prof_res.get("data", {}).get("profile", {}).get("id")
+            if teacher_id:
+                check("POST /api/groups/{id}/members/{mid}/role (demote teacher)", requests.post(f"{BASE_URL}/api/groups/{priv_group_id}/members/{teacher_id}/role", headers=T, json={
+                    "role": "member"
+                }))
+                
+                # Now student is the only admin. Attempt to demote student to member using student admin token.
+                # This should fail (400) because student is the last admin.
+                demote_last_resp = requests.post(f"{BASE_URL}/api/groups/{priv_group_id}/members/{student_profile_id}/role", headers=S, json={
+                    "role": "member"
+                })
+                check("POST /api/groups/{id}/members/{mid}/role (demote last admin -> 400)", demote_last_resp, expected_status=400, check_success=False)
+                
+                # Clean up/leave
+                requests.post(f"{BASE_URL}/api/groups/{priv_group_id}/leave", headers=S)
 else:
     warn("Skipped group join/messaging test (no shared group created)")
 

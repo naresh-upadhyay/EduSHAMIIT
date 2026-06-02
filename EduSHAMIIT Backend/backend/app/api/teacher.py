@@ -830,10 +830,41 @@ async def teacher_submissions(homework_id: str = "", user=Depends(get_current_us
 
 
 @router.get("/notifications")
-async def teacher_notifications(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_notifications(
+    is_read: str = None,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
     sb = get_supabase()
-    notifications = (await sb.table("notifications").select("*").eq("school_id", school_id).eq("user_id", user["id"]).order("created_at", ascending=False).limit(20).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"notifications": notifications}}
+    query = sb.table("notifications").select("*").eq("school_id", school_id).eq("user_id", user["id"])
+    if is_read == "true":
+        query = query.eq("is_read", True)
+    elif is_read == "false":
+        query = query.eq("is_read", False)
+    notifications = (await query.order("created_at", ascending=False).limit(50).aexecute()).data
+    unread_count = sum(1 for n in notifications if not n.get("is_read", False))
+    return {"success": True, "school_id": school_id, "data": {"notifications": notifications, "unread_count": unread_count}}
+
+
+@router.put("/notifications/{notification_id}/read")
+async def teacher_mark_notification_read(notification_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    await sb.table("notifications").update({"is_read": True}).eq("id", notification_id).eq("user_id", user["id"]).aexecute()
+    return {"success": True}
+
+
+@router.patch("/notifications/{notification_id}/read")
+async def teacher_mark_notification_read_patch(notification_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    await sb.table("notifications").update({"is_read": True}).eq("id", notification_id).eq("user_id", user["id"]).aexecute()
+    return {"success": True}
+
+
+@router.delete("/notifications/{notification_id}")
+async def teacher_delete_notification(notification_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    await sb.table("notifications").delete().eq("id", notification_id).eq("user_id", user["id"]).aexecute()
+    return {"success": True}
 
 
 @router.put("/user/settings")

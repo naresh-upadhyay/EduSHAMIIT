@@ -3,13 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
 import 'package:edu_shamiit_ai/core/providers/profile_provider.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
+import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 
 class StudentDashboard extends ConsumerStatefulWidget {
   const StudentDashboard({super.key});
@@ -21,11 +24,47 @@ class StudentDashboard extends ConsumerStatefulWidget {
 class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
+  RealtimeChannel? _notifChannel;
 
   @override
   void initState() {
     super.initState();
     _loadDashboard();
+    Future.microtask(() async {
+      await ref.read(notificationsProvider.notifier).fetchNotifications();
+      _setupRealtimeNotifications();
+    });
+  }
+
+  void _setupRealtimeNotifications() {
+    final currentUserId = ref.read(authProvider).userData?['id'] as String?;
+    if (currentUserId == null) return;
+
+    _notifChannel = Supabase.instance.client
+        .channel('student_dash_notif_$currentUserId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notifications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: currentUserId,
+          ),
+          callback: (payload) {
+            if (!mounted) return;
+            ref.read(notificationsProvider.notifier).forceRefresh();
+          },
+        )
+        .subscribe();
+  }
+
+  @override
+  void dispose() {
+    if (_notifChannel != null) {
+      Supabase.instance.client.removeChannel(_notifChannel!);
+    }
+    super.dispose();
   }
 
   Future<void> _loadDashboard() async {
@@ -206,6 +245,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   }
 
   Widget _buildHeader() {
+    final notificationsState = ref.watch(notificationsProvider);
+    final unreadCount = notificationsState.unreadCount;
     final user = _dashboardData!['user'];
     final stats = _dashboardData!['stats'];
     final profileState = ref.watch(profileProvider);
@@ -301,25 +342,26 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                                       size: 18,
                                     ),
                                   ),
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Container(
-                                      width: 16,
-                                      height: 16,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFEF4444),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: const Color(0xFF4F46E5), width: 1.5),
-                                      ),
-                                      child: const Center(
-                                        child: Text(
-                                          '3',
-                                          style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                  if (unreadCount > 0)
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        width: 16,
+                                        height: 16,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEF4444),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: const Color(0xFF4F46E5), width: 1.5),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '$unreadCount',
+                                            style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),

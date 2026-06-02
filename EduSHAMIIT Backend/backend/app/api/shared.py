@@ -56,6 +56,9 @@ async def get_messages(user=Depends(get_current_user), school_id=Depends(require
         created_at = msg.get("created_at")
         content = msg.get("content")
         
+        if not receiver_id and not group_id:
+            continue
+        
         if group_id:
             key = f"group_{group_id}"
             if key in conversations:
@@ -81,6 +84,8 @@ async def get_messages(user=Depends(get_current_user), school_id=Depends(require
                 }
         else:
             contact_id = receiver_id if sender_id == user["id"] else sender_id
+            if not contact_id:
+                continue
             key = f"user_{contact_id}"
             
             if key not in conversations:
@@ -120,6 +125,9 @@ async def send_message(request: dict, user=Depends(get_current_user), school_id=
     if not content:
         raise HTTPException(status_code=400, detail="Content cannot be empty")
         
+    if not receiver_id and not group_id:
+        raise HTTPException(status_code=400, detail="Either receiver_id or group_id must be provided")
+        
     payload = {
         "school_id": school_id,
         "sender_id": user["id"],
@@ -146,6 +154,10 @@ async def send_message(request: dict, user=Depends(get_current_user), school_id=
     if not message.data:
         raise HTTPException(status_code=500, detail="Failed to send message")
         
+    # Message notification is now handled completely dynamically and securely in the database
+    # by the PostgreSQL trigger 'trigger_message_notification' (Migration 107).
+    # This guarantees reliable delivery, resolves RLS permission errors, and optimizes performance.
+        
     return {"success": True, "school_id": school_id, "data": {"message": message.data[0]}}
 
 
@@ -159,6 +171,8 @@ async def get_chat(chat_id: str = "", user=Depends(get_current_user), school_id=
     group_res = await sb.table("groups").select("*").eq("id", chat_id).maybe_single().aexecute()
     
     if group_res.data:
+        # Mark group messages sent by others as read
+        await sb.table("messages").update({"is_read": True, "read_at": "now()"}).eq("group_id", chat_id).neq("sender_id", user['id']).eq("is_read", False).aexecute()
         # Fetch group messages and include sender profiles
         messages = (await sb.table("messages")
                     .select("*, profiles!sender_id(full_name, avatar_url, role)")
@@ -199,16 +213,47 @@ async def search_users(q: str = "", user=Depends(get_current_user), school_id=De
 
 
 @router.get("/notifications")
-async def get_notifications(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def get_notifications(
+    is_read: str = None,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
     sb = get_supabase()
-    notifications = (await sb.table("notifications").select("*").eq("school_id", school_id).eq("user_id", user["id"]).order("created_at", ascending=False).limit(20).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"notifications": notifications}}
+    query = sb.table("notifications").select("*").eq("school_id", school_id).eq("user_id", user["id"])
+    if is_read == "true":
+        query = query.eq("is_read", True)
+    elif is_read == "false":
+        query = query.eq("is_read", False)
+    notifications = (await query.order("created_at", ascending=False).limit(50).aexecute()).data
+    unread_count = sum(1 for n in notifications if not n.get("is_read", False))
+    return {"success": True, "school_id": school_id, "data": {"notifications": notifications, "unread_count": unread_count}}
 
 
 @router.put("/notifications/{notification_id}/read")
 async def mark_notification_read(notification_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    await sb.table("notifications").update({"is_read": True}).eq("id", notification_id).aexecute()
+    await sb.table("notifications").update({"is_read": True}).eq("id", notification_id).eq("user_id", user["id"]).aexecute()
+    return {"success": True}
+
+
+@router.patch("/notifications/{notification_id}/read")
+async def mark_notification_read_patch(notification_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    await sb.table("notifications").update({"is_read": True}).eq("id", notification_id).eq("user_id", user["id"]).aexecute()
+    return {"success": True}
+
+
+@router.patch("/notifications/read-all")
+async def mark_all_notifications_read(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    await sb.table("notifications").update({"is_read": True}).eq("user_id", user["id"]).eq("is_read", False).aexecute()
+    return {"success": True}
+
+
+@router.delete("/notifications/{notification_id}")
+async def delete_notification(notification_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    await sb.table("notifications").delete().eq("id", notification_id).eq("user_id", user["id"]).aexecute()
     return {"success": True}
 
 
@@ -304,6 +349,7 @@ async def create_group(request: dict, user=Depends(get_current_user), school_id=
     description = request.get("description")
     group_level = request.get("group_level", "school")
     class_name = request.get("class_name")
+    is_private = request.get("is_private", False)
     
     if not name:
         raise HTTPException(status_code=400, detail="Group name is required")
@@ -330,7 +376,8 @@ async def create_group(request: dict, user=Depends(get_current_user), school_id=
         "description": description,
         "created_by": user["id"],
         "group_level": group_level,
-        "class_name": class_name if group_level == "class" else None
+        "class_name": class_name if group_level == "class" else None,
+        "is_private": is_private
     }).aexecute()
     
     if not group_res.data:
@@ -345,25 +392,7 @@ async def create_group(request: dict, user=Depends(get_current_user), school_id=
         "role": "admin"
     }).aexecute()
     
-    # 4. If Class Level and created by Student, automatically add all students of that class by default!
-    if group_level == "class" and user_role == "student":
-        try:
-            students_res = await sb.table("profiles").select("id").eq("school_id", school_id).eq("role", "student").eq("class", class_name).aexecute()
-            if students_res.data:
-                member_inserts = []
-                for s in students_res.data:
-                    if s["id"] == user["id"]:
-                        continue
-                    member_inserts.append({
-                        "group_id": group_id,
-                        "member_id": s["id"],
-                        "role": "member"
-                    })
-                if member_inserts:
-                    await sb.table("group_members").insert(member_inserts).aexecute()
-        except Exception as e:
-            print(f"Error auto-populating class students: {str(e)}")
-            
+    # 4. Creators can add selected members manually. Class auto-populate removed to support only selected members.
     return {"success": True, "school_id": school_id, "data": {"group": group_res.data[0]}}
 
 
@@ -378,38 +407,70 @@ async def get_groups(user=Depends(get_current_user), school_id=Depends(require_s
     user_role = user.get("role", "student")
     user_class = user.get("class")
     
-    # Filter groups based on role
-    if user_role == "student":
-        # Students only see:
-        # 1. Groups they are already members of (regardless of level)
-        # 2. Class level groups for their own class (so they can join them)
-        if user_class:
-            in_cond = ",".join([f"'{gid}'" for gid in member_group_ids]) if member_group_ids else "'00000000-0000-0000-0000-000000000000'"
-            groups = (await sb.table("groups")
-                      .select("*")
-                      .eq("school_id", school_id)
-                      .or_(f"class_name.eq.{user_class},id.in.({in_cond})")
-                      .aexecute()).data
+    # Fetch all active groups in the school
+    groups_res = await sb.table("groups").select("*").eq("school_id", school_id).aexecute()
+    all_groups = groups_res.data or []
+    
+    # Extract all creator_ids to fetch creator profiles in one query
+    creator_ids = list({g["created_by"] for g in all_groups if g.get("created_by")})
+    creators_dict = {}
+    if creator_ids:
+        creators_res = await sb.table("profiles").select("id, role, class").in_("id", creator_ids).aexecute()
+        if creators_res.data:
+            creators_dict = {p["id"]: p for p in creators_res.data}
+            
+    filtered_groups = []
+    for g in all_groups:
+        g_id = g["id"]
+        is_member = g_id in member_group_ids
+        
+        # Rule 1: Members can always see their groups
+        if is_member:
+            g["is_member"] = True
+            filtered_groups.append(g)
+            continue
+            
+        g["is_member"] = False
+        
+        # Non-members: check if private
+        is_private = g.get("is_private", False)
+        if is_private:
+            # Rule 2: Private groups are invisible to non-members
+            continue
+            
+        # Public groups filtering based on creator role
+        creator_id = g.get("created_by")
+        creator_profile = creators_dict.get(creator_id) if creator_id else None
+        creator_role = creator_profile.get("role", "student") if creator_profile else "student"
+        creator_class = creator_profile.get("class") if creator_profile else None
+        
+        if user_role == "student":
+            # Student non-members only see:
+            # - Public groups created by teachers
+            # - Public groups created by students in their same class
+            if creator_role != "student":
+                filtered_groups.append(g)
+            elif creator_class and creator_class == user_class:
+                filtered_groups.append(g)
+            elif g.get("class_name") and g.get("class_name") == user_class:
+                filtered_groups.append(g)
         else:
-            in_cond = ",".join([f"'{gid}'" for gid in member_group_ids]) if member_group_ids else "'00000000-0000-0000-0000-000000000000'"
-            groups = (await sb.table("groups")
-                      .select("*")
-                      .eq("school_id", school_id)
-                      .or_(f"id.in.({in_cond})")
-                      .aexecute()).data
-    else:
-        # Teachers/principals/HODs/admins see all groups in the school
-        groups = (await sb.table("groups").select("*").eq("school_id", school_id).aexecute()).data
-        
-    for g in groups:
-        g['is_member'] = g['id'] in member_group_ids
-        
-    return {"success": True, "school_id": school_id, "data": {"groups": groups}}
+            # Teachers non-members see all public groups in the school
+            filtered_groups.append(g)
+            
+    return {"success": True, "school_id": school_id, "data": {"groups": filtered_groups}}
 
 
 @router.post("/groups/{group_id}/join")
 async def join_group(group_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    # Verify group exists and is not private
+    group = await sb.table("groups").select("is_private").eq("id", group_id).maybe_single().aexecute()
+    if not group.data:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if group.data.get("is_private", False):
+        raise HTTPException(status_code=403, detail="Cannot join a private group. You must be invited/added by an admin.")
+        
     # Insert record into group_members
     await sb.table("group_members").insert({
         "group_id": group_id,
@@ -660,3 +721,49 @@ async def remove_group_member(group_id: str, member_id: str, user=Depends(get_cu
         
     await sb.table("group_members").delete().eq("group_id", group_id).eq("member_id", member_id).aexecute()
     return {"success": True, "message": "Member removed successfully"}
+
+
+@router.post("/groups/{group_id}/members/{member_id}/role")
+async def update_member_role(
+    group_id: str,
+    member_id: str,
+    request: dict,
+    user=Depends(get_current_user)
+):
+    role = request.get("role")
+    if role not in ("admin", "member"):
+        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'member'")
+        
+    sb = get_supabase()
+    
+    # Check if group exists and who created it
+    group = await sb.table("groups").select("created_by").eq("id", group_id).maybe_single().aexecute()
+    if not group.data:
+        raise HTTPException(status_code=404, detail="Group not found")
+        
+    # Check caller's role in the group
+    caller_membership = await sb.table("group_members").select("role").eq("group_id", group_id).eq("member_id", user["id"]).maybe_single().aexecute()
+    
+    is_caller_admin = (group.data["created_by"] == user["id"]) or (caller_membership.data and caller_membership.data["role"] == "admin")
+    if not is_caller_admin:
+        raise HTTPException(status_code=403, detail="Only admins have permission to change member roles")
+        
+    # Check target user's current membership/role in the group
+    target_membership = await sb.table("group_members").select("role").eq("group_id", group_id).eq("member_id", member_id).maybe_single().aexecute()
+    if not target_membership.data:
+        raise HTTPException(status_code=404, detail="Target user is not a member of this group")
+        
+    current_role = target_membership.data.get("role", "member")
+    if current_role == role:
+        return {"success": True, "message": f"User already has role {role}"}
+        
+    # If demoting from admin to member, check that it's not the last admin
+    if current_role == "admin" and role == "member":
+        admins_res = await sb.table("group_members").select("member_id").eq("group_id", group_id).eq("role", "admin").aexecute()
+        admins = admins_res.data or []
+        if len(admins) <= 1:
+            raise HTTPException(status_code=400, detail="Cannot demote the last admin of the group")
+            
+    # Update the role
+    await sb.table("group_members").update({"role": role}).eq("group_id", group_id).eq("member_id", member_id).aexecute()
+    return {"success": True, "message": f"Member role updated to {role} successfully"}

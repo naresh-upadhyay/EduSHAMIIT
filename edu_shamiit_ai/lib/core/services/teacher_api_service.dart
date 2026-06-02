@@ -1213,7 +1213,7 @@ class TeacherApiService {
   Future<void> markAllNotificationsAsRead() async {
     try {
       final response = await _client.patch(
-        Uri.parse('$_baseUrl/teacher/notifications/read-all'),
+        Uri.parse('$_baseUrl/notifications/read-all'),
         headers: await _getHeaders(),
       );
 
@@ -1222,6 +1222,22 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error marking all notifications: $e');
+    }
+  }
+
+  /// Delete a single notification
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/notifications/$notificationId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete notification: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting notification: $e');
     }
   }
 

@@ -24,7 +24,8 @@ import 'package:edu_shamiit_ai/core/services/call_service.dart';
 import 'package:edu_shamiit_ai/shared/screens/call_screen.dart';
 
 class TeacherMessaging extends ConsumerStatefulWidget {
-  const TeacherMessaging({super.key});
+  final String? initialChatId;
+  const TeacherMessaging({super.key, this.initialChatId});
 
   @override
   ConsumerState<TeacherMessaging> createState() => _TeacherMessagingState();
@@ -40,8 +41,17 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(messagingProvider.notifier).fetchMessages();
+    Future.microtask(() async {
+      await ref.read(messagingProvider.notifier).fetchMessages();
+      if (widget.initialChatId != null && mounted) {
+        final conversations = ref.read(messagingProvider).conversations;
+        final match = conversations.where((c) => c.id == widget.initialChatId).firstOrNull;
+        if (match != null) {
+          _openChat(match);
+        } else {
+          _openChatById(widget.initialChatId!);
+        }
+      }
     });
 
     _searchController.addListener(_onSearchChanged);
@@ -49,6 +59,7 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
   }
 
   void _setupRealtimeSubscription() {
+    if (_realtimeChannel != null) return;
     final currentUserId = ref.read(authProvider).userData?['id'] as String?;
     if (currentUserId == null) return;
 
@@ -76,7 +87,7 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
 
         if (shouldUpdate) {
           debugPrint('[Realtime List] Refreshing conversations list');
-          ref.read(messagingProvider.notifier).fetchMessages();
+          ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
         }
       },
     ).subscribe((status, [error]) {
@@ -137,6 +148,10 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = ref.watch(authProvider).userData?['id'] as String?;
+    if (currentUserId != null && _realtimeChannel == null) {
+      Future.microtask(() => _setupRealtimeSubscription());
+    }
     final messagingState = ref.watch(messagingProvider);
     final conversations = messagingState.conversations;
 
@@ -410,8 +425,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
         final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
         return GestureDetector(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => _ChatDetailScreen(
@@ -422,6 +437,9 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                 ),
               ),
             );
+            if (mounted) {
+              ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+            }
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 6),
@@ -667,8 +685,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
     );
   }
 
-  void _openChat(ChatConversation conversation) {
-    Navigator.push(
+  void _openChat(ChatConversation conversation) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _ChatDetailScreen(
@@ -679,6 +697,57 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
         ),
       ),
     );
+    if (mounted) {
+      ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+    }
+  }
+
+  void _openChatById(String id) async {
+    try {
+      final client = Supabase.instance.client;
+      // 1. Check if it's a group
+      final groupRes = await client.from('groups').select().eq('id', id).maybeSingle();
+      if (groupRes != null) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _ChatDetailScreen(
+              senderName: groupRes['name'] as String? ?? 'Group',
+              senderId: id,
+              isGroup: true,
+              avatarUrl: groupRes['avatar_url'] as String?,
+            ),
+          ),
+        );
+        if (mounted) {
+          ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+        }
+        return;
+      }
+      
+      // 2. Otherwise check if it's a user profile
+      final profileRes = await client.from('profiles').select().eq('id', id).maybeSingle();
+      if (profileRes != null) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _ChatDetailScreen(
+              senderName: profileRes['full_name'] as String? ?? 'User',
+              senderId: id,
+              isGroup: false,
+              avatarUrl: profileRes['avatar_url'] as String?,
+            ),
+          ),
+        );
+        if (mounted) {
+          ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error opening chat by ID: $e');
+    }
   }
 
   void _showBrowseGroupsSheet() {
@@ -802,6 +871,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   RealtimeChannel? _realtimeChannel;
+  Timer? _pollTimer;
+  String? _lastSeenMessageId;
 
   final SpeechToText _stt = SpeechToText();
   bool _isListening = false;
@@ -817,14 +888,46 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     _messageController.addListener(_onMessageTextChanged);
     _micPulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
     
-    Future.microtask(() {
-      ref.read(messagingProvider.notifier).fetchChatHistory(widget.senderId);
+    Future.microtask(() async {
+      await ref.read(messagingProvider.notifier).fetchChatHistory(widget.senderId);
+      _updateLastSeenMessageId();
     });
 
     _setupRealtimeSubscription();
+    _startPollTimer();
+  }
+
+  void _updateLastSeenMessageId() {
+    final history = ref.read(messagingProvider).chatHistory;
+    if (history.isNotEmpty) {
+      _lastSeenMessageId = history.last.id;
+    }
+  }
+
+  /// Polling fallback: every 3s silently check for new messages.
+  void _startPollTimer() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final history = ref.read(messagingProvider).chatHistory;
+      final latestId = history.isNotEmpty ? history.last.id : null;
+      if (latestId != _lastSeenMessageId) {
+        _lastSeenMessageId = latestId;
+        return;
+      }
+      await ref.read(messagingProvider.notifier).fetchChatHistory(
+        widget.senderId,
+        refreshConversations: false,
+      );
+      _updateLastSeenMessageId();
+    });
   }
 
   void _setupRealtimeSubscription() {
+    if (_realtimeChannel != null) return;
     final currentUserId = ref.read(authProvider).userData?['id'] as String?;
     if (currentUserId == null) return;
 
@@ -846,24 +949,28 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
         
         bool shouldUpdate = false;
         if (widget.isGroup) {
-          shouldUpdate = msgGroupId == widget.senderId;
+          shouldUpdate = msgGroupId?.toLowerCase() == widget.senderId.toLowerCase();
           debugPrint('[Realtime] group_id: $msgGroupId, widget.senderId: ${widget.senderId}, shouldUpdate: $shouldUpdate');
         } else {
-          final isFromPartner = msgSenderId == widget.senderId && msgReceiverId == currentUserId;
-          final isFromMe = msgSenderId == currentUserId && msgReceiverId == widget.senderId;
-          shouldUpdate = isFromPartner || isFromMe;
-          debugPrint('[Realtime] isFromPartner: $isFromPartner, isFromMe: $isFromMe, msgSenderId: $msgSenderId, msgReceiverId: $msgReceiverId, currentUserId: $currentUserId, widget.senderId: ${widget.senderId}, shouldUpdate: $shouldUpdate');
+          final isFromPartner = msgSenderId?.toLowerCase() == widget.senderId.toLowerCase() &&
+              (msgReceiverId == null || msgReceiverId.toLowerCase() == currentUserId.toLowerCase());
+          final isFromMe = msgSenderId?.toLowerCase() == currentUserId.toLowerCase() &&
+              (msgReceiverId == null || msgReceiverId.toLowerCase() == widget.senderId.toLowerCase());
+          final noReceiver = msgReceiverId == null || msgReceiverId.isEmpty;
+          final involvesMe = msgSenderId?.toLowerCase() == currentUserId.toLowerCase() ||
+              msgSenderId?.toLowerCase() == widget.senderId.toLowerCase();
+          shouldUpdate = isFromPartner || isFromMe || (noReceiver && involvesMe);
+          debugPrint('[Realtime] isFromPartner: $isFromPartner, isFromMe: $isFromMe, noReceiver: $noReceiver, shouldUpdate: $shouldUpdate');
         }
 
         if (shouldUpdate) {
-          // Step 1: Instantly append the raw message for immediate UI update
           ref.read(messagingProvider.notifier).appendNewMessage(newRecord, currentUserId);
-          // Step 2: Background-fetch full history to populate sender info (name/avatar)
+          _lastSeenMessageId = newRecord['id'] as String? ?? _lastSeenMessageId;
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {
               ref.read(messagingProvider.notifier).fetchChatHistory(
                 widget.senderId,
-                refreshConversations: msgSenderId != currentUserId,
+                refreshConversations: msgSenderId?.toLowerCase() != currentUserId.toLowerCase(),
               );
             }
           });
@@ -880,6 +987,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     if (_realtimeChannel != null) {
       try {
         Supabase.instance.client.removeChannel(_realtimeChannel!);
@@ -1422,6 +1530,13 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final currentUserId = ref.read(authProvider).userData?['id'] as String?;
+            final currentUserMember = groupMembers.firstWhere(
+              (m) => m['id'] == currentUserId,
+              orElse: () => <String, dynamic>{},
+            );
+            final isCurrentUserAdmin = currentUserMember['group_role'] == 'admin';
+
             return DraggableScrollableSheet(
               initialChildSize: 0.85,
               maxChildSize: 0.95,
@@ -1557,9 +1672,19 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                               final mRole = member['role'] as String? ?? 'student';
                               final gRole = member['group_role'] as String? ?? 'member';
                               final isCreator = gRole == 'admin';
+                              final mId = member['id'] as String;
+                              final isSelf = mId == currentUserId;
                               
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
+                                onTap: (isCurrentUserAdmin && !isSelf)
+                                    ? () => _showMemberActionsDialog(
+                                          context,
+                                          member,
+                                          setSheetState,
+                                          groupMembers,
+                                        )
+                                    : null,
                                 leading: member['avatar_url'] != null && (member['avatar_url'] as String).isNotEmpty
                                     ? SizedBox(
                                         width: 40,
@@ -1598,17 +1723,37 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                             },
                           ),
                         const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: () => _leaveGroupAction(context),
-                          icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 16),
-                          label: const Text("Leave Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _leaveGroupAction(context),
+                            icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 16),
+                            label: const Text("Leave Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
                           ),
                         ),
+                        if (isCurrentUserAdmin) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _deleteGroupAction(context),
+                              icon: const Icon(Icons.delete_forever, color: Colors.red, size: 16),
+                              label: const Text("Delete Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
                       ] else ...[
                         ListTile(
                           contentPadding: EdgeInsets.zero,
@@ -1635,6 +1780,143 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               },
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showMemberActionsDialog(
+    BuildContext context,
+    Map<String, dynamic> member,
+    void Function(void Function()) setSheetState,
+    List<Map<String, dynamic>> groupMembers,
+  ) {
+    final mName = member['full_name'] as String? ?? 'Member';
+    final mId = member['id'] as String;
+    final gRole = member['group_role'] as String? ?? 'member';
+    final isAdmin = gRole == 'admin';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            mName,
+            style: const TextStyle(
+              fontFamily: AppFonts.heading,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  isAdmin ? Icons.admin_panel_settings_outlined : Icons.admin_panel_settings,
+                  color: TeacherColors.primary,
+                ),
+                title: Text(isAdmin ? 'Dismiss as Admin' : 'Make Group Admin'),
+                onTap: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(dialogContext);
+                  
+                  final newRole = isAdmin ? 'member' : 'admin';
+                  final ok = await ref.read(messagingProvider.notifier).changeMemberRole(
+                    widget.senderId,
+                    mId,
+                    newRole,
+                  );
+                  
+                  if (ok) {
+                    final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+                    setSheetState(() {
+                      groupMembers.clear();
+                      groupMembers.addAll(updated);
+                    });
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Updated $mName to $newRole')),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Failed to update role. A group must have at least one admin.')),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person_remove_outlined, color: Colors.red),
+                title: const Text('Remove from Group', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(dialogContext);
+                  
+                  final ok = await ref.read(messagingProvider.notifier).removeGroupMember(
+                    widget.senderId,
+                    mId,
+                  );
+                  
+                  if (ok) {
+                    final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+                    setSheetState(() {
+                      groupMembers.clear();
+                      groupMembers.addAll(updated);
+                    });
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Removed $mName from group')),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Failed to remove member')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _deleteGroupAction(BuildContext sheetContext) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Delete Group", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          content: const Text("Are you sure you want to permanently delete this group? All messages and members will be removed."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
+                
+                Navigator.pop(dialogContext); // close dialog
+                Navigator.pop(sheetContext);  // close sheet
+                
+                final ok = await ref.read(messagingProvider.notifier).deleteGroup(widget.senderId);
+                if (ok) {
+                  navigator.pop(); // return from ChatDetailScreen to Conversation list
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Group deleted successfully.')),
+                  );
+                } else {
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Failed to delete group.')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          ],
         );
       },
     );
@@ -1801,6 +2083,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     final messagingState = ref.watch(messagingProvider);
     final history = messagingState.chatHistory;
     final currentUserId = ref.watch(authProvider).userData?['id'] as String?;
+    if (currentUserId != null && _realtimeChannel == null) {
+      Future.microtask(() => _setupRealtimeSubscription());
+    }
 
     // Auto-scroll to bottom once list loads or updates
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
@@ -2535,9 +2820,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
   Timer? _searchDebounceTimer;
 
   int _activeTab = 0; 
-  String _groupLevel = 'class'; 
-  String _selectedClassName = '10A';
-  final List<String> _classOptions = ['10A', '10B', '11A', '11B', '12A', '12B'];
+  String _groupLevel = 'class';
 
   @override
   void initState() {
@@ -2824,165 +3107,108 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
 
                     // Group Privacy Type Selection
                     const Text(
-                      'GROUP PRIVACY & TYPE',
+                      'GROUP PRIVACY',
                       style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
-                    if (isStudent) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.lock_outline_rounded, color: primaryColor, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '🔒 Private (Class Level Group Only)',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[800],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _groupLevel = 'class'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: _groupLevel == 'class'
+                                    ? primaryColor.withValues(alpha: 0.1)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _groupLevel == 'class' ? primaryColor : const Color(0xFFCBD5E1),
+                                  width: _groupLevel == 'class' ? 1.5 : 1,
                                 ),
                               ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.lock_outline_rounded, color: _groupLevel == 'class' ? primaryColor : Colors.grey, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '🔒 Private',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: _groupLevel == 'class' ? primaryColor : Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Only selected members\ncan see and join',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: _groupLevel == 'class' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                    ] else ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Center(
-                                child: Text(
-                                  '🔒 Private (Class Level)',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _groupLevel = 'school'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: _groupLevel == 'school'
+                                    ? primaryColor.withValues(alpha: 0.1)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _groupLevel == 'school' ? primaryColor : const Color(0xFFCBD5E1),
+                                  width: _groupLevel == 'school' ? 1.5 : 1,
                                 ),
                               ),
-                              selected: _groupLevel == 'class',
-                              selectedColor: primaryColor.withValues(alpha: 0.15),
-                              checkmarkColor: primaryColor,
-                              labelStyle: TextStyle(
-                                color: _groupLevel == 'class' ? primaryColor : Colors.grey[700],
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.public_rounded, color: _groupLevel == 'school' ? primaryColor : Colors.grey, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '🌐 Public (School)',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: _groupLevel == 'school' ? primaryColor : Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Visible to school\nAnyone in school can join',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: _groupLevel == 'school' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              onSelected: (val) {
-                                if (val) setState(() => _groupLevel = 'class');
-                              },
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Center(
-                                child: Text(
-                                  '🌐 Public (School Level)',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              selected: _groupLevel == 'school',
-                              selectedColor: primaryColor.withValues(alpha: 0.15),
-                              checkmarkColor: primaryColor,
-                              labelStyle: TextStyle(
-                                color: _groupLevel == 'school' ? primaryColor : Colors.grey[700],
-                              ),
-                              onSelected: (val) {
-                                if (val) setState(() => _groupLevel = 'school');
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-
-                    if (_groupLevel == 'class') ...[
-                      const Text(
-                        'TARGET CLASS',
-                        style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 6),
-                      if (isStudent)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.class_outlined, color: Colors.grey, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Class $userClass',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        DropdownButtonFormField<String>(
-                          initialValue: _selectedClassName,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-                            ),
-                          ),
-                          items: _classOptions.map((c) {
-                            return DropdownMenuItem<String>(
-                              value: c,
-                              child: Text('Class $c', style: const TextStyle(fontSize: 12)),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedClassName = val;
-                              });
-                            }
-                          },
                         ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    if (isStudent && _groupLevel == 'class') ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFC7D2FE)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, color: Color(0xFF4F46E5), size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Class Level Group: This will automatically add all students of your class ($userClass) as members by default.',
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  color: Color(0xFF3730A3),
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
                     if (!isStudent || _groupLevel != 'class') ...[
                       const Text(
@@ -3216,8 +3442,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
                   
-                  final level = isStudent ? 'class' : _groupLevel;
-                  final className = isStudent ? userClass : (level == 'class' ? _selectedClassName : null);
+                  final level = isStudent ? 'class' : 'school';
+                  final className = isStudent ? userClass : null;
+                  final isPrivate = _groupLevel == 'class';
 
                   final ok = await ref.read(messagingProvider.notifier).createGroup(
                     name,
@@ -3227,6 +3454,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                     avatarFilename: _groupAvatarName,
                     groupLevel: level,
                     className: className,
+                    isPrivate: isPrivate,
                   );
                   if (ok) {
                     messenger.showSnackBar(
@@ -3246,9 +3474,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   elevation: 2,
                 ),
                 child: Text(
-                  isStudent && _groupLevel == 'class'
-                      ? 'Create Class Group'
-                      : 'Create Group (${_selectedUserIds.length})',
+                  _groupLevel == 'class'
+                      ? 'Create Private Group (${_selectedUserIds.length})'
+                      : 'Create Public Group (${_selectedUserIds.length})',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),

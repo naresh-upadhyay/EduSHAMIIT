@@ -56,7 +56,7 @@ class LeaveApplication {
       endDate: json['end_date'] as String,
       reason: json['reason'] as String,
       status: json['status'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseDateTime(json['created_at']),
     );
   }
 }
@@ -90,9 +90,9 @@ class LibraryBorrow {
       bookTitle: book['title'] as String? ?? 'Unknown',
       bookAuthor: book['author'] as String? ?? 'Unknown',
       coverUrl: book['cover_url'] as String? ?? '',
-      borrowedAt: DateTime.parse(json['borrowed_at'] as String),
-      dueDate: json['due_date'] != null ? DateTime.parse(json['due_date'] as String) : null,
-      returnedAt: json['returned_at'] != null ? DateTime.parse(json['returned_at'] as String) : null,
+      borrowedAt: _parseDateTime(json['borrowed_at']),
+      dueDate: _parseDateTimeNullable(json['due_date']),
+      returnedAt: _parseDateTimeNullable(json['returned_at']),
       status: json['status'] as String,
     );
   }
@@ -131,12 +131,73 @@ class Course {
   }
 }
 
+DateTime _parseDateTime(dynamic value) {
+  if (value == null) return DateTime.now();
+  if (value is DateTime) return value;
+  final str = value.toString().trim();
+  if (str.isEmpty) return DateTime.now();
+  
+  String cleaned = str;
+  if (cleaned.endsWith('+00')) {
+    cleaned = cleaned.substring(0, cleaned.length - 3) + 'Z';
+  } else if (cleaned.contains('+') && !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
+    final plusIndex = cleaned.lastIndexOf('+');
+    final offset = cleaned.substring(plusIndex + 1);
+    if (offset.length == 2) {
+      cleaned = cleaned.substring(0, plusIndex) + '+$offset:00';
+    } else if (offset.length == 4) {
+      cleaned = cleaned.substring(0, plusIndex) + '+${offset.substring(0, 2)}:${offset.substring(2)}';
+    }
+  } else if (cleaned.contains('-') && cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') && !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
+    final minusIndex = cleaned.lastIndexOf('-');
+    final offset = cleaned.substring(minusIndex + 1);
+    if (offset.length == 2) {
+      cleaned = cleaned.substring(0, minusIndex) + '-$offset:00';
+    } else if (offset.length == 4) {
+      cleaned = cleaned.substring(0, minusIndex) + '-${offset.substring(0, 2)}:${offset.substring(2)}';
+    }
+  }
+  cleaned = cleaned.replaceAll(' ', 'T');
+  return DateTime.tryParse(cleaned) ?? DateTime.tryParse(str) ?? DateTime.now();
+}
+
+DateTime? _parseDateTimeNullable(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  final str = value.toString().trim();
+  if (str.isEmpty) return null;
+  
+  String cleaned = str;
+  if (cleaned.endsWith('+00')) {
+    cleaned = cleaned.substring(0, cleaned.length - 3) + 'Z';
+  } else if (cleaned.contains('+') && !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
+    final plusIndex = cleaned.lastIndexOf('+');
+    final offset = cleaned.substring(plusIndex + 1);
+    if (offset.length == 2) {
+      cleaned = cleaned.substring(0, plusIndex) + '+$offset:00';
+    } else if (offset.length == 4) {
+      cleaned = cleaned.substring(0, plusIndex) + '+${offset.substring(0, 2)}:${offset.substring(2)}';
+    }
+  } else if (cleaned.contains('-') && cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') && !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
+    final minusIndex = cleaned.lastIndexOf('-');
+    final offset = cleaned.substring(minusIndex + 1);
+    if (offset.length == 2) {
+      cleaned = cleaned.substring(0, minusIndex) + '-$offset:00';
+    } else if (offset.length == 4) {
+      cleaned = cleaned.substring(0, minusIndex) + '-${offset.substring(0, 2)}:${offset.substring(2)}';
+    }
+  }
+  cleaned = cleaned.replaceAll(' ', 'T');
+  return DateTime.tryParse(cleaned) ?? DateTime.tryParse(str);
+}
+
 /// Notification model (matches backend response)
 class NotificationItem {
   final String id;
   final String title;
   final String message;
   final String type;
+  final String? referenceId;
   final DateTime createdAt;
   final bool isRead;
 
@@ -145,6 +206,7 @@ class NotificationItem {
     required this.title,
     required this.message,
     required this.type,
+    this.referenceId,
     required this.createdAt,
     required this.isRead,
   });
@@ -153,9 +215,10 @@ class NotificationItem {
     return NotificationItem(
       id: json['id'] as String,
       title: json['title'] as String? ?? '',
-      message: json['message'] as String? ?? '',
+      message: json['message'] as String? ?? json['body'] as String? ?? '',
       type: json['type'] as String? ?? 'general',
-      createdAt: DateTime.parse(json['created_at'] as String),
+      referenceId: json['reference_id'] as String?,
+      createdAt: _parseDateTime(json['created_at']),
       isRead: json['is_read'] as bool? ?? false,
     );
   }
@@ -187,7 +250,7 @@ class LiveClass {
       id: json['id'] as String,
       title: json['title'] as String? ?? 'Unknown',
       teacherName: profile['full_name'] as String?,
-      scheduledAt: DateTime.parse(json['scheduled_at'] as String),
+      scheduledAt: _parseDateTime(json['scheduled_at']),
       joinUrl: json['join_url'] as String?,
       status: json['status'] as String,
       subject: json['subjects'] as Map<String, dynamic>?,
@@ -256,7 +319,7 @@ class MessageItem {
       senderAvatar: profile['avatar_url'] as String?,
       senderRole: profile['role'] as String?,
       content: json['content'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: _parseDateTime(json['created_at']),
       isRead: json['is_read'] as bool? ?? false,
     );
   }
@@ -577,6 +640,7 @@ final coursesProvider = StateNotifierProvider<CoursesNotifier, CoursesState>((re
 });
 
 // ============================================================================
+// ============================================================================
 // NOTIFICATIONS PROVIDER
 // ============================================================================
 
@@ -613,14 +677,16 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
   NotificationsNotifier(this._apiService) : super(NotificationsState());
 
-  Future<void> fetchNotifications() async {
+  /// Always fetch fresh data (no isEmpty guard) so badge stays current.
+  Future<void> fetchNotifications({bool useCache = true}) async {
     if (state.notifications.isEmpty) {
       state = state.copyWith(isLoading: true, error: null);
     }
     try {
-      final response = await _apiService.get('/student/notifications');
+      final response = await _apiService.get('/student/notifications', useCache: useCache);
       final data = response.containsKey('data') ? response['data'] : response;
-      final notificationsList = (data['notifications'] ?? []).map((n) => NotificationItem.fromJson(n)).toList();
+      final rawList = (data['notifications'] as List? ?? []);
+      final notificationsList = rawList.map((n) => NotificationItem.fromJson(n as Map<String, dynamic>)).toList();
       final unread = notificationsList.where((n) => !n.isRead).length;
       state = state.copyWith(
         isLoading: false,
@@ -632,29 +698,74 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     }
   }
 
+  /// Force-refresh ignoring cache (for realtime updates).
+  Future<void> forceRefresh() async {
+    try {
+      final response = await _apiService.get('/student/notifications', useCache: false);
+      final data = response.containsKey('data') ? response['data'] : response;
+      final rawList = (data['notifications'] as List? ?? []);
+      final notificationsList = rawList.map((n) => NotificationItem.fromJson(n as Map<String, dynamic>)).toList();
+      final unread = notificationsList.where((n) => !n.isRead).length;
+      state = state.copyWith(
+        isLoading: false,
+        notifications: notificationsList,
+        unreadCount: unread,
+      );
+    } catch (_) {}
+  }
+
   Future<void> markAsRead(String notificationId) async {
     try {
       await _apiService.put('/student/notifications/$notificationId/read', {});
-
-      // Update local state
+      // Update local state immediately
+      final updated = state.notifications.map((n) {
+        if (n.id == notificationId) {
+          return NotificationItem(
+            id: n.id,
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            referenceId: n.referenceId,
+            createdAt: n.createdAt,
+            isRead: true,
+          );
+        }
+        return n;
+      }).toList();
       state = state.copyWith(
-        notifications: state.notifications.map((n) {
-          if (n.id == notificationId) {
-            return NotificationItem(
-              id: n.id,
-              title: n.title,
-              message: n.message,
-              type: n.type,
-              createdAt: n.createdAt,
-              isRead: true,
-            );
-          }
-          return n;
-        }).toList(),
-        unreadCount: state.unreadCount > 0 ? state.unreadCount - 1 : 0,
+        notifications: updated,
+        unreadCount: updated.where((n) => !n.isRead).length,
       );
     } catch (e) {
       state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> markAllAsRead() async {
+    try {
+      await _apiService.patch('/notifications/read-all', {});
+      final updated = state.notifications.map((n) => NotificationItem(
+        id: n.id, title: n.title, message: n.message, type: n.type,
+        referenceId: n.referenceId, createdAt: n.createdAt, isRead: true,
+      )).toList();
+      state = state.copyWith(notifications: updated, unreadCount: 0);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<bool> deleteNotification(String notificationId) async {
+    try {
+      await _apiService.delete('/student/notifications/$notificationId');
+      final updated = state.notifications.where((n) => n.id != notificationId).toList();
+      state = state.copyWith(
+        notifications: updated,
+        unreadCount: updated.where((n) => !n.isRead).length,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
     }
   }
 }
@@ -826,12 +937,12 @@ class ChatConversation {
 
   factory ChatConversation.fromJson(Map<String, dynamic> json) {
     return ChatConversation(
-      id: json['id'] as String,
-      name: json['name'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Unknown',
       avatarUrl: json['avatar_url'] as String?,
-      type: json['type'] as String,
+      type: json['type'] as String? ?? 'direct',
       lastMessage: json['last_message'] as String? ?? '',
-      lastMessageTime: DateTime.parse(json['last_message_time'] as String),
+      lastMessageTime: _parseDateTime(json['last_message_time']),
       unreadCount: json['unread_count'] as int? ?? 0,
       role: json['role'] as String?,
     );
@@ -879,7 +990,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
 
   MessagingNotifier(this._apiService) : super(MessagingState());
 
-  Future<void> fetchMessages() async {
+  Future<void> fetchMessages({bool useCache = true}) async {
     if (state.conversations.isEmpty) {
       state = state.copyWith(isLoading: true, error: null);
     }
@@ -888,7 +999,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
         await fetchBlockedUsers();
       } catch (_) {}
       
-      final response = await _apiService.get('/student/messages');
+      final response = await _apiService.get('/student/messages', useCache: useCache);
       final data = response.containsKey('data') ? response['data'] : response;
       final rawConvs = data['conversations'] as List? ?? [];
       final conversationsList = rawConvs.map((c) => ChatConversation.fromJson(c as Map<String, dynamic>)).toList();
@@ -919,7 +1030,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       );
       // Refresh conversations to clear unread counts locally
       if (refreshConversations) {
-        fetchMessages();
+        fetchMessages(useCache: false);
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -946,7 +1057,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
         senderAvatar: null,
         senderRole: null,
         content: content,
-        createdAt: DateTime.parse(createdAtStr),
+        createdAt: _parseDateTime(createdAtStr),
         isRead: senderId == currentUserId,
       );
 
@@ -975,7 +1086,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       if (activeChatId != null) {
         await fetchChatHistory(activeChatId);
       } else {
-        await fetchMessages();
+        await fetchMessages(useCache: false);
       }
       return true;
     } catch (e) {
@@ -1013,6 +1124,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     String? avatarFilename,
     String groupLevel = 'school',
     String? className,
+    bool isPrivate = false,
   }) async {
     try {
       final response = await _apiService.post('/student/groups/create', {
@@ -1020,6 +1132,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
         'description': description,
         'group_level': groupLevel,
         'class_name': className,
+        'is_private': isPrivate,
       });
       final data = response.containsKey('data') ? response['data'] : response;
       final group = data['group'] as Map<String, dynamic>?;
@@ -1056,7 +1169,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       }
 
       _apiService.clearCache();
-      await fetchMessages();
+      await fetchMessages(useCache: false);
       return true;
     } catch (e) {
       return false;
@@ -1069,7 +1182,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     try {
       await _apiService.post('/groups/$groupId/join', {});
       _apiService.clearCache();
-      await fetchMessages();
+      await fetchMessages(useCache: false);
       return true;
     } catch (e) {
       return false;
@@ -1080,7 +1193,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     try {
       await _apiService.post('/groups/$groupId/leave', {});
       _apiService.clearCache();
-      await fetchMessages();
+      await fetchMessages(useCache: false);
       return true;
     } catch (e) {
       return false;
@@ -1151,7 +1264,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     try {
       await _apiService.delete('/groups/$groupId');
       _apiService.clearCache();
-      await fetchMessages();
+      await fetchMessages(useCache: false);
       return true;
     } catch (e) {
       return false;
@@ -1167,6 +1280,17 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     }
   }
 
+  Future<bool> changeMemberRole(String groupId, String memberId, String role) async {
+    try {
+      await _apiService.post('/groups/$groupId/members/$memberId/role', {
+        'role': role,
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> updateGroupAvatar(String groupId, Uint8List bytes, String filename) async {
     try {
       await _apiService.multipartPostBytes(
@@ -1176,7 +1300,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
         'avatar',
       );
       _apiService.clearCache();
-      await fetchMessages();
+      await fetchMessages(useCache: false);
       return true;
     } catch (e) {
       return false;

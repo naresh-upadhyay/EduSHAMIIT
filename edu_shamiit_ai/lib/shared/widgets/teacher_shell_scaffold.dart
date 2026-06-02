@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/app_router.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
@@ -7,11 +8,13 @@ import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_gradients.dart';
 import 'package:edu_shamiit_ai/shared/widgets/teacher_bottom_nav.dart';
 import 'package:edu_shamiit_ai/shared/widgets/ai_fab.dart';
+import 'package:edu_shamiit_ai/shared/widgets/in_app_notification_overlay.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 
 /// Shell scaffold that wraps all teacher screens.
 /// On desktop (≥1100px) shows a full sidebar with all routes.
 /// On mobile/tablet shows bottom nav with 5 key routes.
-class TeacherShellScaffold extends StatelessWidget {
+class TeacherShellScaffold extends ConsumerWidget {
   final Widget child;
   final String? location;
 
@@ -107,7 +110,8 @@ class TeacherShellScaffold extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userId = ref.watch(authProvider).userData?['id'] as String? ?? '';
     String currentLoc = location ?? '';
     if (currentLoc.isEmpty) {
       try {
@@ -125,12 +129,14 @@ class TeacherShellScaffold extends StatelessWidget {
     final isMessaging = currentLoc.contains('/messaging');
     final pageChild = child;
 
+    Widget shell;
+
     // ── Desktop / wide: Custom sidebar with all routes ──
     if (Responsive.isDesktop(context)) {
       final selected = _selectedIndex(currentLoc, _sidebarItems);
       final isExtended = MediaQuery.sizeOf(context).width >= 1200;
 
-      return Scaffold(
+      shell = Scaffold(
         body: Row(
           children: [
             _TeacherSidebar(
@@ -157,16 +163,23 @@ class TeacherShellScaffold extends StatelessWidget {
           onPressed: () => context.push('/teacher/ai-chat'),
         ),
       );
+    } else {
+      // ── Mobile / tablet: bottom nav bar ──
+      shell = Scaffold(
+        body: child,
+        bottomNavigationBar: TeacherBottomNav(currentLocation: currentLoc),
+        floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
+          gradient: AppGradients.studentPrimary,
+          onPressed: () => context.push('/teacher/ai-chat'),
+        ),
+      );
     }
 
-    // ── Mobile / tablet: bottom nav bar ──
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: TeacherBottomNav(currentLocation: currentLoc),
-      floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
-        gradient: AppGradients.studentPrimary,
-        onPressed: () => context.push('/teacher/ai-chat'),
-      ),
+    if (userId.isEmpty) return shell;
+    return InAppNotificationOverlay(
+      userId: userId,
+      userRole: 'teacher',
+      child: shell,
     );
   }
 }

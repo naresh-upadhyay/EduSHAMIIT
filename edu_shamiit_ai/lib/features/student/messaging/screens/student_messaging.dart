@@ -24,7 +24,8 @@ import 'package:edu_shamiit_ai/core/services/call_service.dart';
 import 'package:edu_shamiit_ai/shared/screens/call_screen.dart';
 
 class StudentMessaging extends ConsumerStatefulWidget {
-  const StudentMessaging({super.key});
+  final String? initialChatId;
+  const StudentMessaging({super.key, this.initialChatId});
 
   @override
   ConsumerState<StudentMessaging> createState() => _StudentMessagingState();
@@ -40,8 +41,17 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(messagingProvider.notifier).fetchMessages();
+    Future.microtask(() async {
+      await ref.read(messagingProvider.notifier).fetchMessages();
+      if (widget.initialChatId != null && mounted) {
+        final conversations = ref.read(messagingProvider).conversations;
+        final match = conversations.where((c) => c.id == widget.initialChatId).firstOrNull;
+        if (match != null) {
+          _openChat(match);
+        } else {
+          _openChatById(widget.initialChatId!);
+        }
+      }
     });
 
     _searchController.addListener(_onSearchChanged);
@@ -49,6 +59,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
   }
 
   void _setupRealtimeSubscription() {
+    if (_realtimeChannel != null) return;
     final currentUserId = ref.read(authProvider).userData?['id'] as String?;
     if (currentUserId == null) return;
 
@@ -76,7 +87,7 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
 
         if (shouldUpdate) {
           debugPrint('[Realtime List] Refreshing conversations list');
-          ref.read(messagingProvider.notifier).fetchMessages();
+          ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
         }
       },
     ).subscribe((status, [error]) {
@@ -137,6 +148,10 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = ref.watch(authProvider).userData?['id'] as String?;
+    if (currentUserId != null && _realtimeChannel == null) {
+      Future.microtask(() => _setupRealtimeSubscription());
+    }
     final messagingState = ref.watch(messagingProvider);
     final conversations = messagingState.conversations;
 
@@ -410,8 +425,8 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
         final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
         return GestureDetector(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => _ChatDetailScreen(
@@ -423,6 +438,9 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
                 ),
               ),
             );
+            if (mounted) {
+              ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+            }
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 6),
@@ -668,8 +686,8 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
     );
   }
 
-  void _openChat(ChatConversation conversation) {
-    Navigator.push(
+  void _openChat(ChatConversation conversation) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => _ChatDetailScreen(
@@ -681,6 +699,59 @@ class _StudentMessagingState extends ConsumerState<StudentMessaging> {
         ),
       ),
     );
+    if (mounted) {
+      ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+    }
+  }
+
+  void _openChatById(String id) async {
+    try {
+      final client = Supabase.instance.client;
+      // 1. Check if it's a group
+      final groupRes = await client.from('groups').select().eq('id', id).maybeSingle();
+      if (groupRes != null) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _ChatDetailScreen(
+              senderName: groupRes['name'] as String? ?? 'Group',
+              senderId: id,
+              isGroup: true,
+              avatarUrl: groupRes['avatar_url'] as String?,
+              senderRole: 'student',
+            ),
+          ),
+        );
+        if (mounted) {
+          ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+        }
+        return;
+      }
+      
+      // 2. Otherwise check if it's a user profile
+      final profileRes = await client.from('profiles').select().eq('id', id).maybeSingle();
+      if (profileRes != null) {
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _ChatDetailScreen(
+              senderName: profileRes['full_name'] as String? ?? 'User',
+              senderId: id,
+              isGroup: false,
+              avatarUrl: profileRes['avatar_url'] as String?,
+              senderRole: profileRes['role'] as String? ?? 'student',
+            ),
+          ),
+        );
+        if (mounted) {
+          ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error opening chat by ID: $e');
+    }
   }
 
   void _showBrowseGroupsSheet() {
@@ -806,6 +877,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   RealtimeChannel? _realtimeChannel;
+  Timer? _pollTimer;
+  String? _lastSeenMessageId;
 
   final SpeechToText _stt = SpeechToText();
   bool _isListening = false;
@@ -821,14 +894,50 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     _messageController.addListener(_onMessageTextChanged);
     _micPulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
     
-    Future.microtask(() {
-      ref.read(messagingProvider.notifier).fetchChatHistory(widget.senderId);
+    Future.microtask(() async {
+      await ref.read(messagingProvider.notifier).fetchChatHistory(widget.senderId);
+      _updateLastSeenMessageId();
     });
 
     _setupRealtimeSubscription();
+    _startPollTimer();
+  }
+
+  void _updateLastSeenMessageId() {
+    final history = ref.read(messagingProvider).chatHistory;
+    if (history.isNotEmpty) {
+      _lastSeenMessageId = history.last.id;
+    }
+  }
+
+  /// Polling fallback: every 3s silently check for new messages.
+  /// This catches any messages missed by the WebSocket (e.g. teacher→student
+  /// when Supabase Realtime RLS filtering prevents delivery).
+  void _startPollTimer() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final history = ref.read(messagingProvider).chatHistory;
+      final latestId = history.isNotEmpty ? history.last.id : null;
+      if (latestId != _lastSeenMessageId) {
+        // New message already arrived via realtime — just update tracking
+        _lastSeenMessageId = latestId;
+        return;
+      }
+      // Silently poll the backend for new messages
+      await ref.read(messagingProvider.notifier).fetchChatHistory(
+        widget.senderId,
+        refreshConversations: false,
+      );
+      _updateLastSeenMessageId();
+    });
   }
 
   void _setupRealtimeSubscription() {
+    if (_realtimeChannel != null) return;
     final currentUserId = ref.read(authProvider).userData?['id'] as String?;
     if (currentUserId == null) return;
 
@@ -850,25 +959,32 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
         
         bool shouldUpdate = false;
         if (widget.isGroup) {
-          shouldUpdate = msgGroupId == widget.senderId;
+          shouldUpdate = msgGroupId?.toLowerCase() == widget.senderId.toLowerCase();
           debugPrint('[Realtime] group_id: $msgGroupId, widget.senderId: ${widget.senderId}, shouldUpdate: $shouldUpdate');
         } else {
-          final isFromPartner = msgSenderId == widget.senderId && msgReceiverId == currentUserId;
-          final isFromMe = msgSenderId == currentUserId && msgReceiverId == widget.senderId;
-          shouldUpdate = isFromPartner || isFromMe;
-          debugPrint('[Realtime] isFromPartner: $isFromPartner, isFromMe: $isFromMe, msgSenderId: $msgSenderId, msgReceiverId: $msgReceiverId, currentUserId: $currentUserId, widget.senderId: ${widget.senderId}, shouldUpdate: $shouldUpdate');
+          // Match if either party in this DM sent the message
+          final isFromPartner = msgSenderId?.toLowerCase() == widget.senderId.toLowerCase() &&
+              (msgReceiverId == null || msgReceiverId.toLowerCase() == currentUserId.toLowerCase());
+          final isFromMe = msgSenderId?.toLowerCase() == currentUserId.toLowerCase() &&
+              (msgReceiverId == null || msgReceiverId.toLowerCase() == widget.senderId.toLowerCase());
+          // Fallback: if receiver_id is missing in payload, treat any message involving either party as relevant
+          final noReceiver = msgReceiverId == null || msgReceiverId.isEmpty;
+          final involvesMe = msgSenderId?.toLowerCase() == currentUserId.toLowerCase() ||
+              msgSenderId?.toLowerCase() == widget.senderId.toLowerCase();
+          shouldUpdate = isFromPartner || isFromMe || (noReceiver && involvesMe);
+          debugPrint('[Realtime] isFromPartner: $isFromPartner, isFromMe: $isFromMe, noReceiver: $noReceiver, shouldUpdate: $shouldUpdate');
         }
 
         if (shouldUpdate) {
           // Step 1: Instantly append the raw message for immediate UI update
           ref.read(messagingProvider.notifier).appendNewMessage(newRecord, currentUserId);
+          _lastSeenMessageId = newRecord['id'] as String? ?? _lastSeenMessageId;
           // Step 2: Background-fetch full history to populate sender info (name/avatar)
-          // Use a short delay to avoid race condition with the instant update
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {
               ref.read(messagingProvider.notifier).fetchChatHistory(
                 widget.senderId,
-                refreshConversations: msgSenderId != currentUserId, // refresh convs only for incoming
+                refreshConversations: msgSenderId?.toLowerCase() != currentUserId.toLowerCase(),
               );
             }
           });
@@ -885,6 +1001,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     if (_realtimeChannel != null) {
       try {
         Supabase.instance.client.removeChannel(_realtimeChannel!);
@@ -1497,6 +1614,14 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                                   
                                   return ListTile(
                                     contentPadding: EdgeInsets.zero,
+                                    onTap: (isCurrentUserAdmin && !isSelf)
+                                        ? () => _showMemberActionsDialog(
+                                              context,
+                                              member,
+                                              setSheetState,
+                                              groupMembers,
+                                            )
+                                        : null,
                                     leading: member['avatar_url'] != null && (member['avatar_url'] as String).isNotEmpty
                                         ? SizedBox(
                                             width: 40,
@@ -1533,30 +1658,6 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                                             ),
                                             child: const Text('Admin', style: TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold)),
                                           ),
-                                        if (isCurrentUserAdmin && !isSelf) ...[
-                                          const SizedBox(width: 8),
-                                          TextButton(
-                                            onPressed: () async {
-                                              final messenger = ScaffoldMessenger.of(context);
-                                              final ok = await ref.read(messagingProvider.notifier).removeGroupMember(widget.senderId, mId);
-                                              if (ok) {
-                                                final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
-                                                setSheetState(() {
-                                                  groupMembers.clear();
-                                                  groupMembers.addAll(updated);
-                                                });
-                                                messenger.showSnackBar(
-                                                  SnackBar(content: Text('Removed $mName from group')),
-                                                );
-                                              } else {
-                                                messenger.showSnackBar(
-                                                  const SnackBar(content: Text('Failed to remove member')),
-                                                );
-                                              }
-                                            },
-                                            child: const Text("Remove", style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
-                                          ),
-                                        ],
                                       ],
                                     ),
                                   );
@@ -1659,6 +1760,101 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               },
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showMemberActionsDialog(
+    BuildContext context,
+    Map<String, dynamic> member,
+    void Function(void Function()) setSheetState,
+    List<Map<String, dynamic>> groupMembers,
+  ) {
+    final mName = member['full_name'] as String? ?? 'Member';
+    final mId = member['id'] as String;
+    final gRole = member['group_role'] as String? ?? 'member';
+    final isAdmin = gRole == 'admin';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            mName,
+            style: const TextStyle(
+              fontFamily: AppFonts.heading,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  isAdmin ? Icons.admin_panel_settings_outlined : Icons.admin_panel_settings,
+                  color: StudentColors.primary,
+                ),
+                title: Text(isAdmin ? 'Dismiss as Admin' : 'Make Group Admin'),
+                onTap: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(dialogContext);
+                  
+                  final newRole = isAdmin ? 'member' : 'admin';
+                  final ok = await ref.read(messagingProvider.notifier).changeMemberRole(
+                    widget.senderId,
+                    mId,
+                    newRole,
+                  );
+                  
+                  if (ok) {
+                    final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+                    setSheetState(() {
+                      groupMembers.clear();
+                      groupMembers.addAll(updated);
+                    });
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Updated $mName to $newRole')),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Failed to update role. A group must have at least one admin.')),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person_remove_outlined, color: Colors.red),
+                title: const Text('Remove from Group', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(dialogContext);
+                  
+                  final ok = await ref.read(messagingProvider.notifier).removeGroupMember(
+                    widget.senderId,
+                    mId,
+                  );
+                  
+                  if (ok) {
+                    final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+                    setSheetState(() {
+                      groupMembers.clear();
+                      groupMembers.addAll(updated);
+                    });
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Removed $mName from group')),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Failed to remove member')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1931,6 +2127,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     final messagingState = ref.watch(messagingProvider);
     final history = messagingState.chatHistory;
     final currentUserId = ref.watch(authProvider).userData?['id'] as String?;
+    if (currentUserId != null && _realtimeChannel == null) {
+      Future.microtask(() => _setupRealtimeSubscription());
+    }
     final activeConv = messagingState.conversations.firstWhere(
       (c) => c.id == widget.senderId,
       orElse: () => ChatConversation(
@@ -2831,8 +3030,6 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
   // Level & Role Tabs selection state
   int _activeTab = 0; // 0=All, 1=Students, 2=Teachers, 3=HOD/Seniors, 4=Parents
   String _groupLevel = 'class'; // 'class' or 'school'
-  String _selectedClassName = '10A';
-  final List<String> _classOptions = ['10A', '10B', '11A', '11B', '12A', '12B'];
 
   @override
   void initState() {
@@ -2977,9 +3174,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
     final bottomOffset = MediaQuery.of(context).viewInsets.bottom;
 
     final userData = ref.watch(authProvider).userData ?? {};
-    final userRole = userData['role'] as String? ?? 'student';
     final userClass = userData['class'] as String? ?? '';
-    final isStudent = userRole == 'student';
 
     final activeList = _getFilteredByRole(_activeTab);
     final allSelected = activeList.isNotEmpty && activeList.every((u) => _selectedUserIds.contains(u['id']));
@@ -3168,7 +3363,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Hidden from Explore\nOnly invited members',
+                                    'Only selected members\ncan see and join',
                                     style: TextStyle(
                                       fontSize: 9,
                                       color: _groupLevel == 'class' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
@@ -3204,7 +3399,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                       Icon(Icons.public_rounded, color: _groupLevel == 'school' ? primaryColor : Colors.grey, size: 16),
                                       const SizedBox(width: 6),
                                       Text(
-                                        '🌐 Public',
+                                        '🌐 Public (Class)',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
@@ -3215,7 +3410,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Visible in Explore\nAnyone can join freely',
+                                    'Visible to classmates\nClassmates can join freely',
                                     style: TextStyle(
                                       fontSize: 9,
                                       color: _groupLevel == 'school' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
@@ -3229,88 +3424,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    if (!isStudent) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Center(
-                                child: Text(
-                                  '🔒 Private (Class Level)',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              selected: _groupLevel == 'class',
-                              selectedColor: primaryColor.withValues(alpha: 0.15),
-                              checkmarkColor: primaryColor,
-                              labelStyle: TextStyle(
-                                color: _groupLevel == 'class' ? primaryColor : Colors.grey[700],
-                              ),
-                              onSelected: (val) {
-                                if (val) setState(() => _groupLevel = 'class');
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Center(
-                                child: Text(
-                                  '🌐 Public (School Level)',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              selected: _groupLevel == 'school',
-                              selectedColor: primaryColor.withValues(alpha: 0.15),
-                              checkmarkColor: primaryColor,
-                              labelStyle: TextStyle(
-                                color: _groupLevel == 'school' ? primaryColor : Colors.grey[700],
-                              ),
-                              onSelected: (val) {
-                                if (val) setState(() => _groupLevel = 'school');
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                    ],
 
-                    // Class Dropdown Selection (only for teachers, completely hidden for students)
-                    if (!isStudent && _groupLevel == 'class') ...[
-                      const Text(
-                        'TARGET CLASS',
-                        style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
-                        initialValue: _selectedClassName,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-                          ),
-                        ),
-                        items: _classOptions.map((c) {
-                          return DropdownMenuItem<String>(
-                            value: c,
-                            child: Text('Class $c', style: const TextStyle(fontSize: 12)),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedClassName = val;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                    ],
 
                     // Always show participant search for everyone
                     const SizedBox(height: 4),
@@ -3559,9 +3673,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   Navigator.pop(context);
                   
                   final level = _groupLevel;
-                  final className = isStudent
-                      ? (level == 'class' ? userClass : null)
-                      : (level == 'class' ? _selectedClassName : null);
+                  final className = level == 'class' ? userClass : null;
 
                   final ok = await ref.read(messagingProvider.notifier).createGroup(
                     name,
@@ -3571,6 +3683,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                     avatarFilename: _groupAvatarName,
                     groupLevel: level,
                     className: className,
+                    isPrivate: level == 'class',
                   );
                   if (ok) {
                     messenger.showSnackBar(

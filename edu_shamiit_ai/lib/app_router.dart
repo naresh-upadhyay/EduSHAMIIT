@@ -255,7 +255,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/messaging',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentMessaging()),
+          pageBuilder: (context, state) {
+            final chatId = state.uri.queryParameters['chat_id'];
+            return NoTransitionPage(child: StudentMessaging(initialChatId: chatId));
+          },
         ),
         GoRoute(
           path: '/student/settings',
@@ -391,7 +394,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/teacher/messaging',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMessaging()),
+          pageBuilder: (context, state) {
+            final chatId = state.uri.queryParameters['chat_id'];
+            return NoTransitionPage(child: TeacherMessaging(initialChatId: chatId));
+          },
         ),
       ],
     ),
