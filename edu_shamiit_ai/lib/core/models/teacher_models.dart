@@ -586,6 +586,8 @@ class StudentDirectoryEntry {
   final double? attendancePct;
   final double? avgMarks;
   final String? profileImageUrl;
+  final int? classRank;
+  final int? classTotal;
 
   const StudentDirectoryEntry({
     required this.id,
@@ -601,6 +603,8 @@ class StudentDirectoryEntry {
     this.attendancePct,
     this.avgMarks,
     this.profileImageUrl,
+    this.classRank,
+    this.classTotal,
   });
 
   factory StudentDirectoryEntry.fromJson(Map<String, dynamic> json) {
@@ -626,6 +630,8 @@ class StudentDirectoryEntry {
       profileImageUrl: _toStr(json['profile_image_url'] ?? json['avatar_url']).isEmpty
           ? null
           : _toStr(json['profile_image_url'] ?? json['avatar_url']),
+      classRank: json['class_rank'] == null ? null : _toInt(json['class_rank']),
+      classTotal: json['class_total'] == null ? null : _toInt(json['class_total']),
     );
   }
 
@@ -644,6 +650,8 @@ class StudentDirectoryEntry {
       'attendance_pct': attendancePct,
       'avg_marks': avgMarks,
       'profile_image_url': profileImageUrl,
+      'class_rank': classRank,
+      'class_total': classTotal,
     };
   }
 }

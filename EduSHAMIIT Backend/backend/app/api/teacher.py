@@ -436,20 +436,97 @@ async def update_grading_config(request: dict, user=Depends(require_teacher), sc
 
 
 @router.get("/students")
-async def teacher_students(class_name: str = "", user=Depends(require_teacher), school_id=Depends(require_school_id)):
-    cached = await get_cached(school_id, "teacher_students", f"{user['id']}_{class_name}")
+async def teacher_students(class_name: str = "", search: str = "", user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    cached = await get_cached(school_id, "teacher_students", f"{user['id']}_{class_name}_{search}")
     if cached:
         return cached
 
     sb = get_supabase()
-    query = sb.table("profiles").select("id, full_name, class, roll_number, phone, father_name, father_phone, avatar_url").eq("school_id", school_id).eq("role", "student")
+    
+    # Fetch classes assigned to this teacher from timetable
+    tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
+    teacher_classes = list(dict.fromkeys(
+        row["class"] for row in (tt_res.data or []) if row.get("class")
+    ))
+    
+    if not teacher_classes:
+        # If teacher has no assigned classes, return empty student list
+        return {"success": True, "school_id": school_id, "data": {"students": []}}
+        
+    query = sb.table("profiles").select("id, full_name, class, roll_number, phone, email, date_of_birth, father_name, father_phone, avatar_url").eq("school_id", school_id).eq("role", "student")
+    
     if class_name:
-        query = query.eq("class", class_name)
+        if class_name in teacher_classes:
+            query = query.eq("class", class_name)
+        else:
+            return {"success": True, "school_id": school_id, "data": {"students": []}}
+    else:
+        query = query.in_("class", teacher_classes)
+        
     students = (await query.order("class").order("roll_number").aexecute()).data
     
+    # Python-based search filtering (case-insensitive name and roll_number search)
+    if search:
+        search_lower = search.strip().lower()
+        students = [
+            s for s in students
+            if search_lower in s["full_name"].lower() or (s.get("roll_number") and search_lower in str(s["roll_number"]))
+        ]
+    
+    # Fetch performance stats
+    stats_query = sb.table("student_profile_stats").select("student_id, avg_score, attendance_pct, class_rank").eq("school_id", school_id)
+    if class_name:
+        stats_query = stats_query.eq("class", class_name)
+    else:
+        stats_query = stats_query.in_("class", teacher_classes)
+        
+    stats_res = await stats_query.aexecute()
+    stats_map = {item["student_id"]: item for item in stats_res.data}
+    
+    # Fetch total students per class for class_total
+    totals_query = sb.table("profiles").select("class").eq("school_id", school_id).eq("role", "student").in_("class", teacher_classes)
+    totals_res = await totals_query.aexecute()
+    class_totals = {}
+    for p in totals_res.data:
+        c = p.get("class")
+        if c:
+            class_totals[c] = class_totals.get(c, 0) + 1
+            
+    # Merge stats and counts
+    for s in students:
+        s_id = s["id"]
+        s_stats = stats_map.get(s_id, {})
+        s["avg_marks"] = s_stats.get("avg_score", 0.0)
+        s["attendance_pct"] = s_stats.get("attendance_pct", 100.0)
+        s["class_rank"] = s_stats.get("class_rank", 1)
+        s["class_total"] = class_totals.get(s["class"], 0)
+
     result = {"success": True, "school_id": school_id, "data": {"students": students}}
-    await set_cached(school_id, "teacher_students", result, f"{user['id']}_{class_name}", ttl=300)
+    await set_cached(school_id, "teacher_students", result, f"{user['id']}_{class_name}_{search}", ttl=300)
     return result
+
+
+@router.get("/students/{student_id}")
+async def teacher_student_detail(student_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Get student profile
+    student = (await sb.table("profiles").select("id, full_name, class, roll_number, phone, email, date_of_birth, avatar_url, father_name, father_phone").eq("id", student_id).eq("school_id", school_id).eq("role", "student").maybe_single().aexecute()).data
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+        
+    # Fetch performance stats
+    stats = (await sb.table("student_profile_stats").select("avg_score, attendance_pct, class_rank").eq("student_id", student_id).maybe_single().aexecute()).data or {}
+    
+    # Fetch class total count
+    class_total_res = await sb.table("profiles").select("id").eq("school_id", school_id).eq("class", student["class"]).eq("role", "student").aexecute()
+    class_total = len(class_total_res.data) if class_total_res.data else 0
+    
+    student["avg_marks"] = stats.get("avg_score", 0.0)
+    student["attendance_pct"] = stats.get("attendance_pct", 100.0)
+    student["class_rank"] = stats.get("class_rank", 1)
+    student["class_total"] = class_total
+    
+    return {"success": True, "school_id": school_id, "data": student}
 
 
 @router.post("/leave/apply")
