@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
 import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
+import 'package:edu_shamiit_ai/core/models/student_models.dart';
 // Leave types are now in the shared leave_provider.dart
 export 'package:edu_shamiit_ai/core/providers/leave_provider.dart';
 
@@ -30,10 +31,10 @@ class AttendanceRecord {
   }
 }
 
-
 /// Library borrow model (matches backend response)
 class LibraryBorrow {
   final String id;
+  final String bookId;
   final String bookTitle;
   final String bookAuthor;
   final String coverUrl;
@@ -41,9 +42,13 @@ class LibraryBorrow {
   final DateTime? dueDate;
   final DateTime? returnedAt;
   final String status;
+  final int renewalsUsed;
+  final int maxRenewals;
+  final double fineAmount;
 
   LibraryBorrow({
     required this.id,
+    required this.bookId,
     required this.bookTitle,
     required this.bookAuthor,
     required this.coverUrl,
@@ -51,22 +56,65 @@ class LibraryBorrow {
     this.dueDate,
     this.returnedAt,
     required this.status,
+    required this.renewalsUsed,
+    required this.maxRenewals,
+    required this.fineAmount,
   });
+
+  bool get isReturned => status == 'returned' || returnedAt != null;
 
   factory LibraryBorrow.fromJson(Map<String, dynamic> json) {
     final book = json['library_books'] as Map<String, dynamic>? ?? {};
     return LibraryBorrow(
       id: json['id'] as String,
+      bookId: json['book_id'] as String? ?? (book['id'] as String? ?? ''),
       bookTitle: book['title'] as String? ?? 'Unknown',
       bookAuthor: book['author'] as String? ?? 'Unknown',
       coverUrl: book['cover_url'] as String? ?? '',
       borrowedAt: _parseDateTime(json['borrowed_at']),
-      dueDate: _parseDateTimeNullable(json['due_date']),
+      dueDate: _parseDateTimeNullable(json['due_at'] ?? json['due_date']),
       returnedAt: _parseDateTimeNullable(json['returned_at']),
       status: json['status'] as String,
+      renewalsUsed: json['renewals_used'] as int? ?? 0,
+      maxRenewals: json['max_renewals'] as int? ?? 2,
+      fineAmount: (json['fine_amount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
+
+/// Library book request model for new acquisitions
+class LibraryBookRequest {
+  final String id;
+  final String title;
+  final String author;
+  final String? isbn;
+  final String? reason;
+  final String status;
+  final DateTime createdAt;
+
+  LibraryBookRequest({
+    required this.id,
+    required this.title,
+    required this.author,
+    this.isbn,
+    this.reason,
+    required this.status,
+    required this.createdAt,
+  });
+
+  factory LibraryBookRequest.fromJson(Map<String, dynamic> json) {
+    return LibraryBookRequest(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      author: json['author'] as String? ?? '',
+      isbn: json['isbn'] as String?,
+      reason: json['reason'] as String?,
+      status: json['status'] as String? ?? 'pending',
+      createdAt: _parseDateTime(json['created_at']),
+    );
+  }
+}
+
 
 /// Course model (matches backend response)
 class Course {
@@ -409,34 +457,50 @@ class LibraryState {
   final bool isLoading;
   final String? error;
   final List<LibraryBorrow> borrows;
+  final List<LibraryBook> books;
+  final List<LibraryBookRequest> requests;
+  final List<LibraryBook> recommendations;
   final int totalBorrows;
   final int activeBorrows;
   final int overdueBooks;
+  final String searchQuery;
 
   LibraryState({
     this.isLoading = false,
     this.error,
     this.borrows = const [],
+    this.books = const [],
+    this.requests = const [],
+    this.recommendations = const [],
     this.totalBorrows = 0,
     this.activeBorrows = 0,
     this.overdueBooks = 0,
+    this.searchQuery = '',
   });
 
   LibraryState copyWith({
     bool? isLoading,
     String? error,
     List<LibraryBorrow>? borrows,
+    List<LibraryBook>? books,
+    List<LibraryBookRequest>? requests,
+    List<LibraryBook>? recommendations,
     int? totalBorrows,
     int? activeBorrows,
     int? overdueBooks,
+    String? searchQuery,
   }) {
     return LibraryState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
       borrows: borrows ?? this.borrows,
+      books: books ?? this.books,
+      requests: requests ?? this.requests,
+      recommendations: recommendations ?? this.recommendations,
       totalBorrows: totalBorrows ?? this.totalBorrows,
       activeBorrows: activeBorrows ?? this.activeBorrows,
       overdueBooks: overdueBooks ?? this.overdueBooks,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 }
@@ -447,24 +511,153 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   LibraryNotifier(this._apiService) : super(LibraryState());
 
   Future<void> fetchLibraryData() async {
-    if (state.borrows.isEmpty) {
-      state = state.copyWith(isLoading: true, error: null);
-    }
+    state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await _apiService.get('/student/library');
+      final response = await _apiService.get('/student/library', useCache: false);
       final data = response.containsKey('data') ? response['data'] : response;
-      final borrowsList = (data['borrows'] ?? []).map((b) => LibraryBorrow.fromJson(b)).toList();
+      
+      final List<dynamic> borrowsData = data['borrows'] as List? ?? [];
+      final List<dynamic> requestsData = data['requests'] as List? ?? [];
+      final List<dynamic> booksData = data['books'] as List? ?? [];
+      
+      final borrowsList = borrowsData
+          .map((b) => LibraryBorrow.fromJson(b as Map<String, dynamic>))
+          .toList();
+          
+      final requestsList = requestsData
+          .map((r) => LibraryBookRequest.fromJson(r as Map<String, dynamic>))
+          .toList();
+          
+      List<LibraryBook> booksList = booksData
+          .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
+          .toList();
+          
+      // Re-run search if searchQuery is active
+      if (state.searchQuery.isNotEmpty) {
+        try {
+          final searchResponse = await _apiService.get('/student/library/books', query: {'search': state.searchQuery}, useCache: false);
+          final searchData = searchResponse.containsKey('data') ? searchResponse['data'] : searchResponse;
+          booksList = (searchData as List? ?? [])
+              .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
+              .toList();
+        } catch (_) {
+          // Fallback to default books list if search fails
+        }
+      }
+          
       final active = borrowsList.where((b) => b.status == 'borrowed').length;
-      final overdue = borrowsList.where((b) => b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && b.returnedAt == null).length;
+      final overdue = borrowsList.where((b) => b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && !b.isReturned).length;
+      
       state = state.copyWith(
         isLoading: false,
         borrows: borrowsList,
+        requests: requestsList,
+        books: booksList,
         totalBorrows: borrowsList.length,
         activeBorrows: active,
         overdueBooks: overdue,
       );
+      
+      // Asynchronously fetch AI recommendations to avoid blocking dashboard load
+      fetchRecommendations();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> fetchRecommendations() async {
+    try {
+      final response = await _apiService.get('/student/library/recommendations', useCache: false);
+      final data = response.containsKey('data') ? response['data'] : response;
+      final list = (data as List? ?? [])
+          .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
+          .toList();
+      state = state.copyWith(recommendations: list);
+    } catch (_) {}
+  }
+
+  Future<void> searchBooks(String query) async {
+    state = state.copyWith(searchQuery: query, isLoading: true, error: null);
+    try {
+      final response = await _apiService.get('/student/library/books', query: {'search': query}, useCache: false);
+      final data = response.containsKey('data') ? response['data'] : response;
+      final list = (data as List? ?? [])
+          .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
+          .toList();
+      state = state.copyWith(isLoading: false, books: list);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<bool> borrowBook(String bookId) async {
+    try {
+      final res = await _apiService.post('/student/library/borrow', {'book_id': bookId});
+      await fetchLibraryData();
+      return res['success'] == true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> renewBook(String borrowId) async {
+    try {
+      final res = await _apiService.post('/student/library/borrows/$borrowId/renew', {});
+      await fetchLibraryData();
+      return res['success'] == true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> returnBook(String borrowId) async {
+    try {
+      final res = await _apiService.post('/student/library/borrows/$borrowId/return', {});
+      await fetchLibraryData();
+      return res['success'] == true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> submitBookRequest(String title, String author, String isbn, String reason) async {
+    try {
+      final res = await _apiService.post('/student/library/requests', {
+        'title': title,
+        'author': author,
+        'isbn': isbn,
+        'reason': reason,
+      });
+      await fetchLibraryData();
+      return res['success'] == true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> cancelBorrowRequest(String borrowId) async {
+    try {
+      final res = await _apiService.post('/student/library/borrows/$borrowId/cancel', {});
+      await fetchLibraryData();
+      return res['success'] == true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> cancelBookRequest(String requestId) async {
+    try {
+      final res = await _apiService.post('/student/library/requests/$requestId/cancel', {});
+      await fetchLibraryData();
+      return res['success'] == true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
     }
   }
 }
@@ -472,6 +665,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 final libraryProvider = StateNotifierProvider<LibraryNotifier, LibraryState>((ref) {
   return LibraryNotifier(ref.watch(apiServiceProvider));
 });
+
 
 // ============================================================================
 // COURSES PROVIDER

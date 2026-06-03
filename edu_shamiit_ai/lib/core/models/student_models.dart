@@ -635,6 +635,11 @@ class LibraryBook {
   final String? coverUrl;
   final DateTime? dueDate;
   final bool isIssued;
+  final bool isDigital;
+  final String? digitalUrl;
+  final String? description;
+  final String? shelfLocation;
+  final String? recommendationReason;
 
   LibraryBook({
     required this.id,
@@ -647,15 +652,47 @@ class LibraryBook {
     this.coverUrl,
     this.dueDate,
     required this.isIssued,
+    required this.isDigital,
+    this.digitalUrl,
+    this.description,
+    this.shelfLocation,
+    this.recommendationReason,
   });
 
+  static String getDefaultDescription(String title, String category) {
+    final lowerTitle = title.toLowerCase();
+    if (lowerTitle.contains('algorithm')) {
+      return "A comprehensive guide to the analysis and design of computer algorithms, widely used as a standard textbook.";
+    } else if (lowerTitle.contains('clean code')) {
+      return "A handbook of agile software craftsmanship, containing code examples to help developers write cleaner, more readable code.";
+    } else if (lowerTitle.contains('history of time')) {
+      return "A landmark volume in science writing by Stephen Hawking, exploring cosmology, black holes, space, and time.";
+    } else if (lowerTitle.contains('mockingbird')) {
+      return "Harper Lee's Pulitzer Prize-winning classic novel addressing themes of racial injustice and the destruction of innocence.";
+    } else if (lowerTitle.contains('quantum')) {
+      return "A standard undergraduate physics textbook by David J. Griffiths, introducing quantum theory and concepts.";
+    } else if (lowerTitle.contains('design pattern')) {
+      return "The classic 'Gang of Four' book outlining reusable object-oriented software design solutions.";
+    } else if (lowerTitle.contains('pragmatic')) {
+      return "A book about software engineering by Andrew Hunt and David Thomas, full of practical tips and career advice.";
+    } else if (lowerTitle.contains('architecture')) {
+      return "A professional software design book by Robert C. Martin on building robust, modular, and maintainable systems.";
+    } else if (lowerTitle.contains('refactoring')) {
+      return "Martin Fowler's guide to improving the internal structure of code without changing its external behavior.";
+    } else {
+      return "An educational resource on $category, focusing on key topics and detailed case studies to support student curriculum.";
+    }
+  }
+
   factory LibraryBook.fromJson(Map<String, dynamic> json) {
+    final title = json['title'] ?? '';
+    final category = json['category'] ?? 'General';
     return LibraryBook(
       id: json['id'] ?? '',
-      title: json['title'] ?? '',
+      title: title,
       author: json['author'] ?? '',
       isbn: json['isbn'] ?? '',
-      category: json['category'] ?? '',
+      category: category,
       totalCopies: json['total_copies'] ?? 0,
       availableCopies: json['available_copies'] ?? 0,
       coverUrl: json['cover_url'],
@@ -663,6 +700,11 @@ class LibraryBook {
           ? DateTime.tryParse(json['due_date'])
           : null,
       isIssued: json['is_issued'] ?? false,
+      isDigital: json['is_digital'] ?? false,
+      digitalUrl: json['digital_url'],
+      description: json['description'] ?? getDefaultDescription(title, category),
+      shelfLocation: json['shelf_location'],
+      recommendationReason: json['recommendation_reason'],
     );
   }
 
@@ -678,6 +720,11 @@ class LibraryBook {
       'cover_url': coverUrl,
       'due_date': dueDate?.toIso8601String(),
       'is_issued': isIssued,
+      'is_digital': isDigital,
+      'digital_url': digitalUrl,
+      'description': description,
+      'shelf_location': shelfLocation,
+      'recommendation_reason': recommendationReason,
     };
   }
 }

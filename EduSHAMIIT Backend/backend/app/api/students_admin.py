@@ -22,7 +22,7 @@ Covers:
   - Content Distribution: universal distribute endpoint
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from typing import Optional, List
 from datetime import datetime, timedelta
 import uuid
@@ -1219,6 +1219,8 @@ async def add_book(request: dict, user=Depends(require_student_admin), school_id
         "isbn": request.get("isbn"), "category": request.get("category"),
         "total_copies": copies, "available_copies": copies,
         "cover_url": request.get("cover_url"),
+        "is_digital": request.get("is_digital", False),
+        "digital_url": request.get("digital_url"),
         "created_at": datetime.utcnow().isoformat(),
     }
     result = await sb.table("library_books").insert(data).aexecute()
@@ -1228,7 +1230,7 @@ async def add_book(request: dict, user=Depends(require_student_admin), school_id
 @router.put("/library/books/{book_id}")
 async def update_book(book_id: str, request: dict, user=Depends(require_student_admin), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    allowed = {"title", "author", "isbn", "category", "total_copies", "available_copies", "cover_url"}
+    allowed = {"title", "author", "isbn", "category", "total_copies", "available_copies", "cover_url", "is_digital", "digital_url"}
     update_data = {k: v for k, v in request.items() if k in allowed}
     if not update_data:
         raise HTTPException(status_code=400, detail="No valid fields provided")
@@ -1243,16 +1245,109 @@ async def delete_book(book_id: str, user=Depends(require_student_admin), school_
     return {"success": True, "message": "Book removed"}
 
 
-@router.get("/library/borrows")
-async def list_borrows(student_id: Optional[str] = None, returned: Optional[bool] = None, user=Depends(require_student_admin), school_id=Depends(require_school_id)):
+@router.post("/library/books/{book_id}/upload")
+async def upload_book_pdf(
+    book_id: str,
+    file: UploadFile = File(...),
+    user=Depends(require_student_admin),
+    school_id=Depends(require_school_id)
+):
+    """
+    Upload a PDF for a digital library book.
+    Saves the file to Supabase storage documents bucket and updates digital_url/is_digital.
+    """
+    import httpx
+    from app.config import settings
+
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported for digital books")
+
+    file_bytes = await file.read()
+    file_size = len(file_bytes)
+
+    if file_size > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 20 MB)")
+    if file_size == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+
     sb = get_supabase()
-    query = sb.table("library_borrows").select("*, library_books(title, author), profiles!student_id(full_name, class, roll_number)").eq("school_id", school_id)
+    # Check if book exists
+    book_res = await sb.table("library_books").select("*").eq("id", book_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not book_res.data:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    extension = "pdf"
+    # Store in standard format under the documents bucket
+    storage_path = f"documents/{school_id}/library/{book_id}.{extension}"
+    supabase_url = settings.SUPABASE_URL.rstrip("/")
+    storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": file.content_type or "application/pdf",
+        "x-upsert": "true",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            upload_response = await client.post(storage_url, headers=headers, content=file_bytes)
+        
+        if upload_response.status_code not in (200, 201):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Storage upload failed: {upload_response.text}"
+            )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Storage upload request failed: {str(e)}")
+
+    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    file_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
+
+    # Update book info
+    update_res = await sb.table("library_books")\
+        .update({
+            "is_digital": True,
+            "digital_url": file_url
+        })\
+        .eq("id", book_id)\
+        .eq("school_id", school_id)\
+        .aexecute()
+
+    return {
+        "success": True,
+        "message": "PDF uploaded and book updated successfully",
+        "data": update_res.data[0] if update_res.data else {}
+    }
+
+
+@router.get("/library/borrows")
+async def list_borrows(
+    status: Optional[str] = None,
+    student_id: Optional[str] = None,
+    returned: Optional[bool] = None,
+    user=Depends(require_student_admin),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    q = sb.table("library_borrows").select("*, library_books(*), profiles!student_id(full_name, email, class)").eq("school_id", school_id)
+    if status:
+        q = q.eq("status", status)
     if student_id:
-        query = query.eq("student_id", student_id)
+        q = q.eq("student_id", student_id)
     if returned is not None:
-        query = query.eq("is_returned", returned)
-    borrows = (await query.order("borrowed_at", ascending=False).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"borrows": borrows}}
+        if returned:
+            q = q.eq("status", "returned")
+        else:
+            q = q.neq("status", "returned")
+    res = await q.order("borrowed_at", ascending=False).aexecute()
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": res.data or []
+    }
+
 
 
 @router.post("/library/borrows")
@@ -1579,3 +1674,159 @@ async def distribute_content(
             "recipients_notified": len(recipients),
         },
     }
+
+
+# ============================================================================
+# LIBRARY SYSTEM ENDPOINTS (LIBRARIAN/ISSUER ADMIN ROLE)
+# ============================================================================
+
+
+
+
+@router.put("/library/borrows/{borrow_id}/status")
+async def admin_update_borrow_status(
+    borrow_id: str,
+    request: dict,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+    student_admin=Depends(require_student_admin)
+):
+    new_status = request.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="status is required")
+        
+    sb = get_supabase()
+    
+    # Fetch borrow
+    borrow_res = await sb.table("library_borrows").select("*, library_books(*)").eq("id", borrow_id).eq("school_id", school_id).maybe_single().aexecute()
+    borrow = borrow_res.data
+    if not borrow:
+        raise HTTPException(status_code=404, detail="Borrow record not found")
+        
+    book = borrow.get("library_books") or {}
+    is_digital = book.get("is_digital", False)
+    
+    update_data = {"status": new_status}
+    old_status = borrow.get("status")
+    
+    if new_status == "borrowed" and old_status == "requested":
+        # Approving issue
+        if not is_digital:
+            available = book.get("available_copies", 0)
+            if available <= 0:
+                raise HTTPException(status_code=400, detail="No physical copies available to issue")
+            await sb.table("library_books").update({"available_copies": max(0, available - 1)}).eq("id", book["id"]).aexecute()
+            
+        update_data["borrowed_at"] = datetime.now().isoformat()
+        update_data["due_at"] = (datetime.now() + timedelta(days=14)).isoformat()
+        
+    elif new_status == "borrowed" and old_status == "pending_renew":
+        # Approving renewal
+        update_data["renewals_used"] = borrow.get("renewals_used", 0) + 1
+        if borrow.get("due_at"):
+            try:
+                current_due = datetime.fromisoformat(borrow["due_at"].replace("Z", "+00:00"))
+                new_due = current_due + timedelta(days=14)
+                update_data["due_at"] = new_due.isoformat()
+            except Exception:
+                update_data["due_at"] = (datetime.now() + timedelta(days=14)).isoformat()
+        else:
+            update_data["due_at"] = (datetime.now() + timedelta(days=14)).isoformat()
+            
+    elif new_status == "returned" and old_status in ["borrowed", "pending_return", "pending_renew"]:
+        # Approving return
+        if not is_digital:
+            available = book.get("available_copies", 0)
+            total = book.get("total_copies", 1)
+            await sb.table("library_books").update({"available_copies": min(total, available + 1)}).eq("id", book["id"]).aexecute()
+            
+        update_data["returned_at"] = datetime.now().isoformat()
+        
+        # Calculate fine dynamically if overdue
+        if borrow.get("due_at"):
+            try:
+                due_dt = datetime.fromisoformat(borrow["due_at"].replace("Z", "+00:00"))
+                now_dt = datetime.now()
+                if now_dt > due_dt:
+                    days_overdue = (now_dt - due_dt).days
+                    if days_overdue > 0:
+                        update_data["fine_amount"] = float(days_overdue * 5)
+            except Exception:
+                pass
+                
+    elif new_status == "rejected":
+        pass
+        
+    res = await sb.table("library_borrows").update(update_data).eq("id", borrow_id).aexecute()
+    return {
+        "success": True,
+        "message": f"Borrow status updated to {new_status}",
+        "data": res.data[0]
+    }
+
+
+@router.get("/library/requests")
+async def admin_get_library_requests(
+    status: Optional[str] = None,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+    student_admin=Depends(require_student_admin)
+):
+    sb = get_supabase()
+    q = sb.table("library_requests").select("*, profiles!student_id(full_name, email, class)").eq("school_id", school_id)
+    if status:
+        q = q.eq("status", status)
+    res = await q.order("created_at", ascending=False).aexecute()
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": res.data or []
+    }
+
+
+@router.put("/library/requests/{request_id}/status")
+async def admin_update_library_request_status(
+    request_id: str,
+    request: dict,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+    student_admin=Depends(require_student_admin)
+):
+    new_status = request.get("status")
+    if new_status not in ["approved", "rejected"]:
+        raise HTTPException(status_code=400, detail="status must be 'approved' or 'rejected'")
+        
+    sb = get_supabase()
+    
+    # Fetch request
+    req_res = await sb.table("library_requests").select("*").eq("id", request_id).eq("school_id", school_id).maybe_single().aexecute()
+    req = req_res.data
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    res = await sb.table("library_requests").update({"status": new_status}).eq("id", request_id).aexecute()
+    
+    # Custom premium feature: if approved, automatically insert the book into library_books!
+    if new_status == "approved":
+        try:
+            book_data = {
+                "school_id": school_id,
+                "title": req["title"],
+                "author": req["author"],
+                "isbn": req.get("isbn") or "",
+                "category": "New Acquisition",
+                "shelf_location": "A-1 (Acquisition)",
+                "total_copies": 1,
+                "available_copies": 1,
+                "is_digital": False
+            }
+            await sb.table("library_books").insert(book_data).aexecute()
+        except Exception as e:
+            print(f"Failed to auto-insert approved book: {str(e)}", flush=True)
+
+    return {
+        "success": True,
+        "message": f"Request status updated to {new_status}",
+        "data": res.data[0]
+    }
+

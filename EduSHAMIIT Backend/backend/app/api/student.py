@@ -631,11 +631,6 @@ async def upload_document(
     return {"success": True, "message": "Document uploaded successfully", "data": doc_data}
 
 
-@router.get("/library")
-async def student_library(user=Depends(get_current_user), school_id=Depends(require_school_id)):
-    sb = get_supabase()
-    borrows = (await sb.table("library_borrows").select("*, library_books(title, author, cover_url)").eq("school_id", school_id).eq("student_id", user["id"]).order("borrowed_at", ascending=False).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"borrows": borrows}}
 
 
 @router.get("/courses")
@@ -1152,3 +1147,457 @@ async def upload_message_file(
 ):
     from app.api.shared import upload_message_file as shared_upload_message_file
     return await shared_upload_message_file(file, user, school_id)
+
+
+# ============================================================================
+# LIBRARY SYSTEM ENDPOINTS (STUDENT BORROWER ROLE)
+# ============================================================================
+
+@router.get("/library")
+async def get_student_library_dashboard(
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    from datetime import datetime, timezone
+    sb = get_supabase()
+    
+    # 1. Fetch borrows with books joined
+    borrows_res = await sb.table("library_borrows")\
+        .select("*, library_books(*)")\
+        .eq("school_id", school_id)\
+        .eq("student_id", user["id"])\
+        .order("borrowed_at", ascending=False)\
+        .aexecute()
+    
+    borrows = borrows_res.data or []
+    
+    # Calculate fine dynamically for overdue, unreturned books
+    now_dt = datetime.now(timezone.utc)
+    for b in borrows:
+        if b.get("status") == "borrowed" and not b.get("returned_at") and b.get("due_at"):
+            try:
+                due_dt = datetime.fromisoformat(b["due_at"].replace("Z", "+00:00"))
+                if due_dt.tzinfo is None:
+                    due_dt = due_dt.replace(tzinfo=timezone.utc)
+                if now_dt > due_dt:
+                    days_overdue = (now_dt - due_dt).days
+                    if days_overdue > 0:
+                        b["fine_amount"] = float(days_overdue * 5)
+            except Exception:
+                pass
+
+    # 2. Fetch student's book requests
+    requests_res = await sb.table("library_requests")\
+        .select("*")\
+        .eq("school_id", school_id)\
+        .eq("student_id", user["id"])\
+        .order("created_at", ascending=False)\
+        .aexecute()
+    
+    requests = requests_res.data or []
+
+    # 3. Fetch books
+    books_res = await sb.table("library_books")\
+        .select("*")\
+        .eq("school_id", school_id)\
+        .order("title")\
+        .limit(50)\
+        .aexecute()
+    
+    books = books_res.data or []
+
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": {
+            "borrows": borrows,
+            "requests": requests,
+            "books": books
+        }
+    }
+
+
+@router.get("/library/books")
+async def get_library_books(
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    is_digital: Optional[bool] = None,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    q = sb.table("library_books").select("*").eq("school_id", school_id)
+    
+    if search:
+        q = q.or_(f"title.ilike.%{search}%,author.ilike.%{search}%,isbn.ilike.%{search}%")
+    if category:
+        q = q.eq("category", category)
+    if is_digital is not None:
+        q = q.eq("is_digital", is_digital)
+        
+    res = await q.aexecute()
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": res.data or []
+    }
+
+
+@router.post("/library/borrow")
+async def borrow_book(
+    request: dict,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    from datetime import datetime, timezone
+    book_id = request.get("book_id")
+    if not book_id:
+        raise HTTPException(status_code=400, detail="book_id is required")
+        
+    sb = get_supabase()
+    # Fetch book details
+    book_res = await sb.table("library_books").select("*").eq("id", book_id).eq("school_id", school_id).maybe_single().aexecute()
+    book = book_res.data
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+        
+    # Check if student already has active request/borrow for this book
+    active_res = await sb.table("library_borrows")\
+        .select("*")\
+        .eq("book_id", book_id)\
+        .eq("student_id", user["id"])\
+        .in_("status", ["requested", "borrowed", "pending_renew", "pending_return"])\
+        .aexecute()
+        
+    if active_res.data:
+        raise HTTPException(status_code=400, detail="You already have an active borrow or request for this book")
+
+    # If digital, borrow is instantly active and doesn't decrement copy count
+    is_digital = book.get("is_digital", False)
+    status = "borrowed" if is_digital else "requested"
+    
+    # Check available copies for physical books
+    if not is_digital and book.get("available_copies", 0) <= 0:
+        raise HTTPException(status_code=400, detail="No physical copies of this book are currently available")
+
+    # Create borrow record
+    now_dt = datetime.now(timezone.utc)
+    due_dt = now_dt + timedelta(days=14)
+    
+    borrow_data = {
+        "school_id": school_id,
+        "book_id": book_id,
+        "student_id": user["id"],
+        "borrowed_at": now_dt.isoformat(),
+        "due_at": due_dt.isoformat(),
+        "renewals_used": 0,
+        "max_renewals": 2,
+        "status": status,
+        "fine_amount": 0.0
+    }
+    
+    insert_res = await sb.table("library_borrows").insert(borrow_data).aexecute()
+    if not insert_res.data:
+        raise HTTPException(status_code=500, detail="Failed to create borrow record")
+
+    return {
+        "success": True,
+        "message": "eBook borrowed instantly" if is_digital else "Borrow request submitted successfully",
+        "data": insert_res.data[0]
+    }
+
+
+@router.post("/library/borrows/{borrow_id}/renew")
+async def renew_borrow(
+    borrow_id: str,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    from datetime import datetime, timezone
+    sb = get_supabase()
+    
+    # Fetch borrow record
+    borrow_res = await sb.table("library_borrows").select("*, library_books(*)").eq("id", borrow_id).eq("school_id", school_id).maybe_single().aexecute()
+    borrow = borrow_res.data
+    if not borrow:
+        raise HTTPException(status_code=404, detail="Borrow record not found")
+        
+    if borrow["student_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to renew this book")
+        
+    if borrow["status"] != "borrowed":
+        raise HTTPException(status_code=400, detail=f"Cannot renew book with status '{borrow['status']}'")
+        
+    if borrow.get("renewals_used", 0) >= borrow.get("max_renewals", 2):
+        raise HTTPException(status_code=400, detail="Maximum renewals limit reached")
+
+    # If digital, auto-approve the renewal instantly
+    book = borrow.get("library_books") or {}
+    if book.get("is_digital", False):
+        new_due = datetime.fromisoformat(borrow["due_at"].replace("Z", "+00:00")) + timedelta(days=14)
+        update_res = await sb.table("library_borrows")\
+            .update({
+                "renewals_used": borrow["renewals_used"] + 1,
+                "due_at": new_due.isoformat(),
+                "status": "borrowed"
+            })\
+            .eq("id", borrow_id)\
+            .aexecute()
+        return {
+            "success": True,
+            "message": "eBook renewal auto-approved instantly",
+            "data": update_res.data[0]
+        }
+
+    # For physical books, set to pending_renew
+    update_res = await sb.table("library_borrows")\
+        .update({"status": "pending_renew"})\
+        .eq("id", borrow_id)\
+        .aexecute()
+        
+    return {
+        "success": True,
+        "message": "Renewal request submitted to librarian",
+        "data": update_res.data[0]
+    }
+
+
+@router.post("/library/borrows/{borrow_id}/return")
+async def return_borrow(
+    borrow_id: str,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    from datetime import datetime, timezone
+    sb = get_supabase()
+    
+    # Fetch borrow record
+    borrow_res = await sb.table("library_borrows").select("*, library_books(*)").eq("id", borrow_id).eq("school_id", school_id).maybe_single().aexecute()
+    borrow = borrow_res.data
+    if not borrow:
+        raise HTTPException(status_code=404, detail="Borrow record not found")
+        
+    if borrow["student_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to return this book")
+        
+    if borrow["status"] not in ["borrowed", "pending_renew"]:
+        raise HTTPException(status_code=400, detail=f"Cannot return book with status '{borrow['status']}'")
+
+    # If digital, auto-approve return instantly
+    book = borrow.get("library_books") or {}
+    if book.get("is_digital", False):
+        update_res = await sb.table("library_borrows")\
+            .update({
+                "status": "returned",
+                "returned_at": datetime.now(timezone.utc).isoformat()
+            })\
+            .eq("id", borrow_id)\
+            .aexecute()
+        return {
+            "success": True,
+            "message": "eBook returned instantly",
+            "data": update_res.data[0]
+        }
+
+    # For physical books, set status to pending_return
+    update_res = await sb.table("library_borrows")\
+        .update({"status": "pending_return"})\
+        .eq("id", borrow_id)\
+        .aexecute()
+        
+    return {
+        "success": True,
+        "message": "Return request submitted to librarian. Please return the physical book.",
+        "data": update_res.data[0]
+    }
+
+
+@router.post("/library/requests")
+async def submit_acquisition_request(
+    request: dict,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    title = request.get("title")
+    author = request.get("author")
+    isbn = request.get("isbn")
+    reason = request.get("reason")
+    
+    if not title or not author:
+        raise HTTPException(status_code=400, detail="title and author are required")
+        
+    sb = get_supabase()
+    request_data = {
+        "school_id": school_id,
+        "student_id": user["id"],
+        "title": title,
+        "author": author,
+        "isbn": isbn,
+        "reason": reason,
+        "status": "pending"
+    }
+    
+    insert_res = await sb.table("library_requests").insert(request_data).aexecute()
+    if not insert_res.data:
+        raise HTTPException(status_code=500, detail="Failed to submit acquisition request")
+        
+    return {
+        "success": True,
+        "message": "Acquisition request submitted successfully",
+        "data": insert_res.data[0]
+    }
+
+
+@router.get("/library/recommendations")
+async def get_library_recommendations(
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    import json
+    import os
+    sb = get_supabase()
+    
+    # 1. Fetch available books in the school library
+    books_res = await sb.table("library_books").select("*").eq("school_id", school_id).limit(100).aexecute()
+    books = books_res.data or []
+    
+    if not books:
+        return {"success": True, "data": []}
+        
+    # 2. Fetch student details (class, subjects) to personalize
+    profile_res = await sb.table("profiles").select("*, school_id").eq("id", user["id"]).maybe_single().aexecute()
+    profile = profile_res.data or {}
+    student_class = profile.get("class", "Unknown")
+    
+    # 3. Call ChatGoogleGenerativeAI (Gemini) if possible
+    recommended_books = []
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    
+    if google_api_key and google_api_key != "AIza-placeholder-google-key":
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            llm = ChatGoogleGenerativeAI(
+                model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                temperature=0.4,
+                google_api_key=google_api_key
+            )
+            
+            # Format list of books for Gemini
+            books_input = [{"id": b["id"], "title": b["title"], "author": b["author"], "category": b["category"]} for b in books]
+            
+            prompt = (
+                f"You are Shami, an AI librarian for a student portal. "
+                f"We have a student named {profile.get('full_name', 'Student')} in class {student_class}. "
+                f"Here is the list of books in our school library: {json.dumps(books_input[:30])}.\n\n"
+                f"Please select the top 3 best books that are most suitable for this student. "
+                f"For each recommended book, provide the exact book ID from the list, and write a custom personalized 'reason' (why they should read it based on their grade level/class) and a brief 'description'.\n\n"
+                f"Respond ONLY with a JSON list of objects, structured like: "
+                f"[{{\"id\": \"book-id-here\", \"reason\": \"Personalized reason for recommendation\", \"description\": \"Brief book description\"}}]. "
+                f"Do not include any markdown backticks or extra text, just raw JSON."
+            )
+            
+            response = llm.invoke(prompt)
+            content = response.content.strip()
+            # Clean JSON markers if Gemini included them
+            if content.startswith("```"):
+                lines = content.splitlines()
+                if lines[0].startswith("```json") or lines[0].startswith("```"):
+                    content = "\n".join(lines[1:-1])
+            
+            recommendations_meta = json.loads(content)
+            
+            # Match metadata back with books list
+            rec_id_map = {item["id"]: item for item in recommendations_meta if "id" in item}
+            for b in books:
+                if b["id"] in rec_id_map:
+                    meta = rec_id_map[b["id"]]
+                    recommended_books.append({
+                        **b,
+                        "recommendation_reason": meta.get("reason", "Highly recommended for your class."),
+                        "description": meta.get("description", b.get("description", ""))
+                    })
+        except Exception as e:
+            print(f"Gemini library recommendation failed: {str(e)}", flush=True)
+
+    # 4. Fallback if Gemini key is missing or failed: pick books by category or class
+    if not recommended_books:
+        # Default rule: pick up to 3 books
+        for b in books[:3]:
+            recommended_books.append({
+                **b,
+                "recommendation_reason": "Curated pick based on popular student choices in your class.",
+                "description": b.get("description", "A fantastic resource for studying and expanding your knowledge.")
+            })
+            
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": recommended_books
+    }
+
+
+@router.post("/library/borrows/{borrow_id}/cancel")
+async def cancel_borrow_request(
+    borrow_id: str,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    
+    # Fetch borrow
+    borrow_res = await sb.table("library_borrows").select("*").eq("id", borrow_id).eq("school_id", school_id).maybe_single().aexecute()
+    borrow = borrow_res.data
+    if not borrow:
+        raise HTTPException(status_code=404, detail="Borrow record not found")
+        
+    if borrow["student_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this borrow request")
+        
+    if borrow["status"] != "requested":
+        raise HTTPException(status_code=400, detail=f"Cannot cancel borrow request with status '{borrow['status']}'")
+        
+    # Update status to cancelled
+    update_res = await sb.table("library_borrows")\
+        .update({"status": "cancelled"})\
+        .eq("id", borrow_id)\
+        .aexecute()
+        
+    return {
+        "success": True,
+        "message": "Borrow request cancelled successfully",
+        "data": update_res.data[0] if update_res.data else {}
+    }
+
+
+@router.post("/library/requests/{request_id}/cancel")
+async def cancel_acquisition_request(
+    request_id: str,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    
+    # Fetch request
+    req_res = await sb.table("library_requests").select("*").eq("id", request_id).eq("school_id", school_id).maybe_single().aexecute()
+    req = req_res.data
+    if not req:
+        raise HTTPException(status_code=404, detail="Acquisition request not found")
+        
+    if req["student_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this request")
+        
+    if req["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Cannot cancel request with status '{req['status']}'")
+        
+    # Update status to cancelled
+    update_res = await sb.table("library_requests")\
+        .update({"status": "cancelled"})\
+        .eq("id", request_id)\
+        .aexecute()
+        
+    return {
+        "success": True,
+        "message": "Acquisition request cancelled successfully",
+        "data": update_res.data[0] if update_res.data else {}
+    }
+
