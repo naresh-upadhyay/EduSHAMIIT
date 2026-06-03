@@ -305,21 +305,62 @@ async def student_attendance(user=Depends(get_current_user), school_id=Depends(r
 
 
 @router.get("/fees")
-async def student_fees(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def student_fees(status: Optional[str] = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    # payments table has no school_id/student_id columns — query fees table only
-    fees = (await sb.table("fees").select("*").eq("school_id", school_id).eq("student_id", user["id"]).order("due_date").aexecute()).data
+    # Query all fees for summary calculation
+    all_fees = (await sb.table("fees").select("*").eq("school_id", school_id).eq("student_id", user["id"]).order("due_date").aexecute()).data
 
-    pending_fees = [f for f in fees if f["status"] in ("pending", "partial", "overdue")]
-    paid_fees    = [f for f in fees if f["status"] == "paid"]
+    # Fetch latest payment per fee for transaction_id and payment_method
+    fee_ids = [f["id"] for f in all_fees if f["id"]]
+    payment_map = {}
+    if fee_ids:
+        payments_res = (await sb.table("payments")
+            .select("fee_id, transaction_id, payment_method, paid_at, status")
+            .in_("fee_id", fee_ids)
+            .eq("status", "success")
+            .order("created_at", ascending=False)
+            .aexecute()).data
+        for p in payments_res:
+            fid = p.get("fee_id")
+            if fid and fid not in payment_map:
+                payment_map[fid] = p
 
-    total_outstanding = sum(float(f["amount"]) for f in pending_fees)
-    total_paid        = sum(float(f["amount"]) for f in paid_fees)
+    # Enrich fees with payment info
+    for f in all_fees:
+        p_info = payment_map.get(f["id"])
+        if p_info:
+            f["transaction_id"] = p_info.get("transaction_id")
+            f["payment_method"] = p_info.get("payment_method")
+        else:
+            f["transaction_id"] = None
+            f["payment_method"] = None
+
+    pending_fees = [f for f in all_fees if f["status"] in ("pending", "partial", "overdue")]
+    paid_fees    = [f for f in all_fees if f["status"] == "paid"]
+
+    try:
+        rpc_res = await sb.rpc("get_student_outstanding_balance", {
+            "p_student_id": user["id"],
+            "p_school_id": school_id
+        }).aexecute()
+        total_outstanding = float(rpc_res.data) if rpc_res.data is not None else 0.0
+    except Exception as e:
+        total_outstanding = sum(max(float(f["amount"]) + float(f.get("late_fine") or 0) - float(f.get("discount") or 0) - float(f.get("amount_paid") or 0), 0.0) for f in pending_fees)
+    total_paid        = sum(float(f.get("amount_paid") or 0) for f in all_fees)
+
+    # Filter fees to return if status is specified
+    filtered_fees = all_fees
+    if status and status.lower() != "all":
+        # Handle receipts case (which maps to paid)
+        target_status = "paid" if status.lower() == "receipts" else status.lower()
+        filtered_fees = [f for f in all_fees if f["status"] == target_status]
+
     return {
         "success": True, "school_id": school_id,
         "data": {
             "total_outstanding": total_outstanding,
             "total_paid": total_paid,
+            "fees": filtered_fees,
             "pending_fees": pending_fees,
             "recent_payments": paid_fees[:3],
         }

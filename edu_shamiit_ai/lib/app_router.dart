@@ -18,7 +18,7 @@ import 'package:edu_shamiit_ai/features/student/results/screens/student_results.
 import 'package:edu_shamiit_ai/features/student/homework/screens/student_homework.dart';
 import 'package:edu_shamiit_ai/features/student/attendance/screens/student_attendance.dart';
 import 'package:edu_shamiit_ai/features/student/fees/screens/student_fees.dart';
-import 'package:edu_shamiit_ai/features/student/leave/screens/student_leave.dart';
+import 'package:edu_shamiit_ai/features/shared/leave/screens/leave_screen.dart';
 import 'package:edu_shamiit_ai/features/student/profile/screens/student_profile.dart';
 import 'package:edu_shamiit_ai/features/student/library/screens/student_library.dart';
 import 'package:edu_shamiit_ai/features/student/courses/screens/student_courses.dart';
@@ -45,7 +45,7 @@ import 'package:edu_shamiit_ai/features/teacher/profile/screens/teacher_profile.
 import 'package:edu_shamiit_ai/features/teacher/grading/screens/teacher_grading.dart';
 import 'package:edu_shamiit_ai/features/teacher/exams/screens/teacher_exams.dart';
 import 'package:edu_shamiit_ai/features/teacher/paper_builder/screens/teacher_paper_builder.dart';
-import 'package:edu_shamiit_ai/features/teacher/leave/screens/teacher_leave.dart';
+// teacher_leave.dart replaced by shared leave_screen.dart
 import 'package:edu_shamiit_ai/features/teacher/salary/screens/teacher_salary.dart';
 import 'package:edu_shamiit_ai/features/teacher/submissions/screens/teacher_submissions.dart';
 import 'package:edu_shamiit_ai/features/teacher/notifications/screens/teacher_notifications.dart';
@@ -220,7 +220,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/leave-application',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentLeave()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: LeaveScreen()),
         ),
         GoRoute(
           path: '/student/library',
@@ -346,7 +346,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/teacher/leave',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherLeaveScreen()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: LeaveScreen()),
         ),
         GoRoute(
           path: '/teacher/salary',

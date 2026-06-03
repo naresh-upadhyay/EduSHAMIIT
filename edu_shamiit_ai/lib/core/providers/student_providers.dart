@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
 import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
+// Leave types are now in the shared leave_provider.dart
+export 'package:edu_shamiit_ai/core/providers/leave_provider.dart';
 
 // ============================================================================
 // DATA MODELS
@@ -28,38 +30,6 @@ class AttendanceRecord {
   }
 }
 
-/// Leave application model (matches backend response)
-class LeaveApplication {
-  final String id;
-  final String leaveType;
-  final String startDate;
-  final String endDate;
-  final String reason;
-  final String status;
-  final DateTime createdAt;
-
-  LeaveApplication({
-    required this.id,
-    required this.leaveType,
-    required this.startDate,
-    required this.endDate,
-    required this.reason,
-    required this.status,
-    required this.createdAt,
-  });
-
-  factory LeaveApplication.fromJson(Map<String, dynamic> json) {
-    return LeaveApplication(
-      id: json['id'] as String,
-      leaveType: json['leave_type'] as String,
-      startDate: json['start_date'] as String,
-      endDate: json['end_date'] as String,
-      reason: json['reason'] as String,
-      status: json['status'] as String,
-      createdAt: _parseDateTime(json['created_at']),
-    );
-  }
-}
 
 /// Library borrow model (matches backend response)
 class LibraryBorrow {
@@ -425,82 +395,11 @@ final attendanceProvider = StateNotifierProvider<AttendanceNotifier, AttendanceS
   return AttendanceNotifier(ref.watch(apiServiceProvider));
 });
 
-// ============================================================================
-// LEAVE APPLICATION PROVIDER
-// ============================================================================
+// LeaveState, LeaveNotifier and leaveProvider are now in:
+//   lib/core/providers/leave_provider.dart
+// (exported at the top of this file via the re-export line)
 
-class LeaveState {
-  final bool isLoading;
-  final String? error;
-  final List<LeaveApplication> applications;
 
-  LeaveState({
-    this.isLoading = false,
-    this.error,
-    this.applications = const [],
-  });
-
-  LeaveState copyWith({
-    bool? isLoading,
-    String? error,
-    List<LeaveApplication>? applications,
-  }) {
-    return LeaveState(
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      applications: applications ?? this.applications,
-    );
-  }
-}
-
-class LeaveNotifier extends StateNotifier<LeaveState> {
-  final ApiService _apiService;
-
-  LeaveNotifier(this._apiService) : super(LeaveState());
-
-  Future<void> fetchLeaveApplications() async {
-    if (state.applications.isEmpty) {
-      state = state.copyWith(isLoading: true, error: null);
-    }
-    try {
-      final response = await _apiService.get('/student/leave-applications');
-      final data = response.containsKey('data') ? response['data'] : response;
-      final apps = (data['applications'] ?? data['leave'] ?? []).map((a) => LeaveApplication.fromJson(a)).toList();
-      state = state.copyWith(
-        isLoading: false,
-        applications: apps,
-      );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-    }
-  }
-
-  Future<bool> submitLeaveApplication({
-    required String type,
-    required String startDate,
-    required String endDate,
-    required String reason,
-  }) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      await _apiService.post('/student/leave-applications', {
-        'type': type,
-        'start_date': startDate,
-        'end_date': endDate,
-        'reason': reason,
-      });
-      await fetchLeaveApplications();
-      return true;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      return false;
-    }
-  }
-}
-
-final leaveProvider = StateNotifierProvider<LeaveNotifier, LeaveState>((ref) {
-  return LeaveNotifier(ref.watch(apiServiceProvider));
-});
 
 // ============================================================================
 // LIBRARY PROVIDER

@@ -6,6 +6,7 @@ from datetime import datetime
 
 from app.middleware.auth import get_current_user, require_school_id
 from app.services.supabase_client import get_supabase
+from app.config import settings
 
 router = APIRouter()
 
@@ -767,3 +768,269 @@ async def update_member_role(
     # Update the role
     await sb.table("group_members").update({"role": role}).eq("group_id", group_id).eq("member_id", member_id).aexecute()
     return {"success": True, "message": f"Member role updated to {role} successfully"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LEAVE MANAGEMENT ENDPOINTS (shared — works for both student & teacher roles)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/leave")
+async def get_leave_applications(
+    status: Optional[str] = None,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    """Get all leave applications for the current user (student or teacher)."""
+    sb = get_supabase()
+
+    query = (sb.table("leave_applications")
+               .select("*")
+               .eq("applicant_id", user["id"])
+               .eq("school_id", school_id)
+               .order("created_at", ascending=False))
+
+    if status and status.lower() != "all":
+        query = query.eq("status", status.lower())
+
+    result = await query.aexecute()
+    applications = result.data or []
+
+    # Build stats
+    total_quota = 30 if user.get("role") == "teacher" else 15
+    approved = [a for a in applications if a["status"] == "approved"]
+    pending  = [a for a in applications if a["status"] == "pending"]
+    used     = sum(int(a.get("duration_days") or 0) for a in approved)
+    balance  = max(0, total_quota - used)
+
+    return {
+        "applications": applications,
+        "stats": {
+            "total_quota": total_quota,
+            "used": used,
+            "pending": len(pending),
+            "balance": balance,
+        }
+    }
+
+
+@router.post("/leave")
+async def apply_leave(
+    body: dict,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    """Apply for a leave (student or teacher)."""
+    sb = get_supabase()
+
+    leave_type = body.get("leave_type") or body.get("type")
+    start_date = body.get("start_date")
+    end_date   = body.get("end_date")
+    reason     = body.get("reason", "")
+
+    if not all([leave_type, start_date, end_date, reason]):
+        raise HTTPException(status_code=400, detail="leave_type, start_date, end_date and reason are required")
+
+    # Validate dates
+    try:
+        from datetime import date as _date
+        sd = _date.fromisoformat(start_date)
+        ed = _date.fromisoformat(end_date)
+        if ed < sd:
+            raise HTTPException(status_code=400, detail="end_date must be >= start_date")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format (expected YYYY-MM-DD)")
+
+    payload = {
+        "school_id":      school_id,
+        "applicant_id":   user["id"],
+        "applicant_role": user.get("role", "student"),
+        "leave_type":     leave_type,
+        "start_date":     start_date,
+        "end_date":       end_date,
+        "reason":         reason,
+        "status":         "pending",
+    }
+
+    if body.get("attachment_url"):
+        payload["attachment_url"] = body["attachment_url"]
+
+    result = await sb.table("leave_applications").insert(payload).aexecute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create leave application")
+
+    return {"success": True, "application": result.data[0]}
+
+
+@router.patch("/leave/{leave_id}")
+async def update_leave(
+    leave_id: str,
+    body: dict,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    """Edit a pending leave application (only the applicant can edit their own pending leave)."""
+    sb = get_supabase()
+
+    # Verify ownership and pending status
+    existing = await sb.table("leave_applications") \
+        .select("*") \
+        .eq("id", leave_id) \
+        .eq("applicant_id", user["id"]) \
+        .eq("school_id", school_id) \
+        .aexecute()
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Leave application not found")
+
+    leave = existing.data[0]
+    if leave["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Only pending leave applications can be edited")
+
+    # Build update payload from allowed fields
+    update_payload = {}
+    allowed_fields = ["leave_type", "start_date", "end_date", "reason", "attachment_url"]
+    for field in allowed_fields:
+        if field in body and body[field] is not None:
+            update_payload[field] = body[field]
+
+    if not update_payload:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+
+    # Validate dates if provided
+    if "start_date" in update_payload or "end_date" in update_payload:
+        from datetime import date as _date
+        try:
+            sd = _date.fromisoformat(update_payload.get("start_date", leave["start_date"]))
+            ed = _date.fromisoformat(update_payload.get("end_date",   leave["end_date"]))
+            if ed < sd:
+                raise HTTPException(status_code=400, detail="end_date must be >= start_date")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+
+    update_payload["updated_at"] = datetime.utcnow().isoformat()
+
+    result = await sb.table("leave_applications") \
+        .update(update_payload) \
+        .eq("id", leave_id) \
+        .eq("applicant_id", user["id"]) \
+        .aexecute()
+
+    return {"success": True, "application": result.data[0] if result.data else None}
+
+
+@router.delete("/leave/{leave_id}")
+async def cancel_or_delete_leave(
+    leave_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    """Cancel a pending leave, or delete a past (rejected/cancelled) leave application."""
+    sb = get_supabase()
+
+    existing = await sb.table("leave_applications") \
+        .select("*") \
+        .eq("id", leave_id) \
+        .eq("applicant_id", user["id"]) \
+        .eq("school_id", school_id) \
+        .aexecute()
+
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Leave application not found")
+
+    leave = existing.data[0]
+
+    if leave["status"] == "pending":
+        # Cancel pending leave
+        await sb.table("leave_applications") \
+            .update({"status": "cancelled", "updated_at": datetime.utcnow().isoformat()}) \
+            .eq("id", leave_id) \
+            .aexecute()
+        return {"success": True, "message": "Leave application cancelled"}
+
+    elif leave["status"] in ("rejected", "cancelled"):
+        # Hard delete past rejected/cancelled leaves
+        await sb.table("leave_applications") \
+            .delete() \
+            .eq("id", leave_id) \
+            .eq("applicant_id", user["id"]) \
+            .aexecute()
+        return {"success": True, "message": "Leave application deleted"}
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete an approved leave. Contact admin to withdraw."
+        )
+
+
+@router.post("/leave/upload")
+async def upload_leave_document(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id),
+):
+    """Upload a leave supporting document to Supabase storage and save it in the documents table."""
+    import uuid
+    sb = get_supabase()
+
+    # 1. Validate file
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename missing")
+    
+    ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+    if ext not in ["pdf", "jpg", "jpeg", "png", "doc", "docx"]:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: PDF, JPG, PNG, DOC, DOCX")
+
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum 5 MB.")
+
+    # 2. Upload to Supabase Storage
+    doc_id = str(uuid.uuid4())
+    storage_path = f"documents/{user['id']}/{doc_id}.{ext}"
+    supabase_url = settings.SUPABASE_URL.rstrip("/")
+    storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
+    
+    content_type = file.content_type or "application/octet-stream"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": content_type,
+        "x-upsert": "true",
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        upload_response = await client.post(storage_url, headers=headers, content=file_bytes)
+
+    if upload_response.status_code not in (200, 201):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Storage upload failed: {upload_response.text}"
+        )
+
+    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
+
+    # 3. Insert into documents table
+    doc_data = {
+        "id": doc_id,
+        "school_id": school_id,
+        "user_id": user["id"],
+        "document_type": "leave_attachment",
+        "file_name": file.filename,
+        "file_url": public_url,
+        "verification_status": "pending"
+    }
+    await sb.table("documents").insert(doc_data).aexecute()
+
+    return {
+        "success": True,
+        "message": "Document uploaded successfully",
+        "data": {
+            "id": doc_id,
+            "file_url": public_url,
+            "file_name": file.filename
+        }
+    }

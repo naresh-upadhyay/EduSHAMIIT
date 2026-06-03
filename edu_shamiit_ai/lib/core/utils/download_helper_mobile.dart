@@ -42,6 +42,31 @@ class MobileDownloadHelper implements DownloadHelper {
       throw 'Could not launch download URL: $downloadUrl';
     }
   }
+
+  @override
+  Future<void> downloadBytes(List<int> bytes, String filename) async {
+    try {
+      Directory? dir;
+      if (Platform.isAndroid) {
+        dir = Directory('/storage/emulated/0/Download');
+        if (!await dir.exists()) {
+          dir = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        dir = await getApplicationDocumentsDirectory();
+      }
+      
+      if (dir != null) {
+        final filePath = '${dir.path}/$filename';
+        final file = File(filePath);
+        await file.writeAsBytes(bytes);
+        return;
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
 }
 
 DownloadHelper getDownloadHelper() => MobileDownloadHelper();
+

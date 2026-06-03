@@ -380,6 +380,11 @@ class FeeRecord {
   final DateTime? paidDate;
   final String? transactionId;
   final String? receiptUrl;
+  final String? feePeriod;
+  final double lateFine;
+  final double discount;
+  final String? description;
+  final String? paymentMethod;
 
   FeeRecord({
     required this.id,
@@ -392,23 +397,40 @@ class FeeRecord {
     this.paidDate,
     this.transactionId,
     this.receiptUrl,
+    this.feePeriod,
+    this.lateFine = 0.0,
+    this.discount = 0.0,
+    this.description,
+    this.paymentMethod,
   });
 
   factory FeeRecord.fromJson(Map<String, dynamic> json) {
+    final amount = double.tryParse(json['amount']?.toString() ?? '0') ?? 0.0;
+    final paidAmount = double.tryParse((json['paid_amount'] ?? json['amount_paid'])?.toString() ?? '0') ?? 0.0;
+    final discount = double.tryParse(json['discount']?.toString() ?? '0') ?? 0.0;
+    final lateFine = double.tryParse(json['late_fine']?.toString() ?? '0') ?? 0.0;
+    final computedDue = amount + lateFine - discount - paidAmount;
+    final dueAmount = double.tryParse(json['due_amount']?.toString() ?? '') ?? (computedDue < 0 ? 0.0 : computedDue);
+
+    // Handle both paid_at (backend DB field) and paid_date (older format)
+    final paidAtStr = json['paid_at'] ?? json['paid_date'];
+
     return FeeRecord(
       id: json['id'] ?? '',
-      month: json['month'] ?? '',
-      amount: double.tryParse(json['amount']?.toString() ?? '0') ?? 0,
-      paidAmount:
-          double.tryParse(json['paid_amount']?.toString() ?? '0') ?? 0,
-      dueAmount: double.tryParse(json['due_amount']?.toString() ?? '0') ?? 0,
+      month: json['month'] ?? json['fee_type'] ?? '',
+      amount: amount,
+      paidAmount: paidAmount,
+      dueAmount: dueAmount,
       status: json['status'] ?? 'pending',
       dueDate: DateTime.tryParse(json['due_date'] ?? '') ?? DateTime.now(),
-      paidDate: json['paid_date'] != null
-          ? DateTime.tryParse(json['paid_date'])
-          : null,
+      paidDate: paidAtStr != null ? DateTime.tryParse(paidAtStr.toString()) : null,
       transactionId: json['transaction_id'],
       receiptUrl: json['receipt_url'],
+      feePeriod: json['fee_period'],
+      lateFine: lateFine,
+      discount: discount,
+      description: json['description'],
+      paymentMethod: json['payment_method'],
     );
   }
 
@@ -424,6 +446,11 @@ class FeeRecord {
       'paid_date': paidDate?.toIso8601String(),
       'transaction_id': transactionId,
       'receipt_url': receiptUrl,
+      'fee_period': feePeriod,
+      'late_fine': lateFine,
+      'discount': discount,
+      'description': description,
+      'payment_method': paymentMethod,
     };
   }
 }

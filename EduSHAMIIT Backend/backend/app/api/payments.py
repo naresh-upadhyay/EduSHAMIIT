@@ -3,11 +3,37 @@ import uuid
 import hashlib
 import os
 from datetime import datetime, timedelta
+from typing import Optional, List
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Request
 from app.middleware.auth import get_current_user, require_school_id
 from app.services.supabase_client import get_supabase
 from app.services.upi_service import generate_upi_link
 from app.models import PaymentRequest, PaymentVerifyRequest, PaymentResponse
+
+class DirectPaymentRequest(BaseModel):
+    fee_id: str
+    amount: float
+    payment_method: str  # 'upi', 'card', 'netbanking'
+    upi_id: Optional[str] = None
+    card_number: Optional[str] = None
+    card_expiry: Optional[str] = None
+    card_cvv: Optional[str] = None
+    bank_name: Optional[str] = None
+    description: Optional[str] = "EduSHAMIIT Fee Payment"
+
+
+class BulkPaymentRequest(BaseModel):
+    fee_ids: List[str]
+    amount: float
+    payment_method: str  # 'upi', 'card', 'netbanking'
+    upi_id: Optional[str] = None
+    card_number: Optional[str] = None
+    card_expiry: Optional[str] = None
+    card_cvv: Optional[str] = None
+    bank_name: Optional[str] = None
+    description: Optional[str] = "EduSHAMIIT Bulk Fee Payment"
+
 
 router = APIRouter()
 
@@ -389,3 +415,326 @@ async def payment_webhook(request: Request):
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@router.post("/pay-direct", response_model=PaymentResponse)
+async def pay_direct(
+    request: DirectPaymentRequest,
+    user: dict = Depends(get_current_user),
+    school_id: str = Depends(require_school_id)
+):
+    """
+    Directly process a simulated payment (UPI, Card, Net Banking) for a fee.
+    Fetches the school's configured payment details (UPI/bank details) as recipient.
+    """
+    sb = get_supabase()
+
+    # 1. Fetch & validate the fee
+    fee = await (sb.table("fees")
+                   .select("*")
+                   .eq("id", request.fee_id)
+                   .eq("school_id", school_id)
+                   .maybe_single()
+                   .aexecute())
+    if not fee.data:
+        raise HTTPException(status_code=404, detail="Fee record not found")
+
+    fd = fee.data
+    already_paid = float(fd.get("amount_paid") or 0)
+    discount     = float(fd.get("discount")    or 0)
+    late_fine    = float(fd.get("late_fine")   or 0)
+    net_amount   = float(fd["amount"]) + late_fine - discount
+    remaining    = max(net_amount - already_paid, 0)
+
+    if remaining <= 0:
+        raise HTTPException(status_code=400, detail="This fee is already fully paid")
+
+    amount = min(float(request.amount), remaining)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Invalid payment amount")
+
+    # 2. Fetch school payment details
+    school_config_res = await (sb.table("school_payment_configs")
+                                 .select("*")
+                                 .eq("school_id", school_id)
+                                 .maybe_single()
+                                 .aexecute())
+    school_config = school_config_res.data
+    if not school_config:
+        # Fallback values if no school configuration is found
+        school_config = {
+            "upi_id": MERCHANT_ID,
+            "bank_name": "State Bank of India",
+            "account_number": "39871234567",
+            "ifsc_code": "SBIN0001234",
+            "account_holder_name": MERCHANT_NAME
+        }
+
+    # 3. Simulate payment processing based on method
+    tx = generate_transaction_id()
+    now = datetime.utcnow().isoformat()
+    
+    # Simple validation rules for simulation
+    status = "success"
+    failure_reason = None
+    
+    if request.payment_method == "card":
+        if not request.card_number or len(request.card_number.replace(" ", "")) < 12:
+            status = "failed"
+            failure_reason = "Invalid Card Number"
+        elif not request.card_cvv or len(request.card_cvv) != 3:
+            status = "failed"
+            failure_reason = "Invalid CVV"
+    elif request.payment_method == "upi":
+        if not request.upi_id or "@" not in request.upi_id:
+            status = "failed"
+            failure_reason = "Invalid UPI ID Format"
+    elif request.payment_method == "netbanking":
+        if not request.bank_name:
+            status = "failed"
+            failure_reason = "Bank Name Required"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported payment method")
+
+    # Save payment record
+    payment_row = {
+        "school_id":       school_id,
+        "student_id":      user["id"],
+        "fee_id":          request.fee_id,
+        "amount":          amount,
+        "currency":        DEFAULT_CURRENCY,
+        "status":          status,
+        "payment_method":  request.payment_method,
+        "payment_gateway": "simulated",
+        "transaction_id":  tx,
+        "description":     request.description or f"{fd.get('fee_type','Fee')} - {fd.get('fee_period','')}",
+        "remarks":         f"Direct payment via {request.payment_method.upper()}",
+        "initiated_by":    user["id"],
+        "refund_amount":   0,
+        "refund_status":   "none",
+        "created_at":      now,
+        "updated_at":      now,
+    }
+    
+    if status == "success":
+        payment_row["paid_at"] = now
+        payment_row["verified_at"] = now
+
+    pi = await sb.table("payments").insert(payment_row).aexecute()
+    if not pi.data:
+        raise HTTPException(status_code=500, detail="Failed to create payment record")
+
+    # Update fee status if payment succeeded
+    if status == "success":
+        new_paid = already_paid + amount
+        new_status = "paid" if new_paid >= net_amount else "partial"
+        await sb.table("fees").update({
+            "amount_paid": new_paid,
+            "status":      new_status,
+            "paid_at":     now if new_status == "paid" else None,
+            "updated_at":  now,
+        }).eq("id", request.fee_id).aexecute()
+
+    return PaymentResponse(
+        success=(status == "success"),
+        school_id=school_id,
+        data={
+            "payment_id":          pi.data[0]["id"],
+            "transaction_id":      tx,
+            "amount":              amount,
+            "currency":            DEFAULT_CURRENCY,
+            "status":              status,
+            "failure_reason":      failure_reason,
+            "fee_type":            fd.get("fee_type", "Fee Payment"),
+            "fee_period":          fd.get("fee_period"),
+            "due_date":            str(fd.get("due_date", "")),
+            "payment_method":      request.payment_method,
+            "recipient_details": {
+                "upi_id":              school_config["upi_id"],
+                "bank_name":           school_config["bank_name"],
+                "account_number":      school_config["account_number"],
+                "ifsc_code":           school_config["ifsc_code"],
+                "account_holder_name": school_config["account_holder_name"]
+            }
+        }
+    )
+
+
+@router.post("/pay-bulk", response_model=PaymentResponse)
+async def pay_bulk(
+    request: BulkPaymentRequest,
+    user: dict = Depends(get_current_user),
+    school_id: str = Depends(require_school_id)
+):
+    """
+    Simulate a bulk payment clearing multiple fees under a single transaction ID.
+    """
+    sb = get_supabase()
+    
+    if not request.fee_ids:
+        raise HTTPException(status_code=400, detail="No fee IDs provided")
+
+    # 1. Fetch & validate all fees
+    fees_res = await (sb.table("fees")
+                        .select("*")
+                        .in_("id", request.fee_ids)
+                        .eq("school_id", school_id)
+                        .eq("student_id", user["id"])
+                        .aexecute())
+    
+    if not fees_res.data:
+        raise HTTPException(status_code=404, detail="No matching fee records found")
+
+    fees_data = fees_res.data
+    
+    # 2. Fetch school payment details
+    school_config_res = await (sb.table("school_payment_configs")
+                                 .select("*")
+                                 .eq("school_id", school_id)
+                                 .maybe_single()
+                                 .aexecute())
+    school_config = school_config_res.data
+    if not school_config:
+        school_config = {
+            "upi_id": MERCHANT_ID,
+            "bank_name": "State Bank of India",
+            "account_number": "39871234567",
+            "ifsc_code": "SBIN0001234",
+            "account_holder_name": MERCHANT_NAME
+        }
+
+    # 3. Simulate payment processing based on method
+    tx = generate_transaction_id()
+    now = datetime.utcnow().isoformat()
+    
+    status = "success"
+    failure_reason = None
+    
+    if request.payment_method == "card":
+        if not request.card_number or len(request.card_number.replace(" ", "")) < 12:
+            status = "failed"
+            failure_reason = "Invalid Card Number"
+        elif not request.card_cvv or len(request.card_cvv) != 3:
+            status = "failed"
+            failure_reason = "Invalid CVV"
+    elif request.payment_method == "upi":
+        if not request.upi_id or "@" not in request.upi_id:
+            status = "failed"
+            failure_reason = "Invalid UPI ID Format"
+    elif request.payment_method == "netbanking":
+        if not request.bank_name:
+            status = "failed"
+            failure_reason = "Bank Name Required"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported payment method")
+
+    inserted_payments = []
+    total_processed_amount = 0.0
+
+    if status == "success":
+        # Sort fees by due date ascending (FIFO) to clear oldest dues first, with ID as tie-breaker for determinism
+        sorted_fees = sorted(fees_data, key=lambda x: (x.get("due_date") or "", x.get("id") or ""))
+        remaining_payment = float(request.amount)
+
+        for fd in sorted_fees:
+            if remaining_payment <= 0:
+                break
+
+            already_paid = float(fd.get("amount_paid") or 0)
+            discount     = float(fd.get("discount")    or 0)
+            late_fine    = float(fd.get("late_fine")   or 0)
+            net_amount   = float(fd["amount"]) + late_fine - discount
+            remaining_due = max(net_amount - already_paid, 0)
+            
+            if remaining_due <= 0:
+                continue
+                
+            amount_for_fee = min(remaining_payment, remaining_due)
+            remaining_payment -= amount_for_fee
+            total_processed_amount += amount_for_fee
+
+            payment_row = {
+                "school_id":       school_id,
+                "student_id":      user["id"],
+                "fee_id":          fd["id"],
+                "amount":          amount_for_fee,
+                "currency":        DEFAULT_CURRENCY,
+                "status":          status,
+                "payment_method":  request.payment_method,
+                "payment_gateway": "simulated",
+                "transaction_id":  tx,
+                "description":     request.description or f"{fd.get('fee_type','Fee')} - {fd.get('fee_period','')}",
+                "remarks":         f"Bulk payment via {request.payment_method.upper()}",
+                "initiated_by":    user["id"],
+                "refund_amount":   0,
+                "refund_status":   "none",
+                "created_at":      now,
+                "updated_at":      now,
+                "paid_at":         now,
+                "verified_at":     now,
+            }
+            
+            pi = await sb.table("payments").insert(payment_row).aexecute()
+            if pi.data:
+                inserted_payments.append(pi.data[0])
+                
+            # Update individual fee record status and amount paid
+            new_paid = already_paid + amount_for_fee
+            new_status = "paid" if new_paid >= net_amount else "partial"
+            await sb.table("fees").update({
+                "amount_paid": new_paid,
+                "status":      new_status,
+                "paid_at":     now if new_status == "paid" else None,
+                "updated_at":  now,
+            }).eq("id", fd["id"]).aexecute()
+    else:
+        first_fee = fees_data[0]
+        payment_row = {
+            "school_id":       school_id,
+            "student_id":      user["id"],
+            "fee_id":          first_fee["id"],
+            "amount":          request.amount,
+            "currency":        DEFAULT_CURRENCY,
+            "status":          "failed",
+            "payment_method":  request.payment_method,
+            "payment_gateway": "simulated",
+            "transaction_id":  tx,
+            "description":     request.description or "Bulk payment failed",
+            "remarks":         f"Bulk payment failed via {request.payment_method.upper()}",
+            "initiated_by":    user["id"],
+            "refund_amount":   0,
+            "refund_status":   "none",
+            "failure_reason":  failure_reason,
+            "created_at":      now,
+            "updated_at":      now,
+        }
+        pi = await sb.table("payments").insert(payment_row).aexecute()
+        if pi.data:
+            inserted_payments.append(pi.data[0])
+
+    payment_id = inserted_payments[0]["id"] if inserted_payments else str(uuid.uuid4())
+    
+    return PaymentResponse(
+        success=(status == "success"),
+        school_id=school_id,
+        data={
+            "payment_id":          payment_id,
+            "transaction_id":      tx,
+            "amount":              total_processed_amount if status == "success" else request.amount,
+            "currency":            DEFAULT_CURRENCY,
+            "status":              status,
+            "failure_reason":      failure_reason,
+            "fee_type":            "Outstanding Fees",
+            "fee_period":          "Bulk Payment",
+            "due_date":            "",
+            "payment_method":      request.payment_method,
+            "recipient_details": {
+                "upi_id":              school_config["upi_id"],
+                "bank_name":           school_config["bank_name"],
+                "account_number":      school_config["account_number"],
+                "ifsc_code":           school_config["ifsc_code"],
+                "account_holder_name": school_config["account_holder_name"]
+            }
+        }
+    )
+

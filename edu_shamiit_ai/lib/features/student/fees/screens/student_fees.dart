@@ -1,5 +1,4 @@
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
-import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -7,6 +6,13 @@ import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
 
 class StudentFees extends ConsumerStatefulWidget {
   const StudentFees({super.key});
@@ -15,11 +21,14 @@ class StudentFees extends ConsumerStatefulWidget {
   ConsumerState<StudentFees> createState() => _StudentFeesState();
 }
 
-class _StudentFeesState extends ConsumerState<StudentFees> {
+class _StudentFeesState extends ConsumerState<StudentFees>
+    with SingleTickerProviderStateMixin {
   final StudentApiService _apiService = StudentApiService();
+  late TabController _tabController;
   String _selectedFilter = 'Pending';
   final List<String> _filters = ['Pending', 'Paid', 'All', 'Receipts'];
   List<FeeRecord> _feeRecords = [];
+  StudentProfile? _profile;
   double _totalOutstanding = 0;
   bool _isLoading = true;
   String? _error;
@@ -27,7 +36,21 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          _selectedFilter = _filters[_tabController.index];
+        });
+      }
+    });
     _loadFees();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFees() async {
@@ -37,24 +60,13 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
     });
 
     try {
-      // Map filter to API status
-      final statusMap = {
-        'Pending': 'pending',
-        'Paid': 'paid',
-        'All': null,
-        'Receipts': 'paid',
-      };
-      
-      final status = statusMap[_selectedFilter];
-      final records = await _apiService.getFeeRecords(status: status);
-      
-      // Calculate total outstanding
-      final totalOutstanding = records
-          .where((f) => f.status == 'pending' || f.status == 'partial')
-          .fold<double>(0, (sum, f) => sum + f.dueAmount);
-      
+      final records = await _apiService.getFeeRecords(status: null);
+      final profile = await _apiService.getProfile();
+      final totalOutstanding = await _apiService.getOutstandingBalance();
+
       setState(() {
         _feeRecords = records;
+        _profile = profile;
         _totalOutstanding = totalOutstanding;
         _isLoading = false;
       });
@@ -66,48 +78,93 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
     }
   }
 
-  List<FeeRecord> get _filteredFees {
-    switch (_selectedFilter) {
-      case 'Pending':
-        return _feeRecords.where((f) => f.status == 'pending').toList();
-      case 'Paid':
-      case 'Receipts':
-        return _feeRecords.where((f) => f.status == 'paid').toList();
-      case 'All':
-      default:
-        return _feeRecords;
-    }
+  String _getFeeIcon(String feeType) {
+    final lower = feeType.toLowerCase();
+    if (lower.contains('transport') || lower.contains('bus')) return '🚌';
+    if (lower.contains('lab')) return '🔬';
+    if (lower.contains('library')) return '📚';
+    if (lower.contains('exam')) return '📝';
+    if (lower.contains('sport')) return '⚽';
+    if (lower.contains('uniform')) return '👕';
+    if (lower.contains('tuition')) return '🎓';
+    return '💳';
   }
 
-  String _getFeeIcon(String month) {
-    if (month.toLowerCase().contains('transport') || month.toLowerCase().contains('bus')) {
-      return '🚌';
-    } else if (month.toLowerCase().contains('lab')) {
-      return '🔬';
-    } else if (month.toLowerCase().contains('library')) {
-      return '📚';
-    }
-    return '📋';
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  String _formatCurrentDate() {
+    return _formatDate(DateTime.now());
+  }
+
+  String _formatAmount(double value) {
+    return value.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
   }
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'pending':
-        return StudentColors.error;
-      case 'partial':
-        return StudentColors.warning;
       case 'paid':
-        return StudentColors.success;
+        return const Color(0xFF059669);
+      case 'partial':
+        return const Color(0xFFD97706);
+      case 'overdue':
+        return const Color(0xFFDC2626);
       default:
-        return StudentColors.primary;
+        return const Color(0xFFEF4444);
+    }
+  }
+
+  Color _getStatusBgColor(String status) {
+    switch (status) {
+      case 'paid':
+        return const Color(0xFFECFDF5);
+      case 'partial':
+        return const Color(0xFFFFF7ED);
+      case 'overdue':
+        return const Color(0xFFFEF2F2);
+      default:
+        return const Color(0xFFFFF1F1);
+    }
+  }
+
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'paid':
+        return 'PAID ✓';
+      case 'partial':
+        return 'PARTIAL';
+      case 'overdue':
+        return 'OVERDUE';
+      default:
+        return 'PENDING';
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0FDF9),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF059669)),
+              ),
+              const SizedBox(height: 16),
+              const Text('Loading your fees...', style: TextStyle(color: Color(0xFF64748B))),
+            ],
+          ),
+        ),
       );
     }
 
@@ -138,7 +195,11 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
               ElevatedButton.icon(
                 onPressed: _loadFees,
                 icon: const Icon(Icons.refresh),
-                label: Text('Retry'.tr(ref)),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF059669),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -150,220 +211,294 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
       backgroundColor: const Color(0xFFF0FDF9),
       body: Column(
         children: [
-          // Header
+          // Header with gradient
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(0, Responsive.headerTopPadding(context), 0, 24),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF065F46), Color(0xFF059669)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF064E3B), Color(0xFF059669)],
               ),
             ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => safeGoBack(context, '/student/dashboard'),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Fees & Payments',
-                    style: TextStyle(
-                      fontFamily: AppFonts.heading,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => safeGoBack(context, '/student/dashboard'),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Fees & Payments',
+                          style: TextStyle(
+                            fontFamily: AppFonts.heading,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          'Academic Year 2025-26',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: Colors.white70),
+                    onPressed: _loadFees,
+                  ),
+                ],
+              ),
             ),
           ),
 
+          // Outstanding Balance Card (positioned overlapping header slightly)
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: _buildOutstandingCard(),
+          ),
+
+          // Filter Chips (Pending, Paid, All, Receipts)
+          _buildFilterChips(),
+
+          // Content TabBarView
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+            child: TabBarView(
+              controller: _tabController,
               children: [
-                // Outstanding Card
-                Container(
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: StudentColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF065F46).withValues(alpha: 0.15),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Outstanding Balance',
-                        style: TextStyle(color: StudentColors.text3, fontSize: 11),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹ ${_totalOutstanding.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontFamily: AppFonts.heading,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFEF4444),
-                          letterSpacing: -1,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (_feeRecords.any((f) => f.status == 'pending'))
-                        Row(
-                          children: [
-                            Text(
-                              '⚠️ Due by ${_feeRecords.firstWhere((f) => f.status == 'pending').dueDate.day}/${_feeRecords.firstWhere((f) => f.status == 'pending').dueDate.month}',
-                              style: const TextStyle(fontSize: 10, color: Color(0xFFEF4444)),
-                            ),
-                          ],
-                        ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF059669),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          onPressed: () => _showPaymentModal(context),
-                          child: const Text(
-                            '💳 Pay Now via UPI / Card / Net Banking',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Filter chips
-                SizedBox(
-                  height: 34,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _filters.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 6),
-                    itemBuilder: (context, index) {
-                      final filter = _filters[index];
-                      final isSelected = filter == _selectedFilter;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedFilter = filter),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF059669) : const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            filter,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : const Color(0xFF059669),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Fees list
-                if (_filteredFees.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'No fee records found',
-                        style: TextStyle(color: StudentColors.text3),
-                      ),
-                    ),
-                  )
-                else
-                  ..._filteredFees.map((fee) => _buildFeeCard(fee)),
-
-                const SizedBox(height: 12),
-
-                // AI Tip
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFECFDF5), Color(0xFFF0FFF4)],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFA7F3D0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF059669),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          '🤖 AI REMINDER',
-                          style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Pay your pending fees before the due date to avoid late charges. EMI options available!',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF065F46), height: 1.6),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 50),
+                _buildFeeList('Pending'),
+                _buildFeeList('Paid'),
+                _buildFeeList('All'),
+                _buildReceiptsList(),
               ],
             ),
           ),
         ],
       ),
-      
-
     );
   }
 
-  Widget _buildFeeCard(FeeRecord fee) {
-    final statusColor = _getStatusColor(fee.status);
-    final icon = _getFeeIcon(fee.month);
-    final dueDateStr = fee.status == 'paid' && fee.paidDate != null
-        ? 'Paid: ${fee.paidDate!.day}/${fee.paidDate!.month}'
-        : 'Due: ${fee.dueDate.day}/${fee.dueDate.month}';
-    final statusBgColor = fee.status == 'paid'
-        ? const Color(0xFFECFDF5)
-        : fee.status == 'partial'
-            ? const Color(0xFFFFF7ED)
-            : const Color(0xFFFEF2F2);
+  Widget _buildOutstandingCard() {
+    final double amount = _totalOutstanding;
+    final hasOutstanding = amount > 0;
+    
+    // Find next due date
+    DateTime? nextDueDate;
+    final pendingFees = _feeRecords.where((f) => f.status == 'pending' || f.status == 'partial' || f.status == 'overdue').toList();
+    if (pendingFees.isNotEmpty) {
+      pendingFees.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      nextDueDate = pendingFees.first.dueDate;
+    }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF065F46).withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Outstanding Balance',
+            style: TextStyle(
+              fontSize: 11,
+              color: StudentColors.text3,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '₹ ${_formatAmount(amount)}',
+            style: TextStyle(
+              fontFamily: AppFonts.heading,
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: hasOutstanding ? const Color(0xFFEF4444) : const Color(0xFF059669),
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          if (hasOutstanding && nextDueDate != null) ...[
+            Text(
+              '⚠️ Due by ${_formatDate(nextDueDate)}',
+              style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFFEF4444),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ] else ...[
+            const Text(
+              '🎉 All fees have been cleared',
+              style: TextStyle(
+                fontSize: 10,
+                color: Color(0xFF059669),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (hasOutstanding) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _showPaymentModal(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF059669),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('💳', style: TextStyle(fontSize: 16)),
+                    SizedBox(width: 8),
+                    Text(
+                      'Pay Now via UPI / Card / Net Banking',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: _filters.map((filter) {
+          final isSelected = _selectedFilter == filter;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedFilter = filter;
+                });
+                _tabController.animateTo(_filters.indexOf(filter));
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF059669) : const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  filter,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF059669),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildFeeList(String filter) {
+    final fees = filter == 'All'
+        ? _feeRecords
+        : filter == 'Paid'
+            ? _feeRecords.where((f) => f.status == 'paid').toList()
+            : _feeRecords
+                .where((f) => f.status == 'pending' || f.status == 'partial' || f.status == 'overdue')
+                .toList();
+
+    if (fees.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              filter == 'Paid' ? Icons.check_circle : Icons.receipt,
+              size: 64,
+              color: const Color(0xFFCBD5E1),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              filter == 'Paid'
+                  ? 'No paid fees yet'
+                  : filter == 'Pending'
+                      ? 'No pending fees! 🎉'
+                      : 'No fee records',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            if (filter == 'Pending') ...[
+              const SizedBox(height: 8),
+              const Text(
+                'All fees have been cleared',
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: fees.length,
+      itemBuilder: (context, index) {
+        final fee = fees[index];
+        return _buildFeeCard(fee, showReceipt: false);
+      },
+    );
+  }
+
+  Widget _buildFeeCard(FeeRecord fee, {bool showReceipt = false}) {
+    final statusColor = _getStatusColor(fee.status);
+    final statusBgColor = _getStatusBgColor(fee.status);
+    final icon = _getFeeIcon(fee.month);
+
+    final subtitleText = fee.status == 'paid' && fee.paidDate != null
+        ? 'Paid: ${_formatDate(fee.paidDate!)}'
+        : 'Due: ${_formatDate(fee.dueDate)}';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -372,125 +507,1542 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(icon, style: const TextStyle(fontSize: 16)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
               children: [
-                Text(
-                  fee.month,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                // Icon
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: statusBgColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(icon, style: const TextStyle(fontSize: 20)),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  dueDateStr,
-                  style: const TextStyle(
-                    color: StudentColors.text3,
-                    fontSize: 10,
+                const SizedBox(width: 12),
+
+                // Title and date
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fee.month,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: StudentColors.text,
+                        ),
+                      ),
+                      if (fee.feePeriod != null && fee.feePeriod!.isNotEmpty) ...[
+                        const SizedBox(height: 1),
+                        Text(
+                          fee.feePeriod!,
+                          style: const TextStyle(
+                            color: Color(0xFF059669),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitleText,
+                        style: const TextStyle(
+                          color: StudentColors.text3,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+
+                // Amount and status
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '₹${fee.amount.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: statusColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: statusBgColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _getStatusLabel(fee.status),
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹ ${fee.amount.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: statusColor,
-                ),
+
+          // Fee breakdown if there are late fines or discounts
+          if (fee.lateFine > 0 || fee.discount > 0 || fee.status == 'partial') ...[
+            Container(
+              margin: const EdgeInsets.fromLTRB(14, 0, 14, 0),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
               ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusBgColor,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  fee.status == 'paid'
-                      ? 'PAID ✓'
-                      : fee.status == 'partial'
-                          ? 'PARTIAL'
-                          : 'PENDING',
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
+              child: Column(
+                children: [
+                  _buildBreakdownRow('Base Amount', fee.amount - fee.lateFine + fee.discount),
+                  if (fee.lateFine > 0)
+                    _buildBreakdownRow('Late Fine', fee.lateFine, isNegative: false, isRed: true),
+                  if (fee.discount > 0)
+                    _buildBreakdownRow('Discount', fee.discount, isNegative: true),
+                  if (fee.status == 'partial' && fee.paidAmount > 0)
+                    _buildBreakdownRow('Amount Paid', fee.paidAmount, isNegative: true),
+                  const Divider(height: 12, thickness: 0.5),
+                  _buildBreakdownRow(
+                    fee.status == 'partial' ? 'Balance Due' : 'Net Amount',
+                    fee.dueAmount > 0 ? fee.dueAmount : fee.amount + fee.lateFine - fee.discount,
+                    isBold: true,
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
+            const SizedBox(height: 10),
+          ],
+
+          // Action row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Row(
+              children: [
+                if (fee.paymentMethod != null && fee.status == 'paid') ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FFF4),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                    ),
+                    child: Text(
+                      '${_getPayMethodIcon(fee.paymentMethod!)} ${fee.paymentMethod!.toUpperCase()}',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF059669),
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                if (fee.status == 'pending' || fee.status == 'partial' || fee.status == 'overdue') ...[
+                  SizedBox(
+                    height: 30,
+                    child: ElevatedButton(
+                      onPressed: () => _showPaymentModal(context, targetFee: fee),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        fee.status == 'partial'
+                            ? 'Pay Balance ₹${fee.dueAmount.toStringAsFixed(0)}'
+                            : 'Pay Now',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ] else if (showReceipt || _selectedFilter == 'Receipts') ...[
+                  SizedBox(
+                    height: 30,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _downloadReceiptPdf([fee]),
+                      icon: const Icon(Icons.download, size: 12),
+                      label: const Text(
+                        'Receipt',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFECFDF5),
+                        foregroundColor: const Color(0xFF059669),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildBreakdownRow(String label, double amount, {
+    bool isNegative = false,
+    bool isRed = false,
+    bool isBold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: const Color(0xFF64748B),
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
+            ),
+          ),
+          Text(
+            '${isNegative ? '-' : ''}₹${amount.toStringAsFixed(0)}',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+              color: isRed
+                  ? const Color(0xFFEF4444)
+                  : isNegative
+                      ? const Color(0xFF059669)
+                      : const Color(0xFF1E293B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  void _showPaymentModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  Widget _buildReceiptsList() {
+    final paidFees = _feeRecords.where((f) => f.status == 'paid').toList();
+
+    if (paidFees.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long, size: 64, color: Color(0xFFCBD5E1)),
+            SizedBox(height: 16),
+            Text(
+              'No receipts available',
+              style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Receipts will appear here once fees are paid',
+              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Group paid fees by transaction ID
+    final Map<String, List<FeeRecord>> groupedReceipts = {};
+    for (var fee in paidFees) {
+      final txId = fee.transactionId ?? 'TXN-LEGACY-${fee.id.substring(0, 8).toUpperCase()}';
+      groupedReceipts.putIfAbsent(txId, () => []).add(fee);
+    }
+
+    final uniqueTxIds = groupedReceipts.keys.toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Summary header
+        Container(
+          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFECFDF5), Color(0xFFF0FFF4)],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFA7F3D0)),
+          ),
+          child: Row(
+            children: [
+              const Text('🧾', style: TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Payment Receipts',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF065F46),
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      '${uniqueTxIds.length} receipt${uniqueTxIds.length != 1 ? 's' : ''} available for download',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF059669)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...uniqueTxIds.map((txId) => _buildReceiptCard(groupedReceipts[txId]!)),
+        const SizedBox(height: 50),
+      ],
+    );
+  }
+
+  Widget _buildReceiptCard(List<FeeRecord> items) {
+    final firstFee = items.first;
+    final txId = firstFee.transactionId ?? 'TXN-${firstFee.id.substring(0, 8).toUpperCase()}';
+    final receiptNo = 'REC/${firstFee.paidDate?.year ?? 2026}/${firstFee.id.substring(0, 6).toUpperCase()}';
+
+    // Calculate total amount
+    final double totalAmount = items.fold(0.0, (sum, f) => sum + f.paidAmount);
+
+    // Format title
+    String cardTitle;
+    if (items.length == 1) {
+      cardTitle = firstFee.month;
+    } else {
+      cardTitle = items.length > 2
+          ? '${items.take(2).map((e) => e.month).join(', ')} & ${items.length - 2} more'
+          : items.map((e) => e.month).join(', ');
+    }
+
+    final icon = _getFeeIcon(firstFee.month);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Receipt header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                Text(icon, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        cardTitle,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: StudentColors.text,
+                        ),
+                      ),
+                      Text(
+                        receiptNo,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: StudentColors.text3,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'PAID',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF059669),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Receipt details
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                _buildReceiptDetailRow('Amount', '₹${totalAmount.toStringAsFixed(0)}', isAmount: true),
+                const SizedBox(height: 6),
+                _buildReceiptDetailRow(
+                  'Date',
+                  firstFee.paidDate != null ? _formatDate(firstFee.paidDate!) : 'N/A',
+                ),
+                const SizedBox(height: 6),
+                _buildReceiptDetailRow('Mode', _getPayMethodLabel(firstFee.paymentMethod)),
+                const SizedBox(height: 6),
+                _buildReceiptDetailRow('Transaction', txId),
+                if (items.length > 1) ...[
+                  const Divider(height: 16),
+                  ...items.map((item) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(item.month, style: const TextStyle(fontSize: 11, color: StudentColors.text2)),
+                        Text('₹${item.paidAmount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )),
+                ],
+                const SizedBox(height: 12),
+
+                // Download button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _downloadReceiptPdf(items),
+                    icon: const Icon(Icons.download, size: 16),
+                    label: const Text(
+                      'Download Receipt PDF',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptDetailRow(String label, String value, {bool isAmount = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF64748B),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isAmount ? FontWeight.w800 : FontWeight.w600,
+            color: isAmount ? const Color(0xFF059669) : const Color(0xFF1E293B),
+            fontFamily: value.startsWith('EDU-') || value.startsWith('TXN-') ? 'monospace' : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getPayMethodIcon(String method) {
+    switch (method.toLowerCase()) {
+      case 'upi': return '📱';
+      case 'card': return '💳';
+      case 'netbanking': return '🏦';
+      default: return '💰';
+    }
+  }
+
+  String _getPayMethodLabel(String? method) {
+    if (method == null) return 'Online Payment';
+    switch (method.toLowerCase()) {
+      case 'upi': return 'UPI Transfer';
+      case 'card': return 'Credit/Debit Card';
+      case 'netbanking': return 'Net Banking';
+      default: return method.toUpperCase();
+    }
+  }
+
+  Future<void> _downloadReceiptPdf(List<FeeRecord> items) async {
+    final firstFee = items.first;
+    final studentName = _profile?.fullName ?? 'Student';
+    final studentId = _profile?.rollNumber ?? 'N/A';
+    final studentClass = '${_profile?.className ?? ''} ${_profile?.section ?? ''}'.trim();
+    final txId = firstFee.transactionId ?? 'TXN-${firstFee.id.substring(0, 8).toUpperCase()}';
+    final receiptNo = 'REC/${firstFee.paidDate?.year ?? 2026}/${firstFee.id.substring(0, 6).toUpperCase()}';
+    final payDate = firstFee.paidDate != null ? _formatDate(firstFee.paidDate!) : _formatCurrentDate();
+    final payMethod = _getPayMethodLabel(firstFee.paymentMethod);
+    final double totalPaidAmount = items.fold(0.0, (sum, f) => sum + f.paidAmount);
+
+    // Generate PDF
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Container(
+                padding: const pw.EdgeInsets.all(20),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#059669'),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'EduSHAMIIT',
+                          style: pw.TextStyle(
+                            fontSize: 22,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Fee Payment Receipt',
+                          style: const pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Text(
+                          receiptNo,
+                          style: pw.TextStyle(
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.Text(
+                          'Academic Year 2025-26',
+                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.white),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Status badge
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#ECFDF5'),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  border: pw.Border.all(color: PdfColor.fromHex('#A7F3D0')),
+                ),
+                child: pw.Text(
+                  'PAYMENT CONFIRMED',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('#059669'),
+                  ),
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Student details section
+              pw.Text(
+                'Student Details',
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('#1E293B'),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#F8FAFC'),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
+                ),
+                child: pw.Column(
+                  children: [
+                    _pdfRow('Student Name', studentName),
+                    _pdfRow('Roll Number', studentId),
+                    if (studentClass.isNotEmpty) _pdfRow('Class', studentClass),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 16),
+
+              // Fee details section
+              pw.Text(
+                'Fee Details',
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('#1E293B'),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#F8FAFC'),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
+                ),
+                child: pw.Column(
+                  children: [
+                    if (items.length == 1) ...[
+                      _pdfRow('Fee Type', firstFee.month),
+                      if (firstFee.feePeriod != null) _pdfRow('Period', firstFee.feePeriod!),
+                      if (firstFee.description != null) _pdfRow('Description', firstFee.description!),
+                      _pdfRow('Base Amount', 'Rs. ${firstFee.amount.toStringAsFixed(2)}'),
+                      if (firstFee.lateFine > 0) _pdfRow('Late Fine', 'Rs. ${firstFee.lateFine.toStringAsFixed(2)}', isRed: true),
+                      if (firstFee.discount > 0) _pdfRow('Discount', '-Rs. ${firstFee.discount.toStringAsFixed(2)}', isGreen: true),
+                    ] else ...[
+                      for (var item in items) ...[
+                        _pdfRow('${item.month} (${item.feePeriod ?? ''})', 'Rs. ${item.paidAmount.toStringAsFixed(2)}'),
+                        if (item.lateFine > 0) _pdfRow('  - Late Fine', 'Rs. ${item.lateFine.toStringAsFixed(2)}', isRed: true),
+                        if (item.discount > 0) _pdfRow('  - Discount', '-Rs. ${item.discount.toStringAsFixed(2)}', isGreen: true),
+                      ],
+                    ],
+                    pw.Divider(color: PdfColor.fromHex('#E2E8F0')),
+                    _pdfRow('Total Amount Paid', 'Rs. ${totalPaidAmount.toStringAsFixed(2)}', isBold: true, isGreen: true),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 16),
+
+              // Payment details
+              pw.Text(
+                'Payment Details',
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('#1E293B'),
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#F8FAFC'),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
+                ),
+                child: pw.Column(
+                  children: [
+                    _pdfRow('Payment Date', payDate),
+                    _pdfRow('Payment Mode', payMethod),
+                    _pdfRow('Transaction ID', txId),
+                    _pdfRow('Status', 'Verified & Confirmed', isGreen: true),
+                  ],
+                ),
+              ),
+
+              pw.Spacer(),
+
+              // Footer
+              pw.Divider(color: PdfColor.fromHex('#E2E8F0')),
+              pw.SizedBox(height: 8),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'This is a computer-generated receipt. No signature required.',
+                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                  pw.Text(
+                    'Generated: ${_formatDate(DateTime.now())}',
+                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final pdfBytes = await pdf.save();
+    final filename = 'Receipt_${firstFee.month.replaceAll(' ', '_')}_$receiptNo.pdf';
+
+    if (kIsWeb) {
+      try {
+        await getDownloadHelper().downloadBytes(pdfBytes, filename);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('📄 Receipt downloaded successfully: $filename'),
+              backgroundColor: const Color(0xFF059669),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } catch (e) {
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfBytes,
+          name: filename,
+        );
+      }
+    } else {
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdfBytes,
+        name: filename,
+      );
+    }
+  }
+
+  pw.Widget _pdfRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    bool isRed = false,
+    bool isGreen = false,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            label,
+            style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey600),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: isBold ? pw.FontWeight.bold : null,
+              color: isRed
+                  ? PdfColors.red700
+                  : isGreen
+                      ? PdfColor.fromHex('#059669')
+                      : PdfColor.fromHex('#1E293B'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpiAppItem(String name, String emoji, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+            width: 1.5,
+          ),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '💳 Select Payment Method',
+            Text(emoji, style: const TextStyle(fontSize: 20)),
+            const SizedBox(height: 4),
+            Text(
+              name,
               style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: StudentColors.text,
+                fontSize: 8,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? const Color(0xFF4F46E5) : StudentColors.text2,
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildPaymentMethod('📱', 'UPI Payment', 'Google Pay, PhonePe, Paytm', () => _showPaymentSuccess(context)),
-            _buildPaymentMethod('💳', 'Credit / Debit Card', 'Visa, Mastercard, RuPay', () {}),
-            _buildPaymentMethod('🏦', 'Net Banking', 'All major banks supported', () {}),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'.tr(ref)),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showPaymentModal(BuildContext context, {FeeRecord? targetFee}) {
+    // If targetFee is null, we create a temporary "Outstanding Fee" representing the total outstanding balance
+    final fee = targetFee ?? FeeRecord(
+      id: '',
+      month: 'Outstanding Fee',
+      amount: _totalOutstanding,
+      paidAmount: 0,
+      dueAmount: _totalOutstanding,
+      status: 'pending',
+      dueDate: DateTime.now(),
+    );
+
+    if (fee.id.isEmpty && _totalOutstanding <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pending fees to pay.')),
+      );
+      return;
+    }
+
+    final double amountToPay = fee.dueAmount > 0 ? fee.dueAmount : fee.amount;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        String currentStep = 'select';
+        String? errorMessage;
+
+        final upiController = TextEditingController();
+        final cardNumberController = TextEditingController();
+        final cardExpiryController = TextEditingController();
+        final cardCvvController = TextEditingController();
+        final cardNameController = TextEditingController();
+        final amountController = TextEditingController(text: amountToPay.toStringAsFixed(0));
+
+        String selectedBank = 'State Bank of India';
+        String? selectedUpiApp;
+
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            Future<void> processPayment(String method) async {
+              final double paymentAmount = double.tryParse(amountController.text) ?? 0.0;
+              if (paymentAmount <= 0) {
+                setModalState(() {
+                  errorMessage = 'Please enter a valid amount to pay.';
+                });
+                return;
+              }
+              if (paymentAmount > amountToPay) {
+                setModalState(() {
+                  errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                });
+                return;
+              }
+
+              setModalState(() {
+                currentStep = 'loading';
+                errorMessage = null;
+              });
+
+              try {
+                if (fee.id.isEmpty) {
+                  // Pay all outstanding fees!
+                  final pendingFeesList = _feeRecords
+                      .where((f) => f.status == 'pending' || f.status == 'partial' || f.status == 'overdue')
+                      .toList();
+
+                  if (pendingFeesList.isEmpty) {
+                    throw Exception('No pending fees found to pay');
+                  }
+
+                  final feeIds = pendingFeesList.map((f) => f.id).toList();
+                  final result = await _apiService.payBulk(
+                    feeIds: feeIds,
+                    amount: paymentAmount,
+                    paymentMethod: method,
+                    upiId: method == 'upi' ? upiController.text : null,
+                    cardNumber: method == 'card' ? cardNumberController.text : null,
+                    cardExpiry: method == 'card' ? cardExpiryController.text : null,
+                    cardCvv: method == 'card' ? cardCvvController.text : null,
+                    bankName: method == 'netbanking' ? selectedBank : null,
+                  );
+
+                  if (ctx.mounted && Navigator.canPop(ctx)) {
+                    Navigator.pop(ctx);
+                  }
+                  if (context.mounted) {
+                    _showPaymentSuccess(context, result);
+                  }
+                  _loadFees();
+                } else {
+                  // Pay single fee
+                  final result = await _apiService.payDirect(
+                    feeId: fee.id,
+                    amount: paymentAmount,
+                    paymentMethod: method,
+                    upiId: method == 'upi' ? upiController.text : null,
+                    cardNumber: method == 'card' ? cardNumberController.text : null,
+                    cardExpiry: method == 'card' ? cardExpiryController.text : null,
+                    cardCvv: method == 'card' ? cardCvvController.text : null,
+                    bankName: method == 'netbanking' ? selectedBank : null,
+                  );
+
+                  if (ctx.mounted && Navigator.canPop(ctx)) {
+                    Navigator.pop(ctx);
+                  }
+                  if (context.mounted) {
+                    _showPaymentSuccess(context, result);
+                  }
+                  _loadFees();
+                }
+              } catch (e) {
+                setModalState(() {
+                  currentStep = method;
+                  errorMessage = e.toString().replaceAll('ApiException: ', '');
+                });
+              }
+            }
+
+            Widget buildHeader(String title) {
+              return Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: StudentColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              );
+            }
+
+            Widget buildFeeSummary() {
+              final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+              final double remainingAmount = amountToPay - enteredAmount;
+              final bool isInvalid = enteredAmount <= 0 || enteredAmount > amountToPay;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                fee.month,
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: StudentColors.text),
+                              ),
+                              if (fee.feePeriod != null) ...[
+                                const SizedBox(height: 2),
+                                Text(fee.feePeriod!, style: const TextStyle(color: StudentColors.text3, fontSize: 10)),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 110,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isInvalid ? Colors.red : const Color(0xFF059669),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(left: 8, right: 2),
+                                child: Text(
+                                  '₹',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF059669),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: amountController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF059669),
+                                  ),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                                    border: InputBorder.none,
+                                  ),
+                                  onChanged: (val) {
+                                    setModalState(() {});
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 16, thickness: 0.5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Remaining Balance after Payment:',
+                          style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          isInvalid
+                              ? 'Invalid Amount'
+                              : '₹ ${remainingAmount.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: remainingAmount > 0
+                                ? const Color(0xFFD97706)
+                                : const Color(0xFF059669),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget buildLockBanner() {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('🔒', style: TextStyle(fontSize: 12)),
+                    SizedBox(width: 8),
+                    Text(
+                      '256-bit SSL Encrypted · Secure Payment',
+                      style: TextStyle(fontSize: 10, color: Color(0xFF059669), fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget buildErrorMsg() {
+              if (errorMessage == null) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                ),
+                child: Row(
+                  children: [
+                    const Text('⚠️', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(fontSize: 11, color: Color(0xFFB91C1C), fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget body;
+            if (currentStep == 'select') {
+              body = Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  buildHeader('💳 Select Payment Method'),
+                  buildFeeSummary(),
+                  buildLockBanner(),
+                  buildErrorMsg(),
+                  _buildPaymentMethod('📱', 'UPI Payment', 'Google Pay, PhonePe, Paytm', () {
+                    final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+                    if (enteredAmount <= 0) {
+                      setModalState(() {
+                        errorMessage = 'Please enter a valid amount to pay.';
+                      });
+                      return;
+                    }
+                    if (enteredAmount > amountToPay) {
+                      setModalState(() {
+                        errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                      });
+                      return;
+                    }
+                    setModalState(() {
+                      currentStep = 'upi';
+                      errorMessage = null;
+                    });
+                  }),
+                  _buildPaymentMethod('💳', 'Credit / Debit Card', 'Visa, Mastercard, RuPay', () {
+                    final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+                    if (enteredAmount <= 0) {
+                      setModalState(() {
+                        errorMessage = 'Please enter a valid amount to pay.';
+                      });
+                      return;
+                    }
+                    if (enteredAmount > amountToPay) {
+                      setModalState(() {
+                        errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                      });
+                      return;
+                    }
+                    setModalState(() {
+                      currentStep = 'card';
+                      errorMessage = null;
+                    });
+                  }),
+                  _buildPaymentMethod('🏦', 'Net Banking', 'All major banks supported', () {
+                    final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+                    if (enteredAmount <= 0) {
+                      setModalState(() {
+                        errorMessage = 'Please enter a valid amount to pay.';
+                      });
+                      return;
+                        }
+                    if (enteredAmount > amountToPay) {
+                      setModalState(() {
+                        errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                      });
+                      return;
+                    }
+                    setModalState(() {
+                      currentStep = 'netbank';
+                      errorMessage = null;
+                    });
+                  }),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              );
+            } else if (currentStep == 'upi') {
+              body = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  buildHeader('📱 UPI Payment'),
+                  buildFeeSummary(),
+                  buildLockBanner(),
+                  buildErrorMsg(),
+                  const Text(
+                    'Select UPI App',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: StudentColors.text),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildUpiAppItem('Google Pay', '📱', selectedUpiApp == 'gpay', () {
+                        setModalState(() {
+                          selectedUpiApp = 'gpay';
+                          upiController.text = 'student@okaxis';
+                          errorMessage = null;
+                        });
+                      }),
+                      _buildUpiAppItem('PhonePe', '💜', selectedUpiApp == 'phonepe', () {
+                        setModalState(() {
+                          selectedUpiApp = 'phonepe';
+                          upiController.text = 'student@ybl';
+                          errorMessage = null;
+                        });
+                      }),
+                      _buildUpiAppItem('Paytm', '💙', selectedUpiApp == 'paytm', () {
+                        setModalState(() {
+                          selectedUpiApp = 'paytm';
+                          upiController.text = 'student@paytm';
+                          errorMessage = null;
+                        });
+                      }),
+                      _buildUpiAppItem('BHIM', '🇮🇳', selectedUpiApp == 'bhim', () {
+                        setModalState(() {
+                          selectedUpiApp = 'bhim';
+                          upiController.text = 'student@upi';
+                          errorMessage = null;
+                        });
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Or enter UPI ID manually',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: StudentColors.text),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: upiController,
+                    decoration: InputDecoration(
+                      hintText: 'e.g. mobile@upi',
+                      hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      prefixIcon: const Icon(Icons.alternate_email, size: 16),
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setModalState(() { currentStep = 'select'; }),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Back'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (upiController.text.trim().isEmpty || !upiController.text.contains('@')) {
+                              setModalState(() { errorMessage = 'Invalid UPI ID Format'; });
+                            } else {
+                              processPayment('upi');
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text('Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            } else if (currentStep == 'card') {
+              body = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  buildHeader('💳 Card Details'),
+                  buildFeeSummary(),
+                  buildLockBanner(),
+                  buildErrorMsg(),
+                  const Text('Cardholder Name', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: cardNameController,
+                    decoration: InputDecoration(
+                      hintText: 'Naresh Upadhyay',
+                      hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text('Card Number', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: cardNumberController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'XXXX XXXX XXXX XXXX',
+                      hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      prefixIcon: const Icon(Icons.credit_card, size: 16),
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Expiry Date', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: cardExpiryController,
+                              decoration: InputDecoration(
+                                hintText: 'MM/YY',
+                                hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('CVV', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: cardCvvController,
+                              keyboardType: TextInputType.number,
+                              obscureText: true,
+                              decoration: InputDecoration(
+                                hintText: '•••',
+                                hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setModalState(() { currentStep = 'select'; }),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Back'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (cardNameController.text.trim().isEmpty) {
+                              setModalState(() { errorMessage = 'Cardholder Name Required'; });
+                            } else if (cardNumberController.text.replaceAll(' ', '').length < 12) {
+                              setModalState(() { errorMessage = 'Invalid Card Number'; });
+                            } else if (cardExpiryController.text.trim().isEmpty) {
+                              setModalState(() { errorMessage = 'Card Expiry Required'; });
+                            } else if (cardCvvController.text.length != 3) {
+                              setModalState(() { errorMessage = 'Invalid CVV (3 digits)'; });
+                            } else {
+                              processPayment('card');
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text('Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            } else if (currentStep == 'netbank') {
+              body = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  buildHeader('🏦 Net Banking'),
+                  buildFeeSummary(),
+                  buildLockBanner(),
+                  buildErrorMsg(),
+                  const Text(
+                    'Select Your Bank',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: StudentColors.text),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade400),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedBank,
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down),
+                        items: <String>[
+                          'State Bank of India',
+                          'HDFC Bank',
+                          'ICICI Bank',
+                          'Axis Bank',
+                          'Kotak Mahindra Bank',
+                          'Punjab National Bank',
+                          'Bank of Baroda',
+                          'Canara Bank',
+                        ].map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value, style: const TextStyle(fontSize: 13)),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setModalState(() { selectedBank = newValue; });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'You will be redirected to your bank\'s secure payment portal.',
+                    style: TextStyle(fontSize: 10, color: StudentColors.text3),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setModalState(() { currentStep = 'select'; }),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Back'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => processPayment('netbanking'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF059669),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text('Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            } else {
+              // Loading step
+              body = const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 36),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669))),
+                      SizedBox(height: 16),
+                      Text(
+                        'Processing secure payment...',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Do not close this window or press back.',
+                        style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: SingleChildScrollView(child: body),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -513,15 +2065,9 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                  ),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                   const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: StudentColors.text3, fontSize: 10),
-                  ),
+                  Text(subtitle, style: const TextStyle(color: StudentColors.text3, fontSize: 10)),
                 ],
               ),
             ),
@@ -532,79 +2078,138 @@ class _StudentFeesState extends ConsumerState<StudentFees> {
     );
   }
 
-  void _showPaymentSuccess(BuildContext context) {
-    Navigator.pop(context); // Close payment modal
+  void _showPaymentSuccess(BuildContext context, Map<String, dynamic> result) {
+    final data = result['data'] as Map<String, dynamic>? ?? {};
+    final recipient = data['recipient_details'] as Map<String, dynamic>? ?? {};
+    final String transactionId = data['transaction_id'] ?? 'TXN-${DateTime.now().millisecondsSinceEpoch}';
+    final double amount = double.tryParse(data['amount']?.toString() ?? '0') ?? 0;
+    final String method = data['payment_method'] ?? 'UPI';
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('✅', style: TextStyle(fontSize: 60)),
-            const SizedBox(height: 8),
-            const Text(
-              'Payment Successful!',
-              style: TextStyle(
-                fontFamily: AppFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF059669),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '₹12,500 paid via UPI',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  _buildReceiptRow('Transaction ID', 'TXN-2025-8847'),
-                  const SizedBox(height: 6),
-                  _buildReceiptRow('Date', 'Mar 27, 2025'),
-                  const SizedBox(height: 6),
-                  _buildReceiptRow('Status', '✓ Confirmed'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: StudentColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  shape: BoxShape.circle,
                 ),
-                minimumSize: const Size(double.infinity, 48),
+                child: const Center(
+                  child: Text('✅', style: TextStyle(fontSize: 40)),
+                ),
               ),
-              child: Text('Done'.tr(ref)),
-            ),
-          ],
+              const SizedBox(height: 12),
+              const Text(
+                'Payment Successful!',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF059669),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '₹ ${amount.toStringAsFixed(0)} paid via ${method.toUpperCase()}',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    _buildSuccessRow('Transaction ID', transactionId),
+                    const SizedBox(height: 6),
+                    _buildSuccessRow('Date', _formatCurrentDate()),
+                    const SizedBox(height: 6),
+                    _buildSuccessRow('Status', '✓ Confirmed'),
+                  ],
+                ),
+              ),
+              if (recipient.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F9FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFBAE6FD)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Recipient Details',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildSuccessRow('Name', recipient['account_holder_name'] ?? ''),
+                      if (method == 'upi' && recipient['upi_id'] != null) ...[
+                        const SizedBox(height: 4),
+                        _buildSuccessRow('UPI ID', recipient['upi_id']),
+                      ] else if (recipient['account_number'] != null) ...[
+                        const SizedBox(height: 4),
+                        _buildSuccessRow('Bank', recipient['bank_name'] ?? ''),
+                        const SizedBox(height: 4),
+                        _buildSuccessRow('Account No.', recipient['account_number']),
+                        const SizedBox(height: 4),
+                        _buildSuccessRow('IFSC Code', recipient['ifsc_code'] ?? ''),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF059669),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildReceiptRow(String label, String value) {
+  Widget _buildSuccessRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-        Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            textAlign: TextAlign.end,
+          ),
+        ),
       ],
     );
   }

@@ -123,6 +123,12 @@ class TeacherApiService {
     };
   }
 
+  /// Get authentication token
+  Future<String?> getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
+
   // ========== Dashboard API ==========
 
   /// Get teacher dashboard data
@@ -1292,6 +1298,95 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error fetching salary slip: $e');
+    }
+  }
+
+  /// Get salary advance history
+  Future<List<SalaryAdvance>> getSalaryAdvances() async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/salary/advance'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['salary_advances', 'items', 'results', 'data'],
+        );
+        return data.map((item) => SalaryAdvance.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load salary advances: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching salary advances: $e');
+    }
+  }
+
+  /// Request salary advance
+  Future<void> requestSalaryAdvance({
+    required double amount,
+    required String purposeType,
+    String? reason,
+    required int month,
+    required int year,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/salary/advance'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'amount': amount,
+          'purpose_type': purposeType,
+          'reason': reason,
+          'month': month,
+          'year': year,
+        }),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final errBody = json.decode(response.body);
+        final errMsg = errBody['detail'] ?? errBody['message'] ?? 'Failed to request advance';
+        throw Exception(errMsg);
+      }
+    } catch (e) {
+      throw Exception('Error requesting salary advance: $e');
+    }
+  }
+
+  /// Simulate salary advance approval (debug)
+  Future<void> simulateAdvanceApproval(String advanceId) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/salary/advance/$advanceId/approve-debug'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200) {
+        final errBody = json.decode(response.body);
+        final errMsg = errBody['detail'] ?? errBody['message'] ?? 'Failed to approve advance';
+        throw Exception(errMsg);
+      }
+    } catch (e) {
+      throw Exception('Error simulating advance approval: $e');
+    }
+  }
+
+  /// Cancel salary advance request
+  Future<void> cancelSalaryAdvance(String advanceId) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/salary/advance/$advanceId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200) {
+        final errBody = json.decode(response.body);
+        final errMsg = errBody['detail'] ?? errBody['message'] ?? 'Failed to cancel advance';
+        throw Exception(errMsg);
+      }
+    } catch (e) {
+      throw Exception('Error cancelling salary advance: $e');
     }
   }
 

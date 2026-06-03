@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, Request
 from typing import Optional
 from datetime import datetime
 import asyncio
@@ -1014,4 +1014,486 @@ async def teacher_get_materials(type: str = None, user=Depends(get_current_user)
     if type and type.lower() != 'all':
         query = query.eq("material_type", type.lower())
     materials = (await query.order("created_at", ascending=False).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"materials": materials}}
+    return {"success": True, "school_id": school_id, "data": {"materials": materials}}
+
+
+@router.get("/salary/{salary_id}/download")
+async def download_salary_slip(
+    salary_id: str,
+    request: Request,
+    token: Optional[str] = Query(None)
+):
+    # Authenticate token from query parameter or Authorization header
+    token_str = token
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token_str = auth_header.split(" ")[1]
+        
+    if not token_str:
+        raise HTTPException(status_code=401, detail="Authentication token required")
+        
+    import os
+    from jose import jwt, JWTError
+    try:
+        jwt_secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMIIT-jwt-secret-2026"))
+        payload = jwt.decode(
+            token_str,
+            jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False}
+        )
+        user = {
+            "id": payload.get("sub"),
+            "school_id": payload.get("school_id"),
+            "role": payload.get("role"),
+            "class": payload.get("class"),
+            "email": payload.get("email"),
+        }
+        if not user["id"]:
+            raise HTTPException(status_code=401, detail="Invalid token: missing user ID")
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+        
+    school_id = user.get("school_id")
+    if not school_id:
+        raise HTTPException(status_code=400, detail="school_id required")
+
+    sb = get_supabase()
+    # Fetch the salary record and verify ownership
+    salary_res = await sb.table("salary").select("*").eq("id", salary_id).eq("school_id", school_id).eq("teacher_id", user["id"]).maybe_single().aexecute()
+    salary = salary_res.data
+    if not salary:
+        raise HTTPException(status_code=404, detail="Salary slip not found or access denied")
+    
+    # Fetch school name
+    school_res = await sb.table("schools").select("name").eq("id", school_id).maybe_single().aexecute()
+    school_name = (school_res.data or {}).get("name", "EduSHAMIIT Academy")
+    
+    # Fetch profile details (for full name, email, subject/specialization)
+    profile_res = await sb.table("profiles").select("*").eq("id", user["id"]).maybe_single().aexecute()
+    profile = profile_res.data or {}
+    
+    # Generate PDF bytes using ReportLab
+    import io
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.units import inch
+    from fastapi.responses import StreamingResponse
+    
+    buffer = io.BytesIO()
+    
+    # Setup document
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=0.75*inch,
+        rightMargin=0.75*inch,
+        topMargin=0.75*inch,
+        bottomMargin=0.75*inch
+    )
+    
+    story = []
+    
+    # Colors
+    C_BRAND = colors.HexColor("#059669")  # Emerald/Green matching mockup
+    C_BRAND_LIGHT = colors.HexColor("#ECFDF5")
+    C_DARK = colors.HexColor("#0F172A")
+    C_TEXT = colors.HexColor("#475569")
+    C_BORDER = colors.HexColor("#E2E8F0")
+    C_RED = colors.HexColor("#EF4444")
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'DocTitle', parent=styles['Normal'],
+        fontSize=20, leading=26, fontName='Helvetica-Bold',
+        textColor=C_BRAND, alignment=TA_CENTER
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubTitle', parent=styles['Normal'],
+        fontSize=10, leading=14, fontName='Helvetica-Bold',
+        textColor=C_TEXT, alignment=TA_CENTER,
+        spaceAfter=15
+    )
+    section_title = ParagraphStyle(
+        'SectionTitle', parent=styles['Normal'],
+        fontSize=12, leading=16, fontName='Helvetica-Bold',
+        textColor=C_DARK, spaceBefore=10, spaceAfter=6
+    )
+    body_style = ParagraphStyle(
+        'BodyText', parent=styles['Normal'],
+        fontSize=9, leading=13, fontName='Helvetica',
+        textColor=C_TEXT
+    )
+    body_bold = ParagraphStyle(
+        'BodyTextBold', parent=styles['Normal'],
+        fontSize=9, leading=13, fontName='Helvetica-Bold',
+        textColor=C_DARK
+    )
+    body_right = ParagraphStyle(
+        'BodyTextRight', parent=styles['Normal'],
+        fontSize=9, leading=13, fontName='Helvetica',
+        textColor=C_TEXT, alignment=TA_RIGHT
+    )
+    body_bold_right = ParagraphStyle(
+        'BodyTextBoldRight', parent=styles['Normal'],
+        fontSize=9, leading=13, fontName='Helvetica-Bold',
+        textColor=C_DARK, alignment=TA_RIGHT
+    )
+    
+    # Title
+    story.append(Paragraph(school_name.upper(), title_style))
+    month_names = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    month_name = month_names[salary.get("month", 1)]
+    year = salary.get("year", 2026)
+    story.append(Paragraph(f"SALARY PAYSLIP — {month_name.upper()} {year}", subtitle_style))
+    story.append(HRFlowable(width='100%', thickness=1.5, color=C_BRAND, spaceAfter=15))
+    
+    # Employee & Pay Summary Info Table
+    emp_info = [
+        [Paragraph("<b>Employee Name:</b>", body_style), Paragraph(profile.get("full_name", "Teacher"), body_bold),
+         Paragraph("<b>Payslip ID:</b>", body_style), Paragraph(str(salary.get("id"))[:8] + "...", body_style)],
+        [Paragraph("<b>Email:</b>", body_style), Paragraph(profile.get("email", ""), body_style),
+         Paragraph("<b>Payment Mode:</b>", body_style), Paragraph(salary.get("payment_mode", "bank_transfer").replace("_", " ").title(), body_style)],
+        [Paragraph("<b>Role:</b>", body_style), Paragraph(user.get("role", "Teacher").title(), body_style),
+         Paragraph("<b>Status:</b>", body_style), Paragraph(f"<font color='#059669'><b>{salary.get('status', 'paid').upper()}</b></font>", body_style)],
+    ]
+    
+    info_table = Table(emp_info, colWidths=[1.5*inch, 2*inch, 1.25*inch, 2.25*inch])
+    info_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 15))
+    story.append(HRFlowable(width='100%', thickness=1, color=C_BORDER, spaceAfter=15))
+    
+    # Calculate Breakup values
+    basic = float(salary.get("basic_pay", 0) or 0)
+    hra = float(salary.get("hra", 0) or 0)
+    da = float(salary.get("da", 0) or 0)
+    special_allowance = float(salary.get("special_allowance", 0) or 0)
+    pf = float(salary.get("pf_deduction", 0) or 0)
+    tds = float(salary.get("tds", 0) or 0)
+    prof_tax = float(salary.get("professional_tax", 0) or 0)
+    misc = float(salary.get("miscellaneous", 0) or 0)
+    advance_deduction = float(salary.get("advance_deduction", 0) or 0)
+    
+    # Split miscellaneous into earning or deduction
+    misc_earning = misc if misc > 0 else 0.0
+    misc_deduction = abs(misc) if misc < 0 else 0.0
+    
+    gross = basic + hra + da + special_allowance + misc_earning
+    deductions = pf + tds + prof_tax + misc_deduction + advance_deduction
+    net = gross - deductions
+    
+    # Breakup Table: Earnings vs Deductions
+    breakup_data = [
+        [Paragraph("<b>EARNINGS</b>", body_bold), Paragraph("<b>AMOUNT (Rs.)</b>", body_bold_right),
+         Paragraph("<b>DEDUCTIONS</b>", body_bold), Paragraph("<b>AMOUNT (Rs.)</b>", body_bold_right)],
+        
+        [Paragraph("Basic Pay", body_style), Paragraph(f"Rs. {basic:,.2f}", body_right),
+         Paragraph("PF Deduction", body_style), Paragraph(f"Rs. {pf:,.2f}", body_right)],
+        
+        [Paragraph("HRA", body_style), Paragraph(f"Rs. {hra:,.2f}", body_right),
+         Paragraph("TDS", body_style), Paragraph(f"Rs. {tds:,.2f}", body_right)],
+         
+        [Paragraph("DA", body_style), Paragraph(f"Rs. {da:,.2f}", body_right),
+         Paragraph("Professional Tax", body_style), Paragraph(f"Rs. {prof_tax:,.2f}", body_right)],
+         
+        [Paragraph("Special Allowance", body_style), Paragraph(f"Rs. {special_allowance:,.2f}", body_right),
+         Paragraph("Salary Advance", body_style) if advance_deduction > 0 else Paragraph("", body_style), Paragraph(f"Rs. {advance_deduction:,.2f}" if advance_deduction > 0 else "", body_right)],
+         
+        [Paragraph("Miscellaneous", body_style) if misc_earning > 0 else Paragraph("", body_style), Paragraph(f"Rs. {misc_earning:,.2f}" if misc_earning > 0 else "", body_right),
+         Paragraph("Miscellaneous", body_style) if misc_deduction > 0 else Paragraph("", body_style), Paragraph(f"Rs. {misc_deduction:,.2f}" if misc_deduction > 0 else "", body_right)],
+         
+        [Paragraph("<b>Gross Earnings</b>", body_bold), Paragraph(f"<b>Rs. {gross:,.2f}</b>", body_bold_right),
+         Paragraph("<b>Total Deductions</b>", body_bold), Paragraph(f"<b>Rs. {deductions:,.2f}</b>", body_bold_right)],
+    ]
+    
+    breakup_table = Table(breakup_data, colWidths=[1.8*inch, 1.6*inch, 1.8*inch, 1.8*inch])
+    breakup_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BACKGROUND', (0, 0), (1, 0), C_BRAND_LIGHT),
+        ('BACKGROUND', (2, 0), (3, 0), colors.HexColor("#FEF2F2")),
+        ('GRID', (0, 0), (-1, -1), 0.5, C_BORDER),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (0, -1), (1, -1), C_BRAND_LIGHT),
+        ('BACKGROUND', (2, -1), (3, -1), colors.HexColor("#FEF2F2")),
+    ]))
+    
+    story.append(Paragraph("Salary Breakup Details", section_title))
+    story.append(breakup_table)
+    story.append(Spacer(1, 20))
+    
+    # Net Salary Highlight Card
+    net_data = [
+        [Paragraph(f"<font size='14'><b>Net Salary: Rs. {net:,.2f}</b></font><br/><font size='8' color='#64748B'>({month_name} {year})</font>", body_bold),
+         Paragraph(f"<font color='#059669'><b>✔ Credited successfully</b></font><br/><font size='8' color='#64748B'>Paid on: {salary.get('paid_at', '')[:10] if salary.get('paid_at') else 'N/A'}</font>", body_bold_right)]
+    ]
+    net_table = Table(net_data, colWidths=[3.5*inch, 3.5*inch])
+    net_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), C_BRAND_LIGHT),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOX', (0, 0), (-1, -1), 1.5, C_BRAND),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 15),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+    ]))
+    story.append(net_table)
+    story.append(Spacer(1, 40))
+    
+    # Signature Section
+    sig_data = [
+        [Paragraph("", body_style), Paragraph("For " + school_name, body_bold_right)],
+        [Spacer(1, 40), Spacer(1, 40)],
+        [Paragraph("Employee Signature", body_style), Paragraph("Authorized Signatory", body_bold_right)],
+    ]
+    sig_table = Table(sig_data, colWidths=[3.5*inch, 3.5*inch])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(sig_table)
+    
+    # Build PDF
+    doc.build(story)
+    
+    buffer.seek(0)
+    filename = f"Payslip_{year}_{month_name}.pdf"
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
+
+@router.get("/salary/advance")
+async def get_salary_advances(
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    advances = (await sb.table("salary_advances")
+                .select("*")
+                .eq("school_id", school_id)
+                .eq("teacher_id", user["id"])
+                .order("created_at", ascending=False)
+                .aexecute()).data
+    return {"success": True, "data": {"salary_advances": advances}}
+
+
+@router.post("/salary/advance")
+async def request_salary_advance(
+    request: dict,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    amount = float(request.get("amount", 0))
+    purpose_type = request.get("purpose_type")
+    reason = request.get("reason")
+    month = int(request.get("month", datetime.utcnow().month))
+    year = int(request.get("year", datetime.utcnow().year))
+    
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Advance amount must be greater than zero")
+    if not purpose_type:
+        raise HTTPException(status_code=400, detail="Purpose type is required")
+        
+    sb = get_supabase()
+    
+    # Check limit: amount must be <= min(basic_pay, net_salary)
+    # Find salary record for this month/year. If none, get latest record.
+    salary_res = await sb.table("salary").select("*").eq("school_id", school_id).eq("teacher_id", user["id"]).eq("month", month).eq("year", year).maybe_single().aexecute()
+    salary = salary_res.data
+    
+    if not salary:
+        # Fall back to latest historical salary record
+        latest_res = await sb.table("salary").select("*").eq("school_id", school_id).eq("teacher_id", user["id"]).order("year", ascending=False).order("month", ascending=False).limit(1).aexecute()
+        if latest_res.data:
+            salary = latest_res.data[0]
+            
+    if not salary:
+        # Defaults if no history exists at all (safety fallback)
+        basic_pay = 50000.0
+        net_salary = 50000.0
+    else:
+        basic_pay = float(salary.get("basic_pay", 0) or 0)
+        net_salary = float(salary.get("net_pay") or salary.get("amount", 0) or 0)
+        
+    limit = min(basic_pay, net_salary)
+    if amount > limit:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Requested advance amount (Rs. {amount:,.2f}) exceeds the limit. Your limit is Rs. {limit:,.2f} (minimum of basic salary Rs. {basic_pay:,.2f} and net salary Rs. {net_salary:,.2f})."
+        )
+        
+    # Insert advance request
+    advance_data = {
+        "school_id": school_id,
+        "teacher_id": user["id"],
+        "amount": amount,
+        "purpose_type": purpose_type,
+        "reason": reason,
+        "status": "pending",
+        "month": month,
+        "year": year
+    }
+    
+    insert_res = await sb.table("salary_advances").insert(advance_data).aexecute()
+    return {"success": True, "message": "Salary advance requested successfully", "data": {"advance": insert_res.data[0]}}
+
+
+@router.post("/salary/advance/{advance_id}/approve-debug")
+async def approve_salary_advance_debug(
+    advance_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    
+    # 1. Fetch advance request
+    advance_res = await sb.table("salary_advances").select("*").eq("id", advance_id).eq("school_id", school_id).maybe_single().aexecute()
+    advance = advance_res.data
+    if not advance:
+        raise HTTPException(status_code=404, detail="Salary advance request not found")
+        
+    if advance.get("status") != "pending":
+        raise HTTPException(status_code=400, detail=f"Request is already {advance.get('status')}")
+        
+    # 2. Update request status to approved
+    await sb.table("salary_advances").update({"status": "approved", "updated_at": datetime.utcnow().isoformat()}).eq("id", advance_id).aexecute()
+    
+    amount = float(advance["amount"])
+    month = advance["month"]
+    year = advance["year"]
+    teacher_id = advance["teacher_id"]
+    
+    # 3. Apply deduction to the corresponding month's salary record
+    salary_res = await sb.table("salary").select("*").eq("school_id", school_id).eq("teacher_id", teacher_id).eq("month", month).eq("year", year).maybe_single().aexecute()
+    salary = salary_res.data
+    
+    if salary:
+        # Update existing salary record
+        current_deduction = float(salary.get("advance_deduction", 0) or 0)
+        new_deduction = current_deduction + amount
+        
+        # Calculate new totals
+        basic = float(salary.get("basic_pay", 0) or 0)
+        hra = float(salary.get("hra", 0) or 0)
+        da = float(salary.get("da", 0) or 0)
+        sa = float(salary.get("special_allowance", 0) or 0)
+        pf = float(salary.get("pf_deduction", 0) or 0)
+        tds = float(salary.get("tds", 0) or 0)
+        pt = float(salary.get("professional_tax", 0) or 0)
+        misc = float(salary.get("miscellaneous", 0) or 0)
+        misc_earning = misc if misc > 0 else 0.0
+        misc_deduction = abs(misc) if misc < 0 else 0.0
+        
+        gross = basic + hra + da + sa + misc_earning
+        total_deductions = pf + tds + pt + misc_deduction + new_deduction
+        net = gross - total_deductions
+        
+        update_data = {
+            "advance_deduction": new_deduction,
+            "deductions": total_deductions,
+            "net_pay": net,
+            "amount": net,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        await sb.table("salary").update(update_data).eq("id", salary["id"]).aexecute()
+    else:
+        # Create a new salary record using the latest record as template
+        latest_res = await sb.table("salary").select("*").eq("school_id", school_id).eq("teacher_id", teacher_id).order("year", ascending=False).order("month", ascending=False).limit(1).aexecute()
+        
+        if latest_res.data:
+            template = latest_res.data[0]
+            basic = float(template.get("basic_pay", 0) or 0)
+            hra = float(template.get("hra", 0) or 0)
+            da = float(template.get("da", 0) or 0)
+            sa = float(template.get("special_allowance", 0) or 0)
+            pf = float(template.get("pf_deduction", 0) or 0)
+            tds = float(template.get("tds", 0) or 0)
+            pt = float(template.get("professional_tax", 0) or 0)
+            misc = float(template.get("miscellaneous", 0) or 0)
+        else:
+            # Fallbacks if no salary record exists
+            basic, hra, da, sa, pf, tds, pt, misc = 45000.0, 18000.0, 7000.0, 5000.0, 3600.0, 2500.0, 450.0, 0.0
+            
+        misc_earning = misc if misc > 0 else 0.0
+        misc_deduction = abs(misc) if misc < 0 else 0.0
+        
+        gross = basic + hra + da + sa + misc_earning
+        total_deductions = pf + tds + pt + misc_deduction + amount
+        net = gross - total_deductions
+        
+        month_str = f"{year}-{month:02d}"
+        
+        new_salary = {
+            "school_id": school_id,
+            "teacher_id": teacher_id,
+            "month": month,
+            "year": year,
+            "month_str": month_str,
+            "basic_pay": basic,
+            "hra": hra,
+            "da": da,
+            "special_allowance": sa,
+            "pf_deduction": pf,
+            "tds": tds,
+            "professional_tax": pt,
+            "miscellaneous": misc,
+            "advance_deduction": amount,
+            "deductions": total_deductions,
+            "net_pay": net,
+            "amount": net,
+            "status": "pending",
+            "payment_mode": "bank_transfer"
+        }
+        await sb.table("salary").insert(new_salary).aexecute()
+        
+    await invalidate_cache(school_id, "teacher_salary")
+    return {"success": True, "message": "Salary advance approved and deduction applied successfully"}
+
+
+@router.delete("/salary/advance/{advance_id}")
+async def cancel_salary_advance(
+    advance_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    # Fetch request first to verify it belongs to user and is pending
+    advance_res = await sb.table("salary_advances").select("*").eq("id", advance_id).eq("school_id", school_id).eq("teacher_id", user["id"]).maybe_single().aexecute()
+    advance = advance_res.data
+    if not advance:
+        raise HTTPException(status_code=404, detail="Salary advance request not found")
+        
+    if advance.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Only pending advance requests can be cancelled")
+        
+    # Delete from database
+    await sb.table("salary_advances").delete().eq("id", advance_id).aexecute()
+    return {"success": True, "message": "Salary advance request cancelled successfully"}
+

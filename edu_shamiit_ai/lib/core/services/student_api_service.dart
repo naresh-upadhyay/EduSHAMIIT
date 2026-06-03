@@ -392,12 +392,20 @@ class StudentApiService {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') 
-            ? (decoded['data'] is List 
-                ? decoded['data'] as List 
-                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
-            : [];
-        return data
+        List<dynamic> list = [];
+        if (decoded.containsKey('data')) {
+          final data = decoded['data'];
+          if (data is Map) {
+            if (data.containsKey('fees')) {
+              list = data['fees'] as List;
+            } else {
+              list = data.values.firstWhere((v) => v is List, orElse: () => []) as List;
+            }
+          } else if (data is List) {
+            list = data;
+          }
+        }
+        return list
             .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
@@ -411,6 +419,123 @@ class StudentApiService {
       return (MockDataService().getFeeRecords())
           .map((e) => FeeRecord.fromJson(e as Map<String, dynamic>))
           .toList();
+    }
+  }
+
+  /// Process direct payment for a fee
+  Future<Map<String, dynamic>> payDirect({
+    required String feeId,
+    required double amount,
+    required String paymentMethod,
+    String? upiId,
+    String? cardNumber,
+    String? cardExpiry,
+    String? cardCvv,
+    String? bankName,
+    String? description,
+  }) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/payments/pay-direct'),
+            headers: await _headers,
+            body: jsonEncode({
+              'fee_id': feeId,
+              'amount': amount,
+              'payment_method': paymentMethod,
+              if (upiId != null) 'upi_id': upiId,
+              if (cardNumber != null) 'card_number': cardNumber,
+              if (cardExpiry != null) 'card_expiry': cardExpiry,
+              if (cardCvv != null) 'card_cvv': cardCvv,
+              if (bankName != null) 'bank_name': bankName,
+              if (description != null) 'description': description,
+            }),
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        final decoded = jsonDecode(response.body);
+        final detail = (decoded is Map && decoded.containsKey('detail'))
+            ? decoded['detail'].toString()
+            : 'Payment failed with status: ${response.statusCode}';
+        throw ApiException(detail);
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Payment processing failed: $e');
+    }
+  }
+
+  /// Process bulk payment for multiple fees
+  Future<Map<String, dynamic>> payBulk({
+    required List<String> feeIds,
+    required double amount,
+    required String paymentMethod,
+    String? upiId,
+    String? cardNumber,
+    String? cardExpiry,
+    String? cardCvv,
+    String? bankName,
+    String? description,
+  }) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/payments/pay-bulk'),
+            headers: await _headers,
+            body: jsonEncode({
+              'fee_ids': feeIds,
+              'amount': amount,
+              'payment_method': paymentMethod,
+              if (upiId != null) 'upi_id': upiId,
+              if (cardNumber != null) 'card_number': cardNumber,
+              if (cardExpiry != null) 'card_expiry': cardExpiry,
+              if (cardCvv != null) 'card_cvv': cardCvv,
+              if (bankName != null) 'bank_name': bankName,
+              if (description != null) 'description': description,
+            }),
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        final decoded = jsonDecode(response.body);
+        final detail = (decoded is Map && decoded.containsKey('detail'))
+            ? decoded['detail'].toString()
+            : 'Bulk payment failed with status: ${response.statusCode}';
+        throw ApiException(detail);
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Bulk payment processing failed: $e');
+    }
+  }
+
+  /// Get dynamic outstanding balance from API
+  Future<double> getOutstandingBalance() async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/fees'),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        if (decoded.containsKey('data')) {
+          final data = decoded['data'];
+          if (data is Map && data.containsKey('total_outstanding')) {
+            return double.tryParse(data['total_outstanding'].toString()) ?? 0.0;
+          }
+        }
+      }
+      return 0.0;
+    } catch (e) {
+      return 0.0;
     }
   }
 

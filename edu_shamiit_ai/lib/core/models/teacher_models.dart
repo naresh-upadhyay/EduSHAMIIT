@@ -1310,6 +1310,14 @@ class SalarySlip {
   final String status; // paid, pending, processing
   final String? slipUrl;
   final DateTime createdAt;
+  final double specialAllowance;
+  final double pfDeduction;
+  final double tds;
+  final double professionalTax;
+  final double miscellaneous;
+  final double hra;
+  final double da;
+  final double advanceDeduction;
 
   const SalarySlip({
     required this.id,
@@ -1325,6 +1333,14 @@ class SalarySlip {
     required this.status,
     this.slipUrl,
     required this.createdAt,
+    this.specialAllowance = 0.0,
+    this.pfDeduction = 0.0,
+    this.tds = 0.0,
+    this.professionalTax = 0.0,
+    this.miscellaneous = 0.0,
+    this.hra = 0.0,
+    this.da = 0.0,
+    this.advanceDeduction = 0.0,
   });
 
   factory SalarySlip.fromJson(Map<String, dynamic> json) {
@@ -1334,10 +1350,10 @@ class SalarySlip {
       teacherName: (json['teacher_name'] ?? '').toString(),
       month: _toInt(json['month'], fallback: 1),
       year: _toInt(json['year'], fallback: DateTime.now().year),
-      basicSalary: (json['basic_salary'] as num?)?.toDouble() ?? 0.0,
+      basicSalary: (json['basic_salary'] ?? json['basic_pay'] as num?)?.toDouble() ?? 0.0,
       allowances: (json['allowances'] as num?)?.toDouble() ?? 0.0,
       deductions: (json['deductions'] as num?)?.toDouble() ?? 0.0,
-      netSalary: (json['net_salary'] as num?)?.toDouble() ?? 0.0,
+      netSalary: (json['net_salary'] ?? json['net_pay'] ?? json['amount'] as num?)?.toDouble() ?? 0.0,
       paidAt: json['paid_at'] != null 
           ? DateTime.parse(json['paid_at'] as String) 
           : null,
@@ -1346,6 +1362,14 @@ class SalarySlip {
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
           : DateTime.now(),
+      specialAllowance: (json['special_allowance'] as num?)?.toDouble() ?? 0.0,
+      pfDeduction: (json['pf_deduction'] as num?)?.toDouble() ?? 0.0,
+      tds: (json['tds'] as num?)?.toDouble() ?? 0.0,
+      professionalTax: (json['professional_tax'] as num?)?.toDouble() ?? 0.0,
+      miscellaneous: (json['miscellaneous'] as num?)?.toDouble() ?? 0.0,
+      hra: (json['hra'] as num?)?.toDouble() ?? 0.0,
+      da: (json['da'] as num?)?.toDouble() ?? 0.0,
+      advanceDeduction: (json['advance_deduction'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -1364,6 +1388,80 @@ class SalarySlip {
       'status': status,
       'slip_url': slipUrl,
       'created_at': createdAt.toIso8601String(),
+      'special_allowance': specialAllowance,
+      'pf_deduction': pfDeduction,
+      'tds': tds,
+      'professional_tax': professionalTax,
+      'miscellaneous': miscellaneous,
+      'hra': hra,
+      'da': da,
+      'advance_deduction': advanceDeduction,
+    };
+  }
+}
+
+/// Salary advance request model
+@immutable
+class SalaryAdvance {
+  final String id;
+  final String schoolId;
+  final String teacherId;
+  final double amount;
+  final String purposeType;
+  final String? reason;
+  final String status; // pending, approved, rejected
+  final int month;
+  final int year;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const SalaryAdvance({
+    required this.id,
+    required this.schoolId,
+    required this.teacherId,
+    required this.amount,
+    required this.purposeType,
+    this.reason,
+    required this.status,
+    required this.month,
+    required this.year,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory SalaryAdvance.fromJson(Map<String, dynamic> json) {
+    return SalaryAdvance(
+      id: (json['id'] ?? '').toString(),
+      schoolId: (json['school_id'] ?? '').toString(),
+      teacherId: (json['teacher_id'] ?? '').toString(),
+      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      purposeType: json['purpose_type'] as String? ?? 'other',
+      reason: json['reason'] as String?,
+      status: json['status'] as String? ?? 'pending',
+      month: _toInt(json['month'], fallback: 1),
+      year: _toInt(json['year'], fallback: DateTime.now().year),
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'] as String) 
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at'] as String) 
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'school_id': schoolId,
+      'teacher_id': teacherId,
+      'amount': amount,
+      'purpose_type': purposeType,
+      'reason': reason,
+      'status': status,
+      'month': month,
+      'year': year,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 }
