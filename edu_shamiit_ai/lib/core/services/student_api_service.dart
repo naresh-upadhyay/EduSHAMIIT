@@ -777,6 +777,22 @@ class StudentApiService {
     }
   }
 
+  /// Register for notice event
+  Future<bool> registerForNotice(String noticeId) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/notices/$noticeId/register'),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      throw ApiException('Register for notice event failed: $e');
+    }
+  }
+
   // ============================================
   // NOTIFICATIONS
   // ============================================
@@ -856,66 +872,7 @@ class StudentApiService {
     }
   }
 
-  // ============================================
-  // EVENTS
-  // ============================================
 
-  /// Get events
-  Future<List<Event>> getEvents({
-    String? filter, // 'upcoming', 'registered', 'past'
-  }) async {
-    try {
-      final response = await _client
-          .get(
-            Uri.parse('${AppConfig.apiBaseUrl}/student/events').replace(
-              queryParameters: {
-                if (filter != null) 'filter': filter,
-              },
-            ),
-            headers: await _headers,
-          )
-          .timeout(AppConfig.apiTimeout);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') 
-            ? (decoded['data'] is List 
-                ? decoded['data'] as List 
-                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
-            : [];
-        return data
-            .map((e) => Event.fromJson(e as Map<String, dynamic>))
-            .toList();
-      } else {
-        // Fallback to mock data when API fails
-        return (MockDataService().getEvents())
-            .map((e) => Event.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-    } catch (e) {
-      // Fallback to mock data when API fails
-      return (MockDataService().getEvents())
-          .map((e) => Event.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
-  }
-
-  /// Register for event
-  Future<bool> registerForEvent(String eventId) async {
-    try {
-      final response = await _client
-          .post(
-            Uri.parse(
-                '${AppConfig.apiBaseUrl}/student/events/$eventId/register'),
-            headers: await _headers,
-          )
-          .timeout(AppConfig.apiTimeout);
-
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      throw ApiException('Register for event failed: $e');
-    }
-  }
 
   // ============================================
   // ACHIEVEMENTS

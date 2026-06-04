@@ -37,8 +37,7 @@ class MockDataService {
   // Notifications
   List<dynamic> getNotifications() => MockData.notifications;
 
-  // Events
-  List<dynamic> getEvents() => MockData.events;
+
 
   // Achievements
   List<dynamic> getAchievements() => MockData.achievements;

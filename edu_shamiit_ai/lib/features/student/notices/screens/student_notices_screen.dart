@@ -362,6 +362,24 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                     ),
                   ),
                 ),
+                if (notice.category.toLowerCase() == 'event' || notice.category.toLowerCase() == 'events') ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: notice.registered ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      notice.registered ? '✓ Registered' : '🎉 Event',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: notice.registered ? const Color(0xFF065F46) : const Color(0xFFD97706),
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty)
                   const Text('📎', style: TextStyle(fontSize: 12)),
@@ -576,68 +594,133 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             ),
             Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  if (isFeeNotice) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          context.push('/student/fees');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '💳 ',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            Text(
-                              'Pay Now',
-                              style: TextStyle(
-                                fontFamily: AppFonts.heading,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+              child: StatefulBuilder(
+                builder: (context, setModalState) {
+                  final isEvent = notice.category.toLowerCase() == 'event' || notice.category.toLowerCase() == 'events';
+                  final isRegistered = notice.registered;
+
+                  return Column(
+                    children: [
+                      if (isEvent) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: isRegistered
+                                ? null
+                                : () async {
+                                    setModalState(() {
+                                      _isLoading = true;
+                                    });
+                                    try {
+                                      final ok = await _apiService.registerForNotice(notice.id);
+                                      if (ok) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Registered for Event Successfully! 🎉')),
+                                          );
+                                          Navigator.pop(context);
+                                          _loadNotices();
+                                        }
+                                      } else {
+                                        throw Exception('Failed to register');
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isRegistered ? const Color(0xFF10B981) : const Color(0xFFD97706),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(isRegistered ? Icons.check_circle : Icons.event_available, color: Colors.white, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isRegistered ? 'Registered' : 'Register for Event',
+                                  style: const TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      if (isFeeNotice) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              context.push('/student/fees');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '💳 ',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                Text(
+                                  'Pay Now',
+                                  style: TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: StudentColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: StudentColors.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(
-                          fontFamily: AppFonts.heading,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ],

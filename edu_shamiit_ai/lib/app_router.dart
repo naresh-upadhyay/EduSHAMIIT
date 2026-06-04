@@ -25,7 +25,7 @@ import 'package:edu_shamiit_ai/features/student/courses/screens/student_courses.
 import 'package:edu_shamiit_ai/features/student/notifications/screens/student_notifications.dart';
 import 'package:edu_shamiit_ai/features/student/notices/screens/student_notices_screen.dart';
 import 'package:edu_shamiit_ai/features/student/transport/screens/student_transport_screen.dart';
-import 'package:edu_shamiit_ai/features/student/events/screens/student_events_screen.dart';
+
 import 'package:edu_shamiit_ai/features/student/achievements/screens/student_achievements_screen.dart';
 import 'package:edu_shamiit_ai/features/student/live_classes/screens/student_live_classes.dart';
 import 'package:edu_shamiit_ai/features/student/leaderboard/screens/student_leaderboard.dart';
@@ -202,10 +202,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/student/transport',
           pageBuilder: (_, __) => const NoTransitionPage(child: StudentTransport()),
         ),
-        GoRoute(
-          path: '/student/events',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentEvents()),
-        ),
+
         GoRoute(
           path: '/student/attendance',
           pageBuilder: (_, __) => const NoTransitionPage(child: StudentAttendance()),

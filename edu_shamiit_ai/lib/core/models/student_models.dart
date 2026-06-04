@@ -262,64 +262,7 @@ class Course {
   }
 }
 
-/// Event model
-class Event {
-  final String id;
-  final String title;
-  final String description;
-  final DateTime startDate;
-  final DateTime endDate;
-  final String location;
-  final String type; // 'academic', 'sports', 'cultural', 'exam'
-  final String? imageUrl;
-  final bool isRegistered;
-  final DateTime? registrationDeadline;
 
-  Event({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.startDate,
-    required this.endDate,
-    required this.location,
-    required this.type,
-    this.imageUrl,
-    required this.isRegistered,
-    this.registrationDeadline,
-  });
-
-  factory Event.fromJson(Map<String, dynamic> json) {
-    return Event(
-      id: json['id'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      startDate: DateTime.tryParse(json['start_date'] ?? '') ?? DateTime.now(),
-      endDate: DateTime.tryParse(json['end_date'] ?? '') ?? DateTime.now(),
-      location: json['location'] ?? '',
-      type: json['type'] ?? 'academic',
-      imageUrl: json['image_url'],
-      isRegistered: json['is_registered'] ?? false,
-      registrationDeadline: json['registration_deadline'] != null
-          ? DateTime.tryParse(json['registration_deadline'])
-          : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'description': description,
-      'start_date': startDate.toIso8601String(),
-      'end_date': endDate.toIso8601String(),
-      'location': location,
-      'type': type,
-      'image_url': imageUrl,
-      'is_registered': isRegistered,
-      'registration_deadline': registrationDeadline?.toIso8601String(),
-    };
-  }
-}
 
 /// Exam result model
 class ExamResult {
@@ -855,6 +798,8 @@ class Notice {
   final DateTime? expiresAt;
   final String? attachmentUrl;
   final String? authorName;
+  final bool registered;
+  final int registrationCount;
 
   Notice({
     required this.id,
@@ -865,6 +810,8 @@ class Notice {
     this.expiresAt,
     this.attachmentUrl,
     this.authorName,
+    this.registered = false,
+    this.registrationCount = 0,
   });
 
   factory Notice.fromJson(Map<String, dynamic> json) {
@@ -873,12 +820,14 @@ class Notice {
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       category: json['category'] ?? 'general',
-      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['created_at'] ?? json['published_at'] ?? '') ?? DateTime.now(),
       expiresAt: json['expires_at'] != null
           ? DateTime.tryParse(json['expires_at'])
           : null,
       attachmentUrl: json['attachment_url'],
       authorName: json['author_name'],
+      registered: json['registered'] ?? false,
+      registrationCount: json['registration_count'] ?? 0,
     );
   }
 
@@ -892,6 +841,8 @@ class Notice {
       'expires_at': expiresAt?.toIso8601String(),
       'attachment_url': attachmentUrl,
       'author_name': authorName,
+      'registered': registered,
+      'registration_count': registrationCount,
     };
   }
 }

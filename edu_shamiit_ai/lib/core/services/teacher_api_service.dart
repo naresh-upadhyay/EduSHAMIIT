@@ -1285,6 +1285,27 @@ class TeacherApiService {
     }
   }
 
+  /// Get registered students list for a notice event
+  Future<List<Map<String, dynamic>>> getNoticeRegistrations(String noticeId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/notices/$noticeId/registrations'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> decoded = json.decode(response.body);
+        final List<dynamic> data = decoded['data']?['registrations'] ?? [];
+        return data.map((item) => Map<String, dynamic>.from(item)).toList();
+      } else {
+        throw Exception('Failed to load registrations: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching notice registrations: $e');
+    }
+  }
+
   // ========== Notifications API ==========
 
   /// Get notifications for teacher

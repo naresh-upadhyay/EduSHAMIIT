@@ -96,7 +96,6 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
         {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
         {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
         {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
-        {"title": "Events", "icon": "📅", "route": "/student/events", "bg": "FEF3C7"},
         {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
         {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
         {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
@@ -501,8 +500,66 @@ async def student_notices(category: str = "All", user=Depends(get_current_user),
     if category and category.lower() != "all":
         query = query.ilike("category", category)
         
-    notices = (await query.order("published_at", ascending=False).limit(20).aexecute()).data
+    notices = (await query.order("published_at", ascending=False).limit(20).aexecute()).data or []
+    
+    # Enrich notices with registrations count and student registration status
+    notice_ids = [n["id"] for n in notices if n.get("id")]
+    if notice_ids:
+        # Fetch registrations for these notices
+        reg_res = (await sb.table("notice_registrations")
+                   .select("notice_id, student_id")
+                   .in_("notice_id", notice_ids)
+                   .aexecute()).data or []
+        
+        # Aggregate registrations count and check if registered
+        reg_counts = {}
+        my_registrations = set()
+        for r in reg_res:
+            nid = r.get("notice_id")
+            sid = r.get("student_id")
+            if nid:
+                reg_counts[nid] = reg_counts.get(nid, 0) + 1
+                if sid == user["id"]:
+                    my_registrations.add(nid)
+                    
+        for n in notices:
+            nid = n.get("id")
+            n["registration_count"] = reg_counts.get(nid, 0)
+            n["registered"] = nid in my_registrations
+    else:
+        for n in notices:
+            n["registration_count"] = 0
+            n["registered"] = False
+            
     return {"success": True, "school_id": school_id, "data": {"notices": notices}}
+
+
+@router.post("/notices/{notice_id}/register")
+async def register_notice(notice_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    try:
+        # Check if the notice exists and is an Event
+        notice_res = await sb.table("notices").select("id, category").eq("id", notice_id).maybe_single().aexecute()
+        if not notice_res.data:
+            raise HTTPException(status_code=404, detail="Notice not found")
+        
+        # Check category (allow case-insensitive comparison)
+        category = notice_res.data.get("category") or ""
+        if category.lower() != "event":
+            raise HTTPException(status_code=400, detail="Notice is not an event")
+
+        await sb.table("notice_registrations").insert({
+            "school_id": school_id, 
+            "notice_id": notice_id, 
+            "student_id": user["id"],
+            "status": "registered"
+        }).aexecute()
+    except Exception as e:
+        if "23505" in str(e) or "duplicate key" in str(e).lower():
+            return {"success": True, "message": "Already registered for this notice"}
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+    return {"success": True, "message": "Registered successfully"}
+
 
 
 @router.get("/events")

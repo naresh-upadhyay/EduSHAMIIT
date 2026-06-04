@@ -1,6 +1,7 @@
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -334,6 +335,25 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                         ),
                       ),
                     ),
+                    if (notice.noticeType.toLowerCase() == 'event') ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          '👥 ${notice.registrationCount} Registered',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                      ),
+                    ],
                     if (notice.status == 'scheduled') ...[
                       const SizedBox(width: 6),
                       Container(
@@ -424,7 +444,7 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.70,
+        height: MediaQuery.of(context).size.height * (notice.noticeType.toLowerCase() == 'event' ? 0.82 : 0.70),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -548,6 +568,144 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                             ],
                           ),
                         ),
+                      ),
+                    ],
+                    if (notice.noticeType.toLowerCase() == 'event') ...[
+                      const SizedBox(height: 20),
+                      const Divider(),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Registered Students (${notice.registrationCount})',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const Icon(Icons.people_outline, size: 18, color: Color(0xFFD97706)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      FutureBuilder<List<Map<String, dynamic>>>(
+                        future: _apiService.getNoticeRegistrations(notice.id),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            );
+                          }
+                          if (snapshot.hasError) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                'Error loading registrants: ${snapshot.error}',
+                                style: const TextStyle(color: Colors.red, fontSize: 12),
+                              ),
+                            );
+                          }
+                          final registrants = snapshot.data ?? [];
+                          if (registrants.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              child: Center(
+                                child: Text(
+                                  'No student has registered for this event yet.',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: registrants.length,
+                            itemBuilder: (context, idx) {
+                              final r = registrants[idx];
+                              final name = r['full_name']?.toString() ?? 'Unknown Student';
+                              final roll = r['roll_number']?.toString() ?? '';
+                              final avatar = r['avatar_url']?.toString() ?? '';
+                              final studentId = r['id']?.toString() ?? '';
+
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: const Color(0xFFFEF3C7),
+                                      backgroundImage: avatar.isNotEmpty
+                                          ? NetworkImage(avatar)
+                                          : null,
+                                      child: avatar.isEmpty
+                                          ? Text(
+                                              name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Color(0xFFD97706),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                          if (roll.isNotEmpty)
+                                            Text(
+                                              'Roll No: $roll',
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (studentId.isNotEmpty)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.chat_bubble_outline,
+                                          color: Color(0xFFD97706),
+                                          size: 18,
+                                        ),
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          context.push('/teacher/messaging?chat_id=$studentId');
+                                        },
+                                        tooltip: 'Send message',
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(8),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
                     ],
                   ],

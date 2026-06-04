@@ -176,7 +176,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
         {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
         {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
-        {"title": "Events", "icon": "📅", "route": "/student/events", "bg": "FEF3C7"},
         {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
         {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
         {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},

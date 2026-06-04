@@ -1571,6 +1571,7 @@ class TeacherNotice {
   final bool isUrgent;
   final DateTime? scheduledAt;
   final List<String>? targetClasses;
+  final int registrationCount;
 
   const TeacherNotice({
     required this.id,
@@ -1589,6 +1590,7 @@ class TeacherNotice {
     required this.isUrgent,
     this.scheduledAt,
     this.targetClasses,
+    this.registrationCount = 0,
   });
 
   factory TeacherNotice.fromJson(Map<String, dynamic> json) {
@@ -1631,6 +1633,7 @@ class TeacherNotice {
       targetClasses: json['target_classes'] != null 
           ? List<String>.from(json['target_classes'] as List) 
           : null,
+      registrationCount: json['registration_count'] ?? 0,
     );
   }
 
@@ -1652,6 +1655,7 @@ class TeacherNotice {
       'is_urgent': isUrgent,
       'scheduled_at': scheduledAt?.toIso8601String(),
       'target_classes': targetClasses,
+      'registration_count': registrationCount,
     };
   }
 }

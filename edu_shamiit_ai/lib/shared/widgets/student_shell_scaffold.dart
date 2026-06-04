@@ -77,11 +77,7 @@ class StudentShellScaffold extends ConsumerWidget {
         emoji: '🚌',
         label: 'Transport',
         route: '/student/transport'),
-    _NavItem(
-        icon: Icons.event_rounded,
-        emoji: '📅',
-        label: 'Events',
-        route: '/student/events'),
+
     _NavItem(
         icon: Icons.emoji_events_rounded,
         emoji: '🏆',

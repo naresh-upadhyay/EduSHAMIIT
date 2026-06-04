@@ -1262,7 +1262,56 @@ async def teacher_get_notices(
     for n in filtered_notices:
         n["created_at"] = n.get("published_at") or n.get("created_at")
         
+    # Enrich notices with registrations count
+    notice_ids = [n["id"] for n in filtered_notices if n.get("id")]
+    if notice_ids:
+        reg_res = (await sb.table("notice_registrations")
+                   .select("notice_id")
+                   .in_("notice_id", notice_ids)
+                   .aexecute()).data or []
+        
+        reg_counts = {}
+        for r in reg_res:
+            nid = r.get("notice_id")
+            if nid:
+                reg_counts[nid] = reg_counts.get(nid, 0) + 1
+                
+        for n in filtered_notices:
+            nid = n.get("id")
+            n["registration_count"] = reg_counts.get(nid, 0)
+    else:
+        for n in filtered_notices:
+            n["registration_count"] = 0
+            
     return {"success": True, "school_id": school_id, "data": {"notices": filtered_notices}}
+
+
+@router.get("/notices/{notice_id}/registrations")
+async def get_notice_registrations(notice_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    
+    # Query notice registrations and select details of students
+    res = await (sb.table("notice_registrations")
+                 .select("student_id, profiles!student_id(id, full_name, avatar_url, roll_number, email)")
+                 .eq("school_id", school_id)
+                 .eq("notice_id", notice_id)
+                 .aexecute())
+    
+    registrations = res.data or []
+    students = []
+    for r in registrations:
+        prof = r.get("profiles")
+        if prof:
+            students.append({
+                "id": prof.get("id"),
+                "full_name": prof.get("full_name"),
+                "avatar_url": prof.get("avatar_url"),
+                "roll_number": prof.get("roll_number"),
+                "email": prof.get("email")
+            })
+            
+    return {"success": True, "school_id": school_id, "data": {"registrations": students}}
+
 
 
 @router.get("/leave")
