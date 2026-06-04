@@ -205,29 +205,101 @@ class TeacherApiService {
     }
   }
 
-  /// Mark attendance for a class
+  /// Mark attendance for a class (with retry for transient network errors)
   Future<void> markAttendance({
     required String classId,
     required String date,
+    String? subjectId,
     required List<Map<String, dynamic>> attendanceRecords,
   }) async {
+    const maxAttempts = 3;
+    Exception? lastError;
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final response = await _client.post(
+          Uri.parse('$_baseUrl/teacher/attendance/mark'),
+          headers: await _getHeaders(),
+          body: json.encode({
+            'class_name': classId,
+            'class_id': classId,
+            'date': date,
+            'subject_id': subjectId,
+            'attendance_records': attendanceRecords,
+            'records': attendanceRecords,
+          }),
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return; // Success
+        }
+        lastError = Exception('Failed to mark attendance: ${response.statusCode}');
+      } catch (e) {
+        lastError = Exception('Error marking attendance: $e');
+      }
+
+      // Wait before retrying (exponential backoff: 1s, 2s)
+      if (attempt < maxAttempts) {
+        await Future.delayed(Duration(seconds: attempt));
+      }
+    }
+
+    throw lastError!;
+  }
+
+  /// Get subjects for class or teacher
+  Future<List<TeacherSubject>> getSubjects({String? classId}) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/teacher/attendance/mark'),
+      final path = classId != null ? '/teacher/subjects?class_name=$classId' : '/teacher/subjects';
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$path'),
         headers: await _getHeaders(),
-        body: json.encode({
-          'class_id': classId,
-          'date': date,
-          'attendance_records': attendanceRecords,
-          'records': attendanceRecords,
-        }),
       );
 
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception('Failed to mark attendance: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = _toList(
+          json.decode(response.body),
+          candidateKeys: ['subjects', 'items', 'results'],
+        );
+        return data.map((item) => TeacherSubject.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load subjects: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error marking attendance: $e');
+      throw Exception('Error fetching subjects: $e');
+    }
+  }
+
+  /// Fetch existing attendance details for class, date and subject
+  Future<List<Map<String, dynamic>>> fetchAttendance({
+    required String classId,
+    required String date,
+    String? subjectId,
+  }) async {
+    try {
+      final params = {'class_name': classId, 'date': date};
+      if (subjectId != null) {
+        params['subject_id'] = subjectId;
+      }
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/attendance/fetch?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final List<dynamic> data = _toList(
+          decoded,
+          candidateKeys: ['students', 'items', 'results'],
+        );
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        throw Exception('Failed to fetch attendance: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching attendance: $e');
     }
   }
 
@@ -1096,19 +1168,21 @@ class TeacherApiService {
   /// Get notices for teacher
   Future<List<TeacherNotice>> getNotices({
     String? noticeType,
-    String? status,
+    String? tab,
+    String? search,
     int page = 1,
-    int limit = 20,
+    int limit = 100,
   }) async {
     try {
       final params = <String, String>{};
-      if (noticeType != null) params['type'] = noticeType;
-      if (status != null) params['status'] = status;
+      if (noticeType != null && noticeType != 'All') params['category'] = noticeType;
+      if (tab != null) params['tab'] = tab;
+      if (search != null) params['search'] = search;
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
       final queryString =
-          params.entries.map((e) => '${e.key}=${e.value}').join('&');
+          params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
       final response = await _getWithFallback([
         '/teacher/notices?$queryString',
         '/teacher/notices',
@@ -1129,35 +1203,85 @@ class TeacherApiService {
   }
 
   /// Create notice
-  Future<TeacherNotice> createNotice({
+  Future<bool> createNotice({
     required String title,
     required String content,
-    required String noticeType,
+    required String category,
+    required String status,
+    bool isUrgent = false,
+    String? scheduledAt,
     String? targetAudience,
-    DateTime? publishDate,
-    DateTime? expiryDate,
+    String? attachmentUrl,
+    List<String>? targetClasses,
   }) async {
     try {
       final response = await _postWithFallback(
-        paths: ['/teacher/notices', '/teacher/notices/create'],
+        paths: ['/teacher/notices/create', '/teacher/notices'],
         body: {
           'title': title,
           'content': content,
-          'notice_type': noticeType,
-          'target_audience': targetAudience,
-          'publish_date': publishDate?.toIso8601String().split('T')[0],
-          'expiry_date': expiryDate?.toIso8601String().split('T')[0],
+          'category': category,
+          'status': status,
+          'is_urgent': isUrgent,
+          'scheduled_at': scheduledAt,
+          'target_audience': targetAudience ?? 'all',
+          'attachment_url': attachmentUrl,
+          'target_classes': targetClasses,
         },
       );
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        final data = _toMap(json.decode(response.body));
-        return TeacherNotice.fromJson(data);
-      } else {
-        throw Exception('Failed to create notice: ${response.statusCode}');
-      }
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       throw Exception('Error creating notice: $e');
+    }
+  }
+
+  /// Update notice
+  Future<bool> updateNotice({
+    required String noticeId,
+    required String title,
+    required String content,
+    required String category,
+    required String status,
+    bool isUrgent = false,
+    String? scheduledAt,
+    String? targetAudience,
+    String? attachmentUrl,
+    List<String>? targetClasses,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await _client.put(
+        Uri.parse('$_baseUrl/teacher/notices/$noticeId'),
+        headers: headers,
+        body: json.encode({
+          'title': title,
+          'content': content,
+          'category': category,
+          'status': status,
+          'is_urgent': isUrgent,
+          'scheduled_at': scheduledAt,
+          'target_audience': targetAudience ?? 'all',
+          'attachment_url': attachmentUrl,
+          'target_classes': targetClasses,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception('Error updating notice: $e');
+    }
+  }
+
+  /// Delete notice
+  Future<bool> deleteNotice(String noticeId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/notices/$noticeId'),
+        headers: headers,
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception('Error deleting notice: $e');
     }
   }
 

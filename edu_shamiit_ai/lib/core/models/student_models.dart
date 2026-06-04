@@ -137,8 +137,11 @@ class AttendanceRecord {
   final String id;
   final DateTime date;
   final bool present;
-  final String? status; // 'present', 'absent', 'late', 'excused'
+  final String? status; // 'present', 'absent', 'late', 'void'
   final String? remarks;
+  final String? subjectName;
+  final String? subjectId;
+  final String? markedByName;
 
   AttendanceRecord({
     required this.id,
@@ -146,15 +149,22 @@ class AttendanceRecord {
     required this.present,
     this.status,
     this.remarks,
+    this.subjectName,
+    this.subjectId,
+    this.markedByName,
   });
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
+    final statusVal = json['status']?.toString() ?? 'present';
     return AttendanceRecord(
-      id: json['id'] ?? '',
-      date: DateTime.tryParse(json['date'] ?? '') ?? DateTime.now(),
-      present: json['present'] ?? false,
-      status: json['status'],
-      remarks: json['remarks'],
+      id: (json['id'] ?? '').toString(),
+      date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
+      present: statusVal == 'present' || statusVal == 'late',
+      status: statusVal,
+      remarks: json['remarks']?.toString(),
+      subjectName: json['subject_name']?.toString() ?? (json['subjects']?['name'] ?? json['subject'])?.toString(),
+      subjectId: json['subject_id']?.toString(),
+      markedByName: json['marked_by_name']?.toString() ?? (json['profiles']?['full_name'])?.toString() ?? 'Teacher',
     );
   }
 
@@ -165,6 +175,9 @@ class AttendanceRecord {
       'present': present,
       'status': status,
       'remarks': remarks,
+      'subject_name': subjectName,
+      'subject_id': subjectId,
+      'marked_by_name': markedByName,
     };
   }
 }
@@ -841,6 +854,7 @@ class Notice {
   final DateTime createdAt;
   final DateTime? expiresAt;
   final String? attachmentUrl;
+  final String? authorName;
 
   Notice({
     required this.id,
@@ -850,6 +864,7 @@ class Notice {
     required this.createdAt,
     this.expiresAt,
     this.attachmentUrl,
+    this.authorName,
   });
 
   factory Notice.fromJson(Map<String, dynamic> json) {
@@ -863,6 +878,7 @@ class Notice {
           ? DateTime.tryParse(json['expires_at'])
           : null,
       attachmentUrl: json['attachment_url'],
+      authorName: json['author_name'],
     );
   }
 
@@ -875,6 +891,7 @@ class Notice {
       'created_at': createdAt.toIso8601String(),
       'expires_at': expiresAt?.toIso8601String(),
       'attachment_url': attachmentUrl,
+      'author_name': authorName,
     };
   }
 }

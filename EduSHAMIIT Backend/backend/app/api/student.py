@@ -288,20 +288,124 @@ async def submit_homework(homework_id: Optional[str] = None, request: dict = {},
 @router.get("/attendance")
 async def student_attendance(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    attendance = (await sb.table("attendance").select("status, subjects(name)").eq("school_id", school_id).eq("student_id", user["id"]).aexecute()).data
-    total = len(attendance)
-    present = sum(1 for a in attendance if a["status"] == "present")
-    absent = sum(1 for a in attendance if a["status"] == "absent")
-    late = sum(1 for a in attendance if a["status"] == "late")
-    pct = (present / total * 100) if total > 0 else 0
-    subject_wise = {}
-    for a in attendance:
-        subj = (a.get("subjects") or {}).get("name", "Unknown")
-        subject_wise.setdefault(subj, {"total": 0, "present": 0})
-        subject_wise[subj]["total"] += 1
-        if a["status"] == "present":
-            subject_wise[subj]["present"] += 1
-    return {"success": True, "school_id": school_id, "data": {"overall_pct": round(pct, 1), "present_days": present, "absent_days": absent, "late_days": late, "total_days": total, "subject_wise": [{"subject": s, "present": d["present"], "total": d["total"], "pct": round(d["present"]/d["total"]*100, 1) if d["total"] > 0 else 0} for s, d in subject_wise.items()]}}
+    
+    # Query all attendance records for this student
+    res = await (sb.table("attendance")
+                 .select("id, status, remarks, date, subject_id, subjects(name), profiles!marked_by(full_name)")
+                 .eq("school_id", school_id)
+                 .eq("student_id", user["id"])
+                 .order("date", ascending=False)
+                 .aexecute())
+    records_data = res.data or []
+    
+    # Counts
+    total_records = len(records_data)
+    present_days = sum(1 for a in records_data if a["status"] == "present")
+    absent_days = sum(1 for a in records_data if a["status"] == "absent")
+    late_days = sum(1 for a in records_data if a["status"] == "late")
+    void_days = sum(1 for a in records_data if a["status"] == "void")
+    
+    # Calculate overall percentage excluding void
+    valid_count = present_days + absent_days + late_days
+    present_count = present_days + late_days
+    overall_pct = (present_count / valid_count * 100) if valid_count > 0 else 0.0
+    
+    # Subject-wise calculation
+    subject_wise_map = {}
+    for a in records_data:
+        subj_name = (a.get("subjects") or {}).get("name") if a.get("subject_id") else "Entire Day"
+        subj_id = a.get("subject_id")
+        
+        subject_wise_map.setdefault(subj_name, {"subject_id": subj_id, "present": 0, "total": 0})
+        
+        if a["status"] != "void":
+            subject_wise_map[subj_name]["total"] += 1
+            if a["status"] in ("present", "late"):
+                subject_wise_map[subj_name]["present"] += 1
+                
+    subject_wise_list = []
+    for name, data in subject_wise_map.items():
+        present = data["present"]
+        total = data["total"]
+        pct = (present / total * 100) if total > 0 else 0.0
+        subject_wise_list.append({
+            "subject": name,
+            "subject_id": data["subject_id"],
+            "present": present,
+            "total": total,
+            "pct": round(pct, 1)
+        })
+        
+    # Sort subject list: lowest percentage first
+    subject_wise_list.sort(key=lambda x: x["pct"])
+    
+    # Monthly trend calculation
+    monthly_map = {}
+    for a in records_data:
+        try:
+            date_obj = datetime.strptime(a["date"], "%Y-%m-%d")
+            month_key = date_obj.strftime("%B %Y")
+            month_sort_key = date_obj.strftime("%Y-%m")
+        except Exception:
+            month_key = "Unknown"
+            month_sort_key = "0000-00"
+            
+        monthly_map.setdefault(month_key, {"sort_key": month_sort_key, "present": 0, "total": 0})
+        
+        if a["status"] != "void":
+            monthly_map[month_key]["total"] += 1
+            if a["status"] in ("present", "late"):
+                monthly_map[month_key]["present"] += 1
+                
+    monthly_list = []
+    for name, data in monthly_map.items():
+        present = data["present"]
+        total = data["total"]
+        pct = (present / total * 100) if total > 0 else 0.0
+        monthly_list.append({
+            "month": name,
+            "sort_key": data["sort_key"],
+            "present": present,
+            "total": total,
+            "pct": round(pct, 1)
+        })
+    # Sort monthly list chronologically (sort_key ascending)
+    monthly_list.sort(key=lambda x: x["sort_key"])
+    
+    # Flatten/map detailed records for the client
+    records_flat = []
+    for a in records_data:
+        subj_name = (a.get("subjects") or {}).get("name") if a.get("subject_id") else "Entire Day"
+        marked_by_profile = a.get("profiles") or {}
+        marked_by_name = marked_by_profile.get("full_name") or "Teacher"
+        
+        records_flat.append({
+            "id": a["id"],
+            "date": a["date"],
+            "subject_name": subj_name,
+            "subject_id": a["subject_id"],
+            "status": a["status"],
+            "remarks": a.get("remarks"),
+            "marked_by_name": marked_by_name
+        })
+        
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": {
+            "summary": {
+                "overall_pct": round(overall_pct, 1),
+                "present_days": present_days,
+                "absent_days": absent_days,
+                "late_days": late_days,
+                "void_days": void_days,
+                "total_days": total_records
+            },
+            "subject_wise": subject_wise_list,
+            "monthly": monthly_list,
+            "records": records_flat
+        }
+    }
 
 
 @router.get("/fees")
@@ -380,9 +484,23 @@ async def student_transport(user=Depends(get_current_user), school_id=Depends(re
 @router.get("/notices")
 async def student_notices(category: str = "All", user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    
+    student_class = user.get("class")
+    if not student_class:
+        profile_res = await sb.table("profiles").select("class").eq("id", user["id"]).maybe_single().aexecute()
+        if profile_res.data:
+            student_class = profile_res.data.get("class")
+            
     query = sb.table("notices").select("*").eq("school_id", school_id).eq("status", "published")
-    if category != "All":
-        query = query.eq("category", category)
+    
+    if student_class:
+        query = query.or_(f'target_audience.eq.all,target_audience.eq.students,target_classes.cs.{{"{student_class}"}}')
+    else:
+        query = query.or_('target_audience.eq.all,target_audience.eq.students')
+        
+    if category and category.lower() != "all":
+        query = query.ilike("category", category)
+        
     notices = (await query.order("published_at", ascending=False).limit(20).aexecute()).data
     return {"success": True, "school_id": school_id, "data": {"notices": notices}}
 

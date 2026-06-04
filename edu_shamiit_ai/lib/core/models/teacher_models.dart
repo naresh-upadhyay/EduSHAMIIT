@@ -1025,6 +1025,7 @@ class TeacherTimetablePeriod {
   final String startTime;
   final String endTime;
   final String subject;
+  final String? subjectId;
   final String class_;
   final String? roomNumber;
   final String? teacherId;
@@ -1037,6 +1038,7 @@ class TeacherTimetablePeriod {
     required this.startTime,
     required this.endTime,
     required this.subject,
+    this.subjectId,
     required this.class_,
     this.roomNumber,
     this.teacherId,
@@ -1051,6 +1053,7 @@ class TeacherTimetablePeriod {
       startTime: _toStr(json['start_time']),
       endTime: _toStr(json['end_time']),
       subject: _toStr(json['subject']),
+      subjectId: json['subject_id'] != null ? _toStr(json['subject_id']) : null,
       class_: _toStr(json['class'] ?? json['class_name']),
       roomNumber:
           _toStr(json['room_number']).isEmpty ? null : _toStr(json['room_number']),
@@ -1068,6 +1071,7 @@ class TeacherTimetablePeriod {
       'start_time': startTime,
       'end_time': endTime,
       'subject': subject,
+      'subject_id': subjectId,
       'class': class_,
       'room_number': roomNumber,
       'teacher_id': teacherId,
@@ -1550,8 +1554,6 @@ class PaperQuestion {
   }
 }
 
-/// Teacher notice model
-@immutable
 class TeacherNotice {
   final String id;
   final String title;
@@ -1560,11 +1562,15 @@ class TeacherNotice {
   final String? targetAudience; // all, teachers, students, parents
   final DateTime publishDate;
   final DateTime? expiryDate;
-  final String status; // draft, published, archived
+  final String status; // draft, published, scheduled
   final String createdBy;
   final String? createdByName;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? attachmentUrl;
+  final bool isUrgent;
+  final DateTime? scheduledAt;
+  final List<String>? targetClasses;
 
   const TeacherNotice({
     required this.id,
@@ -1579,23 +1585,37 @@ class TeacherNotice {
     this.createdByName,
     required this.createdAt,
     required this.updatedAt,
+    this.attachmentUrl,
+    required this.isUrgent,
+    this.scheduledAt,
+    this.targetClasses,
   });
 
   factory TeacherNotice.fromJson(Map<String, dynamic> json) {
+    final rawType = (json['notice_type'] ?? json['category'] ?? '').toString();
+    final typeLower = rawType.toLowerCase();
+    final category = typeLower == 'announcement' ? 'general' : typeLower;
+
     return TeacherNotice(
       id: (json['id'] ?? json['notice_id'] ?? '').toString(),
       title: json['title'] as String? ?? '',
       content: json['content'] as String? ?? '',
-      noticeType: (json['notice_type'] ?? json['category'] ?? '').toString(),
+      noticeType: category.isNotEmpty ? category : 'general',
       targetAudience: json['target_audience'] as String?,
       publishDate: json['publish_date'] != null 
           ? DateTime.parse(json['publish_date'] as String) 
-          : DateTime.now(),
+          : (json['published_at'] != null 
+              ? DateTime.parse(json['published_at'] as String) 
+              : (json['created_at'] != null 
+                  ? DateTime.parse(json['created_at'] as String) 
+                  : DateTime.now())),
       expiryDate: json['expiry_date'] != null 
           ? DateTime.parse(json['expiry_date'] as String) 
-          : null,
+          : (json['expires_at'] != null 
+              ? DateTime.parse(json['expires_at'] as String) 
+              : null),
       status: json['status'] as String? ?? 'draft',
-      createdBy: json['created_by'] as String? ?? '',
+      createdBy: (json['created_by'] ?? json['author_id'] ?? '').toString(),
       createdByName: (json['created_by_name'] ?? json['author_name']) as String?,
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
@@ -1603,6 +1623,14 @@ class TeacherNotice {
       updatedAt: json['updated_at'] != null 
           ? DateTime.parse(json['updated_at'] as String) 
           : DateTime.now(),
+      attachmentUrl: json['attachment_url'] as String?,
+      isUrgent: json['is_urgent'] as bool? ?? (json['category']?.toString().toLowerCase() == 'urgent'),
+      scheduledAt: json['scheduled_at'] != null 
+          ? DateTime.parse(json['scheduled_at'] as String) 
+          : null,
+      targetClasses: json['target_classes'] != null 
+          ? List<String>.from(json['target_classes'] as List) 
+          : null,
     );
   }
 
@@ -1620,6 +1648,10 @@ class TeacherNotice {
       'created_by_name': createdByName,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'attachment_url': attachmentUrl,
+      'is_urgent': isUrgent,
+      'scheduled_at': scheduledAt?.toIso8601String(),
+      'target_classes': targetClasses,
     };
   }
 }
@@ -1727,6 +1759,44 @@ class TeacherMyClass {
       'schedule': schedule,
       'room_number': roomNumber,
       'created_at': createdAt?.toIso8601String(),
+    };
+  }
+}
+
+/// Teacher Subject model
+@immutable
+class TeacherSubject {
+  final String id;
+  final String name;
+  final String? icon;
+  final String? color;
+  final String? className;
+
+  const TeacherSubject({
+    required this.id,
+    required this.name,
+    this.icon,
+    this.color,
+    this.className,
+  });
+
+  factory TeacherSubject.fromJson(Map<String, dynamic> json) {
+    return TeacherSubject(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown',
+      icon: json['icon']?.toString(),
+      color: json['color']?.toString(),
+      className: json['class']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'icon': icon,
+      'color': color,
+      'class': className,
     };
   }
 }

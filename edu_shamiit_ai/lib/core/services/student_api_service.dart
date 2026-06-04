@@ -726,13 +726,14 @@ class StudentApiService {
   /// Get notices
   Future<List<Notice>> getNotices({
     String? category, // 'urgent', 'general', 'exam', 'event'
+    String? search,
   }) async {
     try {
       final response = await _client
           .get(
             Uri.parse('${AppConfig.apiBaseUrl}/student/notices').replace(
               queryParameters: {
-                if (category != null) 'category': category,
+                // Pass 'All' to get all notices from backend - category filter done client-side
               },
             ),
             headers: await _headers,
@@ -741,12 +742,25 @@ class StudentApiService {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        final data = decoded.containsKey('data') 
-            ? (decoded['data'] is List 
-                ? decoded['data'] as List 
-                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
-            : [];
-        return data
+        // API returns: {success: true, data: {notices: [...]}}
+        List<dynamic> items = const [];
+        final dataField = decoded['data'];
+        if (dataField is List) {
+          items = dataField;
+        } else if (dataField is Map<String, dynamic>) {
+          if (dataField.containsKey('notices') && dataField['notices'] is List) {
+            items = dataField['notices'] as List;
+          } else {
+            // Look for a list inside data (e.g. data.notices, data.items)
+            for (final val in dataField.values) {
+              if (val is List) {
+                items = val;
+                break;
+              }
+            }
+          }
+        }
+        return items
             .map((e) => Notice.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {

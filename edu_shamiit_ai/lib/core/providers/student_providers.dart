@@ -12,21 +12,34 @@ export 'package:edu_shamiit_ai/core/providers/leave_provider.dart';
 
 /// Attendance record model (matches backend response)
 class AttendanceRecord {
-  final String status; // present, absent, late
+  final String status; // present, absent, late, void
   final String? subjectName;
-  final Map<String, dynamic>? subject;
+  final String? subjectId;
+  final String? remarks;
+  final String? markedByName;
+  final DateTime date;
+  final bool present;
 
   AttendanceRecord({
     required this.status,
     this.subjectName,
-    this.subject,
+    this.subjectId,
+    this.remarks,
+    this.markedByName,
+    required this.date,
+    required this.present,
   });
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
+    final statusVal = json['status']?.toString() ?? 'present';
     return AttendanceRecord(
-      status: json['status'] as String? ?? 'present',
-      subjectName: (json['subjects']?['name'] ?? json['subject']) as String?,
-      subject: json['subjects'] as Map<String, dynamic>?,
+      status: statusVal,
+      subjectName: json['subject_name']?.toString() ?? (json['subjects']?['name'] ?? json['subject'])?.toString(),
+      subjectId: json['subject_id']?.toString(),
+      remarks: json['remarks']?.toString(),
+      markedByName: json['marked_by_name']?.toString() ?? 'Teacher',
+      date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
+      present: statusVal == 'present' || statusVal == 'late',
     );
   }
 }
@@ -388,12 +401,16 @@ class AttendanceState {
   final String? error;
   final List<AttendanceRecord> records;
   final Map<String, dynamic> summary;
+  final List<Map<String, dynamic>> subjectWise;
+  final List<Map<String, dynamic>> monthly;
 
   AttendanceState({
     this.isLoading = false,
     this.error,
     this.records = const [],
     this.summary = const {},
+    this.subjectWise = const [],
+    this.monthly = const [],
   });
 
   AttendanceState copyWith({
@@ -401,12 +418,16 @@ class AttendanceState {
     String? error,
     List<AttendanceRecord>? records,
     Map<String, dynamic>? summary,
+    List<Map<String, dynamic>>? subjectWise,
+    List<Map<String, dynamic>>? monthly,
   }) {
     return AttendanceState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
       records: records ?? this.records,
       summary: summary ?? this.summary,
+      subjectWise: subjectWise ?? this.subjectWise,
+      monthly: monthly ?? this.monthly,
     );
   }
 }
@@ -423,12 +444,21 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
     try {
       final response = await _apiService.get('/student/attendance');
       final data = response.containsKey('data') ? response['data'] : response;
-      final rawRecords = data['records'] ?? data['subject_wise'] ?? [];
+      final rawRecords = data['records'] ?? [];
       final recordsList = (rawRecords as List).map((r) => AttendanceRecord.fromJson(r)).toList();
+      
+      final rawSubjectWise = data['subject_wise'] as List? ?? [];
+      final subjectWiseList = rawSubjectWise.map((e) => Map<String, dynamic>.from(e)).toList();
+      
+      final rawMonthly = data['monthly'] as List? ?? [];
+      final monthlyList = rawMonthly.map((e) => Map<String, dynamic>.from(e)).toList();
+
       state = state.copyWith(
         isLoading: false,
         records: recordsList,
-        summary: data['summary'] as Map<String, dynamic>? ?? data,
+        summary: data['summary'] as Map<String, dynamic>? ?? {},
+        subjectWise: subjectWiseList,
+        monthly: monthlyList,
       );
     } catch (e) {
       state = state.copyWith(

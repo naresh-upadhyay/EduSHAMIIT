@@ -61,25 +61,97 @@ async def teacher_classes(user=Depends(require_teacher), school_id=Depends(requi
     return result
 
 
+@router.get("/subjects")
+async def teacher_subjects(class_name: Optional[str] = None, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    query = sb.table("subjects").select("*").eq("school_id", school_id)
+    if class_name:
+        query = query.eq("class", class_name)
+    else:
+        query = query.eq("teacher_id", user["id"])
+    subjects = (await query.aexecute()).data or []
+    return {"success": True, "school_id": school_id, "data": {"subjects": subjects}}
+
+
+@router.get("/attendance/fetch")
+async def fetch_attendance(
+    class_name: str,
+    date: str,
+    subject_id: Optional[str] = None,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    # 1. Fetch students for the class
+    students = (await sb.table("profiles")
+                .select("id, full_name, roll_number, avatar_url")
+                .eq("school_id", school_id)
+                .eq("class", class_name)
+                .eq("role", "student")
+                .order("roll_number")
+                .aexecute()).data or []
+                
+    if not students:
+        return {"success": True, "school_id": school_id, "data": {"students": []}}
+    
+    # 2. Fetch existing attendance records by student_id list (avoids class reserved-word issues)
+    student_ids = [s["id"] for s in students]
+    query = (sb.table("attendance")
+               .select("student_id, status, remarks")
+               .eq("school_id", school_id)
+               .in_("student_id", student_ids)
+               .eq("date", date))
+    if subject_id:
+        query = query.eq("subject_id", subject_id)
+    else:
+        query = query.is_("subject_id", "null")
+        
+    records = (await query.aexecute()).data or []
+    
+    # 3. Merge: student data + attendance status
+    record_map = {r["student_id"]: r for r in records}
+    
+    merged = []
+    for s in students:
+        r_info = record_map.get(s["id"])
+        merged.append({
+            "student_id": s["id"],
+            "name": s["full_name"],
+            "roll_no": str(s.get("roll_number") or ""),
+            "avatar_url": s.get("avatar_url"),
+            "status": r_info["status"] if r_info else None,
+            "remarks": r_info["remarks"] if r_info else None
+        })
+        
+    return {"success": True, "school_id": school_id, "data": {"students": merged}}
+
+
 @router.post("/attendance/mark")
 async def mark_attendance(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
     date = request.get("date", datetime.now().date().isoformat())
-    records = request.get("attendance_records", [])
+    class_name = request.get("class_name") or request.get("class_id") or ""
+    subject_id = request.get("subject_id")
+    records = request.get("attendance_records") or request.get("records") or []
     
-    tasks = []
-    for record in records:
-        tasks.append(sb.table("attendance").upsert({
-            "school_id": school_id, "student_id": record["student_id"],
-            "subject_id": request.get("subject_id"), "teacher_id": user["id"],
-            "marked_by": user["id"], "class": request.get("class_name", ""),
-            "date": date, "status": record["status"],
-        }, on_conflict="school_id,student_id,subject_id,date").aexecute())
+    db_records = []
+    for r in records:
+        db_records.append({
+            "school_id": school_id,
+            "student_id": r["student_id"],
+            "subject_id": subject_id,
+            "teacher_id": user["id"],
+            "marked_by": user["id"],
+            "class_name": class_name,   # Use class_name key (not "class" which is a reserved SQL keyword)
+            "date": date,
+            "status": r["status"],
+            "remarks": r.get("remarks")
+        })
         
-    if tasks:
-        await asyncio.gather(*tasks)
+    if db_records:
+        await sb.rpc("batch_upsert_attendance", {"p_records": db_records}).aexecute()
         
-    return {"success": True, "school_id": school_id, "message": f"Marked {len(records)} students"}
+    return {"success": True, "school_id": school_id, "message": f"Successfully marked attendance for {len(records)} students"}
 
 
 @router.post("/homework/create")
@@ -214,6 +286,7 @@ async def teacher_timetable(day: str = "monday", date: Optional[str] = None, use
             "start_time": slot["start_time"],
             "end_time": slot["end_time"],
             "subject": sub_name,
+            "subject_id": slot.get("subject_id"),
             "class": slot["class"],
             "room_number": slot.get("room", "Room 101"),
             "teacher_id": slot["teacher_id"],
@@ -248,6 +321,7 @@ async def teacher_timetable(day: str = "monday", date: Optional[str] = None, use
                 "start_time": start_time,
                 "end_time": end_time,
                 "subject": f"💻 Live Class: {lc['title']}",
+                "subject_id": lc.get("subject_id"),  # Required for per-lecture attendance marking
                 "class": lc.get("target_class", "All"),
                 "room_number": lc.get("stream_url") or "EduSHAMIIT Live Link",
                 "teacher_id": lc["teacher_id"],
@@ -539,9 +613,75 @@ async def teacher_apply_leave(request: dict, user=Depends(require_teacher), scho
 @router.post("/notices/create")
 async def create_notice(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    profile = (await sb.table("profiles").select("full_name").eq("id", user["id"]).single().aexecute()).data
-    notice = await sb.table("notices").insert({"school_id": school_id, "title": request.get("title"), "content": request.get("content"), "category": request.get("category", "General"), "author_id": user["id"], "author_name": profile["full_name"], "is_urgent": request.get("is_urgent", False), "status": "published"}).aexecute()
+    profile_res = await sb.table("profiles").select("full_name").eq("id", user["id"]).maybe_single().aexecute()
+    profile = profile_res.data or {}
+    author_name = profile.get("full_name", "Teacher")
+    
+    status = request.get("status", "published")
+    scheduled_at = request.get("scheduled_at")
+    published_at = datetime.utcnow().isoformat() if status == "published" else None
+    
+    insert_data = {
+        "school_id": school_id,
+        "title": request.get("title"),
+        "content": request.get("content"),
+        "category": request.get("category", "General"),
+        "author_id": user["id"],
+        "author_name": author_name,
+        "is_urgent": request.get("is_urgent", False),
+        "status": status,
+        "scheduled_at": scheduled_at,
+        "published_at": published_at,
+        "target_audience": request.get("target_audience", "all"),
+        "attachment_url": request.get("attachment_url"),
+        "target_classes": request.get("target_classes"),
+    }
+    
+    notice = await sb.table("notices").insert(insert_data).aexecute()
+    if not notice.data:
+        raise HTTPException(status_code=500, detail="Failed to create notice")
     return {"success": True, "school_id": school_id, "data": {"notice_id": notice.data[0]["id"]}}
+
+
+@router.put("/notices/{notice_id}")
+async def teacher_update_notice(notice_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    
+    # Verify notice exists and teacher is the author
+    existing = await sb.table("notices").select("*").eq("id", notice_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Notice not found")
+        
+    if existing.data.get("author_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to update this notice")
+        
+    allowed_fields = {"title", "content", "category", "is_urgent", "status", "scheduled_at", "target_audience", "attachment_url", "target_classes"}
+    update_data = {k: v for k, v in request.items() if k in allowed_fields}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+        
+    # If publishing a draft or scheduled notice
+    if update_data.get("status") == "published" and existing.data.get("status") != "published":
+        update_data["published_at"] = datetime.utcnow().isoformat()
+        
+    await sb.table("notices").update(update_data).eq("id", notice_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "message": "Notice updated successfully"}
+
+
+@router.delete("/notices/{notice_id}")
+async def teacher_delete_notice(notice_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    
+    # Verify notice exists and teacher is the author
+    existing = await sb.table("notices").select("*").eq("id", notice_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Notice not found")
+        
+    if existing.data.get("author_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="You are not authorized to delete this notice")
+        
+    await sb.table("notices").delete().eq("id", notice_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "message": "Notice deleted successfully"}
 
 
 @router.get("/live-classes")
@@ -1063,15 +1203,66 @@ async def teacher_get_exams(type: str = None, user=Depends(get_current_user), sc
 
 
 @router.get("/notices")
-async def teacher_get_notices(category: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def teacher_get_notices(
+    category: str = None,
+    tab: str = "all",
+    search: str = None,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
     sb = get_supabase()
     query = sb.table("notices").select("*").eq("school_id", school_id)
-    if category and category.lower() != 'all':
-        query = query.eq("category", category)
-    notices = (await query.order("published_at", ascending=False).aexecute()).data
-    for n in notices:
-        n["created_at"] = n.get("published_at")
-    return {"success": True, "school_id": school_id, "data": {"notices": notices}}
+    
+    # We fetch the notices first and then apply filters in Python for reliable combinations
+    notices_data = (await query.order("published_at", ascending=False).aexecute()).data or []
+    
+    user_id = user["id"]
+    filtered_notices = []
+    
+    for n in notices_data:
+        # Check tab filter
+        is_author = n.get("author_id") == user_id
+        status = n.get("status", "published")
+        
+        if tab == "draft":
+            if status != "draft" or not is_author:
+                continue
+        elif tab == "my":
+            if is_author and status in ["published", "scheduled"]:
+                pass
+            else:
+                continue
+        elif tab == "school":
+            if not is_author and status in ["published", "scheduled"]:
+                pass
+            else:
+                continue
+        else: # tab == 'all'
+            if status in ["published", "scheduled"]:
+                pass
+            else:
+                continue
+                
+        # Category filter (case-insensitive)
+        if category and category.lower() != 'all':
+            notice_cat = (n.get("category") or "").lower()
+            if notice_cat != category.lower() and category.lower() not in notice_cat:
+                continue
+                
+        # Search filter
+        if search:
+            search_lower = search.lower()
+            title = (n.get("title") or "").lower()
+            content = (n.get("content") or "").lower()
+            if search_lower not in title and search_lower not in content:
+                continue
+                
+        filtered_notices.append(n)
+        
+    for n in filtered_notices:
+        n["created_at"] = n.get("published_at") or n.get("created_at")
+        
+    return {"success": True, "school_id": school_id, "data": {"notices": filtered_notices}}
 
 
 @router.get("/leave")

@@ -1,11 +1,15 @@
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
 
 class StudentNotices extends ConsumerStatefulWidget {
   const StudentNotices({super.key});
@@ -16,9 +20,10 @@ class StudentNotices extends ConsumerStatefulWidget {
 
 class _StudentNoticesState extends ConsumerState<StudentNotices> {
   final StudentApiService _apiService = StudentApiService();
+  final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'All';
-  final List<String> _categories = ['All', 'Urgent', 'General', 'Events'];
-  List<Notice> _notices = [];
+  final List<String> _categories = ['All', 'Urgent', 'General', 'Event', 'Academic'];
+  List<Notice> _allNotices = [];
   bool _isLoading = true;
   String? _error;
 
@@ -28,6 +33,12 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
     _loadNotices();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadNotices() async {
     setState(() {
       _isLoading = true;
@@ -35,18 +46,11 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
     });
 
     try {
-      // Map category to API category filter
-      final categoryMap = {
-        'Urgent': 'urgent',
-        'General': 'general',
-        'Events': 'event',
-      };
-      
-      final category = _selectedCategory == 'All' ? null : categoryMap[_selectedCategory];
-      final notices = await _apiService.getNotices(category: category);
-      
+      // Always fetch all notices from API without category filter
+      // so we can do client-side search + category filtering
+      final notices = await _apiService.getNotices();
       setState(() {
-        _notices = notices;
+        _allNotices = notices;
         _isLoading = false;
       });
     } catch (e) {
@@ -58,21 +62,37 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
   }
 
   List<Notice> get _filteredNotices {
-    if (_selectedCategory == 'All') return _notices;
-    final categoryMap = {
-      'Urgent': 'urgent',
-      'General': 'general',
-      'Events': 'event',
-    };
-    return _notices.where((n) => n.category == categoryMap[_selectedCategory]).toList();
+    var result = _allNotices;
+
+    // Filter by category
+    if (_selectedCategory != 'All') {
+      final catKey = _selectedCategory.toLowerCase();
+      result = result.where((n) {
+        final nCat = n.category.toLowerCase();
+        if (catKey == 'event') return nCat == 'event' || nCat == 'events';
+        return nCat == catKey;
+      }).toList();
+    }
+
+    // Filter by search query
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      result = result.where((n) {
+        return n.title.toLowerCase().contains(query) ||
+            n.content.toLowerCase().contains(query) ||
+            (n.authorName?.toLowerCase().contains(query) ?? false);
+      }).toList();
+    }
+
+    return result;
   }
 
-  int get _urgentCount => _notices.where((n) => n.category == 'urgent').length;
+  int get _urgentCount => _allNotices.where((n) => n.category.toLowerCase() == 'urgent').length;
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes} mins ago';
     if (diff.inHours < 24) return '${diff.inHours} hours ago';
@@ -81,62 +101,122 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
   }
 
   Color _getColorForCategory(String category) {
-    switch (category) {
-      case 'Urgent':
+    switch (category.toLowerCase()) {
+      case 'urgent':
         return StudentColors.error;
-      case 'Events':
+      case 'event':
+      case 'events':
         return StudentColors.warning;
-      case 'General':
-        return StudentColors.primary;
+      case 'academic':
+        return const Color(0xFF8B5CF6);
+      case 'general':
       default:
         return StudentColors.primary;
     }
   }
 
+  String _getCategoryLabel(String category) {
+    switch (category.toLowerCase()) {
+      case 'urgent':
+        return '🚨 URGENT';
+      case 'event':
+      case 'events':
+        return '🎉 EVENT';
+      case 'academic':
+        return '📋 ACADEMIC';
+      case 'general':
+      default:
+        return '📋 GENERAL';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filtered = _filteredNotices;
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBEB),
       body: Column(
         children: [
-          // Header
+          // Header with search
           Container(
             padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF92400E), Color(0xFFD97706)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            child: Row(
+            child: Column(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => safeGoBack(context, '/student/dashboard'),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Notices',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: StudentColors.error,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$_urgentCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => safeGoBack(context, '/student/dashboard'),
                     ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Notices & Circulars',
+                      style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      tooltip: 'Refresh',
+                      onPressed: _loadNotices,
+                    ),
+                    if (_urgentCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: StudentColors.error,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$_urgentCount urgent',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Search Bar
+                TextField(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: '🔍 Search notices...',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white70, size: 18),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                            child: const Icon(Icons.close, color: Colors.white70, size: 18),
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ],
@@ -144,51 +224,93 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
           ),
 
           // Category Chips
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _categories.length,
-              itemBuilder: (context, index) {
-                final category = _categories[index];
-                final isSelected = _selectedCategory == category;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = category),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? StudentColors.warning : StudentColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      category,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : StudentColors.warning,
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: SizedBox(
+              height: 36,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _categories.length,
+                itemBuilder: (context, index) {
+                  final category = _categories[index];
+                  final isSelected = _selectedCategory == category;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedCategory = category);
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFD97706) : const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        category,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : const Color(0xFFD97706),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
 
           // Notices List
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(child: Text('Error: $_error'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredNotices.length,
-                        itemBuilder: (context, index) {
-                          return _buildNoticeCard(_filteredNotices[index]);
-                        },
-                      ),
+            child: RefreshIndicator(
+              onRefresh: _loadNotices,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                const SizedBox(height: 12),
+                                const Text('Failed to load notices', style: TextStyle(color: Colors.red)),
+                                const SizedBox(height: 12),
+                                ElevatedButton(
+                                  onPressed: _loadNotices,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : filtered.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text('📭', style: TextStyle(fontSize: 48)),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _searchController.text.isNotEmpty
+                                        ? 'No notices match your search'
+                                        : 'No notices in this category',
+                                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                return _buildNoticeCard(filtered[index]);
+                              },
+                            ),
+            ),
           ),
         ],
       ),
@@ -197,10 +319,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
 
   Widget _buildNoticeCard(Notice notice) {
     final color = _getColorForCategory(notice.category);
-    final isUrgent = notice.category == 'urgent';
-    final isEvent = notice.category == 'event';
-    final isGeneral = notice.category == 'general';
-    
+    final label = _getCategoryLabel(notice.category);
+
     return GestureDetector(
       onTap: () => _showNoticeDetail(notice),
       child: Container(
@@ -227,54 +347,24 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
           children: [
             Row(
               children: [
-                if (isUrgent)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      '?? URGENT',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.red,
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: color,
                     ),
                   ),
-                if (isEvent)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      '?? EVENT',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: StudentColors.warning,
-                      ),
-                    ),
-                  ),
-                if (isGeneral)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      '?? GENERAL',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: StudentColors.primary,
-                      ),
-                    ),
-                  ),
+                ),
+                const Spacer(),
+                if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty)
+                  const Text('📎', style: TextStyle(fontSize: 12)),
               ],
             ),
             const SizedBox(height: 6),
@@ -300,7 +390,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             ),
             const SizedBox(height: 6),
             Text(
-              '?? ${_formatDate(notice.createdAt)}',
+              '📅 ${_formatDate(notice.createdAt)} · By ${notice.authorName ?? "School"}',
               style: const TextStyle(
                 fontSize: 9,
                 color: StudentColors.text3,
@@ -314,8 +404,19 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
 
   void _showNoticeDetail(Notice notice) {
     final color = _getColorForCategory(notice.category);
-    final isUrgent = notice.category == 'urgent';
-    
+    final label = _getCategoryLabel(notice.category);
+
+    final contentLower = notice.content.toLowerCase();
+    final titleLower = notice.title.toLowerCase();
+    final isFeeNotice = contentLower.contains('fee') ||
+        contentLower.contains('pay') ||
+        contentLower.contains('payment') ||
+        contentLower.contains('fine') ||
+        titleLower.contains('fee') ||
+        titleLower.contains('pay') ||
+        titleLower.contains('payment') ||
+        titleLower.contains('fine');
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -328,7 +429,6 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
         ),
         child: Column(
           children: [
-            // Handle
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Container(
@@ -346,22 +446,21 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (isUrgent)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          '?? URGENT',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.red,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: color,
                         ),
                       ),
+                    ),
                     const SizedBox(height: 12),
                     Text(
                       notice.title,
@@ -392,43 +491,153 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                         children: [
                           const Icon(Icons.calendar_today, size: 16, color: StudentColors.text3),
                           const SizedBox(width: 8),
-                          Text(
-                            'Published: ${_formatDate(notice.createdAt)}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: StudentColors.text3,
+                          Expanded(
+                            child: Text(
+                              'Published: ${_formatDate(notice.createdAt)} · By ${notice.authorName ?? "School"}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: StudentColors.text3,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
+                    if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Downloading ${notice.attachmentUrl!.split('/').last}...'),
+                            ),
+                          );
+                          getDownloadHelper().downloadFile(
+                            notice.attachmentUrl!,
+                            notice.attachmentUrl!.split('/').last,
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: StudentColors.border),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.attachment, color: StudentColors.primary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      notice.attachmentUrl!.split('/').last,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: StudentColors.text,
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Tap to download attachment',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: StudentColors.text3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.download, color: StudentColors.primary),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Downloading ${notice.attachmentUrl!.split('/').last}...'),
+                                    ),
+                                  );
+                                  getDownloadHelper().downloadFile(
+                                    notice.attachmentUrl!,
+                                    notice.attachmentUrl!.split('/').last,
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: StudentColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+              child: Column(
+                children: [
+                  if (isFeeNotice) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          context.push('/student/fees');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '💳 ',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            Text(
+                              'Pay Now',
+                              style: TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: StudentColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    'Close',
-                    style: TextStyle(
-                      fontFamily: AppFonts.heading,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+                ],
               ),
             ),
           ],

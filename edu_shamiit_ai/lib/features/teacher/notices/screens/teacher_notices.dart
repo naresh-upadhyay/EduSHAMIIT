@@ -1,11 +1,16 @@
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:edu_shamiit_ai/core/services/api_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
 
 class TeacherNotices extends ConsumerStatefulWidget {
   const TeacherNotices({super.key});
@@ -16,9 +21,9 @@ class TeacherNotices extends ConsumerStatefulWidget {
 
 class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
   final TeacherApiService _apiService = TeacherApiService();
+  final TextEditingController _searchController = TextEditingController();
   
-  String _selectedType = 'All';
-  final List<String> _types = ['All', 'General', 'Urgent', 'Event', 'Announcement'];
+  String _selectedTab = 'all'; // 'all', 'my', 'school', 'draft'
   List<TeacherNotice> _notices = [];
   bool _isLoading = true;
   String? _error;
@@ -29,6 +34,12 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
     _loadNotices();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadNotices() async {
     setState(() {
       _isLoading = true;
@@ -36,8 +47,11 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
     });
 
     try {
-      final noticeType = _selectedType == 'All' ? null : _selectedType.toLowerCase();
-      final notices = await _apiService.getNotices(noticeType: noticeType);
+      final search = _searchController.text.trim();
+      final notices = await _apiService.getNotices(
+        tab: _selectedTab,
+        search: search.isNotEmpty ? search : null,
+      );
       setState(() {
         _notices = notices;
         _isLoading = false;
@@ -50,217 +64,1113 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
     }
   }
 
-  Color _getTypeColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'urgent':
-        return Colors.red;
-      case 'event':
-        return Colors.blue;
-      case 'announcement':
-        return Colors.green;
-      default:
-        return Colors.grey;
+  Color _getNoticeColor(TeacherNotice notice, String currentUserId) {
+    if (notice.isUrgent) {
+      return const Color(0xFFEF4444); // Urgent red
     }
+    if (notice.createdBy == currentUserId) {
+      return const Color(0xFF0EA5E9); // My notices blue
+    }
+    return const Color(0xFF4F46E5); // School notice purple
+  }
+
+  Color _getNoticeBgColor(TeacherNotice notice, String currentUserId) {
+    if (notice.isUrgent) {
+      return const Color(0xFFFEF2F2);
+    }
+    if (notice.createdBy == currentUserId) {
+      return const Color(0xFFE0F2FE);
+    }
+    return const Color(0xFFEEF2FF);
+  }
+
+  String _formatNoticeDate(TeacherNotice notice) {
+    if (notice.status == 'draft') {
+      return 'Draft';
+    }
+    if (notice.status == 'scheduled' && notice.scheduledAt != null) {
+      final sat = notice.scheduledAt!;
+      return 'Scheduled for ${sat.day}/${sat.month}/${sat.year} ${sat.hour.toString().padLeft(2, '0')}:${sat.minute.toString().padLeft(2, '0')}';
+    }
+    final pub = notice.publishDate;
+    return 'Published by ${notice.createdByName ?? "Teacher"} · ${pub.day}/${pub.month}/${pub.year}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final currentUserId = authState.userData?['id'] as String? ?? '';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFFFFBEB), // Cream notices background from mockup
       body: Column(
         children: [
-          // Header
+          // Header styled with linear gradient matching mockup
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context) + 8, 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                colors: [Color(0xFF92400E), Color(0xFFD97706)], // Amber theme notices header
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            child: Row(
+            child: Column(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Notices & Circulars',
+                          style: TextStyle(
+                            fontFamily: AppFonts.heading,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          tooltip: 'Refresh',
+                          onPressed: _loadNotices,
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _openNoticeEditor(context, currentUserId),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              '+ Create',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Notices',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                const SizedBox(height: 12),
+                // Search field styled like mockup
+                TextField(
+                  controller: _searchController,
+                  onChanged: (_) => _loadNotices(),
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: '🔍 Search notices...',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white70, size: 18),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Type filter
-          SizedBox(
-            height: 56,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _types.length,
-              itemBuilder: (context, index) {
-                final type = _types[index];
-                final isSelected = _selectedType == type;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedType = type);
-                    _loadNotices();
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      type,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : const Color(0xFF6366F1),
-                      ),
-                    ),
-                  ),
-                );
-              },
+          // Chip tab row matching mockup active styling
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                _buildTabChip('All', 'all'),
+                const SizedBox(width: 8),
+                _buildTabChip('My Notices', 'my'),
+                const SizedBox(width: 8),
+                _buildTabChip('School', 'school'),
+                const SizedBox(width: 8),
+                _buildTabChip('Drafts', 'draft'),
+              ],
             ),
           ),
 
-          // Loading state
-          if (_isLoading)
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
+          // Notices List
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadNotices,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                const SizedBox(height: 12),
+                                Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                                const SizedBox(height: 12),
+                                ElevatedButton(
+                                  onPressed: _loadNotices,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : _notices.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No notices found in this category.',
+                                style: TextStyle(color: Colors.grey, fontSize: 13),
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              itemCount: _notices.length,
+                              itemBuilder: (context, index) {
+                                return _buildNoticeCard(_notices[index], currentUserId);
+                              },
+                            ),
             ),
-
-          // Error state
-          if (_error != null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadNotices,
-                      child: Text('Retry'.tr(ref)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // Notices list
-          if (!_isLoading && _error == null)
-            Expanded(
-              child: _notices.isEmpty
-                  ? Center(child: Text('No notices found'.tr(ref)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _notices.length,
-                      itemBuilder: (context, index) {
-                        return _buildNoticeCard(_notices[index]);
-                      },
-                    ),
-            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildNoticeCard(TeacherNotice notice) {
-    final typeColor = _getTypeColor(notice.noticeType);
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
+  Widget _buildTabChip(String label, String value) {
+    final isSelected = _selectedTab == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedTab = value;
+          });
+          _loadNotices();
+        },
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFD97706) : const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: isSelected ? Colors.white : const Color(0xFFD97706),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoticeCard(TeacherNotice notice, String currentUserId) {
+    final borderCol = _getNoticeColor(notice, currentUserId);
+    final bgCol = _getNoticeBgColor(notice, currentUserId);
+    final isMyNotice = notice.createdBy == currentUserId;
+
+    return GestureDetector(
+      onTap: () => _viewNoticeDetails(notice),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+            ),
+          ],
+          border: Border(
+            left: BorderSide(
+              color: borderCol,
+              width: 4,
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row (Tags & Actions)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: bgCol,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        notice.isUrgent ? '🚨 URGENT' : notice.noticeType.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: borderCol,
+                        ),
+                      ),
+                    ),
+                    if (notice.status == 'scheduled') ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF7ED),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '⏳ Scheduled',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (isMyNotice || notice.status == 'draft')
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _openNoticeEditor(context, currentUserId, notice: notice),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4.0),
+                          child: Text('✏️', style: TextStyle(fontSize: 14)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _confirmDeleteNotice(notice),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4.0),
+                          child: Text('🗑️', style: TextStyle(fontSize: 14)),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              notice.title,
+              style: const TextStyle(
+                fontFamily: AppFonts.heading,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              notice.content,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '📅 ${_formatNoticeDate(notice)}',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey,
+                  ),
+                ),
+                if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty)
+                  const Text('📎', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _viewNoticeDetails(TeacherNotice notice) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.70,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: notice.isUrgent ? const Color(0xFFFEF2F2) : const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        notice.isUrgent ? '🚨 URGENT' : notice.noticeType.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: notice.isUrgent ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      notice.title,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      notice.content,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF334155),
+                        height: 1.7,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFBEB),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _formatNoticeDate(notice),
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Downloading ${notice.attachmentUrl!.split('/').last} ...')),
+                          );
+                          getDownloadHelper().downloadFile(
+                            notice.attachmentUrl!,
+                            notice.attachmentUrl!.split('/').last,
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.attachment, color: Color(0xFFD97706)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      notice.attachmentUrl!.split('/').last,
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Tap to download attachment',
+                                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.download, color: Color(0xFFD97706)),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Downloading ${notice.attachmentUrl!.split('/').last} ...')),
+                                  );
+                                  getDownloadHelper().downloadFile(
+                                    notice.attachmentUrl!,
+                                    notice.attachmentUrl!.split('/').last,
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteNotice(TeacherNotice notice) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Notice'),
+        content: Text("Are you sure you want to delete '${notice.title}'?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              setState(() => _isLoading = true);
+              try {
+                final success = await _apiService.deleteNotice(notice.id);
+                if (success) {
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(content: Text('Notice deleted successfully')),
+                  );
+                  _loadNotices();
+                } else {
+                  throw Exception('Failed to delete notice');
+                }
+              } catch (e) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+                setState(() => _isLoading = false);
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  notice.title,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: typeColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  notice.noticeType,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: typeColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            notice.content,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
+    );
+  }
+
+  void _openNoticeEditor(BuildContext context, String currentUserId, {TeacherNotice? notice}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => NoticeEditorSheet(
+        notice: notice,
+        apiService: _apiService,
+        onSaved: () {
+          _loadNotices();
+        },
+      ),
+    );
+  }
+}
+
+class NoticeEditorSheet extends StatefulWidget {
+  final TeacherNotice? notice;
+  final TeacherApiService apiService;
+  final VoidCallback onSaved;
+
+  const NoticeEditorSheet({
+    super.key,
+    this.notice,
+    required this.apiService,
+    required this.onSaved,
+  });
+
+  @override
+  State<NoticeEditorSheet> createState() => _NoticeEditorSheetState();
+}
+
+class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleController;
+  late TextEditingController _contentController;
+  late String _category;
+  late String _targetAudience; // 'all' or 'class'
+  late bool _isUrgent;
+  late bool _isScheduled;
+  DateTime? _scheduledDateTime;
+  String? _attachmentUrl;
+  bool _isSaving = false;
+
+  List<TeacherMyClass> _availableClasses = [];
+  List<String> _selectedClasses = [];
+  bool _isLoadingClasses = false;
+  String _classSearchQuery = '';
+  final TextEditingController _classSearchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.notice?.title ?? '');
+    _contentController = TextEditingController(text: widget.notice?.content ?? '');
+    _category = widget.notice?.noticeType ?? 'General';
+    // capitalize category to match database constraint
+    if (_category.isNotEmpty) {
+      _category = _category[0].toUpperCase() + _category.substring(1);
+    }
+    if (_category != 'Urgent' && _category != 'General' && _category != 'Event' && _category != 'Academic') {
+      _category = 'General';
+    }
+    
+    if (widget.notice != null) {
+      _targetAudience = widget.notice!.targetAudience ?? 'all';
+      if (_targetAudience != 'all' && _targetAudience != 'class') {
+        // fallback if it was a single class name previously
+        _selectedClasses = [_targetAudience];
+        _targetAudience = 'class';
+      } else {
+        _selectedClasses = widget.notice!.targetClasses != null 
+            ? List<String>.from(widget.notice!.targetClasses!) 
+            : [];
+      }
+    } else {
+      _selectedClasses = [];
+      _targetAudience = 'all';
+    }
+
+    _isUrgent = widget.notice?.isUrgent ?? false;
+    _isScheduled = widget.notice?.status == 'scheduled';
+    _scheduledDateTime = widget.notice?.scheduledAt;
+    _attachmentUrl = widget.notice?.attachmentUrl;
+
+    _loadClasses();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _classSearchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadClasses() async {
+    setState(() => _isLoadingClasses = true);
+    try {
+      final classes = await widget.apiService.getMyClasses();
+      setState(() {
+        _availableClasses = classes;
+      });
+    } catch (e) {
+      debugPrint('Error loading classes: $e');
+    } finally {
+      setState(() => _isLoadingClasses = false);
+    }
+  }
+
+  Future<void> _selectDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDateTime ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(minutes: 5)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null) return;
+    if (!mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_scheduledDateTime ?? DateTime.now()),
+    );
+    if (time == null) return;
+    if (!mounted) return;
+
+    setState(() {
+      _scheduledDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  Future<void> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result != null && result.files.single.bytes != null) {
+      final bytes = result.files.single.bytes!;
+      final filename = result.files.single.name;
+      
+      setState(() => _isSaving = true);
+      try {
+        final response = await ApiService().multipartPostBytes(
+          '/documents/upload',
+          bytes,
+          filename,
+          'file',
+          fields: {
+            'title': filename,
+            'category': 'school_notice',
+            'description': 'Notice Attachment',
+          },
+        );
+        if (response['success'] == true) {
+          final doc = response['data']['document'] as Map<String, dynamic>;
+          final fileUrl = doc['file_url'] as String;
+          setState(() {
+            _attachmentUrl = fileUrl;
+          });
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$filename Attached Successfully ✅', style: const TextStyle(color: Colors.greenAccent))),
+          );
+        } else {
+          throw Exception(response['detail'] ?? 'Upload failed');
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload attachment: $e')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
+        }
+      }
+    }
+  }
+
+  Future<void> _save(String status) async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    final finalStatus = _isScheduled && status == 'published' ? 'scheduled' : status;
+    if (finalStatus == 'scheduled' && _scheduledDateTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select schedule date and time')),
+      );
+      return;
+    }
+
+    if (_targetAudience == 'class' && _selectedClasses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one targeted class')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      bool success;
+      if (widget.notice != null) {
+        success = await widget.apiService.updateNotice(
+          noticeId: widget.notice!.id,
+          title: _titleController.text.trim(),
+          content: _contentController.text.trim(),
+          category: _category,
+          status: finalStatus,
+          isUrgent: _isUrgent,
+          scheduledAt: finalStatus == 'scheduled' ? _scheduledDateTime?.toIso8601String() : null,
+          targetAudience: _targetAudience,
+          attachmentUrl: _attachmentUrl,
+          targetClasses: _targetAudience == 'class' ? _selectedClasses : null,
+        );
+      } else {
+        success = await widget.apiService.createNotice(
+          title: _titleController.text.trim(),
+          content: _contentController.text.trim(),
+          category: _category,
+          status: finalStatus,
+          isUrgent: _isUrgent,
+          scheduledAt: finalStatus == 'scheduled' ? _scheduledDateTime?.toIso8601String() : null,
+          targetAudience: _targetAudience,
+          attachmentUrl: _attachmentUrl,
+          targetClasses: _targetAudience == 'class' ? _selectedClasses : null,
+        );
+      }
+
+      if (success) {
+        widget.onSaved();
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Notice ${widget.notice != null ? "updated" : "created"} successfully')),
+        );
+      } else {
+        throw Exception('Failed to save notice');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredClasses = _availableClasses
+        .where((c) => c.name.toLowerCase().contains(_classSearchQuery.toLowerCase()))
+        .toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
             ),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
-              const SizedBox(width: 4),
-              Text(
-                notice.publishDate.toString().split(' ')[0],
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
+            const SizedBox(height: 12),
+            Text(
+              widget.notice != null ? '✏️ Edit Notice' : '📢 Create Notice',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: ListView(
+                children: [
+                  const Text('Title', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  TextFormField(
+                    controller: _titleController,
+                    decoration: const InputDecoration(
+                      hintText: 'Notice title...',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Title is required' : null,
+                  ),
+                  const SizedBox(height: 12),
+
+                  const Text('Category', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  DropdownButtonFormField<String>(
+                    initialValue: _category,
+                    items: const [
+                      DropdownMenuItem(value: 'General', child: Text('General')),
+                      DropdownMenuItem(value: 'Urgent', child: Text('Urgent')),
+                      DropdownMenuItem(value: 'Event', child: Text('Event')),
+                      DropdownMenuItem(value: 'Academic', child: Text('Academic')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setState(() => _category = val);
+                    },
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  const Text('Target Audience', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.language, size: 16),
+                              SizedBox(width: 6),
+                              Text('Entire School'),
+                            ],
+                          ),
+                          selected: _targetAudience == 'all',
+                          onSelected: (val) {
+                            if (val) setState(() => _targetAudience = 'all');
+                          },
+                          selectedColor: const Color(0xFFFEF3C7),
+                          checkmarkColor: const Color(0xFFD97706),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.class_, size: 16),
+                              SizedBox(width: 6),
+                              Text('Specific Classes'),
+                            ],
+                          ),
+                          selected: _targetAudience == 'class',
+                          onSelected: (val) {
+                            if (val) setState(() => _targetAudience = 'class');
+                          },
+                          selectedColor: const Color(0xFFFEF3C7),
+                          checkmarkColor: const Color(0xFFD97706),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_targetAudience == 'class') ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _classSearchController,
+                      onChanged: (val) {
+                        setState(() {
+                          _classSearchQuery = val;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search classes...',
+                        prefixIcon: const Icon(Icons.search, size: 16),
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        suffixIcon: _classSearchController.text.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  _classSearchController.clear();
+                                  setState(() {
+                                    _classSearchQuery = '';
+                                  });
+                                },
+                                child: const Icon(Icons.clear, size: 16),
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_isLoadingClasses)
+                      const Center(child: CircularProgressIndicator())
+                    else ...[
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: filteredClasses.map((c) {
+                          final isSelected = _selectedClasses.contains(c.name);
+                          return FilterChip(
+                            label: Text(c.name, style: TextStyle(fontSize: 12, color: isSelected ? const Color(0xFF92400E) : Colors.black87)),
+                            selected: isSelected,
+                            onSelected: (val) {
+                              setState(() {
+                                if (val) {
+                                  _selectedClasses.add(c.name);
+                                } else {
+                                  _selectedClasses.remove(c.name);
+                                }
+                              });
+                            },
+                            selectedColor: const Color(0xFFFEF3C7),
+                            checkmarkColor: const Color(0xFFD97706),
+                          );
+                        }).toList(),
+                      ),
+                      if (filteredClasses.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text('No classes found', style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
+                        ),
+                    ],
+                  ],
+                  const SizedBox(height: 12),
+
+                  const Text('Content', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  TextFormField(
+                    controller: _contentController,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      hintText: 'Notice content...',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.all(12),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Content is required' : null,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Urgent checkbox
+                  CheckboxListTile(
+                    title: const Text('Mark as Urgent 🚨', style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w700)),
+                    value: _isUrgent,
+                    onChanged: (val) {
+                      if (val != null) setState(() => _isUrgent = val);
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+
+                  // Schedule toggle
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('📅 Schedule for later', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      Switch(
+                        value: _isScheduled,
+                        onChanged: (val) {
+                          setState(() {
+                            _isScheduled = val;
+                          });
+                        },
+                        activeThumbColor: const Color(0xFFD97706),
+                      ),
+                    ],
+                  ),
+                  if (_isScheduled) ...[
+                    const SizedBox(height: 6),
+                    OutlinedButton.icon(
+                      onPressed: _selectDateTime,
+                      icon: const Icon(Icons.calendar_month, size: 16),
+                      label: Text(_scheduledDateTime == null
+                          ? 'Select Date & Time'
+                          : '${_scheduledDateTime!.day}/${_scheduledDateTime!.month}/${_scheduledDateTime!.year} at ${_scheduledDateTime!.hour.toString().padLeft(2, '0')}:${_scheduledDateTime!.minute.toString().padLeft(2, '0')}'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFD97706),
+                        side: const BorderSide(color: Color(0xFFD97706)),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+
+                  // Real file attachment box
+                  GestureDetector(
+                    onTap: _pickAttachment,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.grey.shade50,
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.attachment, size: 24, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text(
+                            _attachmentUrl != null 
+                                ? '${_attachmentUrl!.split("/").last} Attached ✅' 
+                                : 'Attach Files (optional)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: _attachmentUrl != null ? Colors.green : Colors.black87,
+                            ),
+                          ),
+                          const Text(
+                            'PDF, JPG or DOC up to 5MB',
+                            style: TextStyle(fontSize: 9, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const Spacer(),
-              Text(
-                'By ${notice.createdByName ?? 'Admin'}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
+            ),
+            const SizedBox(height: 12),
+            if (_isSaving)
+              const Center(child: CircularProgressIndicator())
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _save('published'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('📤 Publish', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _save('draft'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        foregroundColor: const Color(0xFF334155),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      child: const Text('💾 Save Draft', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
