@@ -58,7 +58,8 @@ def upload_avatar(user_id, image_path=None):
             print(f"  -> Dynamically resolved profile: role={role}, gender={gender} -> asset={image_path}")
 
         env_vars = {}
-        with open("../.env", "r", encoding="utf-8") as f:
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+        with open(env_path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
@@ -596,7 +597,7 @@ def main():
         {"title": "Electromagnetic Waves and Induction Discussion", "sub": "Physics", "min": 60, "offset_hours": 24}
     ]
     for ls in live_scheds:
-        s_id = subject_ids.get(ls["sub"])
+        s_id = subject_ids.get((ls["sub"], STUDENT_CLASS))
         if not s_id:
             continue
         start_t = (datetime.now() + timedelta(hours=ls["offset_hours"])).isoformat()

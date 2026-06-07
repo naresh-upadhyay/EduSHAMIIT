@@ -55,6 +55,8 @@ import 'package:edu_shamiit_ai/features/teacher/student_directory/screens/teache
 import 'package:edu_shamiit_ai/shared/widgets/student_shell_scaffold.dart';
 import 'package:edu_shamiit_ai/shared/widgets/teacher_shell_scaffold.dart';
 
+import 'package:edu_shamiit_ai/shared/screens/in_app_live_room_screen.dart';
+
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final studentShellKey = GlobalKey<NavigatorState>(debugLabel: 'studentShell');
 final teacherShellKey = GlobalKey<NavigatorState>(debugLabel: 'teacherShell');
@@ -163,6 +165,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         final authState = ref.read(authProvider);
         final isTeacher = authState.role.value == 'teacher';
         return isTeacher ? '/teacher/settings' : '/student/settings';
+      },
+    ),
+    GoRoute(
+      path: '/live-room',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return InAppLiveRoomScreen(
+          liveClassId: extra['liveClassId'] as String,
+          currentUserId: extra['currentUserId'] as String,
+          currentUserName: extra['currentUserName'] as String,
+          currentUserRole: extra['currentUserRole'] as String,
+          title: extra['title'] as String,
+        );
       },
     ),
 

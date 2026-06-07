@@ -7,6 +7,9 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
 import 'package:edu_shamiit_ai/shared/widgets/calendar_picker.dart';
+import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 
 class StudentTimetable extends ConsumerStatefulWidget {
   const StudentTimetable({super.key});
@@ -134,6 +137,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     for (int i = 0; i < dayPeriods.length; i++) {
       final period = dayPeriods[i];
       schedule.add({
+        'id': period.id,
         'start': _formatTimeString(period.startTime),
         'end': _formatTimeString(period.endTime),
         'subject': period.subject,
@@ -141,6 +145,10 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
         'room': period.roomNumber.isEmpty ? 'Room 101' : period.roomNumber,
         'isBreak': false,
         'now': _isPeriodNow(period.startTime, period.endTime),
+        'periodNumber': period.periodNumber,
+        'platform': period.platform,
+        'meetingLink': period.meetingLink,
+        'status': period.status,
       });
 
       // Add break after this period if there's a gap
@@ -459,24 +467,118 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     );
   }
 
+  Widget _buildPlatformBadge(String platform) {
+    Color bg = const Color(0xFFF1F5F9);
+    Color fg = const Color(0xFF334155);
+    IconData icon = Icons.video_call;
+    
+    final lower = platform.toLowerCase();
+    if (lower == 'zoom') {
+      bg = const Color(0xFFE0F2FE);
+      fg = const Color(0xFF0369A1);
+      icon = Icons.videocam;
+    } else if (lower.contains('meet') || lower.contains('google')) {
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF15803D);
+      icon = Icons.groups;
+    } else if (lower == 'youtube') {
+      bg = const Color(0xFFFEE2E2);
+      fg = const Color(0xFFB91C1C);
+      icon = Icons.play_circle_fill;
+    } else if (lower == 'in-app' || lower == 'edushamiit') {
+      bg = const Color(0xFFEEF2FF);
+      fg = const Color(0xFF4338CA);
+      icon = Icons.bolt;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 9, color: fg),
+          const SizedBox(width: 3),
+          Text(
+            platform,
+            style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: fg),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchMeeting(String urlString) async {
+    final url = Uri.parse(urlString);
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open link: $urlString')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open link: $e')),
+      );
+    }
+  }
+
+  void _joinLiveClass(Map<String, dynamic> item) {
+    final platform = (item['platform'] ?? 'In-App').toString();
+    final meetingLink = (item['meetingLink'] ?? '').toString();
+    final id = (item['id'] ?? '').toString();
+    
+    if (platform.toLowerCase() == 'in-app' || platform.toLowerCase() == 'edushamiit') {
+      final auth = ref.read(authProvider);
+      context.push(
+        '/live-room',
+        extra: {
+          'liveClassId': id,
+          'currentUserId': auth.userData?['id'] ?? '',
+          'currentUserName': auth.userData?['full_name'] ?? 'Student',
+          'currentUserRole': 'student',
+          'title': item['subject'],
+        },
+      );
+    } else {
+      if (meetingLink.isNotEmpty) {
+        _launchMeeting(meetingLink);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No meeting link available for this class.')),
+        );
+      }
+    }
+  }
+
   Widget _buildClassCard(Map<String, dynamic> item) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isNow = item['now'] == true;
+    final isLiveClass = item['periodNumber'] == 'Live Class';
     final subjectTheme = _getSubjectTheme(item['subject']);
     
     Color cardBg = isDark ? const Color(0xFF1E293B) : subjectTheme.bg;
     Color borderColor = isDark ? const Color(0xFF334155) : subjectTheme.border;
     Color accentColor = subjectTheme.accent;
 
-    if (isNow) {
+    if (isLiveClass) {
+      cardBg = isDark ? const Color(0xFF4C0519) : const Color(0xFFFFF1F2);
+      borderColor = isDark ? const Color(0xFF881337) : const Color(0xFFFECDD3);
+      accentColor = const Color(0xFFE11D48);
+    } else if (isNow) {
       cardBg = isDark ? const Color(0xFF064E3B) : const Color(0xFFECFDF5);
       borderColor = isDark ? const Color(0xFF065F46) : const Color(0xFFBBF7D0);
       accentColor = const Color(0xFF059669);
     }
 
     return GestureDetector(
-      onTap: () => _showDynModal(item, subjectTheme.icon),
+      onTap: () => _showDynModal(item, isLiveClass ? '🔴' : subjectTheme.icon),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
@@ -543,14 +645,25 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item['subject'],
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                      fontFamily: AppFonts.heading,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item['subject'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            fontFamily: AppFonts.heading,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isLiveClass) ...[
+                        const SizedBox(width: 4),
+                        _buildPlatformBadge(item['platform'] ?? 'In-App'),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -570,32 +683,39 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                    color: isLiveClass 
+                        ? (isDark ? const Color(0xFFE11D48).withOpacity(0.15) : const Color(0xFFFFE4E6))
+                        : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
                     borderRadius: BorderRadius.circular(8),
+                    border: isLiveClass 
+                        ? Border.all(color: const Color(0xFFE11D48).withOpacity(0.3), width: 0.5)
+                        : null,
                   ),
                   child: Text(
-                    item['room'],
+                    isLiveClass ? 'LIVE CLASS' : item['room'],
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                      color: isLiveClass 
+                          ? const Color(0xFFE11D48)
+                          : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
                     ),
                   ),
                 ),
-                if (isNow) ...[
+                if (isNow || isLiveClass) ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDCFCE7),
+                      color: isLiveClass ? const Color(0xFFFEE2E2) : const Color(0xFFDCFCE7),
                       borderRadius: BorderRadius.circular(5),
                     ),
-                    child: const Text(
-                      'NOW',
+                    child: Text(
+                      isLiveClass ? 'JOIN NOW' : 'NOW',
                       style: TextStyle(
                         fontSize: 8,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF059669),
+                        color: isLiveClass ? const Color(0xFFE11D48) : const Color(0xFF059669),
                       ),
                     ),
                   ),
@@ -639,6 +759,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
 
   void _showDynModal(Map<String, dynamic> item, String icon) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isLiveClass = item['periodNumber'] == 'Live Class';
+    final isEnded = isLiveClass && (item['status'] == 'recorded' || item['status'] == 'completed');
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -672,7 +795,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
+                    color: isLiveClass ? const Color(0xFFFEE2E2) : const Color(0xFFEEF2FF),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Center(
@@ -694,7 +817,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                         ),
                       ),
                       Text(
-                        '${item['start']} – ${item['end']} · Room ${item['room']}',
+                        isLiveClass 
+                            ? '${item['start']} – ${item['end']} · Platform: ${item['platform'] ?? 'In-App'}'
+                            : '${item['start']} – ${item['end']} · Room ${item['room']}',
                         style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                       ),
                     ],
@@ -714,13 +839,27 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildDetailItem('Teacher:', item['teacher']),
-                  _buildDetailItem('Topic:', 'Integration by Parts (Ch. 7) & advanced calculus functions.'),
-                  _buildDetailItem('Reference Material:', 'NCERT Calculus Textbook, Graph notebook.'),
-                  _buildDetailItem('Homework:', 'Exercises 7.3 (Q1 - Q5) due on coming Monday.'),
-                  _buildDetailItem('Important Notes:', 'Please carry geometry instruments for graphical plotting.'),
-                ],
+                children: isLiveClass 
+                    ? [
+                        _buildDetailItem('Teacher:', item['teacher']),
+                        _buildDetailItem('Platform:', item['platform'] ?? 'In-App'),
+                        if (item['meetingLink'] != null && item['meetingLink'].toString().isNotEmpty && item['meetingLink'] != 'In-App')
+                          _buildDetailItem('Meeting Link:', item['meetingLink']),
+                        if (isEnded) ...[
+                          _buildDetailItem('Status:', 'Class has ended. Recording is available.'),
+                          _buildDetailItem('Instructions:', 'Tapping Watch Recording will open the video player.'),
+                        ] else ...[
+                          _buildDetailItem('Status:', 'Live class session scheduled for today.'),
+                          _buildDetailItem('Instructions:', 'Please join the meeting on time with a stable internet connection. Keep microphones muted unless instructed otherwise.'),
+                        ],
+                      ]
+                    : [
+                        _buildDetailItem('Teacher:', item['teacher']),
+                        _buildDetailItem('Topic:', 'Integration by Parts (Ch. 7) & advanced calculus functions.'),
+                        _buildDetailItem('Reference Material:', 'NCERT Calculus Textbook, Graph notebook.'),
+                        _buildDetailItem('Homework:', 'Exercises 7.3 (Q1 - Q5) due on coming Monday.'),
+                        _buildDetailItem('Important Notes:', 'Please carry geometry instruments for graphical plotting.'),
+                      ],
               ),
             ),
             const SizedBox(height: 16),
@@ -730,32 +869,75 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
+                color: isLiveClass 
+                    ? (isEnded ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF))
+                    : const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text(
-                'Class notes will be uploaded after this session.',
+              child: Text(
+                isLiveClass 
+                    ? (isEnded 
+                        ? 'Tapping watch will take you to the lecture recording player.'
+                        : 'Tapping join will take you directly to the live classroom stream.')
+                    : 'Class notes will be uploaded after this session.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFF059669)),
+                style: TextStyle(
+                  fontSize: 10.5, 
+                  fontWeight: FontWeight.w700, 
+                  color: isLiveClass 
+                      ? (isEnded ? const Color(0xFF059669) : const Color(0xFF1D4ED8))
+                      : const Color(0xFF059669)
+                ),
               ),
             ),
             const SizedBox(height: 20),
 
-            // Close button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E40AF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            // Join / Close buttons
+            Row(
+              children: [
+                if (isLiveClass) ...[
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        if (isEnded) {
+                          context.push('/student/live-classes/play/${item['id']}');
+                        } else {
+                          _joinLiveClass(item);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isEnded ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(isEnded ? 'Watch Recording' : 'Join Live Room', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isLiveClass 
+                          ? (isDark ? Colors.grey[800] : Colors.grey[200])
+                          : const Color(0xFF1E40AF),
+                      foregroundColor: isLiveClass 
+                          ? (isDark ? Colors.white : Colors.black87)
+                          : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(isLiveClass ? 'Dismiss' : 'Close', style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
-                child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
+              ],
             ),
           ],
         ),

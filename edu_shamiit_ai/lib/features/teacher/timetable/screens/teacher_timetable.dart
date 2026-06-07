@@ -7,6 +7,9 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:edu_shamiit_ai/shared/widgets/calendar_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:go_router/go_router.dart';
 
 class TeacherTimetable extends ConsumerStatefulWidget {
   const TeacherTimetable({super.key});
@@ -680,25 +683,119 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E40AF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                if (period.periodNumber == 'Live Class') ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _startOrJoinLiveClass(period);
+                      },
+                      icon: const Icon(Icons.video_call, color: Colors.white),
+                      label: const Text(
+                        'Start / Join',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: period.periodNumber == 'Live Class'
+                          ? (isDark ? Colors.grey[800] : Colors.grey[200])
+                          : const Color(0xFF1E40AF),
+                      foregroundColor: period.periodNumber == 'Live Class'
+                          ? (isDark ? Colors.white : Colors.black87)
+                          : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(period.periodNumber == 'Live Class' ? 'Dismiss' : 'Close'),
                   ),
                 ),
-                child: const Text('Close'),
-              ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _launchMeeting(String urlString) async {
+    final url = Uri.parse(urlString);
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open link: $urlString')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open link: $e')),
+      );
+    }
+  }
+
+  void _startOrJoinLiveClass(TeacherTimetablePeriod period) async {
+    final statusLower = (period.status ?? 'scheduled').toLowerCase();
+    final isLive = statusLower == 'ongoing' || statusLower == 'live';
+    final platformLower = (period.platform ?? 'In-App').toLowerCase();
+    final meetingLink = period.meetingLink ?? '';
+    
+    final auth = ref.read(authProvider);
+
+    if (platformLower == 'in-app' || platformLower == 'edushamiit') {
+      if (!isLive) {
+        try {
+          await _apiService.patchLiveClass(period.id, {
+            "status": "live",
+          });
+        } catch (_) {}
+      }
+      
+      if (!mounted) return;
+      context.push(
+        '/live-room',
+        extra: {
+          'liveClassId': period.id,
+          'currentUserId': auth.userData?['id'] ?? '',
+          'currentUserName': auth.userData?['full_name'] ?? 'Teacher',
+          'currentUserRole': 'teacher',
+          'title': period.subject.replaceAll('💻 Live Class: ', ''),
+        },
+      ).then((_) => _loadTimetable());
+    } else {
+      if (!isLive) {
+        try {
+          await _apiService.patchLiveClass(period.id, {
+            "status": "live",
+          });
+        } catch (_) {}
+      }
+      if (meetingLink.isNotEmpty && meetingLink != 'In-App') {
+        _launchMeeting(meetingLink);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('⚠️ No meeting link available.')),
+        );
+      }
+    }
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -737,8 +834,10 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
   void _showScheduleModal() {
     final subjectController = TextEditingController();
     final roomController = TextEditingController();
+    final liveLinkController = TextEditingController(text: 'In-App');
     String typeFilter = 'Extra Class';
     String classFilter = _classFilters.length > 1 ? _classFilters[1] : 'X-A';
+    String livePlatform = 'In-App';
     DateTime selectedModalDate = _selectedDate;
     TimeOfDay startTime = const TimeOfDay(hour: 9, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 10, minute: 0);
@@ -839,6 +938,55 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     ),
                   ),
                   const SizedBox(height: 12),
+
+                  // Platform and Link for Live Class
+                  if (typeFilter == 'Live Class') ...[
+                    const Text('Platform', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      value: livePlatform,
+                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                      items: ['In-App', 'Zoom', 'Google Meet', 'YouTube']
+                          .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setModalState(() {
+                            livePlatform = val;
+                            if (livePlatform == 'In-App') {
+                              liveLinkController.text = 'In-App';
+                            } else if (livePlatform == 'Zoom') {
+                              liveLinkController.text = 'https://zoom.us/j/1234567890';
+                            } else if (livePlatform == 'Google Meet') {
+                              liveLinkController.text = 'https://meet.google.com/abc-defg-hij';
+                            } else if (livePlatform == 'YouTube') {
+                              liveLinkController.text = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+                            }
+                          });
+                        }
+                      },
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (livePlatform != 'In-App') ...[
+                      const Text('Meeting Link', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: liveLinkController,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        decoration: InputDecoration(
+                          hintText: 'e.g. https://meet.google.com/...',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
 
                   // Date Picker Field
                   const Text('Date', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
@@ -979,6 +1127,35 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                         });
                         
                         try {
+                          if (typeFilter == 'Live Class') {
+                            final scheduledAt = DateTime(
+                              selectedModalDate.year,
+                              selectedModalDate.month,
+                              selectedModalDate.day,
+                              startTime.hour,
+                              startTime.minute,
+                            );
+                            final startMinutes = startTime.hour * 60 + startTime.minute;
+                            final endMinutes = endTime.hour * 60 + endTime.minute;
+                            int duration = endMinutes - startMinutes;
+                            if (duration <= 0) duration = 60;
+
+                            final link = liveLinkController.text.trim();
+
+                            await _apiService.createLiveClass(
+                              title: subjectController.text.trim(),
+                              classId: classFilter,
+                              subject: subjectController.text.trim(),
+                              scheduledAt: scheduledAt,
+                              durationMinutes: duration,
+                              status: 'scheduled',
+                              streamUrl: livePlatform == 'In-App' ? 'In-App' : link,
+                              recordingUrl: null,
+                              platform: livePlatform,
+                              meetingLink: livePlatform == 'In-App' ? 'In-App' : link,
+                            );
+                          }
+
                           await _apiService.scheduleTimetableSlot(
                             date: dateStr,
                             slotType: typeFilter,
@@ -986,7 +1163,11 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             classId: classFilter,
                             startTime: startStr,
                             endTime: endStr,
-                            room: roomController.text.isNotEmpty ? roomController.text : 'Room 101',
+                            room: roomController.text.isNotEmpty
+                                ? roomController.text
+                                : (typeFilter == 'Live Class'
+                                    ? (livePlatform == 'In-App' ? 'In-App Live Room' : livePlatform)
+                                    : 'Room 101'),
                           );
                           
                           setState(() {

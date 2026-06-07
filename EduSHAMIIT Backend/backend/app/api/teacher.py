@@ -325,7 +325,10 @@ async def teacher_timetable(day: str = "monday", date: Optional[str] = None, use
                 "class": lc.get("target_class", "All"),
                 "room_number": lc.get("stream_url") or "EduSHAMIIT Live Link",
                 "teacher_id": lc["teacher_id"],
-                "teacher_name": user.get("full_name", "Teacher")
+                "teacher_name": user.get("full_name", "Teacher"),
+                "platform": lc.get("platform", "In-App"),
+                "meeting_link": lc.get("meeting_link") or lc.get("stream_url") or "",
+                "status": lc.get("status", "scheduled")
             })
     except Exception:
         pass
@@ -730,8 +733,10 @@ async def teacher_create_live_class(request: dict, user=Depends(require_teacher)
         "duration_minutes": duration_minutes,
         "target_class": target_class,
         "status": status,
+        "platform": request.get("platform", "In-App"),
         "stream_url": request.get("stream_url"),
         "recording_url": request.get("recording_url"),
+        "meeting_link": request.get("meeting_link"),
         "is_live": status == "live",
         "viewer_count": 0
     }
@@ -771,8 +776,16 @@ async def teacher_patch_live_class(live_class_id: str, request: dict, user=Depen
         update_data["stream_url"] = request["stream_url"]
     if "recording_url" in request:
         update_data["recording_url"] = request["recording_url"]
+    if "meeting_link" in request:
+        update_data["meeting_link"] = request["meeting_link"]
+    if "platform" in request:
+        update_data["platform"] = request["platform"]
     if "title" in request:
         update_data["title"] = request["title"]
+    if "duration_minutes" in request:
+        duration_val = request["duration_minutes"]
+        if isinstance(duration_val, (int, float)) and duration_val > 0:
+            update_data["duration_minutes"] = int(duration_val)
         
     if update_data:
         res = await sb.table("live_classes").update(update_data).eq("id", live_class_id).aexecute()

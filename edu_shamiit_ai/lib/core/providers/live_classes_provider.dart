@@ -19,6 +19,8 @@ class LiveClassModel {
   final String type; // 'live', 'upcoming', 'recorded'
   final String? streamUrl;
   final String? recordingUrl;
+  final String platform; // 'Zoom', 'Google Meet', 'YouTube', 'In-App', etc.
+  final String? meetingLink;
 
   LiveClassModel({
     required this.id,
@@ -35,6 +37,8 @@ class LiveClassModel {
     required this.type,
     this.streamUrl,
     this.recordingUrl,
+    this.platform = 'In-App',
+    this.meetingLink,
   });
 
   factory LiveClassModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +57,8 @@ class LiveClassModel {
       type: json['type'] ?? 'recorded',
       streamUrl: json['stream_url'],
       recordingUrl: json['recording_url'],
+      platform: json['platform'] ?? 'In-App',
+      meetingLink: json['meeting_link'],
     );
   }
 
@@ -71,6 +77,8 @@ class LiveClassModel {
       'type': type,
       'stream_url': streamUrl,
       'recording_url': recordingUrl,
+      'platform': platform,
+      'meeting_link': meetingLink,
     };
   }
 }
@@ -233,11 +241,14 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
     }
   }
 
-  Future<Map<String, dynamic>?> postComment(String classId, String text) async {
+  Future<Map<String, dynamic>?> postComment(String classId, String text, {String? parentId}) async {
     try {
       final response = await _apiService.post(
         '/student/live-classes/$classId/comments',
-        {'comment': text},
+        {
+          'comment': text,
+          if (parentId != null) 'parent_id': parentId,
+        },
       );
       if (response['success'] == true) {
         return Map<String, dynamic>.from(response['data']);

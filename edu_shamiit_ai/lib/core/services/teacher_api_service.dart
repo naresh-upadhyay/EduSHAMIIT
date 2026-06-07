@@ -877,6 +877,7 @@ class TeacherApiService {
     String? meetingLink,
     String? meetingId,
     String? meetingPassword,
+    String platform = 'In-App',
   }) async {
     try {
       final response = await _postWithFallback(
@@ -890,6 +891,7 @@ class TeacherApiService {
           'meeting_link': meetingLink,
           'meeting_id': meetingId,
           'meeting_password': meetingPassword,
+          'platform': platform,
         },
       );
 
@@ -915,6 +917,8 @@ class TeacherApiService {
     String? status, // 'scheduled', 'recorded', 'live'
     String? streamUrl,
     String? recordingUrl,
+    String platform = 'In-App',
+    String? meetingLink,
   }) async {
     try {
       final response = await _postWithFallback(
@@ -929,6 +933,8 @@ class TeacherApiService {
           'status': status ?? 'scheduled',
           'stream_url': streamUrl,
           'recording_url': recordingUrl,
+          'platform': platform,
+          'meeting_link': meetingLink,
         },
       );
 
@@ -983,7 +989,7 @@ class TeacherApiService {
   }
 
   /// Post a teacher comment or pinned message
-  Future<Map<String, dynamic>?> postComment(String liveClassId, String text, {bool isPinned = false}) async {
+  Future<Map<String, dynamic>?> postComment(String liveClassId, String text, {bool isPinned = false, String? parentId}) async {
     try {
       final response = await _client.post(
         Uri.parse('$_baseUrl/student/live-classes/$liveClassId/comments'),
@@ -991,6 +997,7 @@ class TeacherApiService {
         body: json.encode({
           'comment': text,
           'is_pinned': isPinned,
+          if (parentId != null) 'parent_id': parentId,
         }),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {

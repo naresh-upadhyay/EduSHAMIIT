@@ -178,6 +178,49 @@ async def student_timetable(day: str = "monday", date: Optional[str] = None, use
             "day_of_week": day.capitalize(),
             "period_number": period_number,
         })
+
+    # Fetch live classes scheduled for this student on this date
+    try:
+        start_ts = f"{target_date_str}T00:00:00Z"
+        end_ts = f"{target_date_str}T23:59:59Z"
+        query = (sb.table("live_classes")
+                            .select("*, subjects(name), profiles!teacher_id(full_name)")
+                            .eq("school_id", school_id)
+                            .gte("scheduled_at", start_ts)
+                            .lte("scheduled_at", end_ts))
+        if student_class:
+            query = query.eq("target_class", student_class)
+        db_live_classes = (await query.aexecute()).data or []
+        for lc in db_live_classes:
+            try:
+                dt = datetime.fromisoformat(lc["scheduled_at"].replace("Z", "+00:00"))
+                start_time = dt.strftime("%H:%M:%S")
+                end_dt = dt + timedelta(minutes=lc.get("duration_minutes", 60))
+                end_time = end_dt.strftime("%H:%M:%S")
+            except Exception:
+                start_time = "14:00:00"
+                end_time = "15:00:00"
+                
+            teacher_name = lc.get("profiles", {}).get("full_name") if lc.get("profiles") else "Teacher"
+            
+            schedule.append({
+                "id": lc["id"],
+                "subject": f"💻 Live Class: {lc['title']}",
+                "teacher_name": teacher_name,
+                "room_number": lc.get("meeting_link") or lc.get("stream_url") or "EduSHAMIIT Live Room",
+                "start_time": start_time,
+                "end_time": end_time,
+                "day": day.capitalize(),
+                "day_of_week": day.capitalize(),
+                "period_number": "Live Class",
+                "platform": lc.get("platform", "In-App"),
+                "meeting_link": lc.get("meeting_link") or lc.get("stream_url") or "",
+            })
+    except Exception:
+        pass
+
+    # Sort timetable chronologically
+    schedule.sort(key=lambda x: x["start_time"])
         
     return {"success": True, "school_id": school_id, "data": {"schedule": schedule, "day": day, "class": student_class}}
 
@@ -1023,12 +1066,12 @@ async def student_live_classes(user=Depends(get_current_user), school_id=Depends
         if profile_res.data:
             student_class = profile_res.data.get("class")
             
-    classes = (await sb.table("live_classes")
+    query = (sb.table("live_classes")
                .select("*, subjects(name, icon, color), profiles!teacher_id(full_name)")
-               .eq("school_id", school_id)
-               .eq("target_class", student_class)
-               .order("scheduled_at")
-               .aexecute()).data or []
+               .eq("school_id", school_id))
+    if student_class:
+        query = query.eq("target_class", student_class)
+    classes = (await query.order("scheduled_at").aexecute()).data or []
                
     live_list = []
     upcoming_list = []
@@ -1093,7 +1136,8 @@ async def student_live_classes(user=Depends(get_current_user), school_id=Depends
             "type": status,
             "stream_url": c.get("stream_url"),
             "recording_url": c.get("recording_url"),
-            "meeting_link": c.get("meeting_link")
+            "meeting_link": c.get("meeting_link"),
+            "platform": c.get("platform", "In-App")
         }
         
         if status == "live":
@@ -1135,23 +1179,48 @@ async def get_live_class_comments(live_class_id: str, user=Depends(get_current_u
     comments = (await sb.table("live_class_comments")
                 .select("*, profiles!user_id(full_name, avatar_url, role)")
                 .eq("live_class_id", live_class_id)
-                .order("created_at", ascending=False)
+                .order("created_at", ascending=True)
                 .aexecute()).data or []
                 
-    mapped_comments = []
+    top_level = []
+    replies_by_parent = {}
+    
     for c in comments:
         prof = c.get("profiles") or {}
-        mapped_comments.append({
+        time_str = "Just now"
+        try:
+            created_at_dt = datetime.fromisoformat(c["created_at"].replace("Z", "+00:00"))
+            time_str = created_at_dt.strftime("%b %d, %I:%M %p")
+        except Exception:
+            pass
+            
+        mapped = {
             "id": c["id"],
             "user": prof.get("full_name", "User"),
             "avatar": prof.get("avatar_url") or (prof.get("full_name", "U")[0] if prof.get("full_name") else "U"),
             "text": c["comment"],
-            "time": "Just now",
+            "time": time_str,
             "likes": c.get("likes", 0),
             "pinned": c.get("is_pinned", False),
-            "role": prof.get("role", "student")
-        })
-    return {"success": True, "data": {"comments": mapped_comments}}
+            "role": prof.get("role", "student"),
+            "parent_id": c.get("parent_id"),
+            "replies": []
+        }
+        
+        pid = c.get("parent_id")
+        if pid:
+            replies_by_parent.setdefault(str(pid), []).append(mapped)
+        else:
+            top_level.append(mapped)
+            
+    # Associate replies with parents
+    for parent in top_level:
+        parent["replies"] = replies_by_parent.get(parent["id"], [])
+        
+    # Reverse top-level comments so newest threads appear at the top
+    top_level.reverse()
+    
+    return {"success": True, "data": {"comments": top_level}}
 
 
 @router.post("/live-classes/{live_class_id}/comments")
@@ -1169,13 +1238,16 @@ async def add_live_class_comment(live_class_id: str, request: dict, user=Depends
     if user_role == "teacher" or user.get("role") == "teacher":
         is_pinned = request.get("is_pinned", False)
         
+    parent_id = request.get("parent_id")
+        
     data = {
         "school_id": school_id,
         "live_class_id": live_class_id,
         "user_id": user["id"],
         "comment": comment_text,
         "is_pinned": is_pinned,
-        "likes": 0
+        "likes": 0,
+        "parent_id": parent_id
     }
     res = await sb.table("live_class_comments").insert(data).aexecute()
     new_comment = res.data[0] if res.data else {}
@@ -1190,7 +1262,9 @@ async def add_live_class_comment(live_class_id: str, request: dict, user=Depends
             "time": "Just now",
             "likes": 0,
             "pinned": is_pinned,
-            "role": user_role
+            "role": user_role,
+            "parent_id": parent_id,
+            "replies": []
         }
     }
 

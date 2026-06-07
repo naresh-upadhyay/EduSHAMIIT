@@ -7,6 +7,9 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:go_router/go_router.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TeacherLiveClasses extends ConsumerStatefulWidget {
   const TeacherLiveClasses({super.key});
@@ -195,6 +198,67 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
     );
   }
 
+  Widget _buildPlatformBadge(String platform) {
+    Color bg = const Color(0xFFF1F5F9);
+    Color fg = const Color(0xFF334155);
+    IconData icon = Icons.video_call;
+    
+    final lower = platform.toLowerCase();
+    if (lower == 'zoom') {
+      bg = const Color(0xFFE0F2FE);
+      fg = const Color(0xFF0369A1);
+      icon = Icons.videocam;
+    } else if (lower.contains('meet') || lower.contains('google')) {
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF15803D);
+      icon = Icons.groups;
+    } else if (lower == 'youtube') {
+      bg = const Color(0xFFFEE2E2);
+      fg = const Color(0xFFB91C1C);
+      icon = Icons.play_circle_fill;
+    } else if (lower == 'in-app' || lower == 'edushamiit') {
+      bg = const Color(0xFFEEF2FF);
+      fg = const Color(0xFF4338CA);
+      icon = Icons.bolt;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            platform,
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchMeeting(String urlString) async {
+    final url = Uri.parse(urlString);
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open link: $urlString')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open link: $e')),
+      );
+    }
+  }
+
   Widget _buildLiveClassCard(TeacherLiveClass liveClass) {
     final statusColor = _getStatusColor(liveClass.status);
     final statusLower = liveClass.status.toLowerCase();
@@ -230,6 +294,9 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              _buildPlatformBadge(liveClass.platform),
+              const SizedBox(width: 8),
               if (isLive)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -322,12 +389,27 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
       });
       _loadLiveClasses();
       if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => _TeacherLiveBroadcastingScreen(liveClass: liveClass),
-          ),
-        ).then((_) => _loadLiveClasses());
+        final platformLower = liveClass.platform.toLowerCase();
+        if (platformLower == 'in-app' || platformLower == 'edushamiit') {
+          final auth = ref.read(authProvider);
+          context.push(
+            '/live-room',
+            extra: {
+              'liveClassId': liveClass.id,
+              'currentUserId': auth.userData?['id'] ?? '',
+              'currentUserName': auth.userData?['full_name'] ?? 'Teacher',
+              'currentUserRole': 'teacher',
+              'title': liveClass.title,
+            },
+          ).then((_) => _loadLiveClasses());
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => _TeacherLiveBroadcastingScreen(liveClass: liveClass),
+            ),
+          ).then((_) => _loadLiveClasses());
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -339,24 +421,44 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
   }
 
   void _joinBroadcasting(TeacherLiveClass liveClass) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => _TeacherLiveBroadcastingScreen(liveClass: liveClass),
-      ),
-    ).then((_) => _loadLiveClasses());
+    final platformLower = liveClass.platform.toLowerCase();
+    if (platformLower == 'in-app' || platformLower == 'edushamiit') {
+      final auth = ref.read(authProvider);
+      context.push(
+        '/live-room',
+        extra: {
+          'liveClassId': liveClass.id,
+          'currentUserId': auth.userData?['id'] ?? '',
+          'currentUserName': auth.userData?['full_name'] ?? 'Teacher',
+          'currentUserRole': 'teacher',
+          'title': liveClass.title,
+        },
+      ).then((_) => _loadLiveClasses());
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => _TeacherLiveBroadcastingScreen(liveClass: liveClass),
+        ),
+      ).then((_) => _loadLiveClasses());
+    }
   }
 
   void _showScheduleDialog() {
     final titleController = TextEditingController();
-    final linkController = TextEditingController(text: 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&modestbranding=1&rel=0');
+    final linkController = TextEditingController(text: 'In-App');
     final durationController = TextEditingController(text: '60');
     
-    String selectedClass = 'X-A';
-    String selectedSubject = 'Physics';
+    // Will be loaded dynamically from teacher's classes/subjects
+    List<String> availableClasses = [];
+    List<String> availableSubjects = [];
+    String? selectedClass;
+    String? selectedSubject;
+    String selectedPlatform = 'In-App';
     DateTime selectedDateTime = DateTime.now().add(const Duration(hours: 1));
     bool isUploadRecording = false;
     bool isSubmitting = false;
+    bool isLoadingMeta = true; // loading classes+subjects
 
     showDialog(
       context: context,
@@ -364,6 +466,38 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+
+            // Kick off loading once when dialog first opens
+            if (isLoadingMeta && availableClasses.isEmpty) {
+              Future.microtask(() async {
+                try {
+                  final classes = await _apiService.getMyClasses();
+                  final subjects = await _apiService.getSubjects();
+                  final classNames = classes.map((c) => c.name).where((n) => n.isNotEmpty).toList();
+                  final subjectNames = subjects.map((s) => s.name).where((n) => n.isNotEmpty).toList();
+                  if (context.mounted) {
+                    setDialogState(() {
+                      availableClasses = classNames.isNotEmpty ? classNames : ['No Classes Found'];
+                      availableSubjects = subjectNames.isNotEmpty ? subjectNames : ['No Subjects Found'];
+                      selectedClass = availableClasses.first;
+                      selectedSubject = availableSubjects.first;
+                      isLoadingMeta = false;
+                    });
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    setDialogState(() {
+                      availableClasses = ['N/A'];
+                      availableSubjects = ['N/A'];
+                      selectedClass = 'N/A';
+                      selectedSubject = 'N/A';
+                      isLoadingMeta = false;
+                    });
+                  }
+                }
+              });
+            }
+
             return AlertDialog(
               backgroundColor: const Color(0xFF1E293B),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -382,7 +516,22 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                   ),
                 ],
               ),
-              content: SingleChildScrollView(
+              content: isLoadingMeta
+                  ? const SizedBox(
+                      height: 100,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: Color(0xFFEF4444)),
+                            SizedBox(height: 12),
+                            Text('Loading your classes...', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,7 +541,11 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setDialogState(() => isUploadRecording = false),
+                            onTap: () => setDialogState(() {
+                              isUploadRecording = false;
+                              selectedPlatform = 'In-App';
+                              linkController.text = 'In-App';
+                            }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
@@ -416,7 +569,10 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setDialogState(() => isUploadRecording = true),
+                            onTap: () => setDialogState(() {
+                              isUploadRecording = true;
+                              linkController.text = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&modestbranding=1&rel=0';
+                            }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
@@ -457,7 +613,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
+ 
                     // Target Class & Subject Row
                     Row(
                       children: [
@@ -468,7 +624,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                               const Text('Target Class', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               DropdownButtonFormField<String>(
-                                initialValue: selectedClass,
+                                value: (selectedClass != null && availableClasses.contains(selectedClass)) ? selectedClass : (availableClasses.isNotEmpty ? availableClasses.first : null),
                                 dropdownColor: const Color(0xFF1E293B),
                                 style: const TextStyle(color: Colors.white, fontSize: 13),
                                 decoration: InputDecoration(
@@ -477,10 +633,10 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                 ),
-                                items: ['X-A', 'X-B', 'IX-A']
+                                items: availableClasses
                                     .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                                     .toList(),
-                                onChanged: (val) => setDialogState(() => selectedClass = val ?? 'X-A'),
+                                onChanged: (val) => setDialogState(() => selectedClass = val),
                               ),
                             ],
                           ),
@@ -493,7 +649,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                               const Text('Subject', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 6),
                               DropdownButtonFormField<String>(
-                                initialValue: selectedSubject,
+                                value: (selectedSubject != null && availableSubjects.contains(selectedSubject)) ? selectedSubject : (availableSubjects.isNotEmpty ? availableSubjects.first : null),
                                 dropdownColor: const Color(0xFF1E293B),
                                 style: const TextStyle(color: Colors.white, fontSize: 13),
                                 decoration: InputDecoration(
@@ -502,10 +658,10 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                 ),
-                                items: ['Physics', 'Mathematics', 'Chemistry', 'English']
+                                items: availableSubjects
                                     .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                                     .toList(),
-                                onChanged: (val) => setDialogState(() => selectedSubject = val ?? 'Physics'),
+                                onChanged: (val) => setDialogState(() => selectedSubject = val),
                               ),
                             ],
                           ),
@@ -513,7 +669,40 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                       ],
                     ),
                     const SizedBox(height: 12),
-
+ 
+                    // Platform Selector (only if not recording)
+                    if (!isUploadRecording) ...[
+                      const Text('Platform', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedPlatform,
+                        dropdownColor: const Color(0xFF1E293B),
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: const Color(0xFF0F172A),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        items: ['In-App', 'Zoom', 'Google Meet', 'YouTube']
+                            .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                            .toList(),
+                        onChanged: (val) => setDialogState(() {
+                          selectedPlatform = val ?? 'In-App';
+                          if (selectedPlatform == 'In-App') {
+                            linkController.text = 'In-App';
+                          } else if (selectedPlatform == 'Zoom') {
+                            linkController.text = 'https://zoom.us/j/1234567890';
+                          } else if (selectedPlatform == 'Google Meet') {
+                            linkController.text = 'https://meet.google.com/abc-defg-hij';
+                          } else if (selectedPlatform == 'YouTube') {
+                            linkController.text = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+                          }
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+ 
                     // Date & Time Picker (if scheduling upcoming)
                     if (!isUploadRecording) ...[
                       const Text('Scheduled Time', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -564,7 +753,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                       ),
                       const SizedBox(height: 12),
                     ],
-
+ 
                     // Duration and Stream/Recording Link
                     Row(
                       children: [
@@ -588,30 +777,32 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isUploadRecording ? 'Recording Embed URL' : 'Meeting / Stream URL',
-                                style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: linkController,
-                                style: const TextStyle(color: Colors.white, fontSize: 12),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: const Color(0xFF0F172A),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        if (isUploadRecording || selectedPlatform != 'In-App') ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isUploadRecording ? 'Recording Embed URL' : 'Meeting / Stream URL',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 6),
+                                TextField(
+                                  controller: linkController,
+                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: const Color(0xFF0F172A),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -630,39 +821,41 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                           final title = titleController.text.trim();
                           final link = linkController.text.trim();
                           final duration = int.tryParse(durationController.text.trim()) ?? 60;
-
+ 
                           if (title.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('⚠️ Title is required')),
                             );
                             return;
                           }
-                          if (link.isEmpty) {
+                          if ((isUploadRecording || selectedPlatform != 'In-App') && link.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('⚠️ URL link is required')),
                             );
                             return;
                           }
-
+ 
                           final messenger = ScaffoldMessenger.of(context);
                           final navigator = Navigator.of(context);
                           setDialogState(() => isSubmitting = true);
-
+ 
                           try {
                             await _apiService.createLiveClass(
                               title: title,
-                              classId: selectedClass,
-                              subject: selectedSubject,
+                              classId: selectedClass ?? '',
+                              subject: selectedSubject ?? '',
                               scheduledAt: isUploadRecording ? DateTime.now() : selectedDateTime,
                               durationMinutes: duration,
                               status: isUploadRecording ? 'recorded' : 'scheduled',
-                              streamUrl: isUploadRecording ? null : link,
+                              streamUrl: isUploadRecording ? null : (selectedPlatform == 'In-App' ? 'In-App' : link),
                               recordingUrl: isUploadRecording ? link : null,
+                              platform: isUploadRecording ? 'Recorded' : selectedPlatform,
+                              meetingLink: isUploadRecording ? null : (selectedPlatform == 'In-App' ? 'In-App' : link),
                             );
-
+ 
                             navigator.pop();
                             _loadLiveClasses();
-
+ 
                             messenger.showSnackBar(
                               SnackBar(
                                 backgroundColor: const Color(0xFF10B981),

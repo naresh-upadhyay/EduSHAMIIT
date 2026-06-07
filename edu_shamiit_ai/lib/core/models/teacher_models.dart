@@ -1030,6 +1030,9 @@ class TeacherTimetablePeriod {
   final String? roomNumber;
   final String? teacherId;
   final String? teacherName;
+  final String? platform;
+  final String? meetingLink;
+  final String? status;
 
   const TeacherTimetablePeriod({
     required this.id,
@@ -1043,6 +1046,9 @@ class TeacherTimetablePeriod {
     this.roomNumber,
     this.teacherId,
     this.teacherName,
+    this.platform,
+    this.meetingLink,
+    this.status,
   });
 
   factory TeacherTimetablePeriod.fromJson(Map<String, dynamic> json) {
@@ -1060,6 +1066,9 @@ class TeacherTimetablePeriod {
       teacherId: _toStr(json['teacher_id']).isEmpty ? null : _toStr(json['teacher_id']),
       teacherName:
           _toStr(json['teacher_name']).isEmpty ? null : _toStr(json['teacher_name']),
+      platform: json['platform']?.toString(),
+      meetingLink: json['meeting_link']?.toString(),
+      status: json['status']?.toString(),
     );
   }
 
@@ -1076,6 +1085,9 @@ class TeacherTimetablePeriod {
       'room_number': roomNumber,
       'teacher_id': teacherId,
       'teacher_name': teacherName,
+      'platform': platform,
+      'meeting_link': meetingLink,
+      'status': status,
     };
   }
 }
@@ -1173,6 +1185,7 @@ class TeacherLiveClass {
   final int? participantCount;
   final String? recordingUrl;
   final DateTime? createdAt;
+  final String platform; // Zoom, Google Meet, YouTube, In-App
 
   const TeacherLiveClass({
     required this.id,
@@ -1187,6 +1200,7 @@ class TeacherLiveClass {
     this.participantCount,
     this.recordingUrl,
     this.createdAt,
+    this.platform = 'In-App',
   });
 
   factory TeacherLiveClass.fromJson(Map<String, dynamic> json) {
@@ -1207,6 +1221,7 @@ class TeacherLiveClass {
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at'] as String) 
           : null,
+      platform: json['platform'] as String? ?? 'In-App',
     );
   }
 
@@ -1224,6 +1239,7 @@ class TeacherLiveClass {
       'participant_count': participantCount,
       'recording_url': recordingUrl,
       'created_at': createdAt?.toIso8601String(),
+      'platform': platform,
     };
   }
 }

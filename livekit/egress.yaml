@@ -1,0 +1,8 @@
+api_key: "devkey"
+api_secret: "secretkey"
+ws_url: "ws://livekit:7880"
+redis:
+  address: "redis:6379"
+  password: "redis_password_2026"
+log_level: "info"
+enable_chrome_sandbox: false

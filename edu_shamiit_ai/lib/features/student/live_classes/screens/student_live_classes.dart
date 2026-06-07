@@ -10,6 +10,8 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/live_classes_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 
 class StudentLiveClasses extends ConsumerStatefulWidget {
   const StudentLiveClasses({super.key});
@@ -285,13 +287,21 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  cls.subject,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        cls.subject,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPlatformBadge(cls.platform),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -367,13 +377,21 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  cls.subject,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        cls.subject,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPlatformBadge(cls.platform),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -437,13 +455,21 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  cls.subject,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        cls.subject,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPlatformBadge(cls.platform),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -471,9 +497,89 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
     );
   }
 
+  Future<void> _launchMeeting(String urlString) async {
+    final url = Uri.parse(urlString);
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open link: $urlString')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open link: $e')),
+      );
+    }
+  }
+
+  Widget _buildPlatformBadge(String platform) {
+    Color bg = const Color(0xFFF1F5F9);
+    Color fg = const Color(0xFF334155);
+    IconData icon = Icons.video_call;
+    
+    final lower = platform.toLowerCase();
+    if (lower == 'zoom') {
+      bg = const Color(0xFFE0F2FE);
+      fg = const Color(0xFF0369A1);
+      icon = Icons.videocam;
+    } else if (lower.contains('meet') || lower.contains('google')) {
+      bg = const Color(0xFFDCFCE7);
+      fg = const Color(0xFF15803D);
+      icon = Icons.groups;
+    } else if (lower == 'youtube') {
+      bg = const Color(0xFFFEE2E2);
+      fg = const Color(0xFFB91C1C);
+      icon = Icons.play_circle_fill;
+    } else if (lower == 'in-app' || lower == 'edushamiit') {
+      bg = const Color(0xFFEEF2FF);
+      fg = const Color(0xFF4338CA);
+      icon = Icons.bolt;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            platform,
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _joinClass(LiveClassModel cls) {
     ref.read(liveClassesProvider.notifier).joinClass(cls.id);
-    context.go('/student/live-classes/play/${cls.id}');
+    if (cls.platform.toLowerCase() == 'in-app' || cls.platform.toLowerCase() == 'edushamiit') {
+      final auth = ref.read(authProvider);
+      context.push(
+        '/live-room',
+        extra: {
+          'liveClassId': cls.id,
+          'currentUserId': auth.userData?['id'] ?? '',
+          'currentUserName': auth.userData?['full_name'] ?? 'Student',
+          'currentUserRole': 'student',
+          'title': cls.subject,
+        },
+      );
+    } else {
+      final link = cls.meetingLink ?? cls.streamUrl;
+      if (link != null && link.isNotEmpty) {
+        _launchMeeting(link);
+      } else {
+        context.go('/student/live-classes/play/${cls.id}');
+      }
+    }
   }
 
   void _playRecording(LiveClassModel cls) {
@@ -507,6 +613,8 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
   final int _dislikeCount = 12;
 
   final TextEditingController _commentController = TextEditingController();
+  String? _replyingToCommentId;
+  final TextEditingController _replyController = TextEditingController();
 
   String _getEmbedUrl(String url) {
     if (url.contains('watch?v=')) {
@@ -555,6 +663,31 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
     }
   }
 
+  Future<void> _postReply(String commentId) async {
+    final text = _replyController.text.trim();
+    if (text.isEmpty) return;
+    final newReply = await ref.read(liveClassesProvider.notifier).postComment(
+      widget.classId,
+      text,
+      parentId: commentId,
+    );
+    if (newReply != null && mounted) {
+      setState(() {
+        // Find parent comment in _comments
+        final parentIdx = _comments.indexWhere((c) => c['id'].toString() == commentId);
+        if (parentIdx != -1) {
+          final List<dynamic> repliesList = _comments[parentIdx]['replies'] != null
+              ? List.from(_comments[parentIdx]['replies'] as Iterable)
+              : [];
+          repliesList.add(newReply);
+          _comments[parentIdx]['replies'] = repliesList;
+        }
+        _replyingToCommentId = null;
+        _replyController.clear();
+      });
+    }
+  }
+
   void _registerIframe(LiveClassModel classData) {
     if (_registeredIds.contains(classData.id)) return;
     _registeredIds.add(classData.id);
@@ -562,20 +695,35 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
     var rawUrl = classData.type == 'live' 
         ? classData.streamUrl 
         : classData.recordingUrl;
-    rawUrl ??= 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&modestbranding=1&rel=0';
+    rawUrl ??= '';
     
-    final videoUrl = _getEmbedUrl(rawUrl);
+    final isDirectVideo = rawUrl.endsWith('.mp4') || rawUrl.endsWith('.webm') || rawUrl.contains('/storage/v1/object/public/');
     
     // ignore: undefined_prefixed_name
     ui_web.platformViewRegistry.registerViewFactory(
       'youtube-iframe-${classData.id}',
-      (int viewId) => html.IFrameElement()
-        ..width = '100%'
-        ..height = '100%'
-        ..src = videoUrl
-        ..style.border = 'none'
-        ..allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
-        ..attributes['allowfullscreen'] = 'true',
+      (int viewId) {
+        if (isDirectVideo) {
+          return html.VideoElement()
+            ..width = 1280
+            ..height = 720
+            ..src = rawUrl!
+            ..controls = true
+            ..autoplay = true
+            ..style.border = 'none'
+            ..style.width = '100%'
+            ..style.height = '100%';
+        } else {
+          final videoUrl = _getEmbedUrl(rawUrl!);
+          return html.IFrameElement()
+            ..width = '100%'
+            ..height = '100%'
+            ..src = videoUrl
+            ..style.border = 'none'
+            ..allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+            ..attributes['allowfullscreen'] = 'true';
+        }
+      },
     );
   }
 
@@ -681,7 +829,7 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: isLive ? Colors.red.withValues(alpha: 0.5) : Colors.black26,
+                                          color: isLive ? Colors.red.withOpacity(0.5) : Colors.black26,
                                           blurRadius: 12,
                                           spreadRadius: 2,
                                         ),
@@ -706,7 +854,7 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isLive ? Colors.red.withValues(alpha: 0.9) : const Color(0xFF64748B).withValues(alpha: 0.9),
+                        color: isLive ? Colors.red.withOpacity(0.9) : const Color(0xFF64748B).withOpacity(0.9),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -1037,8 +1185,8 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
                       margin: const EdgeInsets.only(bottom: 12, left: 14, right: 14),
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
-                        border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
+                        color: const Color(0xFF4F46E5).withOpacity(0.15),
+                        border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.3)),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(
@@ -1139,72 +1287,145 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
     );
   }
 
-  Widget _buildCommentRow(Map<String, dynamic> comment) {
+  Widget _buildCommentRow(Map<String, dynamic> comment, {bool isReply = false}) {
     final likes = comment['likes'] ?? 0;
     final userName = comment['user'] ?? 'User';
+    final commentId = comment['id'].toString();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+      padding: EdgeInsets.only(bottom: 12, left: isReply ? 24 : 0),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: const Color(0xFF334155),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Center(
-              child: Text(
-                userName.isNotEmpty ? userName[0] : '👤',
-                style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      userName,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: comment['role'] == 'teacher' ? const Color(0xFF34D399) : const Color(0xFFA78BFA),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      comment['time'] ?? 'Just now',
-                      style: const TextStyle(fontSize: 9, color: Colors.white38),
-                    ),
-                  ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF334155),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  comment['text'] ?? '',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.white70,
-                    height: 1.4,
+                child: Center(
+                  child: Text(
+                    userName.isNotEmpty ? userName[0] : '👤',
+                    style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('👍 $likes', style: const TextStyle(fontSize: 9, color: Colors.white38)),
-                    const SizedBox(width: 10),
-                    const Text('Reply', style: TextStyle(fontSize: 9, color: Colors.white38)),
+                    Row(
+                      children: [
+                        Text(
+                          userName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: comment['role'] == 'teacher' ? const Color(0xFF34D399) : const Color(0xFFA78BFA),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          comment['time'] ?? 'Just now',
+                          style: const TextStyle(fontSize: 9, color: Colors.white38),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      comment['text'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white70,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text('👍 $likes', style: const TextStyle(fontSize: 9, color: Colors.white38)),
+                        if (!isReply) ...[
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (_replyingToCommentId == commentId) {
+                                  _replyingToCommentId = null;
+                                } else {
+                                  _replyingToCommentId = commentId;
+                                }
+                              });
+                            },
+                            child: const Text('Reply', style: TextStyle(fontSize: 9, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+          
+          // Reply input field
+          if (_replyingToCommentId == commentId)
+            Padding(
+              padding: const EdgeInsets.only(left: 32, top: 8, bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _replyController,
+                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                      decoration: InputDecoration(
+                        hintText: 'Write a reply...',
+                        hintStyle: const TextStyle(color: Colors.white30, fontSize: 11),
+                        filled: true,
+                        fillColor: const Color(0xFF0F172A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        isDense: true,
+                      ),
+                      onSubmitted: (_) => _postReply(commentId),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.send, size: 14, color: Color(0xFF38BDF8)),
+                    onPressed: () => _postReply(commentId),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _replyingToCommentId = null;
+                        _replyController.clear();
+                      });
+                    },
+                    child: const Text('Cancel', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                  ),
+                ],
+              ),
+            ),
+            
+          // Threaded Replies list
+          if (!isReply && comment['replies'] != null && (comment['replies'] as List).isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 8),
+              child: Column(
+                children: (comment['replies'] as List)
+                    .map((reply) => _buildCommentRow(Map<String, dynamic>.from(reply), isReply: true))
+                    .toList(),
+              ),
+            ),
         ],
       ),
     );
@@ -1213,6 +1434,7 @@ class _StudentLiveClassPlayerScreenState extends ConsumerState<StudentLiveClassP
   @override
   void dispose() {
     _commentController.dispose();
+    _replyController.dispose();
     super.dispose();
   }
 }

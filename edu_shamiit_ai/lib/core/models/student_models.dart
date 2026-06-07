@@ -939,41 +939,61 @@ class ExamQuestion {
 
 /// Timetable period model
 class TimetablePeriod {
+  final String? id;
   final String subject;
   final String teacherName;
   final String roomNumber;
   final String startTime;
   final String endTime;
   final String day;
+  final String? periodNumber;
+  final String? platform;
+  final String? meetingLink;
+  final String? status;
 
   TimetablePeriod({
+    this.id,
     required this.subject,
     required this.teacherName,
     required this.roomNumber,
     required this.startTime,
     required this.endTime,
     required this.day,
+    this.periodNumber,
+    this.platform,
+    this.meetingLink,
+    this.status,
   });
 
   factory TimetablePeriod.fromJson(Map<String, dynamic> json) {
     return TimetablePeriod(
+      id: json['id']?.toString(),
       subject: json['subject'] ?? '',
       teacherName: json['teacher_name'] ?? '',
       roomNumber: json['room_number'] ?? '',
       startTime: json['start_time'] ?? '',
       endTime: json['end_time'] ?? '',
       day: json['day'] ?? '',
+      periodNumber: json['period_number']?.toString(),
+      platform: json['platform']?.toString(),
+      meetingLink: json['meeting_link']?.toString(),
+      status: json['status']?.toString(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'subject': subject,
       'teacher_name': teacherName,
       'room_number': roomNumber,
       'start_time': startTime,
       'end_time': endTime,
       'day': day,
+      'period_number': periodNumber,
+      'platform': platform,
+      'meeting_link': meetingLink,
+      'status': status,
     };
   }
 }
