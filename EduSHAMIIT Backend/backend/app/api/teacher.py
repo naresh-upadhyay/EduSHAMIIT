@@ -688,16 +688,34 @@ async def teacher_delete_notice(notice_id: str, user=Depends(require_teacher), s
 
 
 @router.get("/live-classes")
-async def teacher_live_classes(user=Depends(require_teacher), school_id=Depends(require_school_id)):
-    cached = await get_cached(school_id, "teacher_live_classes", user["id"])
+async def teacher_live_classes(
+    status: Optional[str] = Query(None),
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    cache_id = f"{user['id']}:{status or 'all'}"
+    cached = await get_cached(school_id, "teacher_live_classes", cache_id)
     if cached:
         return cached
 
     sb = get_supabase()
-    classes = (await sb.table("live_classes").select("*, subjects(name, icon)").eq("school_id", school_id).eq("teacher_id", user["id"]).order("scheduled_at", ascending=False).aexecute()).data
+    query = sb.table("live_classes").select("*, subjects(name, icon)").eq("school_id", school_id).eq("teacher_id", user["id"])
+    if status:
+        if status == "ongoing":
+            query = query.in_("status", ["live", "ongoing"])
+        elif status == "completed":
+            query = query.in_("status", ["recorded", "completed"])
+        else:
+            query = query.eq("status", status)
+    classes = (await query.order("scheduled_at", ascending=False).aexecute()).data or []
     
+    # Populate subject name for front-end compatibility
+    for c in classes:
+        if "subjects" in c and c["subjects"]:
+            c["subject"] = c["subjects"].get("name", "")
+            
     result = {"success": True, "school_id": school_id, "data": {"live_classes": classes}}
-    await set_cached(school_id, "teacher_live_classes", result, user["id"], ttl=120)
+    await set_cached(school_id, "teacher_live_classes", result, cache_id, ttl=120)
     return result
 
 
@@ -745,10 +763,10 @@ async def teacher_create_live_class(request: dict, user=Depends(require_teacher)
     
     # Invalidate cache
     try:
+        await invalidate_cache(school_id, f"teacher_live_classes:{user['id']}")
         from app.cache.redis_client import get_redis
         rc = get_redis()
         if rc:
-            await rc.delete(f"{school_id}:teacher_live_classes:{user['id']}")
             await rc.delete(f"{school_id}:teacher_dashboard:{user['id']}")
     except Exception:
         pass
@@ -761,11 +779,13 @@ async def teacher_patch_live_class(live_class_id: str, request: dict, user=Depen
     sb = get_supabase()
     
     # Verify the class belongs to this teacher and school
-    existing = await sb.table("live_classes").select("id").eq("id", live_class_id).eq("school_id", school_id).eq("teacher_id", user["id"]).maybe_single().aexecute()
+    existing = await sb.table("live_classes").select("*").eq("id", live_class_id).eq("school_id", school_id).eq("teacher_id", user["id"]).maybe_single().aexecute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Live class not found or access denied")
         
+    existing_data = existing.data
     update_data = {}
+    
     if "status" in request:
         status = request["status"]
         update_data["status"] = status
@@ -786,6 +806,27 @@ async def teacher_patch_live_class(live_class_id: str, request: dict, user=Depen
         duration_val = request["duration_minutes"]
         if isinstance(duration_val, (int, float)) and duration_val > 0:
             update_data["duration_minutes"] = int(duration_val)
+    if "scheduled_at" in request:
+        update_data["scheduled_at"] = request["scheduled_at"]
+    if "target_class" in request or "class" in request:
+        update_data["target_class"] = request.get("target_class") or request.get("class")
+        
+    if "subject_id" in request:
+        update_data["subject_id"] = request["subject_id"]
+    elif "subject" in request:
+        subject_name = request["subject"]
+        if subject_name:
+            t_class = request.get("target_class") or request.get("class") or existing_data.get("target_class")
+            query = sb.table("subjects").select("id").eq("school_id", school_id).ilike("name", subject_name)
+            if t_class:
+                query = query.eq("class", t_class)
+            subj_res = await query.maybe_single().aexecute()
+            if subj_res.data:
+                update_data["subject_id"] = subj_res.data["id"]
+            else:
+                subj_res_any = await sb.table("subjects").select("id").eq("school_id", school_id).ilike("name", subject_name).limit(1).aexecute()
+                if subj_res_any.data:
+                    update_data["subject_id"] = subj_res_any.data[0]["id"]
         
     if update_data:
         res = await sb.table("live_classes").update(update_data).eq("id", live_class_id).aexecute()
@@ -794,10 +835,10 @@ async def teacher_patch_live_class(live_class_id: str, request: dict, user=Depen
         
     # Invalidate cache
     try:
+        await invalidate_cache(school_id, f"teacher_live_classes:{user['id']}")
         from app.cache.redis_client import get_redis
         rc = get_redis()
         if rc:
-            await rc.delete(f"{school_id}:teacher_live_classes:{user['id']}")
             await rc.delete(f"{school_id}:teacher_dashboard:{user['id']}")
             # Clear all student live classes cache keys
             keys = await rc.keys(f"{school_id}:student_live_classes:*")
@@ -809,6 +850,44 @@ async def teacher_patch_live_class(live_class_id: str, request: dict, user=Depen
     return {"success": True, "data": res.data[0] if res.data else {}}
 
 
+@router.delete("/live-classes/{live_class_id}")
+async def teacher_delete_live_class(
+    live_class_id: str,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    
+    # Verify the class belongs to this teacher and school
+    existing = await sb.table("live_classes").select("id").eq("id", live_class_id).eq("school_id", school_id).eq("teacher_id", user["id"]).maybe_single().aexecute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Live class not found or access denied")
+        
+    # 1. Clean up physical recording files from MinIO
+    try:
+        from app.services.minio_client import delete_live_class_recordings_from_storage
+        await delete_live_class_recordings_from_storage(sb, live_class_id)
+    except Exception as e:
+        print(f"[Cleanup] Error in teacher_delete_live_class recordings cleanup: {e}")
+        
+    # 2. Delete class from database (cascade deletes live_class_recordings)
+    await sb.table("live_classes").delete().eq("id", live_class_id).aexecute()
+    
+    # Invalidate cache
+    try:
+        await invalidate_cache(school_id, f"teacher_live_classes:{user['id']}")
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            await rc.delete(f"{school_id}:teacher_dashboard:{user['id']}")
+            # Clear all student live classes cache keys
+            keys = await rc.keys(f"{school_id}:student_live_classes:*")
+            if keys:
+                await rc.delete(*keys)
+    except Exception:
+        pass
+        
+    return {"success": True, "message": "Live class deleted successfully"}
 
 
 @router.post("/live-classes/start")

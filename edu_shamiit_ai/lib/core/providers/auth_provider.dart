@@ -69,7 +69,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
         
         // Restore Supabase session for realtime to work
-        final supabaseAccessToken = prefs.getString('supabase_access_token');
         final supabaseRefreshToken = prefs.getString('supabase_refresh_token');
         
         final currentSession = Supabase.instance.client.auth.currentSession;

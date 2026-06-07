@@ -34,7 +34,8 @@ class AttendanceRecord {
     final statusVal = json['status']?.toString() ?? 'present';
     return AttendanceRecord(
       status: statusVal,
-      subjectName: json['subject_name']?.toString() ?? (json['subjects']?['name'] ?? json['subject'])?.toString(),
+      subjectName: json['subject_name']?.toString() ??
+          (json['subjects']?['name'] ?? json['subject'])?.toString(),
       subjectId: json['subject_id']?.toString(),
       remarks: json['remarks']?.toString(),
       markedByName: json['marked_by_name']?.toString() ?? 'Teacher',
@@ -128,7 +129,6 @@ class LibraryBookRequest {
   }
 }
 
-
 /// Course model (matches backend response)
 class Course {
   final String id;
@@ -167,25 +167,30 @@ DateTime _parseDateTime(dynamic value) {
   if (value is DateTime) return value;
   final str = value.toString().trim();
   if (str.isEmpty) return DateTime.now();
-  
+
   String cleaned = str;
   if (cleaned.endsWith('+00')) {
-    cleaned = cleaned.substring(0, cleaned.length - 3) + 'Z';
-  } else if (cleaned.contains('+') && !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
+    cleaned = '${cleaned.substring(0, cleaned.length - 3)}Z';
+  } else if (cleaned.contains('+') &&
+      !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
     final plusIndex = cleaned.lastIndexOf('+');
     final offset = cleaned.substring(plusIndex + 1);
     if (offset.length == 2) {
-      cleaned = cleaned.substring(0, plusIndex) + '+$offset:00';
+      cleaned = '${cleaned.substring(0, plusIndex)}+$offset:00';
     } else if (offset.length == 4) {
-      cleaned = cleaned.substring(0, plusIndex) + '+${offset.substring(0, 2)}:${offset.substring(2)}';
+      cleaned =
+          '${cleaned.substring(0, plusIndex)}+${offset.substring(0, 2)}:${offset.substring(2)}';
     }
-  } else if (cleaned.contains('-') && cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') && !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
+  } else if (cleaned.contains('-') &&
+      cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') &&
+      !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
     final minusIndex = cleaned.lastIndexOf('-');
     final offset = cleaned.substring(minusIndex + 1);
     if (offset.length == 2) {
-      cleaned = cleaned.substring(0, minusIndex) + '-$offset:00';
+      cleaned = '${cleaned.substring(0, minusIndex)}-$offset:00';
     } else if (offset.length == 4) {
-      cleaned = cleaned.substring(0, minusIndex) + '-${offset.substring(0, 2)}:${offset.substring(2)}';
+      cleaned =
+          '${cleaned.substring(0, minusIndex)}-${offset.substring(0, 2)}:${offset.substring(2)}';
     }
   }
   cleaned = cleaned.replaceAll(' ', 'T');
@@ -197,25 +202,30 @@ DateTime? _parseDateTimeNullable(dynamic value) {
   if (value is DateTime) return value;
   final str = value.toString().trim();
   if (str.isEmpty) return null;
-  
+
   String cleaned = str;
   if (cleaned.endsWith('+00')) {
-    cleaned = cleaned.substring(0, cleaned.length - 3) + 'Z';
-  } else if (cleaned.contains('+') && !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
+    cleaned = '${cleaned.substring(0, cleaned.length - 3)}Z';
+  } else if (cleaned.contains('+') &&
+      !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
     final plusIndex = cleaned.lastIndexOf('+');
     final offset = cleaned.substring(plusIndex + 1);
     if (offset.length == 2) {
-      cleaned = cleaned.substring(0, plusIndex) + '+$offset:00';
+      cleaned = '${cleaned.substring(0, plusIndex)}+$offset:00';
     } else if (offset.length == 4) {
-      cleaned = cleaned.substring(0, plusIndex) + '+${offset.substring(0, 2)}:${offset.substring(2)}';
+      cleaned =
+          '${cleaned.substring(0, plusIndex)}+${offset.substring(0, 2)}:${offset.substring(2)}';
     }
-  } else if (cleaned.contains('-') && cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') && !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
+  } else if (cleaned.contains('-') &&
+      cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') &&
+      !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
     final minusIndex = cleaned.lastIndexOf('-');
     final offset = cleaned.substring(minusIndex + 1);
     if (offset.length == 2) {
-      cleaned = cleaned.substring(0, minusIndex) + '-$offset:00';
+      cleaned = '${cleaned.substring(0, minusIndex)}-$offset:00';
     } else if (offset.length == 4) {
-      cleaned = cleaned.substring(0, minusIndex) + '-${offset.substring(0, 2)}:${offset.substring(2)}';
+      cleaned =
+          '${cleaned.substring(0, minusIndex)}-${offset.substring(0, 2)}:${offset.substring(2)}';
     }
   }
   cleaned = cleaned.replaceAll(' ', 'T');
@@ -445,13 +455,17 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
       final response = await _apiService.get('/student/attendance');
       final data = response.containsKey('data') ? response['data'] : response;
       final rawRecords = data['records'] ?? [];
-      final recordsList = (rawRecords as List).map((r) => AttendanceRecord.fromJson(r)).toList();
-      
+      final recordsList = (rawRecords as List)
+          .map((r) => AttendanceRecord.fromJson(r))
+          .toList();
+
       final rawSubjectWise = data['subject_wise'] as List? ?? [];
-      final subjectWiseList = rawSubjectWise.map((e) => Map<String, dynamic>.from(e)).toList();
-      
+      final subjectWiseList =
+          rawSubjectWise.map((e) => Map<String, dynamic>.from(e)).toList();
+
       final rawMonthly = data['monthly'] as List? ?? [];
-      final monthlyList = rawMonthly.map((e) => Map<String, dynamic>.from(e)).toList();
+      final monthlyList =
+          rawMonthly.map((e) => Map<String, dynamic>.from(e)).toList();
 
       state = state.copyWith(
         isLoading: false,
@@ -469,15 +483,14 @@ class AttendanceNotifier extends StateNotifier<AttendanceState> {
   }
 }
 
-final attendanceProvider = StateNotifierProvider<AttendanceNotifier, AttendanceState>((ref) {
+final attendanceProvider =
+    StateNotifierProvider<AttendanceNotifier, AttendanceState>((ref) {
   return AttendanceNotifier(ref.watch(apiServiceProvider));
 });
 
 // LeaveState, LeaveNotifier and leaveProvider are now in:
 //   lib/core/providers/leave_provider.dart
 // (exported at the top of this file via the re-export line)
-
-
 
 // ============================================================================
 // LIBRARY PROVIDER
@@ -543,30 +556,34 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   Future<void> fetchLibraryData() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final response = await _apiService.get('/student/library', useCache: false);
+      final response =
+          await _apiService.get('/student/library', useCache: false);
       final data = response.containsKey('data') ? response['data'] : response;
-      
+
       final List<dynamic> borrowsData = data['borrows'] as List? ?? [];
       final List<dynamic> requestsData = data['requests'] as List? ?? [];
       final List<dynamic> booksData = data['books'] as List? ?? [];
-      
+
       final borrowsList = borrowsData
           .map((b) => LibraryBorrow.fromJson(b as Map<String, dynamic>))
           .toList();
-          
+
       final requestsList = requestsData
           .map((r) => LibraryBookRequest.fromJson(r as Map<String, dynamic>))
           .toList();
-          
+
       List<LibraryBook> booksList = booksData
           .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
           .toList();
-          
+
       // Re-run search if searchQuery is active
       if (state.searchQuery.isNotEmpty) {
         try {
-          final searchResponse = await _apiService.get('/student/library/books', query: {'search': state.searchQuery}, useCache: false);
-          final searchData = searchResponse.containsKey('data') ? searchResponse['data'] : searchResponse;
+          final searchResponse = await _apiService.get('/student/library/books',
+              query: {'search': state.searchQuery}, useCache: false);
+          final searchData = searchResponse.containsKey('data')
+              ? searchResponse['data']
+              : searchResponse;
           booksList = (searchData as List? ?? [])
               .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
               .toList();
@@ -574,10 +591,15 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
           // Fallback to default books list if search fails
         }
       }
-          
+
       final active = borrowsList.where((b) => b.status == 'borrowed').length;
-      final overdue = borrowsList.where((b) => b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && !b.isReturned).length;
-      
+      final overdue = borrowsList
+          .where((b) =>
+              b.dueDate != null &&
+              b.dueDate!.isBefore(DateTime.now()) &&
+              !b.isReturned)
+          .length;
+
       state = state.copyWith(
         isLoading: false,
         borrows: borrowsList,
@@ -587,7 +609,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         activeBorrows: active,
         overdueBooks: overdue,
       );
-      
+
       // Asynchronously fetch AI recommendations to avoid blocking dashboard load
       fetchRecommendations();
     } catch (e) {
@@ -597,7 +619,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<void> fetchRecommendations() async {
     try {
-      final response = await _apiService.get('/student/library/recommendations', useCache: false);
+      final response = await _apiService.get('/student/library/recommendations',
+          useCache: false);
       final data = response.containsKey('data') ? response['data'] : response;
       final list = (data as List? ?? [])
           .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
@@ -609,7 +632,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   Future<void> searchBooks(String query) async {
     state = state.copyWith(searchQuery: query, isLoading: true, error: null);
     try {
-      final response = await _apiService.get('/student/library/books', query: {'search': query}, useCache: false);
+      final response = await _apiService.get('/student/library/books',
+          query: {'search': query}, useCache: false);
       final data = response.containsKey('data') ? response['data'] : response;
       final list = (data as List? ?? [])
           .map((b) => LibraryBook.fromJson(b as Map<String, dynamic>))
@@ -622,7 +646,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<bool> borrowBook(String bookId) async {
     try {
-      final res = await _apiService.post('/student/library/borrow', {'book_id': bookId});
+      final res = await _apiService
+          .post('/student/library/borrow', {'book_id': bookId});
       await fetchLibraryData();
       return res['success'] == true;
     } catch (e) {
@@ -633,7 +658,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<bool> renewBook(String borrowId) async {
     try {
-      final res = await _apiService.post('/student/library/borrows/$borrowId/renew', {});
+      final res = await _apiService
+          .post('/student/library/borrows/$borrowId/renew', {});
       await fetchLibraryData();
       return res['success'] == true;
     } catch (e) {
@@ -644,7 +670,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<bool> returnBook(String borrowId) async {
     try {
-      final res = await _apiService.post('/student/library/borrows/$borrowId/return', {});
+      final res = await _apiService
+          .post('/student/library/borrows/$borrowId/return', {});
       await fetchLibraryData();
       return res['success'] == true;
     } catch (e) {
@@ -653,7 +680,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     }
   }
 
-  Future<bool> submitBookRequest(String title, String author, String isbn, String reason) async {
+  Future<bool> submitBookRequest(
+      String title, String author, String isbn, String reason) async {
     try {
       final res = await _apiService.post('/student/library/requests', {
         'title': title,
@@ -671,7 +699,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<bool> cancelBorrowRequest(String borrowId) async {
     try {
-      final res = await _apiService.post('/student/library/borrows/$borrowId/cancel', {});
+      final res = await _apiService
+          .post('/student/library/borrows/$borrowId/cancel', {});
       await fetchLibraryData();
       return res['success'] == true;
     } catch (e) {
@@ -682,7 +711,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
 
   Future<bool> cancelBookRequest(String requestId) async {
     try {
-      final res = await _apiService.post('/student/library/requests/$requestId/cancel', {});
+      final res = await _apiService
+          .post('/student/library/requests/$requestId/cancel', {});
       await fetchLibraryData();
       return res['success'] == true;
     } catch (e) {
@@ -692,10 +722,10 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   }
 }
 
-final libraryProvider = StateNotifierProvider<LibraryNotifier, LibraryState>((ref) {
+final libraryProvider =
+    StateNotifierProvider<LibraryNotifier, LibraryState>((ref) {
   return LibraryNotifier(ref.watch(apiServiceProvider));
 });
-
 
 // ============================================================================
 // COURSES PROVIDER
@@ -745,7 +775,8 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
     try {
       final response = await _apiService.get('/student/courses');
       final data = response.containsKey('data') ? response['data'] : response;
-      final coursesList = (data['courses'] ?? []).map((c) => Course.fromJson(c)).toList();
+      final coursesList =
+          (data['courses'] ?? []).map((c) => Course.fromJson(c)).toList();
       state = state.copyWith(
         isLoading: false,
         courses: coursesList,
@@ -758,7 +789,8 @@ class CoursesNotifier extends StateNotifier<CoursesState> {
   }
 }
 
-final coursesProvider = StateNotifierProvider<CoursesNotifier, CoursesState>((ref) {
+final coursesProvider =
+    StateNotifierProvider<CoursesNotifier, CoursesState>((ref) {
   return CoursesNotifier(ref.watch(apiServiceProvider));
 });
 
@@ -806,10 +838,13 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       state = state.copyWith(isLoading: true, error: null);
     }
     try {
-      final response = await _apiService.get('/student/notifications', useCache: useCache);
+      final response =
+          await _apiService.get('/student/notifications', useCache: useCache);
       final data = response.containsKey('data') ? response['data'] : response;
       final rawList = (data['notifications'] as List? ?? []);
-      final notificationsList = rawList.map((n) => NotificationItem.fromJson(n as Map<String, dynamic>)).toList();
+      final notificationsList = rawList
+          .map((n) => NotificationItem.fromJson(n as Map<String, dynamic>))
+          .toList();
       final unread = notificationsList.where((n) => !n.isRead).length;
       state = state.copyWith(
         isLoading: false,
@@ -824,10 +859,13 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   /// Force-refresh ignoring cache (for realtime updates).
   Future<void> forceRefresh() async {
     try {
-      final response = await _apiService.get('/student/notifications', useCache: false);
+      final response =
+          await _apiService.get('/student/notifications', useCache: false);
       final data = response.containsKey('data') ? response['data'] : response;
       final rawList = (data['notifications'] as List? ?? []);
-      final notificationsList = rawList.map((n) => NotificationItem.fromJson(n as Map<String, dynamic>)).toList();
+      final notificationsList = rawList
+          .map((n) => NotificationItem.fromJson(n as Map<String, dynamic>))
+          .toList();
       final unread = notificationsList.where((n) => !n.isRead).length;
       state = state.copyWith(
         isLoading: false,
@@ -867,10 +905,17 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   Future<void> markAllAsRead() async {
     try {
       await _apiService.patch('/notifications/read-all', {});
-      final updated = state.notifications.map((n) => NotificationItem(
-        id: n.id, title: n.title, message: n.message, type: n.type,
-        referenceId: n.referenceId, createdAt: n.createdAt, isRead: true,
-      )).toList();
+      final updated = state.notifications
+          .map((n) => NotificationItem(
+                id: n.id,
+                title: n.title,
+                message: n.message,
+                type: n.type,
+                referenceId: n.referenceId,
+                createdAt: n.createdAt,
+                isRead: true,
+              ))
+          .toList();
       state = state.copyWith(notifications: updated, unreadCount: 0);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -880,7 +925,8 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   Future<bool> deleteNotification(String notificationId) async {
     try {
       await _apiService.delete('/student/notifications/$notificationId');
-      final updated = state.notifications.where((n) => n.id != notificationId).toList();
+      final updated =
+          state.notifications.where((n) => n.id != notificationId).toList();
       state = state.copyWith(
         notifications: updated,
         unreadCount: updated.where((n) => !n.isRead).length,
@@ -893,7 +939,8 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   }
 }
 
-final notificationsProvider = StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
+final notificationsProvider =
+    StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
   return NotificationsNotifier(ref.watch(apiServiceProvider));
 });
 
@@ -945,7 +992,8 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
     try {
       final response = await _apiService.get('/student/live-classes');
       final data = response.containsKey('data') ? response['data'] : response;
-      final classesList = (data['classes'] ?? []).map((c) => LiveClass.fromJson(c)).toList();
+      final classesList =
+          (data['classes'] ?? []).map((c) => LiveClass.fromJson(c)).toList();
       state = state.copyWith(
         isLoading: false,
         classes: classesList,
@@ -958,7 +1006,8 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
   }
 }
 
-final liveClassesProvider = StateNotifierProvider<LiveClassesNotifier, LiveClassesState>((ref) {
+final liveClassesProvider =
+    StateNotifierProvider<LiveClassesNotifier, LiveClassesState>((ref) {
   return LiveClassesNotifier(ref.watch(apiServiceProvider));
 });
 
@@ -1011,12 +1060,12 @@ class LeaderboardNotifier extends StateNotifier<LeaderboardState> {
       final response = await _apiService.get('/student/leaderboard');
       final data = response.containsKey('data') ? response['data'] : response;
       final rawEntries = data['entries'] ?? data['leaderboard'] ?? [];
-      
+
       List<LeaderboardEntry> entriesList = [];
       for (int i = 0; i < (rawEntries as List).length; i++) {
         entriesList.add(LeaderboardEntry.fromJson(rawEntries[i], i));
       }
-      
+
       state = state.copyWith(
         isLoading: false,
         entries: entriesList,
@@ -1029,7 +1078,8 @@ class LeaderboardNotifier extends StateNotifier<LeaderboardState> {
   }
 }
 
-final leaderboardProvider = StateNotifierProvider<LeaderboardNotifier, LeaderboardState>((ref) {
+final leaderboardProvider =
+    StateNotifierProvider<LeaderboardNotifier, LeaderboardState>((ref) {
   return LeaderboardNotifier(ref.watch(apiServiceProvider));
 });
 
@@ -1121,13 +1171,17 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       try {
         await fetchBlockedUsers();
       } catch (_) {}
-      
-      final response = await _apiService.get('/student/messages', useCache: useCache);
+
+      final response =
+          await _apiService.get('/student/messages', useCache: useCache);
       final data = response.containsKey('data') ? response['data'] : response;
       final rawConvs = data['conversations'] as List? ?? [];
-      final conversationsList = rawConvs.map((c) => ChatConversation.fromJson(c as Map<String, dynamic>)).toList();
-      final totalUnread = conversationsList.fold<int>(0, (sum, c) => sum + c.unreadCount);
-      
+      final conversationsList = rawConvs
+          .map((c) => ChatConversation.fromJson(c as Map<String, dynamic>))
+          .toList();
+      final totalUnread =
+          conversationsList.fold<int>(0, (sum, c) => sum + c.unreadCount);
+
       state = state.copyWith(
         isLoading: false,
         conversations: conversationsList,
@@ -1138,15 +1192,19 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     }
   }
 
-  Future<void> fetchChatHistory(String chatId, {bool refreshConversations = true}) async {
+  Future<void> fetchChatHistory(String chatId,
+      {bool refreshConversations = true}) async {
     if (state.chatHistory.isEmpty) {
       state = state.copyWith(isLoading: true, error: null);
     }
     try {
-      final response = await _apiService.get('/student/messages/chat?chat_id=$chatId', useCache: false);
+      final response = await _apiService
+          .get('/student/messages/chat?chat_id=$chatId', useCache: false);
       final data = response.containsKey('data') ? response['data'] : response;
       final rawMsgs = data['messages'] as List? ?? [];
-      final history = rawMsgs.map((m) => MessageItem.fromJson(m as Map<String, dynamic>)).toList();
+      final history = rawMsgs
+          .map((m) => MessageItem.fromJson(m as Map<String, dynamic>))
+          .toList();
       state = state.copyWith(
         isLoading: false,
         chatHistory: history,
@@ -1168,7 +1226,10 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       final senderId = rawPayload['sender_id'] as String?;
       final content = rawPayload['content'] as String?;
       final createdAtStr = rawPayload['created_at'] as String?;
-      if (id == null || senderId == null || content == null || createdAtStr == null) return;
+      if (id == null ||
+          senderId == null ||
+          content == null ||
+          createdAtStr == null) return;
 
       // Avoid duplicates (our own send already optimistically refreshes)
       if (state.chatHistory.any((m) => m.id == id)) return;
@@ -1176,7 +1237,8 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       final newMsg = MessageItem(
         id: id,
         senderId: senderId,
-        senderName: null, // will be filled when full history is fetched next time
+        senderName:
+            null, // will be filled when full history is fetched next time
         senderAvatar: null,
         senderRole: null,
         content: content,
@@ -1190,8 +1252,8 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     }
   }
 
-
-  Future<bool> sendMessage(String content, {String? receiverId, String? groupId}) async {
+  Future<bool> sendMessage(String content,
+      {String? receiverId, String? groupId}) async {
     try {
       final body = {
         'content': content,
@@ -1203,7 +1265,7 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       }
 
       await _apiService.post('/student/messages/send', body);
-      
+
       // If we are currently viewing this chat, refresh its history
       final activeChatId = groupId ?? receiverId;
       if (activeChatId != null) {
@@ -1281,11 +1343,12 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
               });
             } catch (_) {}
           }
-          
+
           try {
             await _apiService.post('/student/messages/send', {
               'group_id': groupId,
-              'content': '📢 Group squad revision formed with ${memberIds.length + 1} members!'
+              'content':
+                  '📢 Group squad revision formed with ${memberIds.length + 1} members!'
             });
           } catch (_) {}
         }
@@ -1298,8 +1361,6 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       return false;
     }
   }
-
-
 
   Future<bool> joinGroup(String groupId) async {
     try {
@@ -1403,7 +1464,8 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     }
   }
 
-  Future<bool> changeMemberRole(String groupId, String memberId, String role) async {
+  Future<bool> changeMemberRole(
+      String groupId, String memberId, String role) async {
     try {
       await _apiService.post('/groups/$groupId/members/$memberId/role', {
         'role': role,
@@ -1414,7 +1476,8 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
     }
   }
 
-  Future<bool> updateGroupAvatar(String groupId, Uint8List bytes, String filename) async {
+  Future<bool> updateGroupAvatar(
+      String groupId, Uint8List bytes, String filename) async {
     try {
       await _apiService.multipartPostBytes(
         '/groups/$groupId/avatar',
@@ -1431,7 +1494,8 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
   }
 }
 
-final messagingProvider = StateNotifierProvider<MessagingNotifier, MessagingState>((ref) {
+final messagingProvider =
+    StateNotifierProvider<MessagingNotifier, MessagingState>((ref) {
   return MessagingNotifier(ref.watch(apiServiceProvider));
 });
 
@@ -1487,7 +1551,8 @@ class OnlineExamNotifier extends StateNotifier<OnlineExamState> {
     try {
       final response = await _apiService.get('/student/exams');
       final data = response.containsKey('data') ? response['data'] : response;
-      final examsList = (data['exams'] ?? []).map((e) => ExamItem.fromJson(e)).toList();
+      final examsList =
+          (data['exams'] ?? []).map((e) => ExamItem.fromJson(e)).toList();
       final upcoming = examsList.where((e) => e.status == 'upcoming').length;
       final ongoing = examsList.where((e) => e.status == 'ongoing').length;
       final completed = examsList.where((e) => e.status == 'completed').length;
@@ -1504,6 +1569,7 @@ class OnlineExamNotifier extends StateNotifier<OnlineExamState> {
   }
 }
 
-final onlineExamProvider = StateNotifierProvider<OnlineExamNotifier, OnlineExamState>((ref) {
+final onlineExamProvider =
+    StateNotifierProvider<OnlineExamNotifier, OnlineExamState>((ref) {
   return OnlineExamNotifier(ref.watch(apiServiceProvider));
 });

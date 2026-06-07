@@ -661,10 +661,17 @@ services:
     restart: unless-stopped
     ports:
       - "7880:7880"
+      - "7881:7881/tcp"
       - "50000-50050:50000-50050/udp"
     volumes:
       - ./livekit/livekit.yaml:/livekit.yaml:ro
     command: --config /livekit.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 512M
     depends_on:
       redis:
         condition: service_healthy
@@ -680,11 +687,26 @@ services:
     restart: unless-stopped
     environment:
       - EGRESS_CONFIG_FILE=/egress.yaml
+      # Disable Chrome sandbox (required in Docker)
+      - DISPLAY=:0
     volumes:
       - ./livekit/egress.yaml:/egress.yaml:ro
+      - ./livekit/policy.json:/etc/opt/chrome/policies/managed/policy.json:ro
     cap_add:
       - SYS_ADMIN
-    shm_size: '1gb'
+      - SYS_NICE
+    # 2 GB of shared memory for Chrome's compositing
+    shm_size: '2gb'
+    # tmpfs for Chrome's temp/cache — faster than disk I/O
+    tmpfs:
+      - /tmp:exec,size=512m
+      - /dev/shm:exec,size=2g
+    deploy:
+      resources:
+        limits:
+          memory: 4096M
+        reservations:
+          memory: 2048M
     depends_on:
       - livekit
     networks:

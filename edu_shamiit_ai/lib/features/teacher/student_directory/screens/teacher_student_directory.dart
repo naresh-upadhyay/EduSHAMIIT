@@ -13,12 +13,14 @@ class TeacherStudentDirectory extends ConsumerStatefulWidget {
   const TeacherStudentDirectory({super.key});
 
   @override
-  ConsumerState<TeacherStudentDirectory> createState() => _TeacherStudentDirectoryState();
+  ConsumerState<TeacherStudentDirectory> createState() =>
+      _TeacherStudentDirectoryState();
 }
 
-class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirectory> {
+class _TeacherStudentDirectoryState
+    extends ConsumerState<TeacherStudentDirectory> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   String _selectedClass = 'All';
   List<String> _classes = ['All'];
   Map<String, int> _classCounts = {};
@@ -85,24 +87,25 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
       _error = null;
     });
     try {
-      final search = _searchController.text.isEmpty ? null : _searchController.text;
+      final search =
+          _searchController.text.isEmpty ? null : _searchController.text;
       final students = await _apiService.getStudentDirectory(
         classId: null,
         search: search,
       );
 
-      final Map<String, int> counts = {
-        for (final c in _classes) c: 0
-      };
+      final Map<String, int> counts = {for (final c in _classes) c: 0};
       for (final s in students) {
         final classLabel = s.class_;
         if (counts.containsKey(classLabel)) {
           counts[classLabel] = counts[classLabel]! + 1;
         } else {
-          final normalizedLabel = classLabel.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
+          final normalizedLabel =
+              classLabel.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
           String? matchedKey;
           for (final key in counts.keys) {
-            final normalizedKey = key.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
+            final normalizedKey =
+                key.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
             if (normalizedKey == normalizedLabel) {
               matchedKey = key;
               break;
@@ -123,8 +126,10 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
         } else {
           _students = students.where((s) {
             if (s.class_ == _selectedClass) return true;
-            final normalizedS = s.class_.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
-            final normalizedSel = _selectedClass.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
+            final normalizedS =
+                s.class_.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
+            final normalizedSel =
+                _selectedClass.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
             return normalizedS == normalizedSel;
           }).toList();
         }
@@ -176,17 +181,18 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('No phone number available for this student or parent.'),
+            content:
+                Text('No phone number available for this student or parent.'),
             backgroundColor: Color(0xFFEF4444),
           ),
         );
       }
       return;
     }
-    
+
     final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
     final uri = Uri.parse('tel:$cleanPhone');
-    
+
     try {
       if (!await launchUrl(uri)) {
         if (mounted) {
@@ -217,10 +223,18 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
       backgroundColor: Colors.transparent,
       builder: (context) {
         final avatarGrad = _getAvatarGradient(index);
-        final initials = student.name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join();
-        final isWarning = (student.avgMarks != null && student.avgMarks! > 0.0 && student.avgMarks! < 50.0) || 
-                          (student.attendancePct != null && student.attendancePct! > 0.0 && student.attendancePct! < 75.0);
-        
+        final initials = student.name
+            .split(' ')
+            .map((n) => n.isNotEmpty ? n[0] : '')
+            .take(2)
+            .join();
+        final isWarning = (student.avgMarks != null &&
+                student.avgMarks! > 0.0 &&
+                student.avgMarks! < 50.0) ||
+            (student.attendancePct != null &&
+                student.attendancePct! > 0.0 &&
+                student.attendancePct! < 75.0);
+
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -243,7 +257,7 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Avatar & Name Info
               Row(
                 children: [
@@ -293,7 +307,7 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                 ],
               ),
               const SizedBox(height: 20),
-              
+
               // Call & Message buttons
               Row(
                 children: [
@@ -326,7 +340,8 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).pop();
-                        context.push('/teacher/messaging?chat_id=${student.id}');
+                        context
+                            .push('/teacher/messaging?chat_id=${student.id}');
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFECFDF5),
@@ -349,7 +364,7 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                 ],
               ),
               const SizedBox(height: 20),
-              
+
               // Performance Card
               Container(
                 decoration: BoxDecoration(
@@ -373,15 +388,15 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                     _buildPerformanceRow(
                       'Current Grade',
                       _getGradeString(student.avgMarks),
-                      valueColor: (student.avgMarks ?? 0) >= 50.0 
-                          ? const Color(0xFF059669) 
+                      valueColor: (student.avgMarks ?? 0) >= 50.0
+                          ? const Color(0xFF059669)
                           : const Color(0xFFEF4444),
                     ),
                     const Divider(color: Color(0xFFF1F5F9), height: 16),
                     _buildPerformanceRow(
                       'Attendance',
-                      student.attendancePct != null 
-                          ? '${student.attendancePct!.toStringAsFixed(0)}%' 
+                      student.attendancePct != null
+                          ? '${student.attendancePct!.toStringAsFixed(0)}%'
                           : '0%',
                     ),
                     const Divider(color: Color(0xFFF1F5F9), height: 16),
@@ -393,7 +408,7 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Close button
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -452,7 +467,8 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF92400E), Color(0xFFD97706)],
@@ -467,7 +483,8 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                      onPressed: () =>
+                          safeGoBack(context, '/teacher/dashboard'),
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -481,9 +498,10 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -511,7 +529,7 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                 border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 4,
                   ),
                 ],
@@ -525,7 +543,8 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                     color: Color(0xFF94A3B8),
                   ),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
                 onChanged: (_) => _loadStudents(),
               ),
@@ -538,7 +557,8 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
               height: 52,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 itemCount: _classes.length,
                 itemBuilder: (context, index) {
                   final class_ = _classes[index];
@@ -555,8 +575,12 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                         } else {
                           _students = _allStudents.where((s) {
                             if (s.class_ == _selectedClass) return true;
-                            final normalizedS = s.class_.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
-                            final normalizedSel = _selectedClass.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
+                            final normalizedS = s.class_
+                                .replaceAll(RegExp(r'[\s-]'), '')
+                                .toLowerCase();
+                            final normalizedSel = _selectedClass
+                                .replaceAll(RegExp(r'[\s-]'), '')
+                                .toLowerCase();
                             return normalizedS == normalizedSel;
                           }).toList();
                         }
@@ -564,11 +588,15 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                     },
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFD97706) : const Color(0xFFFEF3C7),
+                        color: isSelected
+                            ? const Color(0xFFD97706)
+                            : const Color(0xFFFEF3C7),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+                        border: Border.all(
+                            color: const Color(0xFFFDE68A), width: 1),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -576,7 +604,9 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : const Color(0xFFD97706),
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFFD97706),
                         ),
                       ),
                     ),
@@ -588,7 +618,10 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
           // Loading state
           if (_isLoading)
             const Expanded(
-              child: Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD97706)))),
+              child: Center(
+                  child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFFD97706)))),
             ),
 
           // Error state
@@ -598,9 +631,11 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 16),
-                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    Text('Error: $_error',
+                        style: const TextStyle(color: Colors.red)),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadData,
@@ -640,14 +675,22 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
 
   Widget _buildStudentTile(StudentDirectoryEntry student, int index) {
     final avatarGrad = _getAvatarGradient(index);
-    final initials = student.name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join();
-    
+    final initials = student.name
+        .split(' ')
+        .map((n) => n.isNotEmpty ? n[0] : '')
+        .take(2)
+        .join();
+
     // Warning state: average score < 50% or attendance < 75%
     // If the stats are 0, they might not be set or loaded yet, let's treat average marks > 0 and < 50 or attendance > 0 and < 75
     // But wait, the mockup has Sanjay Mehta with 42% avg. Let's make the warning trigger whenever they are strictly below 50 / 75
-    final isWarning = (student.avgMarks != null && student.avgMarks! > 0.0 && student.avgMarks! < 50.0) || 
-                      (student.attendancePct != null && student.attendancePct! > 0.0 && student.attendancePct! < 75.0);
-                      
+    final isWarning = (student.avgMarks != null &&
+            student.avgMarks! > 0.0 &&
+            student.avgMarks! < 50.0) ||
+        (student.attendancePct != null &&
+            student.attendancePct! > 0.0 &&
+            student.attendancePct! < 75.0);
+
     return GestureDetector(
       onTap: () => _showStudentProfile(student, index),
       child: Container(
@@ -657,12 +700,13 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
           color: isWarning ? const Color(0xFFFEF2F2) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isWarning ? const Color(0xFFFECACA) : const Color(0xFFF1F5F9),
+            color:
+                isWarning ? const Color(0xFFFECACA) : const Color(0xFFF1F5F9),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -690,7 +734,7 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
               ),
             ),
             const SizedBox(width: 12),
-            
+
             // Info
             Expanded(
               child: Column(
@@ -710,14 +754,17 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                     '${student.class_} · Roll ${student.rollNo} · ${student.avgMarks?.toStringAsFixed(0) ?? '0'}% Avg',
                     style: TextStyle(
                       fontSize: 10,
-                      color: isWarning ? const Color(0xFFEF4444) : const Color(0xFF94A3B8),
-                      fontWeight: isWarning ? FontWeight.w600 : FontWeight.normal,
+                      color: isWarning
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF94A3B8),
+                      fontWeight:
+                          isWarning ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             // Buttons
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -731,7 +778,9 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: isWarning ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE),
+                      color: isWarning
+                          ? const Color(0xFFFEE2E2)
+                          : const Color(0xFFE0F2FE),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
@@ -739,13 +788,15 @@ class _TeacherStudentDirectoryState extends ConsumerState<TeacherStudentDirector
                       '📞',
                       style: TextStyle(
                         fontSize: 14,
-                        color: isWarning ? const Color(0xFFEF4444) : const Color(0xFF0EA5E9),
+                        color: isWarning
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF0EA5E9),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                
+
                 // Message
                 GestureDetector(
                   onTap: () {

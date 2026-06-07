@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:uuid/uuid.dart';
-import 'supabase_service.dart';
 import 'api_service.dart';
 
 /// Class representing a chat message in the live meeting room
@@ -32,7 +30,8 @@ class LiveRoomChatMessage {
       senderName: json['sender_name'] ?? 'Unknown',
       senderRole: json['sender_role'] ?? 'student',
       text: json['text'] ?? '',
-      time: json['time'] != null ? DateTime.parse(json['time']) : DateTime.now(),
+      time:
+          json['time'] != null ? DateTime.parse(json['time']) : DateTime.now(),
     );
   }
 
@@ -86,10 +85,12 @@ class InAppLiveRoomService extends ChangeNotifier {
 
   final List<LiveRoomChatMessage> _chatMessages = [];
   final Set<String> _raisedHands = {};
-  
+
   // Streams for real-time reactions and host commands
-  final _reactionStreamController = StreamController<Map<String, dynamic>>.broadcast();
-  final _controlStreamController = StreamController<Map<String, dynamic>>.broadcast();
+  final _reactionStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _controlStreamController =
+      StreamController<Map<String, dynamic>>.broadcast();
   final _roomUpdateController = StreamController<void>.broadcast();
 
   // Getters
@@ -98,8 +99,10 @@ class InAppLiveRoomService extends ChangeNotifier {
   bool get isCamOff => _isCamOff;
   bool get isRecording => _isRecording;
   List<LiveRoomChatMessage> get chatMessages => _chatMessages;
-  Stream<Map<String, dynamic>> get onReactionReceived => _reactionStreamController.stream;
-  Stream<Map<String, dynamic>> get onControlReceived => _controlStreamController.stream;
+  Stream<Map<String, dynamic>> get onReactionReceived =>
+      _reactionStreamController.stream;
+  Stream<Map<String, dynamic>> get onControlReceived =>
+      _controlStreamController.stream;
   Stream<void> get onRoomUpdate => _roomUpdateController.stream;
 
   Room? get room => _room;
@@ -119,7 +122,8 @@ class InAppLiveRoomService extends ChangeNotifier {
     // 1. Add Local Participant
     final localPart = _room?.localParticipant;
     if (localPart != null) {
-      final localVideo = localPart.videoTrackPublications.firstOrNull?.track as VideoTrack?;
+      final localVideo =
+          localPart.videoTrackPublications.firstOrNull?.track as VideoTrack?;
       tracks.add(LiveKitParticipantTrack(
         userId: currentUserId,
         name: currentUserName,
@@ -136,11 +140,16 @@ class InAppLiveRoomService extends ChangeNotifier {
     _room?.remoteParticipants.forEach((peerId, remotePart) {
       final role = remotePart.metadata ?? 'student';
       final name = remotePart.name;
-      final video = remotePart.videoTrackPublications.firstOrNull?.track as VideoTrack?;
-      final micMuted = !(remotePart.audioTrackPublications.firstOrNull?.subscribed ?? false) || 
-                        (remotePart.audioTrackPublications.firstOrNull?.muted ?? true);
-      final camOff = !(remotePart.videoTrackPublications.firstOrNull?.subscribed ?? false) || 
-                      (remotePart.videoTrackPublications.firstOrNull?.muted ?? true);
+      final video =
+          remotePart.videoTrackPublications.firstOrNull?.track as VideoTrack?;
+      final micMuted =
+          !(remotePart.audioTrackPublications.firstOrNull?.subscribed ??
+                  false) ||
+              (remotePart.audioTrackPublications.firstOrNull?.muted ?? true);
+      final camOff =
+          !(remotePart.videoTrackPublications.firstOrNull?.subscribed ??
+                  false) ||
+              (remotePart.videoTrackPublications.firstOrNull?.muted ?? true);
 
       tracks.add(LiveKitParticipantTrack(
         userId: peerId,
@@ -168,27 +177,104 @@ class InAppLiveRoomService extends ChangeNotifier {
           await apiService.post('/live-classes/$liveClassId/start', {});
           _isRecording = true;
         } catch (e) {
-          debugPrint('[LiveKitService] Warning: Failed to start session on backend: $e');
+          debugPrint(
+              '[LiveKitService] Warning: Failed to start session on backend: $e');
         }
       } else {
         // Log student join log
         try {
-          await apiService.post('/live-classes/$liveClassId/attendance/mark', {
-            'action': 'join'
-          });
+          await apiService.post(
+              '/live-classes/$liveClassId/attendance/mark', {'action': 'join'});
         } catch (_) {}
       }
 
       // 2. Fetch JWT Join Token from backend
       final tokenResponse = await apiService.get(
-        '/livekit/token?room=$liveClassId&identity=$currentUserId&name=$currentUserName'
-      );
+          '/livekit/token?room=$liveClassId&identity=$currentUserId&name=$currentUserName');
       final String token = tokenResponse['token'];
-      final String sfuUrl = tokenResponse['livekit_url'] ?? 'http://localhost:7880';
-      
-      // Connect to LiveKit Room
-      _room = Room();
-      
+      // Map internal Docker hostname (livekit:7880) → localhost:7880 so the browser can reach it.
+      // The backend returns LIVEKIT_URL which is an internal Docker network address.
+      String sfuUrl = tokenResponse['livekit_url'] ?? 'ws://localhost:7880';
+      if (sfuUrl.contains('//livekit:')) {
+        sfuUrl = sfuUrl.replaceAll('//livekit:', '//localhost:');
+      }
+      // LiveKit SDK expects ws:// or wss:// scheme for WebSocket connections
+      if (sfuUrl.startsWith('http://')) {
+        sfuUrl = sfuUrl.replaceFirst('http://', 'ws://');
+      } else if (sfuUrl.startsWith('https://')) {
+        sfuUrl = sfuUrl.replaceFirst('https://', 'wss://');
+      }
+      debugPrint('[LiveKitService] Connecting to SFU: $sfuUrl');
+
+      // Connect to LiveKit Room with optimized HD quality settings
+      _room = Room(
+        roomOptions: RoomOptions(
+          // ─── Camera: Capture in 1080p for teacher (pristine clarity) and 720p for students ───
+          defaultCameraCaptureOptions: CameraCaptureOptions(
+            cameraPosition: CameraPosition.front,
+            params: currentUserRole == 'teacher'
+                ? VideoParametersPresets.h1080_169 // 1920×1080 @ 30fps
+                : VideoParametersPresets.h720_169, // 1280×720 @ 30fps
+          ),
+          // ─── Video Publish: High bitrate VP8/VP9 for maximum quality ───────────────────
+          defaultVideoPublishOptions: VideoPublishOptions(
+            // Use H.264 for hardware-accelerated rendering and native compression compatibility
+            videoCodec: 'h264',
+            degradationPreference: DegradationPreference.maintainResolution,
+            videoEncoding: VideoEncoding(
+              maxBitrate: currentUserRole == 'teacher'
+                  ? 4500 * 1000 // 4.5 Mbps for teacher (Vanilla WebRTC level)
+                  : 2000 * 1000, // 2.0 Mbps for student
+              maxFramerate: 30,
+            ),
+            simulcast: currentUserRole != 'teacher',
+            // Explicit simulcast layers (low → mid resolution rungs)
+            videoSimulcastLayers: [
+              const VideoParameters(
+                dimensions: VideoDimensions(640, 360),
+                encoding: VideoEncoding(
+                  maxBitrate: 350 * 1000, // 350 kbps – low-bandwidth layer
+                  maxFramerate: 20,
+                ),
+              ),
+              const VideoParameters(
+                dimensions: VideoDimensions(960, 540),
+                encoding: VideoEncoding(
+                  maxBitrate: 900 * 1000, // 900 kbps – mid-bandwidth layer
+                  maxFramerate: 25,
+                ),
+              ),
+            ],
+            // 3 Mbps for screen share — content-heavy, needs more bitrate
+            screenShareEncoding: const VideoEncoding(
+              maxBitrate: 3000 * 1000,
+              maxFramerate: 30,
+            ),
+            // Empty = no simulcast for screen share (not beneficial for slides/code)
+            screenShareSimulcastLayers: const [],
+          ),
+          // ─── Audio Publish: High-quality OPUS ────────────────────────────────
+          defaultAudioPublishOptions: const AudioPublishOptions(
+            // AudioPreset.musicHighQuality = 96000 bps — broadcast quality
+            audioBitrate: AudioPreset.musicHighQuality,
+            dtx: true, // Discontinuous transmission saves bandwidth on silence
+          ),
+          // ─── Audio Capture: Noise suppression + echo cancel ──────────────────
+          defaultAudioCaptureOptions: const AudioCaptureOptions(
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          ),
+          // ─── Screen Share: Full HD @ 30fps ───────────────────────────────────
+          defaultScreenShareCaptureOptions: const ScreenShareCaptureOptions(
+            params: VideoParametersPresets.screenShareH1080FPS30,
+          ),
+          // ─── Adaptive streaming and dynacast ─────────────────────────────────
+          adaptiveStream: true, // Auto-downgrade video quality for slow viewers
+          dynacast: true, // Pause layers not rendered by any subscriber
+        ),
+      );
+
       // Room Event Listeners
       final listener = _room!.createListener();
       listener.on<RoomEvent>((event) {
@@ -197,14 +283,15 @@ class InAppLiveRoomService extends ChangeNotifier {
 
       // Connect to room using LiveKit URL
       await _room!.connect(sfuUrl, token);
-      
+
       // Enable camera and microphone automatically on join
       await _room?.localParticipant?.setMicrophoneEnabled(true);
       await _room?.localParticipant?.setCameraEnabled(true);
 
       // Load chat history from backend database
       try {
-        final chatResponse = await apiService.get('/live-classes/$liveClassId/chat');
+        final chatResponse =
+            await apiService.get('/live-classes/$liveClassId/chat');
         final List chats = chatResponse['data']['chats'] ?? [];
         _chatMessages.clear();
         for (final c in chats) {
@@ -261,11 +348,8 @@ class InAppLiveRoomService extends ChangeNotifier {
     }
 
     // Broadcast update via Data Channel
-    await _broadcastData({
-      'type': 'hand_raise',
-      'userId': currentUserId,
-      'isRaised': isRaised
-    });
+    await _broadcastData(
+        {'type': 'hand_raise', 'userId': currentUserId, 'isRaised': isRaised});
 
     notifyListeners();
     _roomUpdateController.add(null);
@@ -274,19 +358,13 @@ class InAppLiveRoomService extends ChangeNotifier {
   /// Send emoji reaction to all participants
   Future<void> sendReaction(String emoji) async {
     if (_room == null) return;
-    
+
     // Broadcast emoji
-    await _broadcastData({
-      'type': 'reaction',
-      'userId': currentUserId,
-      'emoji': emoji
-    });
+    await _broadcastData(
+        {'type': 'reaction', 'userId': currentUserId, 'emoji': emoji});
 
     // Also trigger locally
-    _reactionStreamController.add({
-      'userId': currentUserId,
-      'emoji': emoji
-    });
+    _reactionStreamController.add({'userId': currentUserId, 'emoji': emoji});
   }
 
   /// Send chat message
@@ -306,20 +384,16 @@ class InAppLiveRoomService extends ChangeNotifier {
     // Save chat message in database
     final apiService = ApiService();
     try {
-      await apiService.post('/live-classes/$liveClassId/chat', {
-        'message': text
-      });
+      await apiService
+          .post('/live-classes/$liveClassId/chat', {'message': text});
     } catch (_) {}
 
     // Broadcast message to LiveKit Room
-    await _broadcastData({
-      'type': 'chat',
-      'message': message.toJson()
-    });
+    await _broadcastData({'type': 'chat', 'message': message.toJson()});
 
     _chatMessages.add(message);
-    notifyListeners();
-    _roomUpdateController.add(null);
+    _safeNotify();
+    _safeRoomUpdate();
   }
 
   /// Mute a specific student (Teacher Only)
@@ -345,11 +419,8 @@ class InAppLiveRoomService extends ChangeNotifier {
   /// Remove student from room (Teacher Only)
   Future<void> removeStudent(String targetUserId) async {
     if (currentUserRole != 'teacher') return;
-    await _broadcastData({
-      'type': 'control',
-      'targetUserId': targetUserId,
-      'action': 'remove'
-    });
+    await _broadcastData(
+        {'type': 'control', 'targetUserId': targetUserId, 'action': 'remove'});
   }
 
   /// Helper to send JSON dictionary via LiveKit Room Data Channel
@@ -368,8 +439,11 @@ class InAppLiveRoomService extends ChangeNotifier {
 
   /// Handler for room events (subscribes, syncs, and data packets)
   void _handleRoomEvent(RoomEvent event) {
-    if (event is TrackSubscribedEvent || event is TrackUnsubscribedEvent || 
-        event is ParticipantConnectedEvent || event is ParticipantDisconnectedEvent) {
+    if (_isDisposed) return; // Ignore events after service is disposed
+    if (event is TrackSubscribedEvent ||
+        event is TrackUnsubscribedEvent ||
+        event is ParticipantConnectedEvent ||
+        event is ParticipantDisconnectedEvent) {
       if (event is ParticipantConnectedEvent) {
         final pName = event.participant.name;
         _addSystemMessage("${pName.isEmpty ? 'Student' : pName} Joined");
@@ -377,8 +451,8 @@ class InAppLiveRoomService extends ChangeNotifier {
         final pName = event.participant.name;
         _addSystemMessage("${pName.isEmpty ? 'Student' : pName} Left");
       }
-      notifyListeners();
-      _roomUpdateController.add(null);
+      _safeNotify();
+      _safeRoomUpdate();
     } else if (event is DataReceivedEvent) {
       try {
         final decoded = json.decode(utf8.decode(event.data));
@@ -387,8 +461,8 @@ class InAppLiveRoomService extends ChangeNotifier {
         if (type == 'chat') {
           final msg = LiveRoomChatMessage.fromJson(decoded['message']);
           _chatMessages.add(msg);
-          notifyListeners();
-          _roomUpdateController.add(null);
+          _safeNotify();
+          _safeRoomUpdate();
         } else if (type == 'hand_raise') {
           final uId = decoded['userId'] as String;
           final isRaised = decoded['isRaised'] as bool;
@@ -397,17 +471,16 @@ class InAppLiveRoomService extends ChangeNotifier {
           } else {
             _raisedHands.remove(uId);
           }
-          notifyListeners();
-          _roomUpdateController.add(null);
+          _safeNotify();
+          _safeRoomUpdate();
         } else if (type == 'reaction') {
-          _reactionStreamController.add({
-            'userId': decoded['userId'],
-            'emoji': decoded['emoji']
-          });
+          if (!_reactionStreamController.isClosed) {
+            _reactionStreamController
+                .add({'userId': decoded['userId'], 'emoji': decoded['emoji']});
+          }
         } else if (type == 'control') {
           final target = decoded['targetUserId'] as String;
           final action = decoded['action'] as String;
-
           if (target == currentUserId) {
             _handleHostControlAction(action);
           }
@@ -420,18 +493,25 @@ class InAppLiveRoomService extends ChangeNotifier {
 
   /// Handle incoming administrative commands from host
   void _handleHostControlAction(String action) {
+    if (_isDisposed) return;
     if (action == 'mute_mic') {
       if (!_isMicMuted) toggleMic();
     } else if (action == 'disable_camera') {
       if (!_isCamOff) toggleCamera();
     } else if (action == 'remove') {
-      _controlStreamController.add({'action': 'removed'});
+      if (!_controlStreamController.isClosed) {
+        _controlStreamController.add({'action': 'removed'});
+      }
       leaveRoom();
     }
   }
 
   /// Local system message adder
+  bool _isDisposed = false;
+  bool _isLeaving = false;
+
   void _addSystemMessage(String text) {
+    if (_isDisposed) return;
     _chatMessages.add(LiveRoomChatMessage(
       id: const Uuid().v4(),
       senderId: 'system',
@@ -442,9 +522,22 @@ class InAppLiveRoomService extends ChangeNotifier {
     ));
   }
 
+  void _safeNotify() {
+    if (!_isDisposed) notifyListeners();
+  }
+
+  void _safeRoomUpdate() {
+    if (!_isDisposed && !_roomUpdateController.isClosed) {
+      _roomUpdateController.add(null);
+    }
+  }
+
   /// Leave call and clean up connection resources
   Future<void> leaveRoom() async {
-    if (_room == null) return;
+    // Prevent concurrent or double calls (e.g. manual leave + dispose)
+    if (_isLeaving) return;
+    _isLeaving = true;
+
     try {
       final apiService = ApiService();
 
@@ -452,34 +545,52 @@ class InAppLiveRoomService extends ChangeNotifier {
         _isRecording = false;
         try {
           await apiService.post('/live-classes/$liveClassId/end', {});
-        } catch (_) {}
+          debugPrint(
+              '[LiveKitService] Successfully called end-class endpoint for $liveClassId');
+        } catch (e, s) {
+          debugPrint(
+              '[LiveKitService] Exception calling end-class endpoint for $liveClassId: $e');
+          debugPrint('$s');
+        }
       } else {
         // Mark student leave log
         try {
-          await apiService.post('/live-classes/$liveClassId/attendance/mark', {
-            'action': 'leave'
-          });
-        } catch (_) {}
+          await apiService.post('/live-classes/$liveClassId/attendance/mark',
+              {'action': 'leave'});
+          debugPrint(
+              '[LiveKitService] Successfully marked student leave attendance');
+        } catch (e, s) {
+          debugPrint('[LiveKitService] Exception marking student leave: $e');
+          debugPrint('$s');
+        }
       }
 
-      await _room!.disconnect();
-      _room = null;
+      if (_room != null) {
+        await _room!.disconnect();
+        _room = null;
+      }
       _raisedHands.clear();
       _chatMessages.clear();
-      
-      notifyListeners();
-      _roomUpdateController.add(null);
+
+      _safeNotify();
+      _safeRoomUpdate();
     } catch (e) {
       debugPrint('[LiveKitService] Error leaving room: $e');
+    } finally {
+      _isLeaving = false;
     }
   }
 
   @override
   void dispose() {
-    leaveRoom();
-    _reactionStreamController.close();
-    _controlStreamController.close();
-    _roomUpdateController.close();
+    _isDisposed = true;
+    // Disconnect synchronously best-effort (fire-and-forget, no await in dispose)
+    _room?.disconnect().catchError((_) {});
+    _room = null;
+    // Close all stream controllers before super.dispose() to prevent late pushes
+    if (!_reactionStreamController.isClosed) _reactionStreamController.close();
+    if (!_controlStreamController.isClosed) _controlStreamController.close();
+    if (!_roomUpdateController.isClosed) _roomUpdateController.close();
     super.dispose();
   }
 }

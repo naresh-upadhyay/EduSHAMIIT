@@ -26,7 +26,8 @@ class InAppLiveRoomScreen extends StatefulWidget {
   State<InAppLiveRoomScreen> createState() => _InAppLiveRoomScreenState();
 }
 
-class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerProviderStateMixin {
+class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
+    with TickerProviderStateMixin {
   late InAppLiveRoomService _roomService;
   StreamSubscription? _reactionSubscription;
   StreamSubscription? _controlSubscription;
@@ -63,7 +64,7 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
 
   Future<void> _initRoom() async {
     _roomService.addListener(_onRoomStateChanged);
-    
+
     // Listen to reactions and administrative kick controls
     _reactionSubscription = _roomService.onReactionReceived.listen((reaction) {
       if (mounted) {
@@ -74,7 +75,9 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
     _controlSubscription = _roomService.onControlReceived.listen((control) {
       if (control['action'] == 'removed' && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You have been removed from the session by the host.')),
+          const SnackBar(
+              content:
+                  Text('You have been removed from the session by the host.')),
         );
         Navigator.of(context).pop();
       }
@@ -161,7 +164,7 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B).withOpacity(0.8),
+        backgroundColor: const Color(0xFF1E293B).withValues(alpha: 0.8),
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,16 +199,18 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
                 if (_roomService.isRecording) ...[
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.2),
+                      color: Colors.red.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: Colors.red, width: 0.5),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.fiber_manual_record, size: 10, color: Colors.red),
+                        const Icon(Icons.fiber_manual_record,
+                            size: 10, color: Colors.red),
                         const SizedBox(width: 4),
                         Text(
                           'REC',
@@ -226,7 +231,9 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
         actions: [
           IconButton(
             icon: FaIcon(
-              _isChatOpen ? FontAwesomeIcons.solidComment : FontAwesomeIcons.comment,
+              _isChatOpen
+                  ? FontAwesomeIcons.solidComment
+                  : FontAwesomeIcons.comment,
               color: _isChatOpen ? const Color(0xFF6366F1) : Colors.white,
             ),
             onPressed: () {
@@ -240,7 +247,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
           IconButton(
             icon: Icon(
               Icons.people,
-              color: _isParticipantsOpen ? const Color(0xFF6366F1) : Colors.white,
+              color:
+                  _isParticipantsOpen ? const Color(0xFF6366F1) : Colors.white,
             ),
             onPressed: () {
               setState(() {
@@ -277,7 +285,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
               animation: reaction.controller,
               builder: (context, child) {
                 final value = reaction.controller.value;
-                final yPos = MediaQuery.of(context).size.height * 0.7 * (1 - value);
+                final yPos =
+                    MediaQuery.of(context).size.height * 0.7 * (1 - value);
                 final opacity = (1.0 - value).clamp(0.0, 1.0);
                 return Positioned(
                   bottom: 100 + yPos,
@@ -300,7 +309,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
 
   Widget _buildVideoGrid(List<LiveKitParticipantTrack> tracks) {
     if (tracks.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)));
+      return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF6366F1)));
     }
 
     if (tracks.length == 1) {
@@ -329,15 +339,17 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: track.isHandRaised 
-              ? const Color(0xFFFBBF24) 
-              : (track.isLocal ? const Color(0xFF6366F1).withOpacity(0.4) : Colors.white10),
+          color: track.isHandRaised
+              ? const Color(0xFFFBBF24)
+              : (track.isLocal
+                  ? const Color(0xFF6366F1).withValues(alpha: 0.4)
+                  : Colors.white10),
           width: track.isHandRaised ? 3 : 2,
         ),
         boxShadow: [
           if (track.isHandRaised)
             BoxShadow(
-              color: const Color(0xFFFBBF24).withOpacity(0.2),
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.2),
               blurRadius: 10,
               spreadRadius: 2,
             ),
@@ -352,7 +364,9 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
               child: VideoTrackRenderer(
                 track.videoTrack!,
                 fit: VideoViewFit.cover,
-                mirrorMode: track.isLocal ? VideoViewMirrorMode.mirror : VideoViewMirrorMode.off,
+                mirrorMode: track.isLocal
+                    ? VideoViewMirrorMode.mirror
+                    : VideoViewMirrorMode.off,
               ),
             )
           else
@@ -361,9 +375,11 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
                 width: 84,
                 height: 84,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3), width: 1.5),
+                  border: Border.all(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                      width: 1.5),
                 ),
                 child: Center(
                   child: Text(
@@ -384,7 +400,7 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -392,19 +408,26 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
                 children: [
                   Text(
                     track.isLocal ? 'You (${track.name})' : track.name,
-                    style: GoogleFonts.outfit(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                    style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
                   ),
                   if (track.role == 'teacher') ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         'HOST',
-                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -426,16 +449,18 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
                       color: Color(0xFFFBBF24),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.pan_tool, size: 14, color: Colors.black),
+                    child: const Icon(Icons.pan_tool,
+                        size: 14, color: Colors.black),
                   ),
                 if (track.isMicMuted)
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.8),
+                      color: Colors.red.withValues(alpha: 0.8),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.mic_off, size: 14, color: Colors.white),
+                    child: const Icon(Icons.mic_off,
+                        size: 14, color: Colors.white),
                   ),
               ],
             ),
@@ -446,16 +471,25 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
   }
 
   Widget _buildBottomControls() {
-    final hasHandRaised = _roomService.participantTracks.firstWhere(
-      (t) => t.isLocal,
-      orElse: () => LiveKitParticipantTrack(userId: '', name: '', role: '', isLocal: true, isMicMuted: false, isCamOff: false, isHandRaised: false)
-    ).isHandRaised;
+    final hasHandRaised = _roomService.participantTracks
+        .firstWhere((t) => t.isLocal,
+            orElse: () => LiveKitParticipantTrack(
+                userId: '',
+                name: '',
+                role: '',
+                isLocal: true,
+                isMicMuted: false,
+                isCamOff: false,
+                isHandRaised: false))
+        .isHandRaised;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
-        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+        border: Border(
+            top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.05), width: 1)),
       ),
       child: SafeArea(
         top: false,
@@ -466,16 +500,21 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
             _buildRoundButton(
               onPressed: () => _roomService.toggleMic(),
               icon: _roomService.isMicMuted ? Icons.mic_off : Icons.mic,
-              backgroundColor: _roomService.isMicMuted ? Colors.red : const Color(0xFF334155),
+              backgroundColor: _roomService.isMicMuted
+                  ? Colors.red
+                  : const Color(0xFF334155),
               iconColor: Colors.white,
-              tooltip: _roomService.isMicMuted ? 'Unmute microphone' : 'Mute microphone',
+              tooltip: _roomService.isMicMuted
+                  ? 'Unmute microphone'
+                  : 'Mute microphone',
             ),
             const SizedBox(width: 14),
             // Camera Toggle
             _buildRoundButton(
               onPressed: () => _roomService.toggleCamera(),
               icon: _roomService.isCamOff ? Icons.videocam_off : Icons.videocam,
-              backgroundColor: _roomService.isCamOff ? Colors.red : const Color(0xFF334155),
+              backgroundColor:
+                  _roomService.isCamOff ? Colors.red : const Color(0xFF334155),
               iconColor: Colors.white,
               tooltip: _roomService.isCamOff ? 'Start camera' : 'Stop camera',
             ),
@@ -483,17 +522,25 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
             // Screen Share Toggle
             _buildRoundButton(
               onPressed: () => _roomService.toggleScreenShare(),
-              icon: _roomService.isScreenSharing ? Icons.stop_screen_share : Icons.screen_share,
-              backgroundColor: _roomService.isScreenSharing ? const Color(0xFF10B981) : const Color(0xFF334155),
+              icon: _roomService.isScreenSharing
+                  ? Icons.stop_screen_share
+                  : Icons.screen_share,
+              backgroundColor: _roomService.isScreenSharing
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFF334155),
               iconColor: Colors.white,
-              tooltip: _roomService.isScreenSharing ? 'Stop screen sharing' : 'Share screen',
+              tooltip: _roomService.isScreenSharing
+                  ? 'Stop screen sharing'
+                  : 'Share screen',
             ),
             const SizedBox(width: 14),
             // Hand Raise
             _buildRoundButton(
               onPressed: () => _roomService.toggleHandRaise(),
               icon: Icons.pan_tool,
-              backgroundColor: hasHandRaised ? const Color(0xFFFBBF24) : const Color(0xFF334155),
+              backgroundColor: hasHandRaised
+                  ? const Color(0xFFFBBF24)
+                  : const Color(0xFF334155),
               iconColor: hasHandRaised ? Colors.black : Colors.white,
               tooltip: hasHandRaised ? 'Lower hand' : 'Raise hand',
             ),
@@ -527,7 +574,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
       child: Container(
         width: 52,
         height: 52,
-        decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
+        decoration:
+            BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -546,16 +594,30 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
       icon: Container(
         width: 52,
         height: 52,
-        decoration: const BoxDecoration(color: Color(0xFF334155), shape: BoxShape.circle),
-        child: const Center(child: Icon(Icons.insert_emoticon, color: Colors.white, size: 22)),
+        decoration: const BoxDecoration(
+            color: Color(0xFF334155), shape: BoxShape.circle),
+        child: const Center(
+            child: Icon(Icons.insert_emoticon, color: Colors.white, size: 22)),
       ),
       color: const Color(0xFF1E293B),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       itemBuilder: (context) => [
-        const PopupMenuItem(value: '👏', child: Text('👏 Clap', style: TextStyle(fontSize: 16, color: Colors.white))),
-        const PopupMenuItem(value: '👍', child: Text('👍 Thumbs Up', style: TextStyle(fontSize: 16, color: Colors.white))),
-        const PopupMenuItem(value: '❤️', child: Text('❤️ Heart', style: TextStyle(fontSize: 16, color: Colors.white))),
-        const PopupMenuItem(value: '🎉', child: Text('🎉 Celebrate', style: TextStyle(fontSize: 16, color: Colors.white))),
+        const PopupMenuItem(
+            value: '👏',
+            child: Text('👏 Clap',
+                style: TextStyle(fontSize: 16, color: Colors.white))),
+        const PopupMenuItem(
+            value: '👍',
+            child: Text('👍 Thumbs Up',
+                style: TextStyle(fontSize: 16, color: Colors.white))),
+        const PopupMenuItem(
+            value: '❤️',
+            child: Text('❤️ Heart',
+                style: TextStyle(fontSize: 16, color: Colors.white))),
+        const PopupMenuItem(
+            value: '🎉',
+            child: Text('🎉 Celebrate',
+                style: TextStyle(fontSize: 16, color: Colors.white))),
       ],
     );
   }
@@ -565,7 +627,9 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
       width: 340,
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
-        border: Border(left: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+        border: Border(
+            left: BorderSide(
+                color: Colors.white.withValues(alpha: 0.05), width: 1)),
       ),
       child: Column(
         children: [
@@ -574,17 +638,23 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A),
-              border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+              border: Border(
+                  bottom: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05), width: 1)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Messages',
-                  style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                  icon:
+                      const Icon(Icons.close, color: Colors.white70, size: 20),
                   onPressed: () => setState(() => _isChatOpen = false),
                 ),
               ],
@@ -594,7 +664,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
           Expanded(
             child: _roomService.chatMessages.isEmpty
                 ? Center(
-                    child: Text('No messages yet', style: GoogleFonts.outfit(color: Colors.white38)),
+                    child: Text('No messages yet',
+                        style: GoogleFonts.outfit(color: Colors.white38)),
                   )
                 : ListView.builder(
                     controller: _chatScrollController,
@@ -616,25 +687,39 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A),
-              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+              border: Border(
+                  top: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05), width: 1)),
             ),
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _chatController,
-                    style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Send message...',
-                      hintStyle: GoogleFonts.outfit(color: Colors.white30, fontSize: 14),
-                      border: InputBorder.none,
-                      isDense: true,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    onSubmitted: (_) => _sendChatMessage(),
+                    child: TextField(
+                      controller: _chatController,
+                      style:
+                          GoogleFonts.outfit(color: Colors.white, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Send message...',
+                        hintStyle: GoogleFonts.outfit(
+                            color: Colors.white30, fontSize: 14),
+                        border: InputBorder.none,
+                        isDense: true,
+                        filled: false,
+                      ),
+                      onSubmitted: (_) => _sendChatMessage(),
+                    ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xFF6366F1), size: 20),
+                  icon: const Icon(Icons.send,
+                      color: Color(0xFF6366F1), size: 20),
                   onPressed: _sendChatMessage,
                 ),
               ],
@@ -649,7 +734,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -696,13 +782,14 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Center(
         child: Text(
           text,
-          style: GoogleFonts.outfit(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
+          style: GoogleFonts.outfit(
+              color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
         ),
       ),
     );
@@ -723,7 +810,9 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
       width: 340,
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
-        border: Border(left: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+        border: Border(
+            left: BorderSide(
+                color: Colors.white.withValues(alpha: 0.05), width: 1)),
       ),
       child: Column(
         children: [
@@ -732,17 +821,23 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: const Color(0xFF0F172A),
-              border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05), width: 1)),
+              border: Border(
+                  bottom: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05), width: 1)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Participants',
-                  style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                  icon:
+                      const Icon(Icons.close, color: Colors.white70, size: 20),
                   onPressed: () => setState(() => _isParticipantsOpen = false),
                 ),
               ],
@@ -756,18 +851,25 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
               itemBuilder: (context, index) {
                 final t = tracks[index];
                 return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   leading: CircleAvatar(
-                    backgroundColor: t.role == 'teacher' ? Colors.red : const Color(0xFF475569),
-                    child: Text(t.name.isNotEmpty ? t.name[0].toUpperCase() : 'U', style: const TextStyle(color: Colors.white)),
+                    backgroundColor: t.role == 'teacher'
+                        ? Colors.red
+                        : const Color(0xFF475569),
+                    child: Text(
+                        t.name.isNotEmpty ? t.name[0].toUpperCase() : 'U',
+                        style: const TextStyle(color: Colors.white)),
                   ),
                   title: Text(
                     t.isLocal ? '${t.name} (You)' : t.name,
-                    style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w500),
+                    style: GoogleFonts.outfit(
+                        color: Colors.white, fontWeight: FontWeight.w500),
                   ),
                   subtitle: Text(
                     t.role == 'teacher' ? 'Host' : 'Student',
-                    style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12),
+                    style:
+                        GoogleFonts.outfit(color: Colors.white54, fontSize: 12),
                   ),
                   trailing: isTeacher && !t.isLocal
                       ? PopupMenuButton<String>(
@@ -780,12 +882,22 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
                               _roomService.removeStudent(t.userId);
                             }
                           },
-                          icon: const Icon(Icons.more_vert, color: Colors.white70),
+                          icon: const Icon(Icons.more_vert,
+                              color: Colors.white70),
                           color: const Color(0xFF1E293B),
                           itemBuilder: (context) => [
-                            const PopupMenuItem(value: 'mute', child: Text('Mute Microphone', style: TextStyle(color: Colors.white))),
-                            const PopupMenuItem(value: 'disable_cam', child: Text('Disable Camera', style: TextStyle(color: Colors.white))),
-                            const PopupMenuItem(value: 'remove', child: Text('Remove from Class', style: TextStyle(color: Colors.red))),
+                            const PopupMenuItem(
+                                value: 'mute',
+                                child: Text('Mute Microphone',
+                                    style: TextStyle(color: Colors.white))),
+                            const PopupMenuItem(
+                                value: 'disable_cam',
+                                child: Text('Disable Camera',
+                                    style: TextStyle(color: Colors.white))),
+                            const PopupMenuItem(
+                                value: 'remove',
+                                child: Text('Remove from Class',
+                                    style: TextStyle(color: Colors.red))),
                           ],
                         )
                       : null,
@@ -805,7 +917,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
         backgroundColor: const Color(0xFF1E293B),
         title: Text(
           'Leave Live Class?',
-          style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+          style: GoogleFonts.outfit(
+              color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: Text(
           widget.currentUserRole == 'teacher'
@@ -815,7 +928,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen> with TickerPr
         ),
         actions: [
           TextButton(
-            child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white38)),
+            child: Text('Cancel',
+                style: GoogleFonts.outfit(color: Colors.white38)),
             onPressed: () => Navigator.pop(ctx),
           ),
           ElevatedButton(

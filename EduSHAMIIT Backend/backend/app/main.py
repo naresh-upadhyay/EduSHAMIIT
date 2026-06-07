@@ -11,6 +11,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     print("EduSHAMIIT API starting up...")
     print("AI Assistant: Shami")
+    try:
+        from app.services.minio_client import minio_client, cleanup_orphaned_recordings_from_storage
+        minio_client.ensure_bucket_and_public_policy()
+        
+        # Run orphaned recordings cleanup asynchronously in background at startup
+        import asyncio
+        asyncio.create_task(cleanup_orphaned_recordings_from_storage())
+    except Exception as e:
+        print(f"[MinIO] Bucket initialization/cleanup failed: {e}")
     yield
     print("EduSHAMIIT API shutting down...")
 

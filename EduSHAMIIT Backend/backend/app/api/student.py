@@ -1059,12 +1059,13 @@ async def student_delete_notification(notification_id: str, user=Depends(get_cur
 @router.get("/live-classes")
 async def student_live_classes(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    student_class = user.get("class")
-    
-    if not student_class:
-        profile_res = await sb.table("profiles").select("class").eq("id", user["id"]).maybe_single().aexecute()
-        if profile_res.data:
-            student_class = profile_res.data.get("class")
+    student_class = None
+    if user.get("role") == "student":
+        student_class = user.get("class")
+        if not student_class:
+            profile_res = await sb.table("profiles").select("class").eq("id", user["id"]).maybe_single().aexecute()
+            if profile_res.data:
+                student_class = profile_res.data.get("class")
             
     query = (sb.table("live_classes")
                .select("*, subjects(name, icon, color), profiles!teacher_id(full_name)")
@@ -1124,6 +1125,9 @@ async def student_live_classes(user=Depends(get_current_user), school_id=Depends
         mapped = {
             "id": c["id"],
             "subject": c["title"], # To match mockup "Physics — Optics Chapter 9"
+            "subject_name": subj_name,
+            "title": c.get("title", ""),
+            "description": c.get("description", ""),
             "teacher": teacher_name,
             "started": started_str,
             "viewers": c.get("viewer_count", 0),

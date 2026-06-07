@@ -17,16 +17,16 @@ class TeacherAttendance extends ConsumerStatefulWidget {
 
 class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   String _selectedClass = '10A';
   List<String> _classes = [];
-  
+
   List<TeacherTimetablePeriod> _allTimetablePeriods = [];
   List<TeacherTimetablePeriod> _classPeriods = [];
   TeacherTimetablePeriod? _selectedPeriod; // null means Entire Day
-  
+
   DateTime _selectedDate = DateTime.now();
-  
+
   List<Map<String, dynamic>> _studentsData = [];
   bool _isLoading = true;
   String? _error;
@@ -95,13 +95,14 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
     final classLower = _selectedClass.toLowerCase().trim();
     _classPeriods = _allTimetablePeriods.where((p) {
       final slotClassLower = p.class_.toLowerCase().trim();
-      return slotClassLower == classLower || 
+      return slotClassLower == classLower ||
           slotClassLower.replaceAll('-', '') == classLower.replaceAll('-', '');
     }).toList();
 
     _classPeriods.sort((a, b) => a.startTime.compareTo(b.startTime));
 
-    final isToday = DateFormat('yyyy-MM-dd').format(DateTime.now()) == DateFormat('yyyy-MM-dd').format(_selectedDate);
+    final isToday = DateFormat('yyyy-MM-dd').format(DateTime.now()) ==
+        DateFormat('yyyy-MM-dd').format(_selectedDate);
     if (isToday) {
       _selectedPeriod = _getCurrentActivePeriod();
     } else {
@@ -139,7 +140,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final subjectId = _selectedPeriod?.subjectId;
-      
+
       final records = await _apiService.fetchAttendance(
         classId: _selectedClass,
         date: dateStr,
@@ -153,7 +154,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
             'student_id': e['student_id'],
             'name': e['name'],
             'roll_no': e['roll_no'] ?? '',
-            'status': e['status'] ?? 'unmarked', // 'unmarked' = not yet set in DB
+            'status':
+                e['status'] ?? 'unmarked', // 'unmarked' = not yet set in DB
             'remarks': e['remarks'] ?? '',
             'avatar_url': e['avatar_url'],
           };
@@ -220,10 +222,11 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final subjectId = _selectedPeriod?.subjectId;
-      
+
       final recordsToSend = _studentsData.map((s) {
         // If teacher never touched a student, default their status to 'present'
-        final effectiveStatus = (s['status'] == 'unmarked') ? 'present' : s['status'];
+        final effectiveStatus =
+            (s['status'] == 'unmarked') ? 'present' : s['status'];
         return {
           'student_id': s['student_id'],
           'status': effectiveStatus,
@@ -253,7 +256,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
             ),
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -267,7 +271,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
             content: Text('❌ Error saving attendance: $e'),
             backgroundColor: const Color(0xFFF43F5E),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -282,14 +287,18 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
         return AlertDialog(
           title: Text(
             'Remarks for ${student['name']}',
-            style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                fontFamily: AppFonts.heading,
+                fontSize: 16,
+                fontWeight: FontWeight.bold),
           ),
           content: TextField(
             controller: controller,
             maxLines: 2,
             decoration: InputDecoration(
               hintText: 'e.g. Late due to transport, Sick leave, etc.',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
           actions: [
@@ -304,7 +313,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                 });
                 Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0EA5E9)),
               child: const Text('Save'),
             ),
           ],
@@ -329,8 +339,9 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
   TeacherTimetablePeriod? getDropdownValue() {
     if (_selectedPeriod == null) return null;
     for (final p in _classPeriods) {
-      if (p.id == _selectedPeriod!.id || 
-          (p.startTime == _selectedPeriod!.startTime && p.endTime == _selectedPeriod!.endTime)) {
+      if (p.id == _selectedPeriod!.id ||
+          (p.startTime == _selectedPeriod!.startTime &&
+              p.endTime == _selectedPeriod!.endTime)) {
         return p;
       }
     }
@@ -357,7 +368,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
 
   @override
   Widget build(BuildContext context) {
-    final presents = _studentsData.where((s) => s['status'] == 'present').length;
+    final presents =
+        _studentsData.where((s) => s['status'] == 'present').length;
     final absents = _studentsData.where((s) => s['status'] == 'absent').length;
     final lates = _studentsData.where((s) => s['status'] == 'late').length;
     final voids = _studentsData.where((s) => s['status'] == 'void').length;
@@ -369,45 +381,52 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth > 950;
-          
+
           if (_isLoading) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
+            return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
           }
-          
+
           if (_error != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: Color(0xFFF43F5E)),
+                  const Icon(Icons.error_outline,
+                      size: 48, color: Color(0xFFF43F5E)),
                   const SizedBox(height: 16),
-                  Text('Error: $_error', style: const TextStyle(color: Color(0xFFF43F5E))),
+                  Text('Error: $_error',
+                      style: const TextStyle(color: Color(0xFFF43F5E))),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _loadInitialData,
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9)),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0EA5E9)),
                     child: Text('Retry'.tr(ref)),
                   ),
                 ],
               ),
             );
           }
-          
+
           return isDesktop
-              ? _buildDesktopLayout(context, pct, presents, absents, lates, voids)
-              : _buildMobileLayout(context, pct, presents, absents, lates, voids);
+              ? _buildDesktopLayout(
+                  context, pct, presents, absents, lates, voids)
+              : _buildMobileLayout(
+                  context, pct, presents, absents, lates, voids);
         },
       ),
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context, int pct, int presents, int absents, int lates, int voids) {
+  Widget _buildDesktopLayout(BuildContext context, int pct, int presents,
+      int absents, int lates, int voids) {
     final filteredStudents = _studentsData.where((s) {
       if (_studentSearchQuery.isEmpty) return true;
       final name = (s['name'] ?? '').toString().toLowerCase();
       final roll = (s['roll_no'] ?? '').toString().toLowerCase();
-      return name.contains(_studentSearchQuery.toLowerCase()) || 
-             roll.contains(_studentSearchQuery.toLowerCase());
+      return name.contains(_studentSearchQuery.toLowerCase()) ||
+          roll.contains(_studentSearchQuery.toLowerCase());
     }).toList();
 
     return Row(
@@ -417,18 +436,17 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
         Container(
           width: 340,
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: const Border(
-              right: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 10,
-                offset: const Offset(2, 0),
-              )
-            ]
-          ),
+              color: Colors.white,
+              border: const Border(
+                right: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(2, 0),
+                )
+              ]),
           child: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -439,8 +457,10 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF0F172A), size: 18),
-                        onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                        icon: const Icon(Icons.arrow_back_ios,
+                            color: Color(0xFF0F172A), size: 18),
+                        onPressed: () =>
+                            safeGoBack(context, '/teacher/dashboard'),
                       ),
                       const SizedBox(width: 4),
                       const Text(
@@ -455,7 +475,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Date Picker Card
                   const Text(
                     'DATE',
@@ -470,7 +490,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                   GestureDetector(
                     onTap: () => _selectDate(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
@@ -478,10 +499,12 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, color: Color(0xFF0EA5E9), size: 18),
+                          const Icon(Icons.calendar_today,
+                              color: Color(0xFF0EA5E9), size: 18),
                           const SizedBox(width: 12),
                           Text(
-                            DateFormat('EEEE, MMM d, yyyy').format(_selectedDate),
+                            DateFormat('EEEE, MMM d, yyyy')
+                                .format(_selectedDate),
                             style: const TextStyle(
                               color: Color(0xFF0F172A),
                               fontSize: 14,
@@ -493,7 +516,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Class Selector Wrap
                   const Text(
                     'CLASS',
@@ -513,12 +536,17 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                       return GestureDetector(
                         onTap: () => _onClassChanged(cls),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF0EA5E9) : Colors.white,
+                            color: isSelected
+                                ? const Color(0xFF0EA5E9)
+                                : Colors.white,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0),
+                              color: isSelected
+                                  ? Colors.transparent
+                                  : const Color(0xFFE2E8F0),
                             ),
                           ),
                           child: Text(
@@ -526,7 +554,9 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : const Color(0xFF0369A1),
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF0369A1),
                             ),
                           ),
                         ),
@@ -534,7 +564,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                     }).toList(),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Smart Dropdown Selector
                   const Text(
                     'ATTENDANCE PERIOD',
@@ -557,7 +587,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                       child: DropdownButton<TeacherTimetablePeriod?>(
                         value: getDropdownValue(),
                         isExpanded: true,
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF0F172A)),
+                        icon: const Icon(Icons.keyboard_arrow_down,
+                            color: Color(0xFF0F172A)),
                         dropdownColor: Colors.white,
                         style: const TextStyle(
                           color: Color(0xFF0F172A),
@@ -575,10 +606,10 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   const Divider(color: Color(0xFFE2E8F0)),
                   const SizedBox(height: 16),
-                  
+
                   // Stats Section
                   const Text(
                     'LIVE STATS',
@@ -602,7 +633,9 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Overall score:', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                            const Text('Overall score:',
+                                style: TextStyle(
+                                    fontSize: 13, color: Color(0xFF64748B))),
                             Text(
                               '$pct%',
                               style: const TextStyle(
@@ -627,18 +660,21 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Quick Actions
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildQuickActionBtn('All Present', Colors.green, () => _markAll('present')),
-                      _buildQuickActionBtn('All Absent', Colors.red, () => _markAll('absent')),
-                      _buildQuickActionBtn('All Void', Colors.grey, () => _markAll('void')),
+                      _buildQuickActionBtn('All Present', Colors.green,
+                          () => _markAll('present')),
+                      _buildQuickActionBtn(
+                          'All Absent', Colors.red, () => _markAll('absent')),
+                      _buildQuickActionBtn(
+                          'All Void', Colors.grey, () => _markAll('void')),
                     ],
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Save Button
                   SizedBox(
                     width: double.infinity,
@@ -657,7 +693,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           : const Text(
@@ -676,7 +713,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
             ),
           ),
         ),
-        
+
         // Right Panel - Student Grid & Search Bar
         Expanded(
           child: Column(
@@ -697,21 +734,26 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                         },
                         decoration: InputDecoration(
                           hintText: 'Search student by name or roll number...',
-                          prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B)),
+                          prefixIcon: const Icon(Icons.search,
+                              color: Color(0xFF64748B)),
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 16),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF0EA5E9)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF0EA5E9)),
                           ),
                         ),
                       ),
@@ -725,19 +767,21 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                   ],
                 ),
               ),
-              
+
               // Students GridView
               Expanded(
                 child: filteredStudents.isEmpty
                     ? const Center(
                         child: Text(
                           'No students found',
-                          style: TextStyle(color: Color(0xFF64748B), fontSize: 16),
+                          style:
+                              TextStyle(color: Color(0xFF64748B), fontSize: 16),
                         ),
                       )
                     : GridView.builder(
                         padding: const EdgeInsets.all(24),
-                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 400,
                           mainAxisSpacing: 10,
                           crossAxisSpacing: 10,
@@ -745,7 +789,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                         ),
                         itemCount: filteredStudents.length,
                         itemBuilder: (context, index) {
-                          return _buildStudentCard(filteredStudents[index], compact: true);
+                          return _buildStudentCard(filteredStudents[index],
+                              compact: true);
                         },
                       ),
               ),
@@ -756,19 +801,22 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context, int pct, int presents, int absents, int lates, int voids) {
+  Widget _buildMobileLayout(BuildContext context, int pct, int presents,
+      int absents, int lates, int voids) {
     final filteredStudents = _studentsData.where((s) {
       if (_studentSearchQuery.isEmpty) return true;
       final name = (s['name'] ?? '').toString().toLowerCase();
       final roll = (s['roll_no'] ?? '').toString().toLowerCase();
       return name.contains(_studentSearchQuery.toLowerCase()) ||
-             roll.contains(_studentSearchQuery.toLowerCase());
+          roll.contains(_studentSearchQuery.toLowerCase());
     }).toList();
 
     // Build the collapsible header content
     final header = _buildMobileHeader(context);
     final statsRow = _buildMobileStatsRow(presents, absents, lates, voids, pct);
-    final classChips = _classes.isNotEmpty ? _buildMobileClassChips() : const SizedBox.shrink();
+    final classChips = _classes.isNotEmpty
+        ? _buildMobileClassChips()
+        : const SizedBox.shrink();
     final quickActions = _buildMobileQuickActions();
     final searchBar = _buildMobileSearchBar();
 
@@ -791,7 +839,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
             children: [
               GestureDetector(
                 onTap: () => safeGoBack(context, '/teacher/dashboard'),
-                child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
+                child: const Icon(Icons.arrow_back_ios,
+                    color: Colors.white, size: 18),
               ),
               const SizedBox(width: 8),
               const Text(
@@ -846,7 +895,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                         16,
                         index == filteredStudents.length - 1 ? 4 : 0,
                       ),
-                      child: _buildStudentCard(filteredStudents[index], compact: false),
+                      child: _buildStudentCard(filteredStudents[index],
+                          compact: false),
                     );
                   },
                   childCount: filteredStudents.length,
@@ -876,7 +926,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                           width: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : const Text(
@@ -899,7 +950,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
 
   Widget _buildMobileHeader(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+      padding:
+          EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)],
@@ -913,7 +965,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                icon: const Icon(Icons.arrow_back_ios,
+                    color: Colors.white, size: 20),
                 onPressed: () => safeGoBack(context, '/teacher/dashboard'),
               ),
               const Text(
@@ -937,7 +990,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -948,16 +1001,22 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                     onTap: () => _selectDate(context),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today, color: Colors.white, size: 16),
+                        const Icon(Icons.calendar_today,
+                            color: Colors.white, size: 16),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Date', style: TextStyle(color: Colors.white70, fontSize: 9)),
+                              const Text('Date',
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 9)),
                               Text(
                                 DateFormat('EEE, MMM d').format(_selectedDate),
-                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
@@ -973,19 +1032,26 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                   flex: 6,
                   child: Row(
                     children: [
-                      const Icon(Icons.track_changes, color: Colors.white, size: 16),
+                      const Icon(Icons.track_changes,
+                          color: Colors.white, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Period / Slot', style: TextStyle(color: Colors.white70, fontSize: 9)),
+                            const Text('Period / Slot',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 9)),
                             DropdownButtonHideUnderline(
                               child: DropdownButton<TeacherTimetablePeriod?>(
                                 value: getDropdownValue(),
                                 dropdownColor: const Color(0xFF0369A1),
-                                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                icon: const Icon(Icons.keyboard_arrow_down,
+                                    color: Colors.white),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13),
                                 isExpanded: true,
                                 onChanged: (newValue) {
                                   setState(() => _selectedPeriod = newValue);
@@ -1023,11 +1089,15 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
               onTap: () => _onClassChanged(cls),
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF0EA5E9) : Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : const Color(0xFFE2E8F0)),
                 ),
                 child: Text(
                   cls,
@@ -1045,7 +1115,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
     );
   }
 
-  Widget _buildMobileStatsRow(int presents, int absents, int lates, int voids, int pct) {
+  Widget _buildMobileStatsRow(
+      int presents, int absents, int lates, int voids, int pct) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Container(
@@ -1074,7 +1145,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                     color: Color(0xFF0F172A),
                   ),
                 ),
-                const Text('Attendance', style: TextStyle(color: Colors.grey, fontSize: 9)),
+                const Text('Attendance',
+                    style: TextStyle(color: Colors.grey, fontSize: 9)),
               ],
             ),
           ],
@@ -1092,17 +1164,29 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
           TextButton.icon(
             onPressed: () => _markAll('present'),
             icon: const Icon(Icons.check, size: 14, color: Colors.green),
-            label: const Text('All Present', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+            label: const Text('All Present',
+                style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
           ),
           TextButton.icon(
             onPressed: () => _markAll('absent'),
             icon: const Icon(Icons.close, size: 14, color: Colors.red),
-            label: const Text('All Absent', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+            label: const Text('All Absent',
+                style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
           ),
           TextButton.icon(
             onPressed: () => _markAll('void'),
             icon: const Icon(Icons.block, size: 14, color: Colors.grey),
-            label: const Text('All Void', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+            label: const Text('All Void',
+                style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1120,10 +1204,12 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
           },
           decoration: InputDecoration(
             hintText: 'Search student...',
-            prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+            prefixIcon:
+                const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -1149,9 +1235,9 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Text(
           label,
@@ -1185,7 +1271,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
     );
   }
 
-  Widget _buildStudentCard(Map<String, dynamic> student, {bool compact = false}) {
+  Widget _buildStudentCard(Map<String, dynamic> student,
+      {bool compact = false}) {
     final status = student['status'] ?? 'unmarked';
     final hasRemarks = student['remarks'].toString().isNotEmpty;
     final isUnmarked = status == 'unmarked';
@@ -1204,7 +1291,7 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: Colors.black.withValues(alpha: 0.01),
             blurRadius: 3,
             offset: const Offset(0, 1),
           ),
@@ -1218,8 +1305,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
             height: compact ? 26 : 30,
             decoration: BoxDecoration(
               color: isUnmarked
-                  ? const Color(0xFFFF9500).withOpacity(0.12)
-                  : const Color(0xFF0EA5E9).withOpacity(0.1),
+                  ? const Color(0xFFFF9500).withValues(alpha: 0.12)
+                  : const Color(0xFF0EA5E9).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Center(
@@ -1227,7 +1314,9 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                 student['roll_no'] ?? '',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: isUnmarked ? const Color(0xFFFF9500) : const Color(0xFF0EA5E9),
+                  color: isUnmarked
+                      ? const Color(0xFFFF9500)
+                      : const Color(0xFF0EA5E9),
                   fontSize: compact ? 11 : 12,
                 ),
               ),
@@ -1264,12 +1353,16 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      const Icon(Icons.chat_bubble_outline, size: 9, color: Colors.blueGrey),
+                      const Icon(Icons.chat_bubble_outline,
+                          size: 9, color: Colors.blueGrey),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           student['remarks'],
-                          style: const TextStyle(color: Colors.blueGrey, fontSize: 9, fontStyle: FontStyle.italic),
+                          style: const TextStyle(
+                              color: Colors.blueGrey,
+                              fontSize: 9,
+                              fontStyle: FontStyle.italic),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1297,13 +1390,17 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
           // Status Button Group (P, A, L, V)
           Row(
             children: [
-              _buildStatusButton('present', 'P', Colors.green, status == 'present', student, compact),
+              _buildStatusButton('present', 'P', Colors.green,
+                  status == 'present', student, compact),
               const SizedBox(width: 3),
-              _buildStatusButton('absent', 'A', Colors.red, status == 'absent', student, compact),
+              _buildStatusButton('absent', 'A', Colors.red, status == 'absent',
+                  student, compact),
               const SizedBox(width: 3),
-              _buildStatusButton('late', 'L', Colors.orange, status == 'late', student, compact),
+              _buildStatusButton('late', 'L', Colors.orange, status == 'late',
+                  student, compact),
               const SizedBox(width: 3),
-              _buildStatusButton('void', 'V', Colors.grey, status == 'void', student, compact),
+              _buildStatusButton(
+                  'void', 'V', Colors.grey, status == 'void', student, compact),
             ],
           ),
         ],
@@ -1311,7 +1408,8 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
     );
   }
 
-  Widget _buildStatusButton(String statusKey, String label, Color color, bool isSelected, Map<String, dynamic> student, bool compact) {
+  Widget _buildStatusButton(String statusKey, String label, Color color,
+      bool isSelected, Map<String, dynamic> student, bool compact) {
     final double size = compact ? 22 : 26;
     return GestureDetector(
       onTap: () {
@@ -1323,9 +1421,12 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: isSelected ? color : color.withOpacity(0.1),
+          color: isSelected ? color : color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(compact ? 4 : 6),
-          border: Border.all(color: isSelected ? Colors.transparent : color.withOpacity(0.2)),
+          border: Border.all(
+              color: isSelected
+                  ? Colors.transparent
+                  : color.withValues(alpha: 0.2)),
         ),
         child: Center(
           child: Text(

@@ -20,7 +20,7 @@ class TeacherSalary extends ConsumerStatefulWidget {
 
 class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   List<SalarySlip> _salarySlips = [];
   List<SalaryAdvance> _advanceRequests = [];
   bool _isLoading = true;
@@ -42,8 +42,19 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
   bool _isSubmittingAdvance = false;
 
   final List<String> _monthNames = [
-    "", "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
   ];
 
   final List<Map<String, String>> _purposes = [
@@ -75,16 +86,16 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
     try {
       final slips = await _apiService.getSalarySlips();
       final advances = await _apiService.getSalaryAdvances();
-      
+
       setState(() {
         _salarySlips = slips;
         _advanceRequests = advances;
-        
+
         if (slips.isNotEmpty) {
           _selectedSlipIndex = 0;
           _selectedMonth = slips[0].month;
           _selectedYear = slips[0].year;
-          
+
           // Default advance request month to next month or current month
           _advanceMonth = slips[0].month;
           _advanceYear = slips[0].year;
@@ -129,7 +140,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
   }
 
   void _updateSelectedSlipIndex() {
-    final idx = _salarySlips.indexWhere((slip) => slip.month == _selectedMonth && slip.year == _selectedYear);
+    final idx = _salarySlips.indexWhere(
+        (slip) => slip.month == _selectedMonth && slip.year == _selectedYear);
     setState(() {
       _selectedSlipIndex = idx;
     });
@@ -139,16 +151,20 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('📄 Downloading payslip for ${_monthNames[slip.month]} ${slip.year}...'),
+          content: Text(
+              '📄 Downloading payslip for ${_monthNames[slip.month]} ${slip.year}...'),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
-      
+
       final token = await _apiService.getAuthToken();
-      final url = '${AppConfig.apiBaseUrl}/teacher/salary/${slip.id}/download?token=$token';
-      
-      await getDownloadHelper().downloadFile(url, 'Payslip_${slip.year}_${_monthNames[slip.month]}.pdf');
+      final url =
+          '${AppConfig.apiBaseUrl}/teacher/salary/${slip.id}/download?token=$token';
+
+      await getDownloadHelper().downloadFile(
+          url, 'Payslip_${slip.year}_${_monthNames[slip.month]}.pdf');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,7 +172,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
             content: Text('❌ Download failed: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -166,15 +183,19 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
   Future<void> _submitAdvanceRequest(double limit) async {
     final amt = double.tryParse(_amountController.text) ?? 0.0;
     if (amt <= 0) {
-      _showSnackBar('Please enter a valid amount greater than zero', Colors.red);
+      _showSnackBar(
+          'Please enter a valid amount greater than zero', Colors.red);
       return;
     }
     if (amt > limit) {
-      _showSnackBar('Requested amount exceeds the maximum allowable limit of Rs. ${limit.toStringAsFixed(2)}', Colors.red);
+      _showSnackBar(
+          'Requested amount exceeds the maximum allowable limit of Rs. ${limit.toStringAsFixed(2)}',
+          Colors.red);
       return;
     }
     if (_selectedPurpose == 'other' && _reasonController.text.trim().isEmpty) {
-      _showSnackBar('Please provide a reason for the advance request', Colors.red);
+      _showSnackBar(
+          'Please provide a reason for the advance request', Colors.red);
       return;
     }
 
@@ -186,17 +207,21 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
       await _apiService.requestSalaryAdvance(
         amount: amt,
         purposeType: _selectedPurpose,
-        reason: _selectedPurpose == 'other' ? _reasonController.text.trim() : null,
+        reason:
+            _selectedPurpose == 'other' ? _reasonController.text.trim() : null,
         month: _advanceMonth,
         year: _advanceYear,
       );
-      _showSnackBar('✔ Salary advance request submitted successfully!', Colors.green);
+      _showSnackBar(
+          '✔ Salary advance request submitted successfully!', Colors.green);
       _amountController.clear();
       _reasonController.clear();
       await _loadAdvanceRequests();
       await _loadSalarySlips();
     } catch (e) {
-      _showSnackBar('❌ Request failed: ${e.toString().replaceAll('Exception:', '')}', Colors.red);
+      _showSnackBar(
+          '❌ Request failed: ${e.toString().replaceAll('Exception:', '')}',
+          Colors.red);
     } finally {
       setState(() {
         _isSubmittingAdvance = false;
@@ -214,7 +239,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
         ),
       );
       await _apiService.simulateAdvanceApproval(advanceId);
-      _showSnackBar('✔ Salary advance approved! Funds transferred and deducted from salary.', Colors.green);
+      _showSnackBar(
+          '✔ Salary advance approved! Funds transferred and deducted from salary.',
+          Colors.green);
       await _loadAdvanceRequests();
       await _loadSalarySlips();
     } catch (e) {
@@ -232,7 +259,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
         ),
       );
       await _apiService.cancelSalaryAdvance(advanceId);
-      _showSnackBar('✔ Salary advance request cancelled successfully.', Colors.green);
+      _showSnackBar(
+          '✔ Salary advance request cancelled successfully.', Colors.green);
       await _loadAdvanceRequests();
       await _loadSalarySlips();
     } catch (e) {
@@ -258,12 +286,15 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
   }
 
   String _formatAmount(double value) {
-    return value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+    return value.toStringAsFixed(0).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
 
   @override
   Widget build(BuildContext context) {
-    final activeSlip = _salarySlips.isNotEmpty && _selectedSlipIndex >= 0 && _selectedSlipIndex < _salarySlips.length
+    final activeSlip = _salarySlips.isNotEmpty &&
+            _selectedSlipIndex >= 0 &&
+            _selectedSlipIndex < _salarySlips.length
         ? _salarySlips[_selectedSlipIndex]
         : null;
 
@@ -282,53 +313,101 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
     double advanceDeduction = 0.0;
 
     if (activeSlip != null) {
-      computedHra = activeSlip.hra != 0 ? activeSlip.hra : (activeSlip.allowances * 0.5);
-      computedDa = activeSlip.da != 0 ? activeSlip.da : (activeSlip.allowances * 0.3);
-      computedSa = activeSlip.specialAllowance != 0 ? activeSlip.specialAllowance : (activeSlip.allowances * 0.2);
-      computedPf = activeSlip.pfDeduction != 0 ? activeSlip.pfDeduction : (activeSlip.deductions * 0.5);
-      computedTds = activeSlip.tds != 0 ? activeSlip.tds : (activeSlip.deductions * 0.4);
-      computedPt = activeSlip.professionalTax != 0 ? activeSlip.professionalTax : (activeSlip.deductions * 0.1);
-      miscEarning = activeSlip.miscellaneous > 0 ? activeSlip.miscellaneous : 0.0;
-      miscDeduction = activeSlip.miscellaneous < 0 ? -activeSlip.miscellaneous : 0.0;
+      computedHra =
+          activeSlip.hra != 0 ? activeSlip.hra : (activeSlip.allowances * 0.5);
+      computedDa =
+          activeSlip.da != 0 ? activeSlip.da : (activeSlip.allowances * 0.3);
+      computedSa = activeSlip.specialAllowance != 0
+          ? activeSlip.specialAllowance
+          : (activeSlip.allowances * 0.2);
+      computedPf = activeSlip.pfDeduction != 0
+          ? activeSlip.pfDeduction
+          : (activeSlip.deductions * 0.5);
+      computedTds =
+          activeSlip.tds != 0 ? activeSlip.tds : (activeSlip.deductions * 0.4);
+      computedPt = activeSlip.professionalTax != 0
+          ? activeSlip.professionalTax
+          : (activeSlip.deductions * 0.1);
+      miscEarning =
+          activeSlip.miscellaneous > 0 ? activeSlip.miscellaneous : 0.0;
+      miscDeduction =
+          activeSlip.miscellaneous < 0 ? -activeSlip.miscellaneous : 0.0;
       advanceDeduction = activeSlip.advanceDeduction;
 
-      computedGross = activeSlip.basicSalary + computedHra + computedDa + computedSa + miscEarning;
-      computedDeductions = computedPf + computedTds + computedPt + miscDeduction + advanceDeduction;
+      computedGross = activeSlip.basicSalary +
+          computedHra +
+          computedDa +
+          computedSa +
+          miscEarning;
+      computedDeductions = computedPf +
+          computedTds +
+          computedPt +
+          miscDeduction +
+          advanceDeduction;
       computedNet = computedGross - computedDeductions;
     }
 
     // Determine basic pay / net salary limit for the selected month to apply to advance form
     double advanceLimit = 0.0;
     final advanceLimitTemplate = _salarySlips.firstWhere(
-      (s) => s.month == _advanceMonth && s.year == _advanceYear,
-      orElse: () => _salarySlips.isNotEmpty ? _salarySlips[0] : SalarySlip(
-        id: '', teacherId: '', teacherName: '', month: 1, year: 2026,
-        basicSalary: 45000, allowances: 30000, deductions: 6550, netSalary: 68450,
-        createdAt: DateTime.now(), status: 'pending'
-      )
-    );
-    double tHra = advanceLimitTemplate.hra != 0 ? advanceLimitTemplate.hra : (advanceLimitTemplate.allowances * 0.5);
-    double tDa = advanceLimitTemplate.da != 0 ? advanceLimitTemplate.da : (advanceLimitTemplate.allowances * 0.3);
-    double tSa = advanceLimitTemplate.specialAllowance != 0 ? advanceLimitTemplate.specialAllowance : (advanceLimitTemplate.allowances * 0.2);
-    double tPf = advanceLimitTemplate.pfDeduction != 0 ? advanceLimitTemplate.pfDeduction : (advanceLimitTemplate.deductions * 0.5);
-    double tTds = advanceLimitTemplate.tds != 0 ? advanceLimitTemplate.tds : (advanceLimitTemplate.deductions * 0.4);
-    double tPt = advanceLimitTemplate.professionalTax != 0 ? advanceLimitTemplate.professionalTax : (advanceLimitTemplate.deductions * 0.1);
-    double tMiscE = advanceLimitTemplate.miscellaneous > 0 ? advanceLimitTemplate.miscellaneous : 0.0;
-    double tMiscD = advanceLimitTemplate.miscellaneous < 0 ? -advanceLimitTemplate.miscellaneous : 0.0;
+        (s) => s.month == _advanceMonth && s.year == _advanceYear,
+        orElse: () => _salarySlips.isNotEmpty
+            ? _salarySlips[0]
+            : SalarySlip(
+                id: '',
+                teacherId: '',
+                teacherName: '',
+                month: 1,
+                year: 2026,
+                basicSalary: 45000,
+                allowances: 30000,
+                deductions: 6550,
+                netSalary: 68450,
+                createdAt: DateTime.now(),
+                status: 'pending'));
+    double tHra = advanceLimitTemplate.hra != 0
+        ? advanceLimitTemplate.hra
+        : (advanceLimitTemplate.allowances * 0.5);
+    double tDa = advanceLimitTemplate.da != 0
+        ? advanceLimitTemplate.da
+        : (advanceLimitTemplate.allowances * 0.3);
+    double tSa = advanceLimitTemplate.specialAllowance != 0
+        ? advanceLimitTemplate.specialAllowance
+        : (advanceLimitTemplate.allowances * 0.2);
+    double tPf = advanceLimitTemplate.pfDeduction != 0
+        ? advanceLimitTemplate.pfDeduction
+        : (advanceLimitTemplate.deductions * 0.5);
+    double tTds = advanceLimitTemplate.tds != 0
+        ? advanceLimitTemplate.tds
+        : (advanceLimitTemplate.deductions * 0.4);
+    double tPt = advanceLimitTemplate.professionalTax != 0
+        ? advanceLimitTemplate.professionalTax
+        : (advanceLimitTemplate.deductions * 0.1);
+    double tMiscE = advanceLimitTemplate.miscellaneous > 0
+        ? advanceLimitTemplate.miscellaneous
+        : 0.0;
+    double tMiscD = advanceLimitTemplate.miscellaneous < 0
+        ? -advanceLimitTemplate.miscellaneous
+        : 0.0;
     double tAdv = advanceLimitTemplate.advanceDeduction;
 
-    double tGross = advanceLimitTemplate.basicSalary + tHra + tDa + tSa + tMiscE;
+    double tGross =
+        advanceLimitTemplate.basicSalary + tHra + tDa + tSa + tMiscE;
     double tDeductions = tPf + tTds + tPt + tMiscD + tAdv;
     double tNet = tGross - tDeductions;
-    advanceLimit = advanceLimitTemplate.basicSalary < tNet ? advanceLimitTemplate.basicSalary : tNet;
+    advanceLimit = advanceLimitTemplate.basicSalary < tNet
+        ? advanceLimitTemplate.basicSalary
+        : tNet;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0FDF4), // Light green matching instructions
+      backgroundColor:
+          const Color(0xFFF0FDF4), // Light green matching instructions
       body: Column(
         children: [
           // Premium Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF065F46), Color(0xFF059669)],
@@ -346,7 +425,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                      onPressed: () =>
+                          safeGoBack(context, '/teacher/dashboard'),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -361,12 +441,12 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Sliding Pill Selector for Tabs
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(25),
                   ),
                   child: Row(
@@ -377,7 +457,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
-                              color: _activeTab == 0 ? Colors.white : Colors.transparent,
+                              color: _activeTab == 0
+                                  ? Colors.white
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Center(
@@ -387,7 +469,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                                   fontFamily: AppFonts.heading,
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
-                                  color: _activeTab == 0 ? const Color(0xFF065F46) : Colors.white,
+                                  color: _activeTab == 0
+                                      ? const Color(0xFF065F46)
+                                      : Colors.white,
                                 ),
                               ),
                             ),
@@ -400,7 +484,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
-                              color: _activeTab == 1 ? Colors.white : Colors.transparent,
+                              color: _activeTab == 1
+                                  ? Colors.white
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Center(
@@ -410,7 +496,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                                   fontFamily: AppFonts.heading,
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
-                                  color: _activeTab == 1 ? const Color(0xFF065F46) : Colors.white,
+                                  color: _activeTab == 1
+                                      ? const Color(0xFF065F46)
+                                      : Colors.white,
                                 ),
                               ),
                             ),
@@ -427,7 +515,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
           // Loading state
           if (_isLoading)
             const Expanded(
-              child: Center(child: CircularProgressIndicator(color: Color(0xFF059669))),
+              child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF059669))),
             ),
 
           // Error state
@@ -437,14 +526,18 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 16),
-                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    Text('Error: $_error',
+                        style: const TextStyle(color: Colors.red)),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadAllData,
-                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF059669)),
-                      child: Text('Retry'.tr(ref), style: const TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF059669)),
+                      child: Text('Retry'.tr(ref),
+                          style: const TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
@@ -455,7 +548,20 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
           if (!_isLoading && _error == null)
             Expanded(
               child: _activeTab == 0
-                  ? _buildPayslipsTab(activeSlip, computedGross, computedDeductions, computedNet, computedHra, computedDa, computedSa, computedPf, computedTds, computedPt, miscEarning, miscDeduction, advanceDeduction)
+                  ? _buildPayslipsTab(
+                      activeSlip,
+                      computedGross,
+                      computedDeductions,
+                      computedNet,
+                      computedHra,
+                      computedDa,
+                      computedSa,
+                      computedPf,
+                      computedTds,
+                      computedPt,
+                      miscEarning,
+                      miscDeduction,
+                      advanceDeduction)
                   : _buildAdvanceTab(advanceLimit),
             ),
         ],
@@ -490,7 +596,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF065F46).withOpacity(0.04),
+                color: const Color(0xFF065F46).withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -498,17 +604,25 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.calendar_month_outlined, color: Color(0xFF059669), size: 20),
+              const Icon(Icons.calendar_month_outlined,
+                  color: Color(0xFF059669), size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Select Payslip:',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF475569)),
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Color(0xFF475569)),
               ),
               const Spacer(),
               DropdownButtonHideUnderline(
                 child: DropdownButton<int>(
                   value: _selectedMonth,
-                  style: const TextStyle(fontFamily: AppFonts.body, color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontFamily: AppFonts.body,
+                      color: Color(0xFF0F172A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold),
                   items: List.generate(12, (index) {
                     final m = index + 1;
                     return DropdownMenuItem<int>(
@@ -530,7 +644,11 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               DropdownButtonHideUnderline(
                 child: DropdownButton<int>(
                   value: _selectedYear,
-                  style: const TextStyle(fontFamily: AppFonts.body, color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontFamily: AppFonts.body,
+                      color: Color(0xFF0F172A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold),
                   items: [2025, 2026, 2027].map((y) {
                     return DropdownMenuItem<int>(
                       value: y,
@@ -562,7 +680,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               itemCount: _salarySlips.length,
               itemBuilder: (context, index) {
                 final slip = _salarySlips[index];
-                final isSelected = slip.month == _selectedMonth && slip.year == _selectedYear;
+                final isSelected =
+                    slip.month == _selectedMonth && slip.year == _selectedYear;
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -573,12 +692,16 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                   },
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF059669) : Colors.white,
+                      color:
+                          isSelected ? const Color(0xFF059669) : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isSelected ? const Color(0xFF059669) : const Color(0xFFE2E8F0),
+                        color: isSelected
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFE2E8F0),
                         width: 1,
                       ),
                     ),
@@ -588,7 +711,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? Colors.white : const Color(0xFF475569),
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF475569),
                         ),
                       ),
                     ),
@@ -604,11 +729,15 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.receipt_long_outlined, size: 54, color: Color(0xFF94A3B8)),
+                  const Icon(Icons.receipt_long_outlined,
+                      size: 54, color: Color(0xFF94A3B8)),
                   const SizedBox(height: 12),
                   Text(
-                    'No payslip found for ${_monthNames[_selectedMonth]} ${_selectedYear}',
-                    style: const TextStyle(fontFamily: AppFonts.body, color: Color(0xFF64748B), fontSize: 14),
+                    'No payslip found for ${_monthNames[_selectedMonth]} $_selectedYear',
+                    style: const TextStyle(
+                        fontFamily: AppFonts.body,
+                        color: Color(0xFF64748B),
+                        fontSize: 14),
                   ),
                 ],
               ),
@@ -630,7 +759,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF065F46).withOpacity(0.06),
+                          color:
+                              const Color(0xFF065F46).withValues(alpha: 0.06),
                           blurRadius: 15,
                           offset: const Offset(0, 6),
                         ),
@@ -661,7 +791,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.check_circle, size: 14, color: Color(0xFF059669)),
+                            const Icon(Icons.check_circle,
+                                size: 14, color: Color(0xFF059669)),
                             const SizedBox(width: 4),
                             Text(
                               activeSlip.status.toLowerCase() == 'paid'
@@ -700,7 +831,10 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                                 ],
                               ),
                             ),
-                            Container(height: 24, width: 1, color: const Color(0xFFE2E8F0)),
+                            Container(
+                                height: 24,
+                                width: 1,
+                                color: const Color(0xFFE2E8F0)),
                             Expanded(
                               child: Column(
                                 children: [
@@ -751,7 +885,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
+                          color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -763,26 +897,33 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         _buildBreakupRow('HRA', computedHra),
                         _buildBreakupRow('DA', computedDa),
                         _buildBreakupRow('Special Allowance', computedSa),
-                        
+
                         // Miscellaneous (if positive, show under earnings breakup)
                         if (miscEarning > 0)
-                          _buildBreakupRow('Miscellaneous Earning', miscEarning),
-                        
-                        _buildBreakupRow('PF Deduction', computedPf, isDeduction: true),
+                          _buildBreakupRow(
+                              'Miscellaneous Earning', miscEarning),
+
+                        _buildBreakupRow('PF Deduction', computedPf,
+                            isDeduction: true),
                         _buildBreakupRow('TDS', computedTds, isDeduction: true),
-                        _buildBreakupRow('Professional Tax', computedPt, isDeduction: true),
-                        
+                        _buildBreakupRow('Professional Tax', computedPt,
+                            isDeduction: true),
+
                         // Salary Advance row
                         if (advanceDeduction > 0)
-                          _buildBreakupRow('Salary Advance', advanceDeduction, isDeduction: true),
-                        
+                          _buildBreakupRow('Salary Advance', advanceDeduction,
+                              isDeduction: true),
+
                         // Miscellaneous (if negative, show under deductions breakup)
                         if (miscDeduction > 0)
-                          _buildBreakupRow('Miscellaneous Deduction', miscDeduction, isDeduction: true),
-                        
+                          _buildBreakupRow(
+                              'Miscellaneous Deduction', miscDeduction,
+                              isDeduction: true),
+
                         // Net Salary row Highlight
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
                           decoration: const BoxDecoration(
                             color: Color(0xFFECFDF5),
                             borderRadius: BorderRadius.only(
@@ -821,7 +962,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                   // Download Button
                   ElevatedButton.icon(
                     onPressed: () => _downloadSlip(activeSlip),
-                    icon: const Icon(Icons.download_rounded, color: Colors.white, size: 18),
+                    icon: const Icon(Icons.download_rounded,
+                        color: Colors.white, size: 18),
                     label: const Text(
                       'Download Payslip (PDF)',
                       style: TextStyle(
@@ -838,7 +980,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 2,
-                      shadowColor: const Color(0xFF065F46).withOpacity(0.3),
+                      shadowColor:
+                          const Color(0xFF065F46).withValues(alpha: 0.3),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -850,7 +993,8 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
     );
   }
 
-  Widget _buildBreakupRow(String label, double value, {bool isDeduction = false}) {
+  Widget _buildBreakupRow(String label, double value,
+      {bool isDeduction = false}) {
     if (value == 0) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -865,7 +1009,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: isDeduction ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+              color: isDeduction
+                  ? const Color(0xFFEF4444)
+                  : const Color(0xFF64748B),
             ),
           ),
           Text(
@@ -874,7 +1020,9 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               fontFamily: AppFonts.heading,
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: isDeduction ? const Color(0xFFEF4444) : const Color(0xFF0F172A),
+              color: isDeduction
+                  ? const Color(0xFFEF4444)
+                  : const Color(0xFF0F172A),
             ),
           ),
         ],
@@ -897,7 +1045,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF065F46).withOpacity(0.06),
+                  color: const Color(0xFF065F46).withValues(alpha: 0.06),
                   blurRadius: 15,
                   offset: const Offset(0, 6),
                 ),
@@ -916,7 +1064,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Month/Year Selector for Advance
                 Row(
                   children: [
@@ -926,12 +1074,19 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         children: [
                           const Text(
                             'Target Month',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF64748B)),
                           ),
                           DropdownButton<int>(
                             value: _advanceMonth,
                             isExpanded: true,
-                            style: const TextStyle(fontFamily: AppFonts.body, color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontFamily: AppFonts.body,
+                                color: Color(0xFF0F172A),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold),
                             items: List.generate(12, (index) {
                               final m = index + 1;
                               return DropdownMenuItem<int>(
@@ -957,12 +1112,19 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         children: [
                           const Text(
                             'Target Year',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF64748B)),
                           ),
                           DropdownButton<int>(
                             value: _advanceYear,
                             isExpanded: true,
-                            style: const TextStyle(fontFamily: AppFonts.body, color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontFamily: AppFonts.body,
+                                color: Color(0xFF0F172A),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold),
                             items: [2025, 2026, 2027].map((y) {
                               return DropdownMenuItem<int>(
                                 value: y,
@@ -987,12 +1149,19 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                 // Purpose Dropdown
                 const Text(
                   'Purpose of Advance',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B)),
                 ),
                 DropdownButton<String>(
                   value: _selectedPurpose,
                   isExpanded: true,
-                  style: const TextStyle(fontFamily: AppFonts.body, color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontFamily: AppFonts.body,
+                      color: Color(0xFF0F172A),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold),
                   items: _purposes.map((p) {
                     return DropdownMenuItem<String>(
                       value: p['value'],
@@ -1007,7 +1176,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                     }
                   },
                 ),
-                
+
                 if (_selectedPurpose == 'other') ...[
                   const SizedBox(height: 12),
                   TextField(
@@ -1017,8 +1186,10 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                     decoration: InputDecoration(
                       labelText: 'Specify Reason',
                       hintText: 'Enter justification...',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ],
@@ -1027,27 +1198,35 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                 // Amount Field
                 const Text(
                   'Requested Amount (INR)',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _amountController,
                   keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
                     hintText: 'e.g. 10000',
                     prefixText: '₹ ',
-                    prefixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    prefixStyle: const TextStyle(
+                        fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFF059669), width: 1.5),
+                      borderSide: const BorderSide(
+                          color: Color(0xFF059669), width: 1.5),
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Dynamic Limit Notice
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -1058,12 +1237,16 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 14, color: Color(0xFF059669)),
+                      const Icon(Icons.info_outline,
+                          size: 14, color: Color(0xFF059669)),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Maximum limit for ${_monthNames[_advanceMonth]} ${_advanceYear}: ₹${_formatAmount(limit)}\n(Minimum of basic pay and net earnings)',
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF065F46), fontWeight: FontWeight.w600),
+                          'Maximum limit for ${_monthNames[_advanceMonth]} $_advanceYear: ₹${_formatAmount(limit)}\n(Minimum of basic pay and net earnings)',
+                          style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF065F46),
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -1075,18 +1258,22 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isSubmittingAdvance ? null : () => _submitAdvanceRequest(limit),
+                    onPressed: _isSubmittingAdvance
+                        ? null
+                        : () => _submitAdvanceRequest(limit),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF059669),
                       disabledBackgroundColor: Colors.grey[300],
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isSubmittingAdvance
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
                           )
                         : const Text(
                             'Submit Request',
@@ -1147,7 +1334,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
               itemCount: _advanceRequests.length,
               itemBuilder: (context, index) {
                 final req = _advanceRequests[index];
-                
+
                 // Color configuration by status
                 Color statusColor = Colors.orange;
                 Color statusBg = const Color(0xFFFFF7ED);
@@ -1160,10 +1347,14 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                 }
 
                 // Friendly purpose label
-                final purposeLabel = _purposes.firstWhere(
-                  (p) => p['value'] == req.purposeType,
-                  orElse: () => {'label': req.purposeType.replaceRange(0, 1, req.purposeType[0].toUpperCase()).replaceAll('_', ' ')}
-                )['label'];
+                final purposeLabel =
+                    _purposes.firstWhere((p) => p['value'] == req.purposeType,
+                        orElse: () => {
+                              'label': req.purposeType
+                                  .replaceRange(
+                                      0, 1, req.purposeType[0].toUpperCase())
+                                  .replaceAll('_', ' ')
+                            })['label'];
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -1173,7 +1364,7 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.01),
+                        color: Colors.black.withValues(alpha: 0.01),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -1187,18 +1378,26 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         children: [
                           Text(
                             purposeLabel!,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Color(0xFF1E293B)),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: statusBg,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: statusColor.withOpacity(0.3)),
+                              border: Border.all(
+                                  color: statusColor.withValues(alpha: 0.3)),
                             ),
                             child: Text(
                               req.status.toUpperCase(),
-                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: statusColor),
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: statusColor),
                             ),
                           ),
                         ],
@@ -1212,18 +1411,23 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                             children: [
                               Text(
                                 'Amount: ₹${_formatAmount(req.amount)}',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: Color(0xFF0F172A)),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 'Requested for: ${_monthNames[req.month]} ${req.year}',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xFF64748B)),
                               ),
                             ],
                           ),
                           Text(
                             'Date: ${_formatDate(req.createdAt)}',
-                            style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                            style: const TextStyle(
+                                fontSize: 10, color: Color(0xFF94A3B8)),
                           ),
                         ],
                       ),
@@ -1231,10 +1435,13 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                         const SizedBox(height: 8),
                         Text(
                           'Reason: ${req.reason}',
-                          style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF64748B)),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                              color: Color(0xFF64748B)),
                         ),
                       ],
-                      
+
                       // Debug Simulate Approval action
                       if (req.status == 'pending') ...[
                         const Divider(height: 16),
@@ -1243,29 +1450,41 @@ class _TeacherSalaryState extends ConsumerState<TeacherSalary> {
                           children: [
                             TextButton.icon(
                               onPressed: () => _cancelAdvanceRequest(req.id),
-                              icon: const Icon(Icons.cancel_outlined, size: 14, color: Colors.red),
+                              icon: const Icon(Icons.cancel_outlined,
+                                  size: 14, color: Colors.red),
                               label: const Text(
                                 'Cancel Request',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red),
                               ),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 backgroundColor: const Color(0xFFFEF2F2),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
                               ),
                             ),
                             const SizedBox(width: 8),
                             TextButton.icon(
                               onPressed: () => _simulateApproval(req.id),
-                              icon: const Icon(Icons.flash_on, size: 14, color: Colors.orange),
+                              icon: const Icon(Icons.flash_on,
+                                  size: 14, color: Colors.orange),
                               label: const Text(
                                 'Simulate Admin Approval (Debug)',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange),
                               ),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 backgroundColor: const Color(0xFFFFFBEB),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
                               ),
                             ),
                           ],

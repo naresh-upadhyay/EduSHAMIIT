@@ -1,0 +1,6 @@
+{
+  "WebRtcLocalIpsAllowedUrls": [
+    "http://localhost:7980",
+    "http://127.0.0.1:7980"
+  ]
+}

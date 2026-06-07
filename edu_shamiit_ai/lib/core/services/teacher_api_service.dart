@@ -970,6 +970,22 @@ class TeacherApiService {
     }
   }
 
+  /// Delete live class
+  Future<void> deleteLiveClass(String liveClassId) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/live-classes/$liveClassId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete live class: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting live class: $e');
+    }
+  }
+
   /// Get comments for a live class
   Future<List<Map<String, dynamic>>> getComments(String liveClassId) async {
     try {
@@ -1152,8 +1168,8 @@ class TeacherApiService {
   Future<List<TeacherMyClass>> getMyClasses() async {
     try {
       final response = await _getWithFallback([
-        '/teacher/my-classes',
         '/teacher/classes',
+        '/teacher/my-classes',
       ]);
 
       if (response.statusCode == 200) {

@@ -1,8 +1,32 @@
 api_key: "devkey"
-api_secret: "secretkey"
+api_secret: "secretkey_edushamiit_livekit_2026_secure"
 ws_url: "ws://livekit:7880"
+insecure: true
 redis:
   address: "redis:6379"
   password: "redis_password_2026"
 log_level: "info"
 enable_chrome_sandbox: false
+template_base: "http://localhost:7980"
+
+# Performance tuning — allow egress to use more CPU for smooth encoding
+cpu_cost:
+  room_composite_cpu_cost: 3.0
+
+chrome_extra_args:
+  - "--disable-gpu"
+  - "--use-gl=swiftshader"
+  - "--disable-dev-shm-usage"
+  - "--autoplay-policy=no-user-gesture-required"
+  - "--disable-background-timer-throttling"
+  - "--disable-renderer-backgrounding"
+  - "--disable-backgrounding-occluded-windows"
+  - "--disable-ipc-flooding-protection"
+
+s3:
+  access_key: "minio_admin"
+  secret: "minio_password_2026"
+  region: "us-east-1"
+  endpoint: "http://minio:9000"
+  bucket: "live-classes"
+  force_path_style: true

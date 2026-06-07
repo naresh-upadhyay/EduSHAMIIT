@@ -20,7 +20,7 @@ class StudentTimetable extends ConsumerStatefulWidget {
 
 class _StudentTimetableState extends ConsumerState<StudentTimetable> {
   final StudentApiService _apiService = StudentApiService();
-  
+
   DateTime _selectedDate = DateTime.now();
   List<TimetablePeriod> _timetablePeriods = [];
   bool _isLoading = true;
@@ -40,7 +40,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     });
 
     try {
-      final dateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+      final dateStr =
+          "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
       final periods = await _apiService.getTimetable(date: dateStr);
       // Also fetch raw response to get the class field
       final classFromResponse = await _apiService.getStudentClass();
@@ -78,8 +79,31 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
   }
 
   String _formatFullDate(DateTime date) {
-    const weekdays = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const weekdays = [
+      '',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    const months = [
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
     return "${weekdays[date.weekday]}, ${months[date.month]} ${date.day}";
   }
 
@@ -93,13 +117,13 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
       final now = DateTime.now();
       final startTime = _parseTimeStringToTimeOfDay(startStr);
       final endTime = _parseTimeStringToTimeOfDay(endStr);
-      
+
       if (startTime == null || endTime == null) return false;
-      
+
       final nowMinutes = now.hour * 60 + now.minute;
       final startMinutes = startTime.hour * 60 + startTime.minute;
       final endMinutes = endTime.hour * 60 + endTime.minute;
-      
+
       return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
     } catch (_) {
       return false;
@@ -112,16 +136,16 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
       bool isPM = cleaned.contains('PM');
       bool isAM = cleaned.contains('AM');
       cleaned = cleaned.replaceAll('AM', '').replaceAll('PM', '').trim();
-      
+
       final parts = cleaned.split(':');
       if (parts.isEmpty) return null;
-      
+
       var hour = int.parse(parts[0]);
       var minute = parts.length > 1 ? int.parse(parts[1].split(' ')[0]) : 0;
-      
+
       if (isPM && hour < 12) hour += 12;
       if (isAM && hour == 12) hour = 0;
-      
+
       return TimeOfDay(hour: hour, minute: minute);
     } catch (_) {
       return null;
@@ -133,7 +157,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     dayPeriods.sort((a, b) => a.startTime.compareTo(b.startTime));
 
     final schedule = <Map<String, dynamic>>[];
-    
+
     for (int i = 0; i < dayPeriods.length; i++) {
       final period = dayPeriods[i];
       schedule.add({
@@ -157,18 +181,23 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
         final endTimeParts = period.endTime.split(':');
         final nextStartTimeParts = nextPeriod.startTime.split(':');
         final endHour = int.tryParse(endTimeParts[0]) ?? 0;
-        final endMinute = int.tryParse(endTimeParts.length > 1 ? endTimeParts[1] : '0') ?? 0;
+        final endMinute =
+            int.tryParse(endTimeParts.length > 1 ? endTimeParts[1] : '0') ?? 0;
         final nextStartHour = int.tryParse(nextStartTimeParts[0]) ?? 0;
-        final nextStartMinute = int.tryParse(nextStartTimeParts.length > 1 ? nextStartTimeParts[1] : '0') ?? 0;
-        final gapMinutes = (nextStartHour * 60 + nextStartMinute) - (endHour * 60 + endMinute);
-        
+        final nextStartMinute = int.tryParse(
+                nextStartTimeParts.length > 1 ? nextStartTimeParts[1] : '0') ??
+            0;
+        final gapMinutes =
+            (nextStartHour * 60 + nextStartMinute) - (endHour * 60 + endMinute);
+
         if (gapMinutes >= 20) {
           final isLunch = endHour >= 12;
           schedule.add({
             'isBreak': true,
             'type': isLunch ? 'lunch' : 'break',
             'label': isLunch ? '🍱 Lunch' : '☕ Break',
-            'time': '${_formatTimeString(period.endTime)} – ${_formatTimeString(nextPeriod.startTime)}',
+            'time':
+                '${_formatTimeString(period.endTime)} – ${_formatTimeString(nextPeriod.startTime)}',
           });
         }
       }
@@ -182,7 +211,11 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     if (parts.length >= 2) {
       final hour = int.tryParse(parts[0]) ?? 0;
       final minute = parts[1].split(' ')[0];
-      final ampm = parts.length > 2 ? parts[2] : (parts[1].contains('AM') ? 'AM' : (parts[1].contains('PM') ? 'PM' : ''));
+      final ampm = parts.length > 2
+          ? parts[2]
+          : (parts[1].contains('AM')
+              ? 'AM'
+              : (parts[1].contains('PM') ? 'PM' : ''));
       if (ampm.isNotEmpty) {
         return '$hour:$minute $ampm';
       }
@@ -252,12 +285,14 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     final schedule = _getSchedule();
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0F1D) : const Color(0xFFF0F4FF),
+      backgroundColor:
+          isDark ? const Color(0xFF0A0F1D) : const Color(0xFFF0F4FF),
       body: Column(
         children: [
           // Header styled exactly like student portal mockup
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF1E40AF), Color(0xFF1D4ED8)],
@@ -272,7 +307,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/student/dashboard'),
+                      onPressed: () =>
+                          safeGoBack(context, '/student/dashboard'),
                     ),
                     const SizedBox(width: 4),
                     const Expanded(
@@ -289,7 +325,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                     InkWell(
                       onTap: () => _selectDate(context),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
@@ -297,7 +334,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.calendar_month, color: Colors.white, size: 14),
+                            const Icon(Icons.calendar_month,
+                                color: Colors.white, size: 14),
                             const SizedBox(width: 4),
                             Text(
                               'Select Date'.tr(ref),
@@ -313,14 +351,20 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        _studentClass.isNotEmpty ? 'Class $_studentClass' : 'My Class',
-                        style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                        _studentClass.isNotEmpty
+                            ? 'Class $_studentClass'
+                            : 'My Class',
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -335,7 +379,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Weekly dynamic scrolling date chips matching student portal mockup style
                 SizedBox(
                   height: 60,
@@ -344,10 +388,11 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                     itemCount: 7,
                     itemBuilder: (context, index) {
                       final offset = index - 3;
-                      final dateOfChoice = _selectedDate.add(Duration(days: offset));
+                      final dateOfChoice =
+                          _selectedDate.add(Duration(days: offset));
                       final isSelected = offset == 0;
                       final dayName = _getWeekdayAbbr(dateOfChoice.weekday);
-                      
+
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -360,12 +405,19 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
                             gradient: isSelected
-                                ? const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)])
+                                ? const LinearGradient(colors: [
+                                    Color(0xFF4F46E5),
+                                    Color(0xFF06B6D4)
+                                  ])
                                 : null,
-                            color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
+                            color: isSelected
+                                ? null
+                                : Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isSelected ? Colors.transparent : Colors.white.withValues(alpha: 0.2),
+                              color: isSelected
+                                  ? Colors.transparent
+                                  : Colors.white.withValues(alpha: 0.2),
                               width: 1,
                             ),
                           ),
@@ -377,7 +429,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                                 style: TextStyle(
                                   fontSize: 8.5,
                                   fontWeight: FontWeight.w600,
-                                  color: isSelected ? Colors.white : Colors.white60,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white60,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -400,21 +454,24 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Main schedule view
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF1D4ED8)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF1D4ED8)))
                 : _error != null
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
                             const SizedBox(height: 16),
-                            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                            Text('Error: $_error',
+                                style: const TextStyle(color: Colors.red)),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadSchedule,
@@ -428,15 +485,20 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text('🏖️', style: TextStyle(fontSize: 48)),
+                                const Text('🏖️',
+                                    style: TextStyle(fontSize: 48)),
                                 const SizedBox(height: 12),
                                 Text(
-                                  _selectedDate.weekday == 7 ? 'No Classes Today (Sunday)' : 'No classes scheduled',
+                                  _selectedDate.weekday == 7
+                                      ? 'No Classes Today (Sunday)'
+                                      : 'No classes scheduled',
                                   style: TextStyle(
                                     fontFamily: AppFonts.heading,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: isDark ? Colors.white70 : const Color(0xFF0F172A),
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF0F172A),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -444,14 +506,17 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                                   'Enjoy your rest day!',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isDark ? Colors.white30 : Colors.grey[500],
+                                    color: isDark
+                                        ? Colors.white30
+                                        : Colors.grey[500],
                                   ),
                                 ),
                               ],
                             ),
                           )
                         : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
                             itemCount: schedule.length,
                             itemBuilder: (context, index) {
                               final item = schedule[index];
@@ -471,7 +536,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     Color bg = const Color(0xFFF1F5F9);
     Color fg = const Color(0xFF334155);
     IconData icon = Icons.video_call;
-    
+
     final lower = platform.toLowerCase();
     if (lower == 'zoom') {
       bg = const Color(0xFFE0F2FE);
@@ -504,7 +569,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
           const SizedBox(width: 3),
           Text(
             platform,
-            style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: fg),
+            style:
+                TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: fg),
           ),
         ],
       ),
@@ -532,8 +598,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     final platform = (item['platform'] ?? 'In-App').toString();
     final meetingLink = (item['meetingLink'] ?? '').toString();
     final id = (item['id'] ?? '').toString();
-    
-    if (platform.toLowerCase() == 'in-app' || platform.toLowerCase() == 'edushamiit') {
+
+    if (platform.toLowerCase() == 'in-app' ||
+        platform.toLowerCase() == 'edushamiit') {
       final auth = ref.read(authProvider);
       context.push(
         '/live-room',
@@ -550,7 +617,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
         _launchMeeting(meetingLink);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No meeting link available for this class.')),
+          const SnackBar(
+              content: Text('No meeting link available for this class.')),
         );
       }
     }
@@ -562,7 +630,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
     final isNow = item['now'] == true;
     final isLiveClass = item['periodNumber'] == 'Live Class';
     final subjectTheme = _getSubjectTheme(item['subject']);
-    
+
     Color cardBg = isDark ? const Color(0xFF1E293B) : subjectTheme.bg;
     Color borderColor = isDark ? const Color(0xFF334155) : subjectTheme.border;
     Color accentColor = subjectTheme.accent;
@@ -623,7 +691,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                 Text(
                   item['end'],
                   style: TextStyle(
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                     fontSize: 9,
                   ),
                 ),
@@ -654,7 +724,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                             fontWeight: FontWeight.w800,
                             fontSize: 13,
                             fontFamily: AppFonts.heading,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -669,7 +740,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                   Text(
                     item['teacher'],
                     style: TextStyle(
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                       fontSize: 10,
                     ),
                   ),
@@ -681,14 +754,22 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isLiveClass 
-                        ? (isDark ? const Color(0xFFE11D48).withOpacity(0.15) : const Color(0xFFFFE4E6))
-                        : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9)),
+                    color: isLiveClass
+                        ? (isDark
+                            ? const Color(0xFFE11D48).withValues(alpha: 0.15)
+                            : const Color(0xFFFFE4E6))
+                        : (isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : const Color(0xFFF1F5F9)),
                     borderRadius: BorderRadius.circular(8),
-                    border: isLiveClass 
-                        ? Border.all(color: const Color(0xFFE11D48).withOpacity(0.3), width: 0.5)
+                    border: isLiveClass
+                        ? Border.all(
+                            color:
+                                const Color(0xFFE11D48).withValues(alpha: 0.3),
+                            width: 0.5)
                         : null,
                   ),
                   child: Text(
@@ -696,18 +777,23 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
-                      color: isLiveClass 
+                      color: isLiveClass
                           ? const Color(0xFFE11D48)
-                          : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                          : (isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF475569)),
                     ),
                   ),
                 ),
                 if (isNow || isLiveClass) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: isLiveClass ? const Color(0xFFFEE2E2) : const Color(0xFFDCFCE7),
+                      color: isLiveClass
+                          ? const Color(0xFFFEE2E2)
+                          : const Color(0xFFDCFCE7),
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
@@ -715,7 +801,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                       style: TextStyle(
                         fontSize: 8,
                         fontWeight: FontWeight.w800,
-                        color: isLiveClass ? const Color(0xFFE11D48) : const Color(0xFF059669),
+                        color: isLiveClass
+                            ? const Color(0xFFE11D48)
+                            : const Color(0xFF059669),
                       ),
                     ),
                   ),
@@ -734,9 +822,13 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF451A03).withValues(alpha: 0.3) : const Color(0xFFFFF7ED),
+        color: isDark
+            ? const Color(0xFF451A03).withValues(alpha: 0.3)
+            : const Color(0xFFFFF7ED),
         borderRadius: BorderRadius.circular(12),
-        border: isDark ? Border.all(color: const Color(0xFF78350F).withValues(alpha: 0.5)) : null,
+        border: isDark
+            ? Border.all(color: const Color(0xFF78350F).withValues(alpha: 0.5))
+            : null,
       ),
       child: Row(
         children: [
@@ -745,12 +837,20 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
           Expanded(
             child: Text(
               item['label'],
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E)),
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                  color: isDark
+                      ? const Color(0xFFFCD34D)
+                      : const Color(0xFF92400E)),
             ),
           ),
           Text(
             item['time'],
-            style: TextStyle(fontSize: 10, color: isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309)),
+            style: TextStyle(
+                fontSize: 10,
+                color:
+                    isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309)),
           ),
         ],
       ),
@@ -760,8 +860,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
   void _showDynModal(Map<String, dynamic> item, String icon) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLiveClass = item['periodNumber'] == 'Live Class';
-    final isEnded = isLiveClass && (item['status'] == 'recorded' || item['status'] == 'completed');
-    
+    final isEnded = isLiveClass &&
+        (item['status'] == 'recorded' || item['status'] == 'completed');
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -787,7 +888,7 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                 ),
               ),
             ),
-            
+
             // Header
             Row(
               children: [
@@ -795,7 +896,9 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: isLiveClass ? const Color(0xFFFEE2E2) : const Color(0xFFEEF2FF),
+                    color: isLiveClass
+                        ? const Color(0xFFFEE2E2)
+                        : const Color(0xFFEEF2FF),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Center(
@@ -813,11 +916,12 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                           fontFamily: AppFonts.heading,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       Text(
-                        isLiveClass 
+                        isLiveClass
                             ? '${item['start']} – ${item['end']} · Platform: ${item['platform'] ?? 'In-App'}'
                             : '${item['start']} – ${item['end']} · Room ${item['room']}',
                         style: TextStyle(fontSize: 11, color: Colors.grey[500]),
@@ -834,60 +938,77 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.02)
+                    : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: isLiveClass 
+                children: isLiveClass
                     ? [
                         _buildDetailItem('Teacher:', item['teacher']),
-                        _buildDetailItem('Platform:', item['platform'] ?? 'In-App'),
-                        if (item['meetingLink'] != null && item['meetingLink'].toString().isNotEmpty && item['meetingLink'] != 'In-App')
-                          _buildDetailItem('Meeting Link:', item['meetingLink']),
+                        _buildDetailItem(
+                            'Platform:', item['platform'] ?? 'In-App'),
+                        if (item['meetingLink'] != null &&
+                            item['meetingLink'].toString().isNotEmpty &&
+                            item['meetingLink'] != 'In-App')
+                          _buildDetailItem(
+                              'Meeting Link:', item['meetingLink']),
                         if (isEnded) ...[
-                          _buildDetailItem('Status:', 'Class has ended. Recording is available.'),
-                          _buildDetailItem('Instructions:', 'Tapping Watch Recording will open the video player.'),
+                          _buildDetailItem('Status:',
+                              'Class has ended. Recording is available.'),
+                          _buildDetailItem('Instructions:',
+                              'Tapping Watch Recording will open the video player.'),
                         ] else ...[
-                          _buildDetailItem('Status:', 'Live class session scheduled for today.'),
-                          _buildDetailItem('Instructions:', 'Please join the meeting on time with a stable internet connection. Keep microphones muted unless instructed otherwise.'),
+                          _buildDetailItem('Status:',
+                              'Live class session scheduled for today.'),
+                          _buildDetailItem('Instructions:',
+                              'Please join the meeting on time with a stable internet connection. Keep microphones muted unless instructed otherwise.'),
                         ],
                       ]
                     : [
                         _buildDetailItem('Teacher:', item['teacher']),
-                        _buildDetailItem('Topic:', 'Integration by Parts (Ch. 7) & advanced calculus functions.'),
-                        _buildDetailItem('Reference Material:', 'NCERT Calculus Textbook, Graph notebook.'),
-                        _buildDetailItem('Homework:', 'Exercises 7.3 (Q1 - Q5) due on coming Monday.'),
-                        _buildDetailItem('Important Notes:', 'Please carry geometry instruments for graphical plotting.'),
+                        _buildDetailItem('Topic:',
+                            'Integration by Parts (Ch. 7) & advanced calculus functions.'),
+                        _buildDetailItem('Reference Material:',
+                            'NCERT Calculus Textbook, Graph notebook.'),
+                        _buildDetailItem('Homework:',
+                            'Exercises 7.3 (Q1 - Q5) due on coming Monday.'),
+                        _buildDetailItem('Important Notes:',
+                            'Please carry geometry instruments for graphical plotting.'),
                       ],
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Status bar
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isLiveClass 
-                    ? (isEnded ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF))
+                color: isLiveClass
+                    ? (isEnded
+                        ? const Color(0xFFF0FDF4)
+                        : const Color(0xFFEFF6FF))
                     : const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                isLiveClass 
-                    ? (isEnded 
+                isLiveClass
+                    ? (isEnded
                         ? 'Tapping watch will take you to the lecture recording player.'
                         : 'Tapping join will take you directly to the live classroom stream.')
                     : 'Class notes will be uploaded after this session.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 10.5, 
-                  fontWeight: FontWeight.w700, 
-                  color: isLiveClass 
-                      ? (isEnded ? const Color(0xFF059669) : const Color(0xFF1D4ED8))
-                      : const Color(0xFF059669)
-                ),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: isLiveClass
+                        ? (isEnded
+                            ? const Color(0xFF059669)
+                            : const Color(0xFF1D4ED8))
+                        : const Color(0xFF059669)),
               ),
             ),
             const SizedBox(height: 20),
@@ -901,20 +1022,25 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                       onPressed: () {
                         Navigator.pop(context);
                         if (isEnded) {
-                          context.push('/student/live-classes/play/${item['id']}');
+                          context
+                              .go('/student/live-classes/play/${item['id']}');
                         } else {
                           _joinLiveClass(item);
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isEnded ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        backgroundColor: isEnded
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFEF4444),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(isEnded ? 'Watch Recording' : 'Join Live Room', style: const TextStyle(fontWeight: FontWeight.w700)),
+                      child: Text(
+                          isEnded ? 'Watch Recording' : 'Join Live Room',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -923,10 +1049,10 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isLiveClass 
+                      backgroundColor: isLiveClass
                           ? (isDark ? Colors.grey[800] : Colors.grey[200])
                           : const Color(0xFF1E40AF),
-                      foregroundColor: isLiveClass 
+                      foregroundColor: isLiveClass
                           ? (isDark ? Colors.white : Colors.black87)
                           : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -934,7 +1060,8 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(isLiveClass ? 'Dismiss' : 'Close', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    child: Text(isLiveClass ? 'Dismiss' : 'Close',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -956,13 +1083,19 @@ class _StudentTimetableState extends ConsumerState<StudentTimetable> {
             width: 120,
             child: Text(
               label,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? Colors.white60 : Colors.grey[600]),
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white60 : Colors.grey[600]),
             ),
           ),
           Expanded(
             child: Text(
               val,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF334155)),
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF334155)),
             ),
           ),
         ],

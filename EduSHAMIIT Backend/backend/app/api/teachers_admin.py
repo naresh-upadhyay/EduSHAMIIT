@@ -755,6 +755,15 @@ async def delete_live_class(
     school_id=Depends(require_school_id),
 ):
     sb = get_supabase()
+    
+    # 1. Clean up physical recording files from MinIO
+    try:
+        from app.services.minio_client import delete_live_class_recordings_from_storage
+        await delete_live_class_recordings_from_storage(sb, live_class_id)
+    except Exception as e:
+        print(f"[Cleanup] Error in admin delete_live_class recordings cleanup: {e}")
+        
+    # 2. Delete class from database
     await sb.table("live_classes").delete().eq("id", live_class_id).eq("school_id", school_id).aexecute()
     return {"success": True, "message": "Live class cancelled"}
 

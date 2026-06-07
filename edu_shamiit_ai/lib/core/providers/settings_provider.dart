@@ -110,10 +110,13 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   }
 
   Future<void> loadSettings() async {
+    if (!mounted) return;
     state = state.copyWith(isLoading: true, error: null);
     try {
       // First try to load from cache
       final cachedSettings = await _cacheService.get('user_settings');
+      if (!mounted) return;  // Provider may have been disposed while awaiting cache
+
       if (cachedSettings != null) {
         state = state.copyWith(
           isLoading: false,
@@ -124,12 +127,15 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       // Then fetch from API
       final path = isTeacher ? '/user/settings' : '/student/settings';
       final response = await _apiService.get(path);
+      if (!mounted) return;  // Provider may have been disposed during the network call
+
       if (response['success'] == true) {
         final Map<String, dynamic> rawData = response['data'];
         final settingsJson = rawData.containsKey('settings') ? rawData['settings'] : rawData;
         final settings = UserSettings.fromJson(settingsJson);
         // Cache the settings
         await _cacheService.set('user_settings', settings.toJson());
+        if (!mounted) return;  // Guard after the cache write too
         state = state.copyWith(
           isLoading: false,
           settings: settings,
@@ -141,6 +147,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         );
       }
     } catch (e) {
+      if (!mounted) return;  // Don't touch state if disposed during error handling
       if (state.settings == null) {
         state = state.copyWith(
           isLoading: false,

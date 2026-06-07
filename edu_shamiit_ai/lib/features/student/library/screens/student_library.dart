@@ -3,7 +3,6 @@ import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
-import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
@@ -20,7 +19,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
   int _selectedTab = 0; // 0=My Books, 1=Browse, 2=Digital, 3=Request
   final TextEditingController _searchController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  
+
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _isbnController = TextEditingController();
@@ -48,9 +47,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
   Widget build(BuildContext context) {
     final libraryState = ref.watch(libraryProvider);
     final borrows = libraryState.borrows;
-    
+
     // Total borrows includes active and requests
-    final activeCount = borrows.where((b) => b.status == 'borrowed' || b.status.startsWith('pending')).length;
+    final activeCount = borrows
+        .where((b) => b.status == 'borrowed' || b.status.startsWith('pending'))
+        .length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF5FF),
@@ -58,7 +59,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF3B0764), Color(0xFF6D28D9)],
@@ -70,7 +72,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/student/dashboard'),
+                      onPressed: () =>
+                          safeGoBack(context, '/student/dashboard'),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -84,14 +87,18 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '📚 $activeCount Active',
-                        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -104,7 +111,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -119,14 +126,19 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     },
                     decoration: InputDecoration(
                       hintText: 'Search books, authors, isbn...',
-                      hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF6D28D9), size: 20),
+                      hintStyle:
+                          const TextStyle(color: Colors.black38, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search,
+                          color: Color(0xFF6D28D9), size: 20),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, color: Colors.black45, size: 18),
+                              icon: const Icon(Icons.clear,
+                                  color: Colors.black45, size: 18),
                               onPressed: () {
                                 _searchController.clear();
-                                ref.read(libraryProvider.notifier).searchBooks('');
+                                ref
+                                    .read(libraryProvider.notifier)
+                                    .searchBooks('');
                                 setState(() {});
                               },
                             )
@@ -167,10 +179,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 if (libraryState.isLoading)
                   const Padding(
                     padding: EdgeInsets.only(top: 100),
-                    child: Center(child: CircularProgressIndicator(color: Color(0xFF6D28D9))),
+                    child: Center(
+                        child: CircularProgressIndicator(
+                            color: Color(0xFF6D28D9))),
                   )
                 else ...[
-                  if (_selectedTab == 0) ..._buildMyBooksTab(borrows, libraryState),
+                  if (_selectedTab == 0)
+                    ..._buildMyBooksTab(borrows, libraryState),
                   if (_selectedTab == 1) ..._buildBrowseTab(libraryState),
                   if (_selectedTab == 2) ..._buildDigitalTab(libraryState),
                   if (_selectedTab == 3) ..._buildRequestTab(libraryState),
@@ -210,13 +225,14 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     );
   }
 
-  List<Widget> _buildMyBooksTab(List<LibraryBorrow> borrows, LibraryState libraryState) {
+  List<Widget> _buildMyBooksTab(
+      List<LibraryBorrow> borrows, LibraryState libraryState) {
     final searchQuery = _searchController.text.toLowerCase().trim();
     final visibleBorrows = borrows.where((b) {
       if (b.status == 'cancelled') return false;
       if (searchQuery.isEmpty) return true;
       return b.bookTitle.toLowerCase().contains(searchQuery) ||
-             b.bookAuthor.toLowerCase().contains(searchQuery);
+          b.bookAuthor.toLowerCase().contains(searchQuery);
     }).toList();
     if (visibleBorrows.isEmpty) {
       return [
@@ -224,7 +240,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         Center(
           child: Column(
             children: [
-              const Icon(Icons.library_books_outlined, size: 64, color: Color(0xFFC084FC)),
+              const Icon(Icons.library_books_outlined,
+                  size: 64, color: Color(0xFFC084FC)),
               const SizedBox(height: 16),
               const Text(
                 'No books borrowed yet',
@@ -249,15 +266,17 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     return [
       const SizedBox(height: 10),
       ...visibleBorrows.map((borrow) {
-        final isOverdue = borrow.dueDate != null && borrow.dueDate!.isBefore(DateTime.now()) && !borrow.isReturned;
-        final dueDateStr = borrow.dueDate != null 
+        final isOverdue = borrow.dueDate != null &&
+            borrow.dueDate!.isBefore(DateTime.now()) &&
+            !borrow.isReturned;
+        final dueDateStr = borrow.dueDate != null
             ? '${borrow.dueDate!.day}/${borrow.dueDate!.month}/${borrow.dueDate!.year}'
             : 'No due date';
-        
+
         String statusLabel = 'Borrowed';
         Color badgeColor = const Color(0xFF6D28D9);
         Color badgeText = Colors.white;
-        
+
         if (borrow.status == 'requested') {
           statusLabel = 'Awaiting Issue';
           badgeColor = const Color(0xFFFEF3C7);
@@ -286,7 +305,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(
-              color: isOverdue ? const Color(0xFFFCA5A5) : const Color(0xFFE9D5FF),
+              color:
+                  isOverdue ? const Color(0xFFFCA5A5) : const Color(0xFFE9D5FF),
               width: isOverdue ? 1.5 : 1,
             ),
           ),
@@ -294,7 +314,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           child: InkWell(
             onTap: () {
               final matchingBook = libraryState.books.firstWhere(
-                (b) => b.id == borrow.bookId || b.title.toLowerCase() == borrow.bookTitle.toLowerCase(),
+                (b) =>
+                    b.id == borrow.bookId ||
+                    b.title.toLowerCase() == borrow.bookTitle.toLowerCase(),
                 orElse: () => LibraryBook(
                   id: borrow.bookId,
                   title: borrow.bookTitle,
@@ -305,7 +327,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   availableCopies: 0,
                   isIssued: borrow.status == 'borrowed',
                   isDigital: false,
-                  description: LibraryBook.getDefaultDescription(borrow.bookTitle, 'General'),
+                  description: LibraryBook.getDefaultDescription(
+                      borrow.bookTitle, 'General'),
                 ),
               );
               _showBookDetailsDialog(matchingBook);
@@ -321,14 +344,21 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     height: 80,
                     decoration: BoxDecoration(
                       gradient: isOverdue
-                          ? const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFB91C1C)])
+                          ? const LinearGradient(
+                              colors: [Color(0xFFEF4444), Color(0xFFB91C1C)])
                           : borrow.status == 'returned'
-                              ? const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF047857)])
-                              : const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4C1D95)]),
+                              ? const LinearGradient(colors: [
+                                  Color(0xFF10B981),
+                                  Color(0xFF047857)
+                                ])
+                              : const LinearGradient(colors: [
+                                  Color(0xFF7C3AED),
+                                  Color(0xFF4C1D95)
+                                ]),
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -336,7 +366,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     ),
                     child: Center(
                       child: Text(
-                        isOverdue ? '⚠️' : borrow.status == 'returned' ? '✅' : '📖',
+                        isOverdue
+                            ? '⚠️'
+                            : borrow.status == 'returned'
+                                ? '✅'
+                                : '📖',
                         style: const TextStyle(fontSize: 24),
                       ),
                     ),
@@ -350,7 +384,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: badgeColor,
                                 borderRadius: BorderRadius.circular(6),
@@ -366,7 +401,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                             ),
                             if (borrow.fineAmount > 0)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFEE2E2),
                                   borderRadius: BorderRadius.circular(6),
@@ -413,7 +449,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: isOverdue ? const Color(0xFFB91C1C) : Colors.black87,
+                                color: isOverdue
+                                    ? const Color(0xFFB91C1C)
+                                    : Colors.black87,
                               ),
                             ),
                             if (borrow.status == 'borrowed')
@@ -423,10 +461,16 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                                     onPressed: () => _confirmReturn(borrow),
                                     style: TextButton.styleFrom(
                                       minimumSize: Size.zero,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
-                                    child: const Text('Return', style: TextStyle(fontSize: 11, color: Color(0xFF7C3AED), fontWeight: FontWeight.bold)),
+                                    child: const Text('Return',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF7C3AED),
+                                            fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(width: 8),
                                   ElevatedButton(
@@ -434,12 +478,18 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFF5F3FF),
                                       foregroundColor: const Color(0xFF7C3AED),
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
                                       minimumSize: Size.zero,
                                       elevation: 0,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
                                     ),
-                                    child: const Text('Renew', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    child: const Text('Renew',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               )
@@ -449,12 +499,17 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFFFEE2E2),
                                   foregroundColor: const Color(0xFFEF4444),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
                                   minimumSize: Size.zero,
                                   elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
                                 ),
-                                child: const Text('Cancel Request', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                child: const Text('Cancel Request',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold)),
                               ),
                           ],
                         ),
@@ -472,7 +527,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
 
   Widget _buildAIPicksCard(List<LibraryBook> recommendations) {
     if (recommendations.isEmpty) return const SizedBox.shrink();
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16, top: 4),
       padding: const EdgeInsets.all(16),
@@ -485,7 +540,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7C3AED).withOpacity(0.3),
+            color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -524,7 +579,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     margin: const EdgeInsets.only(right: 12),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: Colors.white24),
                     ),
@@ -537,7 +592,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                             color: Colors.white30,
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Center(child: Text('📕', style: TextStyle(fontSize: 16))),
+                          child: const Center(
+                              child:
+                                  Text('📕', style: TextStyle(fontSize: 16))),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -567,7 +624,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                book.recommendationReason ?? 'Highly recommended.',
+                                book.recommendationReason ??
+                                    'Highly recommended.',
                                 style: const TextStyle(
                                   fontSize: 9,
                                   fontStyle: FontStyle.italic,
@@ -593,7 +651,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
 
   List<Widget> _buildBrowseTab(LibraryState state) {
     final physicalBooks = state.books.where((b) => !b.isDigital).toList();
-    
+
     return [
       _buildAIPicksCard(state.recommendations),
       const SizedBox(height: 8),
@@ -602,7 +660,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         const Center(
           child: Column(
             children: [
-              Icon(Icons.search_off_rounded, size: 64, color: Color(0xFFC084FC)),
+              Icon(Icons.search_off_rounded,
+                  size: 64, color: Color(0xFFC084FC)),
               SizedBox(height: 16),
               Text(
                 'No physical books found',
@@ -614,7 +673,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 ),
               ),
               SizedBox(height: 6),
-              Text('Try searching for another term', style: TextStyle(fontSize: 11, color: Colors.black54)),
+              Text('Try searching for another term',
+                  style: TextStyle(fontSize: 11, color: Colors.black54)),
             ],
           ),
         ),
@@ -640,10 +700,12 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                       width: 50,
                       height: 70,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)]),
+                        gradient: const LinearGradient(
+                            colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)]),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Center(child: Text('📕', style: TextStyle(fontSize: 22))),
+                      child: const Center(
+                          child: Text('📕', style: TextStyle(fontSize: 22))),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -672,23 +734,34 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                isAvailable ? 'Available (${book.availableCopies} copies)' : 'Out of Stock',
+                                isAvailable
+                                    ? 'Available (${book.availableCopies} copies)'
+                                    : 'Out of Stock',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: isAvailable ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                  color: isAvailable
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFFDC2626),
                                 ),
                               ),
                               ElevatedButton(
-                                onPressed: isAvailable ? () => _confirmBorrow(book) : null,
+                                onPressed: isAvailable
+                                    ? () => _confirmBorrow(book)
+                                    : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF7C3AED),
                                   foregroundColor: Colors.white,
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
                                 ),
-                                child: const Text('Borrow', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                child: const Text('Borrow',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold)),
                               ),
                             ],
                           ),
@@ -706,7 +779,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
 
   List<Widget> _buildDigitalTab(LibraryState state) {
     final digitalBooks = state.books.where((b) => b.isDigital).toList();
-    
+
     if (digitalBooks.isEmpty) {
       return [
         const SizedBox(height: 60),
@@ -725,7 +798,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 ),
               ),
               SizedBox(height: 6),
-              Text('Check back later for new digital catalogs', style: TextStyle(fontSize: 11, color: Colors.black54)),
+              Text('Check back later for new digital catalogs',
+                  style: TextStyle(fontSize: 11, color: Colors.black54)),
             ],
           ),
         ),
@@ -752,10 +826,12 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   width: 50,
                   height: 70,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF06B6D4)]),
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFF3B82F6), Color(0xFF06B6D4)]),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Center(child: Text('💻', style: TextStyle(fontSize: 22))),
+                  child: const Center(
+                      child: Text('💻', style: TextStyle(fontSize: 22))),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -774,7 +850,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                       const SizedBox(height: 3),
                       Text(
                         'eBook · PDF · By ${book.author}',
-                        style: const TextStyle(fontSize: 11, color: Colors.black54),
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.black54),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -782,7 +859,10 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                         children: [
                           const Text(
                             'Instant Read / Download',
-                            style: TextStyle(fontSize: 10, color: Colors.black45, fontStyle: FontStyle.italic),
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.black45,
+                                fontStyle: FontStyle.italic),
                           ),
                           ElevatedButton(
                             onPressed: () => _downloadEBook(book),
@@ -790,15 +870,20 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                               backgroundColor: const Color(0xFF06B6D4),
                               foregroundColor: Colors.white,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.download, size: 12),
                                 SizedBox(width: 4),
-                                Text('Read Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                Text('Read Now',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -850,7 +935,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       if (r.status == 'cancelled') return false;
       if (searchQuery.isEmpty) return true;
       return r.title.toLowerCase().contains(searchQuery) ||
-             r.author.toLowerCase().contains(searchQuery);
+          r.author.toLowerCase().contains(searchQuery);
     }).toList();
 
     return [
@@ -864,7 +949,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             border: Border.all(color: const Color(0xFFE9D5FF)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6D28D9).withOpacity(0.04),
+                color: const Color(0xFF6D28D9).withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -889,11 +974,14 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 ],
               ),
               const SizedBox(height: 14),
-              _buildRequestInputField(_titleController, 'Book Title', 'e.g. Introduction to Algorithms', true),
+              _buildRequestInputField(_titleController, 'Book Title',
+                  'e.g. Introduction to Algorithms', true),
               const SizedBox(height: 10),
-              _buildRequestInputField(_authorController, 'Author Name', 'e.g. Thomas H. Cormen', true),
+              _buildRequestInputField(_authorController, 'Author Name',
+                  'e.g. Thomas H. Cormen', true),
               const SizedBox(height: 10),
-              _buildRequestInputField(_isbnController, 'ISBN (Optional)', 'e.g. 978-0262033848', false),
+              _buildRequestInputField(_isbnController, 'ISBN (Optional)',
+                  'e.g. 978-0262033848', false),
               const SizedBox(height: 10),
               TextFormField(
                 controller: _reasonController,
@@ -901,9 +989,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
                   labelText: 'Why do you need this book?',
-                  labelStyle: const TextStyle(color: Color(0xFF6D28D9), fontSize: 13),
+                  labelStyle:
+                      const TextStyle(color: Color(0xFF6D28D9), fontSize: 13),
                   hintText: 'e.g. Required reference for CSE-301 curriculum',
-                  hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
+                  hintStyle:
+                      const TextStyle(color: Colors.black38, fontSize: 12),
                   filled: true,
                   fillColor: const Color(0xFFFAF5FF),
                   enabledBorder: OutlineInputBorder(
@@ -912,7 +1002,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
                   ),
                 ),
               ),
@@ -925,11 +1016,15 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7C3AED),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
                     'Submit Request',
-                    style: TextStyle(fontFamily: AppFonts.heading, fontSize: 13, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -986,19 +1081,26 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     children: [
                       Text(
                         req.title,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF3B0764)),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF3B0764)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'By ${req.author}',
-                        style: const TextStyle(fontSize: 10, color: Colors.black54),
+                        style: const TextStyle(
+                            fontSize: 10, color: Colors.black54),
                       ),
                       if (req.reason != null && req.reason!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           'Reason: ${req.reason}',
-                          style: const TextStyle(fontSize: 9, color: Colors.black45, fontStyle: FontStyle.italic),
+                          style: const TextStyle(
+                              fontSize: 9,
+                              color: Colors.black45,
+                              fontStyle: FontStyle.italic),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1011,14 +1113,18 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: badgeColor,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         req.status.toUpperCase(),
-                        style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: badgeText),
+                        style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: badgeText),
                       ),
                     ),
                     if (req.status == 'pending') ...[
@@ -1027,12 +1133,16 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                         onPressed: () => _confirmCancelRequest(req),
                         style: TextButton.styleFrom(
                           minimumSize: Size.zero,
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -1045,12 +1155,15 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     ];
   }
 
-  Widget _buildRequestInputField(TextEditingController controller, String label, String placeholder, bool required) {
+  Widget _buildRequestInputField(TextEditingController controller, String label,
+      String placeholder, bool required) {
     return TextFormField(
       controller: controller,
       style: const TextStyle(fontSize: 13),
       validator: required
-          ? (value) => (value == null || value.trim().isEmpty) ? '$label is required' : null
+          ? (value) => (value == null || value.trim().isEmpty)
+              ? '$label is required'
+              : null
           : null,
       decoration: InputDecoration(
         labelText: label,
@@ -1073,12 +1186,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
 
   void _submitRequest() async {
     if (_formKey.currentState!.validate()) {
-      final success = await ref.read(libraryProvider.notifier).submitBookRequest(
-        _titleController.text.trim(),
-        _authorController.text.trim(),
-        _isbnController.text.trim(),
-        _reasonController.text.trim(),
-      );
+      final success =
+          await ref.read(libraryProvider.notifier).submitBookRequest(
+                _titleController.text.trim(),
+                _authorController.text.trim(),
+                _isbnController.text.trim(),
+                _reasonController.text.trim(),
+              );
       if (success) {
         _titleController.clear();
         _authorController.clear();
@@ -1106,28 +1220,40 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Confirm Borrow Request', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
-        content: Text('Would you like to request to borrow "${book.title}" by ${book.author}?'),
+        title: const Text('Confirm Borrow Request',
+            style: TextStyle(
+                fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
+        content: Text(
+            'Would you like to request to borrow "${book.title}" by ${book.author}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.black54)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await ref.read(libraryProvider.notifier).borrowBook(book.id);
+              final success =
+                  await ref.read(libraryProvider.notifier).borrowBook(book.id);
               if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Borrow request submitted successfully!'), backgroundColor: Color(0xFF10B981)),
+                  const SnackBar(
+                      content: Text('✅ Borrow request submitted successfully!'),
+                      backgroundColor: Color(0xFF10B981)),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('❌ You have already requested/borrowed this book or copies are unavailable.'), backgroundColor: Color(0xFFEF4444)),
+                  const SnackBar(
+                      content: Text(
+                          '❌ You have already requested/borrowed this book or copies are unavailable.'),
+                      backgroundColor: Color(0xFFEF4444)),
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white),
             child: const Text('Borrow'),
           ),
         ],
@@ -1140,24 +1266,34 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Request Book Renewal', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
-        content: Text('Request renewal for "${borrow.bookTitle}"?\n\nThis will send a request to the librarian. Max 2 renewals allowed.'),
+        title: const Text('Request Book Renewal',
+            style: TextStyle(
+                fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
+        content: Text(
+            'Request renewal for "${borrow.bookTitle}"?\n\nThis will send a request to the librarian. Max 2 renewals allowed.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.black54)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await ref.read(libraryProvider.notifier).renewBook(borrow.id);
+              final success =
+                  await ref.read(libraryProvider.notifier).renewBook(borrow.id);
               if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Renewal request submitted to librarian!'), backgroundColor: Color(0xFF10B981)),
+                  const SnackBar(
+                      content:
+                          Text('✅ Renewal request submitted to librarian!'),
+                      backgroundColor: Color(0xFF10B981)),
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white),
             child: const Text('Renew'),
           ),
         ],
@@ -1170,24 +1306,34 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Initiate Return', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
-        content: Text('Mark "${borrow.bookTitle}" as returned?\n\nPlease return the physical book to the library desk to complete approval.'),
+        title: const Text('Initiate Return',
+            style: TextStyle(
+                fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
+        content: Text(
+            'Mark "${borrow.bookTitle}" as returned?\n\nPlease return the physical book to the library desk to complete approval.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.black54)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await ref.read(libraryProvider.notifier).returnBook(borrow.id);
+              final success = await ref
+                  .read(libraryProvider.notifier)
+                  .returnBook(borrow.id);
               if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Return request submitted to librarian!'), backgroundColor: Color(0xFF10B981)),
+                  const SnackBar(
+                      content: Text('✅ Return request submitted to librarian!'),
+                      backgroundColor: Color(0xFF10B981)),
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white),
             child: const Text('Return Book'),
           ),
         ],
@@ -1218,7 +1364,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             children: [
               // Header banner with gradient
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF3B0764), Color(0xFF6D28D9)],
@@ -1235,7 +1382,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -1276,7 +1423,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   ],
                 ),
               ),
-              
+
               // Content Area
               Flexible(
                 child: SingleChildScrollView(
@@ -1289,24 +1436,36 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          _buildDetailChip(Icons.category_outlined, book.category, const Color(0xFF6D28D9)),
+                          _buildDetailChip(Icons.category_outlined,
+                              book.category, const Color(0xFF6D28D9)),
                           if (book.isbn.isNotEmpty)
-                            _buildDetailChip(Icons.info_outline, 'ISBN: ${book.isbn}', const Color(0xFF0369A1)),
-                          if (book.shelfLocation != null && book.shelfLocation!.isNotEmpty)
-                            _buildDetailChip(Icons.shelves, 'Shelf: ${book.shelfLocation}', const Color(0xFFD97706)),
+                            _buildDetailChip(Icons.info_outline,
+                                'ISBN: ${book.isbn}', const Color(0xFF0369A1)),
+                          if (book.shelfLocation != null &&
+                              book.shelfLocation!.isNotEmpty)
+                            _buildDetailChip(
+                                Icons.shelves,
+                                'Shelf: ${book.shelfLocation}',
+                                const Color(0xFFD97706)),
                           _buildDetailChip(
-                            book.isDigital ? Icons.cloud_done_outlined : Icons.inventory_2_outlined,
-                            book.isDigital 
-                                ? 'Digital eBook' 
-                                : (book.availableCopies > 0 ? 'In Stock (${book.availableCopies} available)' : 'Out of Stock'),
-                            book.isDigital 
-                                ? const Color(0xFF0D9488) 
-                                : (book.availableCopies > 0 ? const Color(0xFF059669) : const Color(0xFFDC2626)),
+                            book.isDigital
+                                ? Icons.cloud_done_outlined
+                                : Icons.inventory_2_outlined,
+                            book.isDigital
+                                ? 'Digital eBook'
+                                : (book.availableCopies > 0
+                                    ? 'In Stock (${book.availableCopies} available)'
+                                    : 'Out of Stock'),
+                            book.isDigital
+                                ? const Color(0xFF0D9488)
+                                : (book.availableCopies > 0
+                                    ? const Color(0xFF059669)
+                                    : const Color(0xFFDC2626)),
                           ),
                         ],
                       ),
                       const SizedBox(height: 20),
-                      
+
                       // Short Description Section
                       const Text(
                         'Short Description',
@@ -1327,7 +1486,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                           border: Border.all(color: const Color(0xFFE9D5FF)),
                         ),
                         child: Text(
-                          book.description ?? LibraryBook.getDefaultDescription(book.title, book.category),
+                          book.description ??
+                              LibraryBook.getDefaultDescription(
+                                  book.title, book.category),
                           style: const TextStyle(
                             fontSize: 12,
                             color: Color(0xFF5B21B6),
@@ -1336,7 +1497,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // AI Recommendation Reason Section
                       const Text(
                         'AI Librarian Insights',
@@ -1363,7 +1524,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                book.recommendationReason ?? 'Highly relevant to your current academic curriculum, containing detailed references and practice resources.',
+                                book.recommendationReason ??
+                                    'Highly relevant to your current academic curriculum, containing detailed references and practice resources.',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontStyle: FontStyle.italic,
@@ -1379,7 +1541,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                   ),
                 ),
               ),
-              
+
               // Action Buttons
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -1389,8 +1551,10 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                       child: const Text(
                         'Close',
@@ -1400,9 +1564,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                         ),
                       ),
                     ),
-                    if (!book.isDigital && book.availableCopies > 0 && !_isAlreadyBorrowed(book))
+                    if (!book.isDigital &&
+                        book.availableCopies > 0 &&
+                        !_isAlreadyBorrowed(book))
                       const SizedBox(width: 8),
-                    if (!book.isDigital && book.availableCopies > 0 && !_isAlreadyBorrowed(book))
+                    if (!book.isDigital &&
+                        book.availableCopies > 0 &&
+                        !_isAlreadyBorrowed(book))
                       ElevatedButton(
                         onPressed: () {
                           Navigator.pop(ctx);
@@ -1412,16 +1580,17 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                           backgroundColor: const Color(0xFF7C3AED),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Text(
                           'Borrow Book',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                    if (book.isDigital)
-                      const SizedBox(width: 8),
+                    if (book.isDigital) const SizedBox(width: 8),
                     if (book.isDigital)
                       ElevatedButton(
                         onPressed: () {
@@ -1432,8 +1601,10 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                           backgroundColor: const Color(0xFF06B6D4),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1461,9 +1632,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1485,7 +1656,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
 
   bool _isAlreadyBorrowed(LibraryBook book) {
     final libraryState = ref.read(libraryProvider);
-    return libraryState.borrows.any((b) => (b.bookId == book.id || b.bookTitle.toLowerCase() == book.title.toLowerCase()) && b.status != 'returned' && b.status != 'cancelled');
+    return libraryState.borrows.any((b) =>
+        (b.bookId == book.id ||
+            b.bookTitle.toLowerCase() == book.title.toLowerCase()) &&
+        b.status != 'returned' &&
+        b.status != 'cancelled');
   }
 
   void _confirmCancelBorrow(LibraryBorrow borrow) {
@@ -1493,8 +1668,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Cancel Borrow Request', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to cancel your borrow request for "${borrow.bookTitle}"?'),
+        title: const Text('Cancel Borrow Request',
+            style: TextStyle(
+                fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
+        content: Text(
+            'Are you sure you want to cancel your borrow request for "${borrow.bookTitle}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -1503,18 +1681,26 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await ref.read(libraryProvider.notifier).cancelBorrowRequest(borrow.id);
+              final success = await ref
+                  .read(libraryProvider.notifier)
+                  .cancelBorrowRequest(borrow.id);
               if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Borrow request cancelled successfully!'), backgroundColor: Color(0xFF10B981)),
+                  const SnackBar(
+                      content: Text('✅ Borrow request cancelled successfully!'),
+                      backgroundColor: Color(0xFF10B981)),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('❌ Failed to cancel borrow request.'), backgroundColor: Color(0xFFEF4444)),
+                  const SnackBar(
+                      content: Text('❌ Failed to cancel borrow request.'),
+                      backgroundColor: Color(0xFFEF4444)),
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white),
             child: const Text('Yes, Cancel'),
           ),
         ],
@@ -1527,8 +1713,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Cancel Acquisition Request', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to cancel your request for "${request.title}"?'),
+        title: const Text('Cancel Acquisition Request',
+            style: TextStyle(
+                fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
+        content: Text(
+            'Are you sure you want to cancel your request for "${request.title}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -1537,18 +1726,27 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await ref.read(libraryProvider.notifier).cancelBookRequest(request.id);
+              final success = await ref
+                  .read(libraryProvider.notifier)
+                  .cancelBookRequest(request.id);
               if (success) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Acquisition request cancelled successfully!'), backgroundColor: Color(0xFF10B981)),
+                  const SnackBar(
+                      content:
+                          Text('✅ Acquisition request cancelled successfully!'),
+                      backgroundColor: Color(0xFF10B981)),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('❌ Failed to cancel acquisition request.'), backgroundColor: Color(0xFFEF4444)),
+                  const SnackBar(
+                      content: Text('❌ Failed to cancel acquisition request.'),
+                      backgroundColor: Color(0xFFEF4444)),
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white),
             child: const Text('Yes, Cancel'),
           ),
         ],

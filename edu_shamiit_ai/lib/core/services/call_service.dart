@@ -115,7 +115,7 @@ class CallService {
   bool _isCameraOff = false;
   bool get isCameraOff => _isCameraOff;
 
-  bool _isSpeakerOn = true;
+  final bool _isSpeakerOn = true;
   bool get isSpeakerOn => _isSpeakerOn;
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -146,15 +146,18 @@ class CallService {
     required CallType callType,
   }) async {
     if (activeCall.value != null) {
-      debugPrint('[CallService] Already in a call, rejecting new call initiation');
+      debugPrint(
+          '[CallService] Already in a call, rejecting new call initiation');
       return;
     }
 
     try {
       if (kIsWeb) {
-        final hasMediaDevices = js.context.callMethod('eval', ["typeof navigator.mediaDevices !== 'undefined'"]);
+        final hasMediaDevices = js.context.callMethod(
+            'eval', ["typeof navigator.mediaDevices !== 'undefined'"]);
         if (hasMediaDevices == false) {
-          throw Exception('Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.');
+          throw Exception(
+              'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.');
         }
       }
 
@@ -211,8 +214,11 @@ class CallService {
       debugPrint('[CallService] Error initiating call: $e');
       if (kIsWeb) {
         String errMsg = e.toString();
-        if (errMsg.contains('navigator.mediaDevices') || errMsg.contains('undefined') || errMsg.contains('Permission')) {
-          errMsg = 'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.';
+        if (errMsg.contains('navigator.mediaDevices') ||
+            errMsg.contains('undefined') ||
+            errMsg.contains('Permission')) {
+          errMsg =
+              'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.';
         }
         js.context.callMethod('alert', [errMsg.replaceAll('Exception: ', '')]);
       }
@@ -230,9 +236,11 @@ class CallService {
 
     try {
       if (kIsWeb) {
-        final hasMediaDevices = js.context.callMethod('eval', ["typeof navigator.mediaDevices !== 'undefined'"]);
+        final hasMediaDevices = js.context.callMethod(
+            'eval', ["typeof navigator.mediaDevices !== 'undefined'"]);
         if (hasMediaDevices == false) {
-          throw Exception('Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.');
+          throw Exception(
+              'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.');
         }
       }
 
@@ -287,8 +295,11 @@ class CallService {
       debugPrint('[CallService] Error answering call: $e');
       if (kIsWeb) {
         String errMsg = e.toString();
-        if (errMsg.contains('navigator.mediaDevices') || errMsg.contains('undefined') || errMsg.contains('Permission')) {
-          errMsg = 'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.';
+        if (errMsg.contains('navigator.mediaDevices') ||
+            errMsg.contains('undefined') ||
+            errMsg.contains('Permission')) {
+          errMsg =
+              'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.';
         }
         js.context.callMethod('alert', [errMsg.replaceAll('Exception: ', '')]);
       }
@@ -303,7 +314,7 @@ class CallService {
     _stopRingtone();
     final incoming = incomingCall.value;
     if (incoming == null) return;
-    
+
     _broadcastSignal(incoming.channelName, {
       'type': 'call_rejected',
       'callee_id': _currentUserId,
@@ -440,13 +451,15 @@ class CallService {
     final globalChannel = 'incoming_calls_$userId';
     _globalIncomingChannel = sb.channel(globalChannel);
 
-    _globalIncomingChannel!.onBroadcast(
+    _globalIncomingChannel!
+        .onBroadcast(
       event: 'call_offer',
       callback: (payload) {
         debugPrint('[CallService] Incoming call offer received: $payload');
         if (activeCall.value != null) {
           // Already in a call – auto-reject
-          final channelName = payload['channel'] as String? ?? _channelName(payload['session_id'] as String? ?? '');
+          final channelName = payload['channel'] as String? ??
+              _channelName(payload['session_id'] as String? ?? '');
           _broadcastSignal(channelName, {
             'type': 'call_rejected',
             'callee_id': _currentUserId,
@@ -456,7 +469,8 @@ class CallService {
         }
         _handleIncomingOffer(payload);
       },
-    ).subscribe((status, [error]) {
+    )
+        .subscribe((status, [error]) {
       debugPrint('[CallService] Global listener: $status, error: $error');
     });
   }
@@ -484,10 +498,10 @@ class CallService {
         offer: offer,
       );
       debugPrint('[CallService] Incoming call from ${payload['caller_name']}');
-      
+
       // Start playing synthesized ringtone
       _startRingtone();
-      
+
       // Callee subscribes to signaling channel immediately to listen for early hangup / cancel events
       _subscribeSignalingChannel(channelName);
     } catch (e) {
@@ -497,14 +511,17 @@ class CallService {
 
   Future<void> _subscribeSignalingChannel(String channelName) async {
     final sb = Supabase.instance.client;
-    
-    if (_signalingChannel != null && _currentSignalingChannelName == channelName) {
-      debugPrint('[CallService] Already subscribed to signaling channel: $channelName');
+
+    if (_signalingChannel != null &&
+        _currentSignalingChannelName == channelName) {
+      debugPrint(
+          '[CallService] Already subscribed to signaling channel: $channelName');
       return;
     }
-    
+
     if (_signalingChannel != null) {
-      debugPrint('[CallService] Unsubscribing from old signaling channel: $_currentSignalingChannelName');
+      debugPrint(
+          '[CallService] Unsubscribing from old signaling channel: $_currentSignalingChannelName');
       _teardownSignaling();
     }
 
@@ -514,22 +531,24 @@ class CallService {
     final completer = Completer<void>();
 
     _signalingChannel!
-      .onBroadcast(event: 'call_answer', callback: _onCallAnswer)
-      .onBroadcast(event: 'ice_candidate', callback: _onRemoteIceCandidate)
-      .onBroadcast(event: 'call_hangup', callback: _onRemoteHangup)
-      .onBroadcast(event: 'call_rejected', callback: _onCallRejected)
-      .subscribe((status, [error]) {
-        debugPrint('[CallService] Signaling channel [$channelName]: $status, error: $error');
-        if (status == RealtimeSubscribeStatus.subscribed) {
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-        } else if (status == RealtimeSubscribeStatus.channelError) {
-          if (!completer.isCompleted) {
-            completer.completeError(error ?? Exception('Failed to subscribe to signaling channel'));
-          }
+        .onBroadcast(event: 'call_answer', callback: _onCallAnswer)
+        .onBroadcast(event: 'ice_candidate', callback: _onRemoteIceCandidate)
+        .onBroadcast(event: 'call_hangup', callback: _onRemoteHangup)
+        .onBroadcast(event: 'call_rejected', callback: _onCallRejected)
+        .subscribe((status, [error]) {
+      debugPrint(
+          '[CallService] Signaling channel [$channelName]: $status, error: $error');
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        if (!completer.isCompleted) {
+          completer.complete();
         }
-      });
+      } else if (status == RealtimeSubscribeStatus.channelError) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+              error ?? Exception('Failed to subscribe to signaling channel'));
+        }
+      }
+    });
 
     return completer.future;
   }
@@ -537,7 +556,8 @@ class CallService {
   void _onCallAnswer(Map<String, dynamic> payload) async {
     debugPrint('[CallService] _onCallAnswer payload received: $payload');
     if (_peerConnection == null) {
-      debugPrint('[CallService] _onCallAnswer rejected: _peerConnection is null');
+      debugPrint(
+          '[CallService] _onCallAnswer rejected: _peerConnection is null');
       return;
     }
     final callInfo = activeCall.value;
@@ -567,18 +587,21 @@ class CallService {
 
       activeCall.value!.state = CallState.active;
       onCallStateChanged?.call();
-      debugPrint('[CallService] Call answered successfully. WebRTC connection state: ${_peerConnection!.signalingState}');
+      debugPrint(
+          '[CallService] Call answered successfully. WebRTC connection state: ${_peerConnection!.signalingState}');
     } catch (e) {
       debugPrint('[CallService] Error setting remote answer: $e');
     }
   }
 
   void _onRemoteIceCandidate(Map<String, dynamic> payload) async {
-    debugPrint('[CallService] _onRemoteIceCandidate payload received: $payload');
+    debugPrint(
+        '[CallService] _onRemoteIceCandidate payload received: $payload');
     try {
       final candidateMap = payload['candidate'] as Map<String, dynamic>?;
       if (candidateMap == null) {
-        debugPrint('[CallService] _onRemoteIceCandidate rejected: candidate details null');
+        debugPrint(
+            '[CallService] _onRemoteIceCandidate rejected: candidate details null');
         return;
       }
       final candidate = RTCIceCandidate(
@@ -586,17 +609,19 @@ class CallService {
         candidateMap['sdpMid'] as String?,
         candidateMap['sdpMLineIndex'] as int?,
       );
-      
+
       if (_peerConnection == null) {
         _pendingIceCandidates.add(candidate);
-        debugPrint('[CallService] Buffered ICE candidate (PeerConnection is null). Pending: ${_pendingIceCandidates.length}');
+        debugPrint(
+            '[CallService] Buffered ICE candidate (PeerConnection is null). Pending: ${_pendingIceCandidates.length}');
         return;
       }
-      
+
       final remoteDesc = await _peerConnection!.getRemoteDescription();
       if (remoteDesc == null) {
         _pendingIceCandidates.add(candidate);
-        debugPrint('[CallService] Buffered ICE candidate (remote description is null). Pending: ${_pendingIceCandidates.length}');
+        debugPrint(
+            '[CallService] Buffered ICE candidate (remote description is null). Pending: ${_pendingIceCandidates.length}');
       } else {
         await _peerConnection!.addCandidate(candidate);
         debugPrint('[CallService] Added remote ICE candidate directly');
@@ -645,7 +670,7 @@ class CallService {
         activeCall.value?.state = CallState.active;
         onCallStateChanged?.call();
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
-                 state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+          state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
         _endCallLocally();
       }
     };
@@ -690,13 +715,15 @@ class CallService {
   void _broadcastSignal(String channelName, Map<String, dynamic> payload) {
     final sb = Supabase.instance.client;
     final event = payload['type'] as String? ?? 'signal';
-    
+
     // Core fix: reuse our active signaling channel if topic matches to guarantee subscribed status
-    final targetChannel = (_signalingChannel != null && _currentSignalingChannelName == channelName)
+    final targetChannel = (_signalingChannel != null &&
+            _currentSignalingChannelName == channelName)
         ? _signalingChannel!
         : sb.channel(channelName);
 
-    debugPrint('[CallService] _broadcastSignal sending event: "$event" to channel: "$channelName"');
+    debugPrint(
+        '[CallService] _broadcastSignal sending event: "$event" to channel: "$channelName"');
     targetChannel.sendBroadcastMessage(event: event, payload: payload);
 
     // Also broadcast to callee's personal incoming channel (for offers)
@@ -704,16 +731,18 @@ class CallService {
       final calleeId = payload['callee_id'] as String? ?? '';
       final incomingChannelName = 'incoming_calls_$calleeId';
       final incomingChannel = sb.channel(incomingChannelName);
-      
+
       incomingChannel.subscribe((status, [error]) {
-        debugPrint('[CallService] Temp callee channel [$incomingChannelName] status: $status');
+        debugPrint(
+            '[CallService] Temp callee channel [$incomingChannelName] status: $status');
         if (status == RealtimeSubscribeStatus.subscribed) {
           incomingChannel.sendBroadcastMessage(event: 'call_offer', payload: {
             ...payload,
             'channel': channelName,
           });
-          debugPrint('[CallService] Broadcasted call offer to $incomingChannelName');
-          
+          debugPrint(
+              '[CallService] Broadcasted call offer to $incomingChannelName');
+
           // Wait 2 seconds before unsubscribing to allow the WebSocket server to process the message
           Future.delayed(const Duration(seconds: 2), () {
             incomingChannel.unsubscribe();
@@ -854,12 +883,16 @@ class CallService {
   // ─────────────────────────────────────────────────────────────────────────
   // BACKEND API CALLS
   // ─────────────────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> _createCallSession(String calleeId, CallType callType) async {
+  Future<Map<String, dynamic>> _createCallSession(
+      String calleeId, CallType callType) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
     final resp = await http.post(
       Uri.parse('$_fastApiBaseUrl/api/calls/initiate'),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json'
+      },
       body: jsonEncode({'callee_id': calleeId, 'call_type': callType.name}),
     );
     if (resp.statusCode == 200) {
@@ -873,7 +906,10 @@ class CallService {
     final token = prefs.getString('auth_token') ?? '';
     await http.put(
       Uri.parse('$_fastApiBaseUrl/api/calls/$sessionId/status'),
-      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json'
+      },
       body: jsonEncode({'status': status}),
     );
   }

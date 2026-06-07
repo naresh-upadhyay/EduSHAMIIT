@@ -8,7 +8,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 // ─── Leave type definitions ──────────────────────────────────────────────────
 
 const _studentLeaveTypes = [
@@ -32,16 +31,26 @@ const _teacherLeaveTypes = [
 
 String _leaveIcon(String type) {
   switch (type.toLowerCase()) {
-    case 'sick leave':         return '🤒';
-    case 'casual leave':       return '☀️';
-    case 'family event':       return '👨‍👩‍👧';
-    case 'urgent work':        return '⚡';
-    case 'sports competition': return '🏅';
-    case 'earned leave':       return '🌴';
-    case 'maternity leave':    return '🤱';
-    case 'paternity leave':    return '👶';
-    case 'personal leave':     return '🙏';
-    default:                   return '📋';
+    case 'sick leave':
+      return '🤒';
+    case 'casual leave':
+      return '☀️';
+    case 'family event':
+      return '👨‍👩‍👧';
+    case 'urgent work':
+      return '⚡';
+    case 'sports competition':
+      return '🏅';
+    case 'earned leave':
+      return '🌴';
+    case 'maternity leave':
+      return '🤱';
+    case 'paternity leave':
+      return '👶';
+    case 'personal leave':
+      return '🙏';
+    default:
+      return '📋';
   }
 }
 
@@ -49,9 +58,9 @@ String _leaveIcon(String type) {
 
 const _primaryStudent = Color(0xFF4F46E5);
 const _primaryTeacher = Color(0xFF8B5CF6);
-const _accentColor    = Color(0xFF06B6D4);
-const _bgColor        = Color(0xFFF0F2FF);
-const _cardColor      = Colors.white;
+const _accentColor = Color(0xFF06B6D4);
+const _bgColor = Color(0xFFF0F2FF);
+const _cardColor = Colors.white;
 
 Color _primaryFor(bool isTeacher) =>
     isTeacher ? _primaryTeacher : _primaryStudent;
@@ -73,8 +82,8 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    Future.microtask(() =>
-        ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true));
+    Future.microtask(
+        () => ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true));
   }
 
   @override
@@ -83,8 +92,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
     super.dispose();
   }
 
-  bool get _isTeacher =>
-      ref.read(authProvider).role == UserRole.teacher;
+  bool get _isTeacher => ref.read(authProvider).role == UserRole.teacher;
 
   String get _dashboardRoute =>
       _isTeacher ? '/teacher/dashboard' : '/student/dashboard';
@@ -108,7 +116,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
           // ── Header ──────────────────────────────────────────────────────
           Container(
             padding: EdgeInsets.fromLTRB(
-              16, Responsive.headerTopPadding(context), 16, 0),
+                16, Responsive.headerTopPadding(context), 16, 0),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -132,7 +140,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Leave Management',
                           style: TextStyle(
                             fontFamily: AppFonts.heading,
@@ -145,7 +153,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
                           isTeacher ? 'Teacher Portal' : 'Student Portal',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -168,7 +176,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
                 // Tab bar
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TabBar(
@@ -224,7 +232,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
         backgroundColor: primary,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: Text(
+        label: const Text(
           'Apply Leave',
           style: TextStyle(
             fontFamily: AppFonts.heading,
@@ -236,7 +244,8 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
     );
   }
 
-  void _showApplySheet(BuildContext context, {LeaveApplication? editLeave}) async {
+  void _showApplySheet(BuildContext context,
+      {LeaveApplication? editLeave}) async {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -268,7 +277,7 @@ class _StatsBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -305,7 +314,7 @@ class _StatsBar extends StatelessWidget {
 class _Vdivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-        height: 32, width: 1, color: Colors.white.withOpacity(0.3));
+      height: 32, width: 1, color: Colors.white.withValues(alpha: 0.3));
 }
 
 class _StatCell extends StatelessWidget {
@@ -340,7 +349,7 @@ class _StatCell extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 9,
-              color: Colors.white.withOpacity(0.75),
+              color: Colors.white.withValues(alpha: 0.75),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -371,9 +380,11 @@ class _UpcomingTab extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
     if (state.error != null) {
-      return _ErrorView(message: state.error!, onRetry: () {
-        ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true);
-      });
+      return _ErrorView(
+          message: state.error!,
+          onRetry: () {
+            ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true);
+          });
     }
 
     final upcoming = state.upcomingLeaves;
@@ -385,7 +396,7 @@ class _UpcomingTab extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           if (upcoming.isEmpty)
-            _EmptyState(
+            const _EmptyState(
               message: 'No upcoming leaves',
               subMessage: 'Tap + to apply for a new leave',
               icon: '🗓️',
@@ -418,9 +429,11 @@ class _PastTab extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
     if (state.error != null) {
-      return _ErrorView(message: state.error!, onRetry: () {
-        ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true);
-      });
+      return _ErrorView(
+          message: state.error!,
+          onRetry: () {
+            ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true);
+          });
     }
 
     final past = state.pastLeaves;
@@ -432,7 +445,7 @@ class _PastTab extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           if (past.isEmpty)
-            _EmptyState(
+            const _EmptyState(
               message: 'No past leaves',
               subMessage: 'Your leave history will appear here',
               icon: '📜',
@@ -466,7 +479,7 @@ class _LeaveCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isPending  = leave.status == 'pending';
+    final isPending = leave.status == 'pending';
     final isApproved = leave.status == 'approved';
     final isRejected = leave.status == 'rejected';
     // isCancelled: status == 'cancelled'
@@ -476,25 +489,26 @@ class _LeaveCard extends ConsumerWidget {
     String statusLabel;
     if (isPending) {
       statusColor = const Color(0xFFD97706);
-      statusBg    = const Color(0xFFFFF7ED);
+      statusBg = const Color(0xFFFFF7ED);
       statusLabel = '⏳ Pending';
     } else if (isApproved) {
       statusColor = const Color(0xFF059669);
-      statusBg    = const Color(0xFFECFDF5);
+      statusBg = const Color(0xFFECFDF5);
       statusLabel = '✅ Approved';
     } else if (isRejected) {
       statusColor = const Color(0xFFDC2626);
-      statusBg    = const Color(0xFFFEF2F2);
+      statusBg = const Color(0xFFFEF2F2);
       statusLabel = '❌ Rejected';
     } else {
       statusColor = const Color(0xFF64748B);
-      statusBg    = const Color(0xFFF1F5F9);
+      statusBg = const Color(0xFFF1F5F9);
       statusLabel = '🚫 Cancelled';
     }
 
     // Compute duration
     int days = leave.durationDays ?? _calcDays(leave.startDate, leave.endDate);
-    final formattedRange = '${_fmtDate(leave.startDate)} → ${_fmtDate(leave.endDate)}';
+    final formattedRange =
+        '${_fmtDate(leave.startDate)} → ${_fmtDate(leave.endDate)}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -503,15 +517,15 @@ class _LeaveCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isPending
-              ? primary.withOpacity(0.25)
+              ? primary.withValues(alpha: 0.25)
               : isApproved
-                  ? const Color(0xFF059669).withOpacity(0.2)
+                  ? const Color(0xFF059669).withValues(alpha: 0.2)
                   : const Color(0xFFE2E8F0),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -596,7 +610,8 @@ class _LeaveCard extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: statusBg,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                    border:
+                        Border.all(color: statusColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     statusLabel,
@@ -646,7 +661,7 @@ class _LeaveCard extends ConsumerWidget {
                   color: const Color(0xFFFEF2F2),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: const Color(0xFFDC2626).withOpacity(0.2)),
+                      color: const Color(0xFFDC2626).withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
@@ -683,7 +698,7 @@ class _LeaveCard extends ConsumerWidget {
                         label: 'Edit',
                         icon: Icons.edit_rounded,
                         color: primary,
-                        bgColor: primary.withOpacity(0.08),
+                        bgColor: primary.withValues(alpha: 0.08),
                         onTap: () => _showEditSheet(context, ref),
                       ),
                     ),
@@ -704,8 +719,7 @@ class _LeaveCard extends ConsumerWidget {
               ),
             ),
           ] else if (!isUpcoming &&
-              (leave.status == 'rejected' ||
-                  leave.status == 'cancelled')) ...[
+              (leave.status == 'rejected' || leave.status == 'cancelled')) ...[
             const Divider(height: 1, color: Color(0xFFF1F5F9)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -773,7 +787,9 @@ class _LeaveCard extends ConsumerWidget {
                   .read(leaveProvider.notifier)
                   .cancelOrDeleteLeave(leave.id);
               if (success) {
-                ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true);
+                ref
+                    .read(leaveProvider.notifier)
+                    .fetchLeaves(forceRefresh: true);
               }
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -782,8 +798,9 @@ class _LeaveCard extends ConsumerWidget {
                           ? '✅ Leave cancelled successfully'
                           : '🗑️ Record deleted')
                       : '❌ Failed. Please try again.'),
-                  backgroundColor:
-                      success ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                  backgroundColor: success
+                      ? const Color(0xFF059669)
+                      : const Color(0xFFDC2626),
                 ));
               }
             },
@@ -886,7 +903,7 @@ class _ApplyLeaveSheetState extends ConsumerState<_ApplyLeaveSheet> {
         (widget.leaveTypes.isNotEmpty ? widget.leaveTypes.first : 'Others');
     if (e != null) {
       _startDate = DateTime.tryParse(e.startDate);
-      _endDate   = DateTime.tryParse(e.endDate);
+      _endDate = DateTime.tryParse(e.endDate);
       _reasonCtrl.text = e.reason;
       _attachmentUrl = e.attachmentUrl;
       if (_attachmentUrl != null && _attachmentUrl!.isNotEmpty) {
@@ -913,8 +930,8 @@ class _ApplyLeaveSheetState extends ConsumerState<_ApplyLeaveSheet> {
     final initial = isStart
         ? (_startDate ?? now)
         : (_endDate ?? (_startDate ?? now).add(const Duration(days: 1)));
-    final first  = isStart ? now : (_startDate ?? now);
-    final last   = now.add(const Duration(days: 90));
+    final first = isStart ? now : (_startDate ?? now);
+    final last = now.add(const Duration(days: 90));
 
     final picked = await showDatePicker(
       context: context,
@@ -962,7 +979,9 @@ class _ApplyLeaveSheetState extends ConsumerState<_ApplyLeaveSheet> {
 
         setState(() => _isUploadingAttachment = true);
 
-        final url = await ref.read(leaveProvider.notifier).uploadAttachment(bytes, name);
+        final url = await ref
+            .read(leaveProvider.notifier)
+            .uploadAttachment(bytes, name);
 
         setState(() {
           _isUploadingAttachment = false;
@@ -991,25 +1010,25 @@ class _ApplyLeaveSheetState extends ConsumerState<_ApplyLeaveSheet> {
 
     setState(() => _isSubmitting = true);
 
-    final fmt = (DateTime d) =>
+    String fmt(DateTime d) =>
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
     bool success;
     if (_isEditing) {
       success = await ref.read(leaveProvider.notifier).editLeave(
-            leaveId:   widget.editLeave!.id,
+            leaveId: widget.editLeave!.id,
             leaveType: _selectedType,
             startDate: fmt(_startDate!),
-            endDate:   fmt(_endDate!),
-            reason:    _reasonCtrl.text.trim(),
+            endDate: fmt(_endDate!),
+            reason: _reasonCtrl.text.trim(),
             attachmentUrl: _attachmentUrl ?? "",
           );
     } else {
       success = await ref.read(leaveProvider.notifier).submitLeave(
             leaveType: _selectedType,
             startDate: fmt(_startDate!),
-            endDate:   fmt(_endDate!),
-            reason:    _reasonCtrl.text.trim(),
+            endDate: fmt(_endDate!),
+            reason: _reasonCtrl.text.trim(),
             attachmentUrl: _attachmentUrl,
           );
     }
@@ -1052,303 +1071,317 @@ class _ApplyLeaveSheetState extends ConsumerState<_ApplyLeaveSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Title
-            Row(
-              children: [
-                Text(
-                  _isEditing ? '✏️ Edit Leave' : '📋 Apply for Leave',
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Icon(Icons.close, size: 16,
-                        color: Color(0xFF64748B)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Leave type dropdown
-            _FieldLabel('Leave Type'),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              value: widget.leaveTypes.contains(_selectedType)
-                  ? _selectedType
-                  : widget.leaveTypes.first,
-              decoration: _inputDeco('Select leave type'),
-              items: widget.leaveTypes
-                  .map((t) => DropdownMenuItem(
-                        value: t,
-                        child: Row(children: [
-                          Text(_leaveIcon(t),
-                              style: const TextStyle(fontSize: 16)),
-                          const SizedBox(width: 8),
-                          Text(t, style: const TextStyle(fontSize: 13)),
-                        ]),
-                      ))
-                  .toList(),
-              onChanged: (v) => setState(() => _selectedType = v!),
-              validator: (v) =>
-                  v == null || v.isEmpty ? 'Please select a leave type' : null,
-            ),
-            const SizedBox(height: 14),
-
-            // Date row
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FieldLabel('From Date'),
-                      const SizedBox(height: 6),
-                      _DatePicker(
-                        label: _startDate != null
-                            ? _fmtDate(_startDate!.toIso8601String().split('T')[0])
-                            : 'Select Date',
-                        icon: Icons.calendar_month_rounded,
-                        primary: widget.primary,
-                        onTap: () => _pickDate(true),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FieldLabel('To Date'),
-                      const SizedBox(height: 6),
-                      _DatePicker(
-                        label: _endDate != null
-                            ? _fmtDate(_endDate!.toIso8601String().split('T')[0])
-                            : 'Select Date',
-                        icon: Icons.calendar_month_rounded,
-                        primary: widget.primary,
-                        onTap: () => _pickDate(false),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            // Duration pill
-            if (_leaveDays > 0) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: widget.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '📅 $_leaveDays ${_leaveDays == 1 ? "day" : "days"} of leave',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: widget.primary,
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 14),
-
-            // Reason
-            _FieldLabel('Reason for Leave'),
-            const SizedBox(height: 6),
-            TextFormField(
-              controller: _reasonCtrl,
-              maxLines: 3,
-              decoration: _inputDeco('Describe the reason for your leave...'),
-              style: const TextStyle(fontSize: 13),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'Please provide a reason';
-                }
-                if (v.trim().length < 10) {
-                  return 'Reason should be at least 10 characters';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-
-            // Attachment section
-            _FieldLabel('Supporting Document (Optional)'),
-            const SizedBox(height: 6),
-            if (_isUploadingAttachment)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(12),
-                  color: const Color(0xFFF8FAFC),
-                ),
-                child: const Center(
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(strokeWidth: 2),
-                      SizedBox(height: 8),
-                      Text(
-                        'Uploading document...',
-                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else if (_attachmentUrl != null && _attachmentUrl!.isNotEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: widget.primary.withOpacity(0.4)),
-                  borderRadius: BorderRadius.circular(12),
-                  color: widget.primary.withOpacity(0.06),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      _attachmentName?.endsWith('.pdf') == true ? '📕' : '🖼️',
-                      style: const TextStyle(fontSize: 22),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _attachmentName ?? 'Document.pdf',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: widget.primary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const Text(
-                            'Uploaded successfully',
-                            style: TextStyle(fontSize: 10, color: Color(0xFF059669)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Color(0xFFDC2626)),
-                      onPressed: () {
-                        setState(() {
-                          _attachmentUrl = null;
-                          _attachmentName = null;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              )
-            else
-              GestureDetector(
-                onTap: _pickAttachment,
+              // Handle
+              Center(
                 child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
+                    color: const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Title
+              Row(
+                children: [
+                  Text(
+                    _isEditing ? '✏️ Edit Leave' : '📋 Apply for Leave',
+                    style: const TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(Icons.close,
+                          size: 16, color: Color(0xFF64748B)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Leave type dropdown
+              const _FieldLabel('Leave Type'),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                initialValue: widget.leaveTypes.contains(_selectedType)
+                    ? _selectedType
+                    : widget.leaveTypes.first,
+                decoration: _inputDeco('Select leave type'),
+                items: widget.leaveTypes
+                    .map((t) => DropdownMenuItem(
+                          value: t,
+                          child: Row(children: [
+                            Text(_leaveIcon(t),
+                                style: const TextStyle(fontSize: 16)),
+                            const SizedBox(width: 8),
+                            Text(t, style: const TextStyle(fontSize: 13)),
+                          ]),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedType = v!),
+                validator: (v) => v == null || v.isEmpty
+                    ? 'Please select a leave type'
+                    : null,
+              ),
+              const SizedBox(height: 14),
+
+              // Date row
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _FieldLabel('From Date'),
+                        const SizedBox(height: 6),
+                        _DatePicker(
+                          label: _startDate != null
+                              ? _fmtDate(
+                                  _startDate!.toIso8601String().split('T')[0])
+                              : 'Select Date',
+                          icon: Icons.calendar_month_rounded,
+                          primary: widget.primary,
+                          onTap: () => _pickDate(true),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _FieldLabel('To Date'),
+                        const SizedBox(height: 6),
+                        _DatePicker(
+                          label: _endDate != null
+                              ? _fmtDate(
+                                  _endDate!.toIso8601String().split('T')[0])
+                              : 'Select Date',
+                          icon: Icons.calendar_month_rounded,
+                          primary: widget.primary,
+                          onTap: () => _pickDate(false),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              // Duration pill
+              if (_leaveDays > 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: widget.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '📅 $_leaveDays ${_leaveDays == 1 ? "day" : "days"} of leave',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: widget.primary,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+
+              // Reason
+              const _FieldLabel('Reason for Leave'),
+              const SizedBox(height: 6),
+              TextFormField(
+                controller: _reasonCtrl,
+                maxLines: 3,
+                decoration: _inputDeco('Describe the reason for your leave...'),
+                style: const TextStyle(fontSize: 13),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Please provide a reason';
+                  }
+                  if (v.trim().length < 10) {
+                    return 'Reason should be at least 10 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Attachment section
+              const _FieldLabel('Supporting Document (Optional)'),
+              const SizedBox(height: 6),
+              if (_isUploadingAttachment)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: const Color(0xFFCBD5E1),
+                        style: BorderStyle.solid),
                     borderRadius: BorderRadius.circular(12),
                     color: const Color(0xFFF8FAFC),
                   ),
-                  child: Column(
+                  child: const Center(
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(strokeWidth: 2),
+                        SizedBox(height: 8),
+                        Text(
+                          'Uploading document...',
+                          style:
+                              TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_attachmentUrl != null && _attachmentUrl!.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: widget.primary.withValues(alpha: 0.4)),
+                    borderRadius: BorderRadius.circular(12),
+                    color: widget.primary.withValues(alpha: 0.06),
+                  ),
+                  child: Row(
                     children: [
-                      const Text('📎', style: TextStyle(fontSize: 22)),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Attach Supporting Document',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
+                      Text(
+                        _attachmentName?.endsWith('.pdf') == true
+                            ? '📕'
+                            : '🖼️',
+                        style: const TextStyle(fontSize: 22),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _attachmentName ?? 'Document.pdf',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: widget.primary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Text(
+                              'Uploaded successfully',
+                              style: TextStyle(
+                                  fontSize: 10, color: Color(0xFF059669)),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Medical note, slip, etc.',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Color(0xFF94A3B8),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: Color(0xFFDC2626)),
+                        onPressed: () {
+                          setState(() {
+                            _attachmentUrl = null;
+                            _attachmentName = null;
+                          });
+                        },
                       ),
                     ],
                   ),
+                )
+              else
+                GestureDetector(
+                  onTap: _pickAttachment,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                          color: const Color(0xFFCBD5E1),
+                          style: BorderStyle.solid),
+                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFF8FAFC),
+                    ),
+                    child: const Column(
+                      children: [
+                        Text('📎', style: TextStyle(fontSize: 22)),
+                        SizedBox(height: 4),
+                        Text(
+                          'Attach Supporting Document',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Medical note, slip, etc.',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Submit button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
+              // Submit button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          _isEditing ? 'Update Leave' : '🚀 Submit Application',
+                          style: const TextStyle(
+                            fontFamily: AppFonts.heading,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : Text(
-                        _isEditing ? 'Update Leave' : '🚀 Submit Application',
-                        style: const TextStyle(
-                          fontFamily: AppFonts.heading,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1391,16 +1424,21 @@ class _DatePicker extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: hasDate ? primary.withOpacity(0.06) : const Color(0xFFF8FAFC),
+          color: hasDate
+              ? primary.withValues(alpha: 0.06)
+              : const Color(0xFFF8FAFC),
           border: Border.all(
-            color: hasDate ? primary.withOpacity(0.4) : const Color(0xFFE2E8F0),
+            color: hasDate
+                ? primary.withValues(alpha: 0.4)
+                : const Color(0xFFE2E8F0),
             width: 1.5,
           ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 15, color: hasDate ? primary : const Color(0xFF94A3B8)),
+            Icon(icon,
+                size: 15, color: hasDate ? primary : const Color(0xFF94A3B8)),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -1434,9 +1472,9 @@ class _GlassBtn extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
         child: Icon(icon, color: Colors.white, size: 18),
       ),
@@ -1558,8 +1596,18 @@ String _fmtDate(String iso) {
   try {
     final d = DateTime.parse(iso);
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   } catch (_) {

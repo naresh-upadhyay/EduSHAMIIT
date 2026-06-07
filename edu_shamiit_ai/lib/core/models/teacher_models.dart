@@ -37,32 +37,38 @@ DateTime? _toDateTime(dynamic value) {
   if (value is DateTime) return value;
   final str = value.toString().trim();
   if (str.isEmpty) return null;
-  
+
   String cleaned = str;
   if (cleaned.endsWith('+00')) {
-    cleaned = cleaned.substring(0, cleaned.length - 3) + 'Z';
-  } else if (cleaned.contains('+') && !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
+    cleaned = '${cleaned.substring(0, cleaned.length - 3)}Z';
+  } else if (cleaned.contains('+') &&
+      !cleaned.substring(cleaned.indexOf('+')).contains(':')) {
     final plusIndex = cleaned.lastIndexOf('+');
     final offset = cleaned.substring(plusIndex + 1);
     if (offset.length == 2) {
-      cleaned = cleaned.substring(0, plusIndex) + '+$offset:00';
+      cleaned = '${cleaned.substring(0, plusIndex)}+$offset:00';
     } else if (offset.length == 4) {
-      cleaned = cleaned.substring(0, plusIndex) + '+${offset.substring(0, 2)}:${offset.substring(2)}';
+      cleaned =
+          '${cleaned.substring(0, plusIndex)}+${offset.substring(0, 2)}:${offset.substring(2)}';
     }
-  } else if (cleaned.contains('-') && cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') && !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
+  } else if (cleaned.contains('-') &&
+      cleaned.lastIndexOf('-') > cleaned.lastIndexOf(':') &&
+      !cleaned.substring(cleaned.lastIndexOf('-')).contains(':')) {
     final minusIndex = cleaned.lastIndexOf('-');
     final offset = cleaned.substring(minusIndex + 1);
     if (offset.length == 2) {
-      cleaned = cleaned.substring(0, minusIndex) + '-$offset:00';
+      cleaned = '${cleaned.substring(0, minusIndex)}-$offset:00';
     } else if (offset.length == 4) {
-      cleaned = cleaned.substring(0, minusIndex) + '-${offset.substring(0, 2)}:${offset.substring(2)}';
+      cleaned =
+          '${cleaned.substring(0, minusIndex)}-${offset.substring(0, 2)}:${offset.substring(2)}';
     }
   }
   cleaned = cleaned.replaceAll(' ', 'T');
   return DateTime.tryParse(cleaned) ?? DateTime.tryParse(str);
 }
 
-String _normalizeTeacherRoute(dynamic value, {String fallback = '/teacher/dashboard'}) {
+String _normalizeTeacherRoute(dynamic value,
+    {String fallback = '/teacher/dashboard'}) {
   var route = _toStr(value, fallback: fallback);
   if (route.isEmpty) return fallback;
   if (!route.startsWith('/')) route = '/$route';
@@ -190,16 +196,16 @@ class TeacherProfile {
       qualification: json['qualification'] as String? ?? '',
       experienceYears: _toInt(json['experience_years']),
       joiningDate: json['joining_date'] != null
-          ? DateTime.parse(json['joining_date'] as String) 
+          ? DateTime.parse(json['joining_date'] as String)
           : null,
       xpPoints: _toInt(json['xp_points']),
       streak: _toInt(json['streak'] ?? json['learning_streak']),
       bio: json['bio'] as String?,
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String) 
+          ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String) 
+          ? DateTime.parse(json['updated_at'] as String)
           : DateTime.now(),
       gender: _toStr(json['gender']),
       dateOfBirth: _toStr(json['date_of_birth']),
@@ -358,29 +364,48 @@ class TeacherDashboard {
       stats: TeacherStats.fromJson(
           (json['stats'] as Map<String, dynamic>?) ?? const {}),
       todaySchedule: scheduleRaw
-              ?.map((item) => TeacherScheduleItem.fromJson(item as Map<String, dynamic>))
+              ?.map((item) =>
+                  TeacherScheduleItem.fromJson(item as Map<String, dynamic>))
               .toList() ??
           [],
       pendingTasks: (json['pending_tasks'] as List<dynamic>?)
-              ?.map((item) => TeacherTask.fromJson(item as Map<String, dynamic>))
+              ?.map(
+                  (item) => TeacherTask.fromJson(item as Map<String, dynamic>))
               .toList() ??
           [],
       quickAccess: quickAccessRaw
-              ?.map((item) => QuickAccessItem.fromJson(item as Map<String, dynamic>))
+              ?.map((item) =>
+                  QuickAccessItem.fromJson(item as Map<String, dynamic>))
               .toList() ??
           const [
-            QuickAccessItem(title: 'My Classes', icon: '📚', route: '/teacher/my-classes'),
-            QuickAccessItem(title: 'Attendance', icon: '📋', route: '/teacher/attendance'),
-            QuickAccessItem(title: 'Homework', icon: '📝', route: '/teacher/homework'),
-            QuickAccessItem(title: 'Exams', icon: '📝', route: '/teacher/exams'),
-            QuickAccessItem(title: 'Gradebook', icon: '📊', route: '/teacher/gradebook'),
-            QuickAccessItem(title: 'Students', icon: '👥', route: '/teacher/student-directory'),
-            QuickAccessItem(title: 'Timetable', icon: '🗓️', route: '/teacher/timetable'),
-            QuickAccessItem(title: 'Notices', icon: '📢', route: '/teacher/notices'),
-            QuickAccessItem(title: 'Leave', icon: '🏖️', route: '/teacher/leave'),
-            QuickAccessItem(title: 'Live Class', icon: '🎥', route: '/teacher/live-classes'),
-            QuickAccessItem(title: 'Materials', icon: '📁', route: '/teacher/materials'),
-            QuickAccessItem(title: 'Salary', icon: '💰', route: '/teacher/salary'),
+            QuickAccessItem(
+                title: 'My Classes', icon: '📚', route: '/teacher/my-classes'),
+            QuickAccessItem(
+                title: 'Attendance', icon: '📋', route: '/teacher/attendance'),
+            QuickAccessItem(
+                title: 'Homework', icon: '📝', route: '/teacher/homework'),
+            QuickAccessItem(
+                title: 'Exams', icon: '📝', route: '/teacher/exams'),
+            QuickAccessItem(
+                title: 'Gradebook', icon: '📊', route: '/teacher/gradebook'),
+            QuickAccessItem(
+                title: 'Students',
+                icon: '👥',
+                route: '/teacher/student-directory'),
+            QuickAccessItem(
+                title: 'Timetable', icon: '🗓️', route: '/teacher/timetable'),
+            QuickAccessItem(
+                title: 'Notices', icon: '📢', route: '/teacher/notices'),
+            QuickAccessItem(
+                title: 'Leave', icon: '🏖️', route: '/teacher/leave'),
+            QuickAccessItem(
+                title: 'Live Class',
+                icon: '🎥',
+                route: '/teacher/live-classes'),
+            QuickAccessItem(
+                title: 'Materials', icon: '📁', route: '/teacher/materials'),
+            QuickAccessItem(
+                title: 'Salary', icon: '💰', route: '/teacher/salary'),
           ],
     );
   }
@@ -425,8 +450,7 @@ class TeacherStats {
       studentsCount: _toInt(json['students_count'] ?? json['total_students']),
       totalHomework: _toInt(json['total_homework']),
       pendingGrading: _toInt(json['pending_grading'] ?? json['pending_tasks']),
-      avgCompletionRate:
-          (json['avg_completion_rate'] as num?)?.toDouble(),
+      avgCompletionRate: (json['avg_completion_rate'] as num?)?.toDouble(),
     );
   }
 
@@ -627,11 +651,13 @@ class StudentDirectoryEntry {
           ? null
           : _toDouble(json['attendance_pct']),
       avgMarks: json['avg_marks'] == null ? null : _toDouble(json['avg_marks']),
-      profileImageUrl: _toStr(json['profile_image_url'] ?? json['avatar_url']).isEmpty
-          ? null
-          : _toStr(json['profile_image_url'] ?? json['avatar_url']),
+      profileImageUrl:
+          _toStr(json['profile_image_url'] ?? json['avatar_url']).isEmpty
+              ? null
+              : _toStr(json['profile_image_url'] ?? json['avatar_url']),
       classRank: json['class_rank'] == null ? null : _toInt(json['class_rank']),
-      classTotal: json['class_total'] == null ? null : _toInt(json['class_total']),
+      classTotal:
+          json['class_total'] == null ? null : _toInt(json['class_total']),
     );
   }
 
@@ -693,7 +719,8 @@ class TeacherAttendanceRecord {
       date: _toDateTime(json['date']) ?? DateTime.now(),
       status: _toStr(json['status'], fallback: 'absent'),
       period: _toStr(json['period']).isEmpty ? null : _toStr(json['period']),
-      markedBy: _toStr(json['marked_by']).isEmpty ? null : _toStr(json['marked_by']),
+      markedBy:
+          _toStr(json['marked_by']).isEmpty ? null : _toStr(json['marked_by']),
       createdAt: _toDateTime(json['created_at']),
     );
   }
@@ -762,10 +789,16 @@ class TeacherHomeworkAssignment {
       status: _toStr(json['status'], fallback: 'active'),
       submittedCount: _toInt(json['submitted_count']),
       totalCount: _toInt(json['total_count']),
-      attachmentUrl: _toStr(json['attachment_url']).isEmpty ? null : _toStr(json['attachment_url']),
+      attachmentUrl: _toStr(json['attachment_url']).isEmpty
+          ? null
+          : _toStr(json['attachment_url']),
       maxMarks: json['max_marks'] == null ? null : _toInt(json['max_marks']),
-      instructions: _toStr(json['instructions']).isEmpty ? null : _toStr(json['instructions']),
-      createdBy: _toStr(json['created_by']).isEmpty ? null : _toStr(json['created_by']),
+      instructions: _toStr(json['instructions']).isEmpty
+          ? null
+          : _toStr(json['instructions']),
+      createdBy: _toStr(json['created_by']).isEmpty
+          ? null
+          : _toStr(json['created_by']),
       createdAt: _toDateTime(json['created_at']) ?? DateTime.now(),
       updatedAt: _toDateTime(json['updated_at']) ?? DateTime.now(),
     );
@@ -791,8 +824,10 @@ class TeacherHomeworkAssignment {
     };
   }
 
-  double get submissionRate => totalCount > 0 ? (submittedCount / totalCount * 100) : 0.0;
-  bool get isOverdue => dueDate.isBefore(DateTime.now()) && status != 'completed';
+  double get submissionRate =>
+      totalCount > 0 ? (submittedCount / totalCount * 100) : 0.0;
+  bool get isOverdue =>
+      dueDate.isBefore(DateTime.now()) && status != 'completed';
 }
 
 /// Homework submission model
@@ -830,23 +865,31 @@ class HomeworkSubmission {
 
   factory HomeworkSubmission.fromJson(Map<String, dynamic> json) {
     final profilesMap = json['profiles'] as Map<String, dynamic>?;
-    
+
     return HomeworkSubmission(
       id: _toStr(json['id']),
       homeworkId: _toStr(json['homework_id']),
       studentId: _toStr(json['student_id']),
-      studentName: _toStr(json['student_name'] ?? profilesMap?['full_name'] ?? profilesMap?['name']),
+      studentName: _toStr(json['student_name'] ??
+          profilesMap?['full_name'] ??
+          profilesMap?['name']),
       class_: _toStr(json['class'] ?? json['class_name']),
-      submissionText:
-          _toStr(json['submission_text']).isEmpty ? null : _toStr(json['submission_text']),
-      attachmentUrl:
-          _toStr(json['attachment_url']).isEmpty ? null : _toStr(json['attachment_url']),
+      submissionText: _toStr(json['submission_text']).isEmpty
+          ? null
+          : _toStr(json['submission_text']),
+      attachmentUrl: _toStr(json['attachment_url']).isEmpty
+          ? null
+          : _toStr(json['attachment_url']),
       submittedAt: _toDateTime(json['submitted_at']) ?? DateTime.now(),
-      marksObtained:
-          (json['marks_obtained'] ?? json['marks']) == null ? null : _toDouble(json['marks_obtained'] ?? json['marks']),
-      feedback: _toStr(json['feedback'] ?? json['teacher_remarks']).isEmpty ? null : _toStr(json['feedback'] ?? json['teacher_remarks']),
+      marksObtained: (json['marks_obtained'] ?? json['marks']) == null
+          ? null
+          : _toDouble(json['marks_obtained'] ?? json['marks']),
+      feedback: _toStr(json['feedback'] ?? json['teacher_remarks']).isEmpty
+          ? null
+          : _toStr(json['feedback'] ?? json['teacher_remarks']),
       status: _toStr(json['status'], fallback: 'submitted'),
-      gradedBy: _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
+      gradedBy:
+          _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
       gradedAt: _toDateTime(json['graded_at']),
     );
   }
@@ -905,16 +948,17 @@ class TeacherExam {
       title: json['title'] as String? ?? '',
       subject: json['subject'] as String? ?? '',
       class_: (json['class'] ?? json['target_class'] ?? '').toString(),
-      examDate: json['exam_date'] != null 
-          ? DateTime.parse(json['exam_date'] as String) 
+      examDate: json['exam_date'] != null
+          ? DateTime.parse(json['exam_date'] as String)
           : DateTime.now(),
       duration: json['duration'] as String? ?? '',
       totalMarks: json['total_marks'] as int? ?? 0,
       syllabus: json['syllabus'] as String?,
-      examType: (json['exam_type'] ?? json['exam_category'] ?? 'term').toString(),
+      examType:
+          (json['exam_type'] ?? json['exam_category'] ?? 'term').toString(),
       roomNumber: json['room_number'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : null,
     );
   }
@@ -988,7 +1032,8 @@ class GradeRecord {
       grade: _toStr(json['grade']),
       remarks: _toStr(json['remarks']).isEmpty ? null : _toStr(json['remarks']),
       gradedAt: _toDateTime(json['graded_at']),
-      gradedBy: _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
+      gradedBy:
+          _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
       trend: _toStr(json['trend'], fallback: 'stable'),
     );
   }
@@ -1013,7 +1058,8 @@ class GradeRecord {
     };
   }
 
-  double get percentage => totalMarks > 0 ? (marksObtained / totalMarks * 100) : 0.0;
+  double get percentage =>
+      totalMarks > 0 ? (marksObtained / totalMarks * 100) : 0.0;
 }
 
 /// Timetable period model
@@ -1061,11 +1107,15 @@ class TeacherTimetablePeriod {
       subject: _toStr(json['subject']),
       subjectId: json['subject_id'] != null ? _toStr(json['subject_id']) : null,
       class_: _toStr(json['class'] ?? json['class_name']),
-      roomNumber:
-          _toStr(json['room_number']).isEmpty ? null : _toStr(json['room_number']),
-      teacherId: _toStr(json['teacher_id']).isEmpty ? null : _toStr(json['teacher_id']),
-      teacherName:
-          _toStr(json['teacher_name']).isEmpty ? null : _toStr(json['teacher_name']),
+      roomNumber: _toStr(json['room_number']).isEmpty
+          ? null
+          : _toStr(json['room_number']),
+      teacherId: _toStr(json['teacher_id']).isEmpty
+          ? null
+          : _toStr(json['teacher_id']),
+      teacherName: _toStr(json['teacher_name']).isEmpty
+          ? null
+          : _toStr(json['teacher_name']),
       platform: json['platform']?.toString(),
       meetingLink: json['meeting_link']?.toString(),
       status: json['status']?.toString(),
@@ -1131,22 +1181,22 @@ class TeacherLeave {
       teacherId: json['teacher_id'] as String? ?? '',
       teacherName: json['teacher_name'] as String? ?? '',
       leaveType: json['leave_type'] as String? ?? '',
-      startDate: json['start_date'] != null 
-          ? DateTime.parse(json['start_date'] as String) 
+      startDate: json['start_date'] != null
+          ? DateTime.parse(json['start_date'] as String)
           : DateTime.now(),
-      endDate: json['end_date'] != null 
-          ? DateTime.parse(json['end_date'] as String) 
+      endDate: json['end_date'] != null
+          ? DateTime.parse(json['end_date'] as String)
           : DateTime.now(),
       durationDays: json['duration_days'] as int? ?? 1,
       reason: json['reason'] as String? ?? '',
       status: json['status'] as String? ?? 'pending',
       rejectionReason: json['rejection_reason'] as String?,
       approvedBy: json['approved_by'] as String?,
-      approvedAt: json['approved_at'] != null 
-          ? DateTime.parse(json['approved_at'] as String) 
+      approvedAt: json['approved_at'] != null
+          ? DateTime.parse(json['approved_at'] as String)
           : null,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
     );
   }
@@ -1186,6 +1236,7 @@ class TeacherLiveClass {
   final String? recordingUrl;
   final DateTime? createdAt;
   final String platform; // Zoom, Google Meet, YouTube, In-App
+  final int? durationMinutes;
 
   const TeacherLiveClass({
     required this.id,
@@ -1201,6 +1252,7 @@ class TeacherLiveClass {
     this.recordingUrl,
     this.createdAt,
     this.platform = 'In-App',
+    this.durationMinutes,
   });
 
   factory TeacherLiveClass.fromJson(Map<String, dynamic> json) {
@@ -1208,9 +1260,12 @@ class TeacherLiveClass {
       id: (json['id'] ?? json['live_class_id'] ?? '').toString(),
       title: json['title'] as String? ?? '',
       class_: (json['class'] ?? json['target_class'] ?? '').toString(),
-      subject: json['subject'] as String? ?? '',
-      scheduledAt: json['scheduled_at'] != null 
-          ? DateTime.parse(json['scheduled_at'] as String) 
+      subject: json['subject'] as String? ??
+          (json['subjects'] is Map
+              ? (json['subjects']['name'] as String? ?? '')
+              : ''),
+      scheduledAt: json['scheduled_at'] != null
+          ? DateTime.parse(json['scheduled_at'] as String)
           : DateTime.now(),
       meetingLink: json['meeting_link'] as String?,
       meetingId: json['meeting_id'] as String?,
@@ -1218,10 +1273,12 @@ class TeacherLiveClass {
       status: json['status'] as String? ?? 'scheduled',
       participantCount: json['participant_count'] as int?,
       recordingUrl: json['recording_url'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : null,
       platform: json['platform'] as String? ?? 'In-App',
+      durationMinutes:
+          json['duration_minutes'] as int? ?? json['duration'] as int?,
     );
   }
 
@@ -1240,6 +1297,7 @@ class TeacherLiveClass {
       'recording_url': recordingUrl,
       'created_at': createdAt?.toIso8601String(),
       'platform': platform,
+      'duration_minutes': durationMinutes,
     };
   }
 }
@@ -1296,7 +1354,8 @@ class TeachingMaterial {
       fileSize: json['file_size'] as int?,
       uploadedBy: json['uploaded_by'] as String? ?? '',
       uploadedAt: (json['uploaded_at'] ?? json['created_at']) != null
-          ? DateTime.parse((json['uploaded_at'] ?? json['created_at']) as String)
+          ? DateTime.parse(
+              (json['uploaded_at'] ?? json['created_at']) as String)
           : DateTime.now(),
       downloadCount: json['download_count'] as int? ?? 0,
       rating: (json['rating'] as num?)?.toDouble(),
@@ -1378,17 +1437,22 @@ class SalarySlip {
       teacherName: (json['teacher_name'] ?? '').toString(),
       month: _toInt(json['month'], fallback: 1),
       year: _toInt(json['year'], fallback: DateTime.now().year),
-      basicSalary: (json['basic_salary'] ?? json['basic_pay'] as num?)?.toDouble() ?? 0.0,
+      basicSalary:
+          (json['basic_salary'] ?? json['basic_pay'] as num?)?.toDouble() ??
+              0.0,
       allowances: (json['allowances'] as num?)?.toDouble() ?? 0.0,
       deductions: (json['deductions'] as num?)?.toDouble() ?? 0.0,
-      netSalary: (json['net_salary'] ?? json['net_pay'] ?? json['amount'] as num?)?.toDouble() ?? 0.0,
-      paidAt: json['paid_at'] != null 
-          ? DateTime.parse(json['paid_at'] as String) 
+      netSalary:
+          (json['net_salary'] ?? json['net_pay'] ?? json['amount'] as num?)
+                  ?.toDouble() ??
+              0.0,
+      paidAt: json['paid_at'] != null
+          ? DateTime.parse(json['paid_at'] as String)
           : null,
       status: json['status'] as String? ?? 'pending',
       slipUrl: json['slip_url'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
       specialAllowance: (json['special_allowance'] as num?)?.toDouble() ?? 0.0,
       pfDeduction: (json['pf_deduction'] as num?)?.toDouble() ?? 0.0,
@@ -1468,11 +1532,11 @@ class SalaryAdvance {
       status: json['status'] as String? ?? 'pending',
       month: _toInt(json['month'], fallback: 1),
       year: _toInt(json['year'], fallback: DateTime.now().year),
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at'] as String) 
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
           : DateTime.now(),
     );
   }
@@ -1544,8 +1608,8 @@ class PaperQuestion {
       correctAnswer: json['correct_answer'] as String?,
       explanation: json['explanation'] as String?,
       createdBy: json['created_by'] as String? ?? '',
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
     );
   }
@@ -1620,34 +1684,36 @@ class TeacherNotice {
       content: json['content'] as String? ?? '',
       noticeType: category.isNotEmpty ? category : 'general',
       targetAudience: json['target_audience'] as String?,
-      publishDate: json['publish_date'] != null 
-          ? DateTime.parse(json['publish_date'] as String) 
-          : (json['published_at'] != null 
-              ? DateTime.parse(json['published_at'] as String) 
-              : (json['created_at'] != null 
-                  ? DateTime.parse(json['created_at'] as String) 
+      publishDate: json['publish_date'] != null
+          ? DateTime.parse(json['publish_date'] as String)
+          : (json['published_at'] != null
+              ? DateTime.parse(json['published_at'] as String)
+              : (json['created_at'] != null
+                  ? DateTime.parse(json['created_at'] as String)
                   : DateTime.now())),
-      expiryDate: json['expiry_date'] != null 
-          ? DateTime.parse(json['expiry_date'] as String) 
-          : (json['expires_at'] != null 
-              ? DateTime.parse(json['expires_at'] as String) 
+      expiryDate: json['expiry_date'] != null
+          ? DateTime.parse(json['expiry_date'] as String)
+          : (json['expires_at'] != null
+              ? DateTime.parse(json['expires_at'] as String)
               : null),
       status: json['status'] as String? ?? 'draft',
       createdBy: (json['created_by'] ?? json['author_id'] ?? '').toString(),
-      createdByName: (json['created_by_name'] ?? json['author_name']) as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdByName:
+          (json['created_by_name'] ?? json['author_name']) as String?,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at'] as String) 
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
           : DateTime.now(),
       attachmentUrl: json['attachment_url'] as String?,
-      isUrgent: json['is_urgent'] as bool? ?? (json['category']?.toString().toLowerCase() == 'urgent'),
-      scheduledAt: json['scheduled_at'] != null 
-          ? DateTime.parse(json['scheduled_at'] as String) 
+      isUrgent: json['is_urgent'] as bool? ??
+          (json['category']?.toString().toLowerCase() == 'urgent'),
+      scheduledAt: json['scheduled_at'] != null
+          ? DateTime.parse(json['scheduled_at'] as String)
           : null,
-      targetClasses: json['target_classes'] != null 
-          ? List<String>.from(json['target_classes'] as List) 
+      targetClasses: json['target_classes'] != null
+          ? List<String>.from(json['target_classes'] as List)
           : null,
       registrationCount: json['registration_count'] ?? 0,
     );
@@ -1705,10 +1771,13 @@ class TeacherNotification {
     return TeacherNotification(
       id: _toStr(json['id']),
       title: _toStr(json['title']),
-      message: (json['message'] ?? json['content'] ?? json['body'] ?? '').toString(),
+      message:
+          (json['message'] ?? json['content'] ?? json['body'] ?? '').toString(),
       type: _toStr(json['type']),
       isRead: _toBool(json['is_read']),
-      actionUrl: _toStr(json['action_url']).isEmpty ? null : _toStr(json['action_url']),
+      actionUrl: _toStr(json['action_url']).isEmpty
+          ? null
+          : _toStr(json['action_url']),
       referenceId: json['reference_id'] as String?,
       createdAt: _toDateTime(json['created_at']) ?? DateTime.now(),
       readAt: _toDateTime(json['read_at']),
@@ -1763,8 +1832,8 @@ class TeacherMyClass {
       studentCount: _toInt(json['student_count']),
       schedule: json['schedule'] as String?,
       roomNumber: json['room_number'] as String?,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'] as String) 
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
           : null,
     );
   }

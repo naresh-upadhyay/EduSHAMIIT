@@ -9,7 +9,6 @@ import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class TeacherLiveClasses extends ConsumerStatefulWidget {
   const TeacherLiveClasses({super.key});
@@ -20,7 +19,7 @@ class TeacherLiveClasses extends ConsumerStatefulWidget {
 
 class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   String _selectedStatus = 'All';
   final List<String> _statuses = ['All', 'Scheduled', 'Ongoing', 'Completed'];
   List<TeacherLiveClass> _liveClasses = [];
@@ -40,7 +39,8 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
     });
 
     try {
-      final status = _selectedStatus == 'All' ? null : _selectedStatus.toLowerCase();
+      final status =
+          _selectedStatus == 'All' ? null : _selectedStatus.toLowerCase();
       final liveClasses = await _apiService.getLiveClasses(status: status);
       setState(() {
         _liveClasses = liveClasses;
@@ -54,17 +54,6 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
     }
   }
 
-  Color _getStatusColor(String status) {
-    final s = status.toLowerCase();
-    if (s == 'ongoing' || s == 'live') {
-      return Colors.green;
-    } else if (s == 'scheduled') {
-      return Colors.blue;
-    } else {
-      return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,11 +62,21 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFFEF4444), Color(0xFFF87171)],
+                colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -87,7 +86,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'Live Classes',
+                  'Live Classes Studio',
                   style: TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 20,
@@ -106,10 +105,10 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
 
           // Status filter
           SizedBox(
-            height: 56,
+            height: 64,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               itemCount: _statuses.length,
               itemBuilder: (context, index) {
                 final status = _statuses[index];
@@ -121,17 +120,44 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                   },
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFEF4444) : const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(20),
+                      color:
+                          isSelected ? const Color(0xFFEF4444) : Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.transparent
+                            : const Color(0xFFE2E8F0),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        if (isSelected)
+                          BoxShadow(
+                            color:
+                                const Color(0xFFEF4444).withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        else
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                      ],
                     ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : const Color(0xFFEF4444),
+                    child: Center(
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF475569),
+                        ),
                       ),
                     ),
                   ),
@@ -143,7 +169,8 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
           // Loading state
           if (_isLoading)
             const Expanded(
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFFEF4444))),
             ),
 
           // Error state
@@ -153,9 +180,11 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
                     const SizedBox(height: 16),
-                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                    Text('Error: $_error',
+                        style: const TextStyle(color: Colors.red)),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _loadLiveClasses,
@@ -187,10 +216,10 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
         backgroundColor: const Color(0xFFEF4444),
         icon: const Icon(Icons.video_call, color: Colors.white),
         label: const Text(
-          'Schedule',
+          'Schedule Class',
           style: TextStyle(
             fontFamily: AppFonts.heading,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
         ),
@@ -202,7 +231,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
     Color bg = const Color(0xFFF1F5F9);
     Color fg = const Color(0xFF334155);
     IconData icon = Icons.video_call;
-    
+
     final lower = platform.toLowerCase();
     if (lower == 'zoom') {
       bg = const Color(0xFFE0F2FE);
@@ -235,149 +264,380 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
           const SizedBox(width: 4),
           Text(
             platform,
-            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+            style:
+                TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _launchMeeting(String urlString) async {
-    final url = Uri.parse(urlString);
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open link: $urlString')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open link: $e')),
-      );
-    }
-  }
-
   Widget _buildLiveClassCard(TeacherLiveClass liveClass) {
-    final statusColor = _getStatusColor(liveClass.status);
     final statusLower = liveClass.status.toLowerCase();
     final isLive = statusLower == 'ongoing' || statusLower == 'live';
     final isScheduled = statusLower == 'scheduled';
-    
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isLive ? statusColor.withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
+          color: isLive ? const Color(0xFFFCA5A5) : const Color(0xFFF1F5F9),
+          width: isLive ? 2 : 1,
         ),
-        boxShadow: isLive
-            ? [BoxShadow(color: statusColor.withValues(alpha: 0.2), blurRadius: 12)]
-            : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+        boxShadow: [
+          BoxShadow(
+            color: isLive
+                ? const Color(0xFFEF4444).withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: isLive
+                ? const LinearGradient(
+                    colors: [Color(0xFFFFF5F5), Colors.white],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  )
+                : null,
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  liveClass.title,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildPlatformBadge(liveClass.platform),
-              const SizedBox(width: 8),
-              if (isLive)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
+              // Header Row
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Subject Circular Icon
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isLive
+                            ? [const Color(0xFFEF4444), const Color(0xFFF87171)]
+                            : [
+                                const Color(0xFF64748B),
+                                const Color(0xFF94A3B8)
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isLive
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF64748B))
+                              .withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        liveClass.subject.isNotEmpty
+                            ? liveClass.subject[0].toUpperCase()
+                            : '📚',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 4),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Title and Subtitles
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          liveClass.title,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.heading,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Class ${liveClass.class_}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildPlatformBadge(liveClass.platform),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Status Badge
+                      if (isLive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: const Color(0xFFEF4444)
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEF4444),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'LIVE NOW',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFEF4444),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (isScheduled)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'SCHEDULED',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1D4ED8),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'COMPLETED',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF64748B),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      if (!isLive) ...[
+                        const SizedBox(height: 4),
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert,
+                              size: 20, color: Color(0xFF64748B)),
+                          padding: EdgeInsets.zero,
+                          onSelected: (value) {
+                            if (value == 'watch') {
+                              _watchRecording(liveClass);
+                            } else if (value == 'edit') {
+                              _showEditDialog(liveClass);
+                            } else if (value == 'delete') {
+                              _confirmDelete(liveClass);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            if (statusLower == 'recorded' ||
+                                statusLower == 'completed')
+                              const PopupMenuItem(
+                                value: 'watch',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.play_circle_outline, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('Watch Recording'),
+                                  ],
+                                ),
+                              ),
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Edit Class'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete,
+                                      size: 16, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Delete Class',
+                                      style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: Color(0xFFF1F5F9), height: 1),
+              const SizedBox(height: 16),
+              // Time and Action Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded,
+                          size: 14, color: Color(0xFF64748B)),
+                      const SizedBox(width: 6),
                       Text(
-                        'LIVE',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor,
+                        liveClass.scheduledAt
+                            .toString()
+                            .split('.')[0]
+                            .substring(0, 16),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.book_outlined,
+                          size: 14, color: Color(0xFF64748B)),
+                      const SizedBox(width: 6),
+                      Text(
+                        liveClass.subject,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
-                ),
+                  if (isLive)
+                    ElevatedButton.icon(
+                      onPressed: () => _joinBroadcasting(liveClass),
+                      icon: const Icon(Icons.video_call,
+                          color: Colors.white, size: 16),
+                      label: const Text(
+                        'Open Studio',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        shadowColor:
+                            const Color(0xFF10B981).withValues(alpha: 0.3),
+                        elevation: 4,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    )
+                  else if (isScheduled)
+                    ElevatedButton.icon(
+                      onPressed: () => _startBroadcasting(liveClass),
+                      icon: const Icon(Icons.play_arrow_rounded,
+                          color: Colors.white, size: 16),
+                      label: const Text(
+                        'Start Class',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        shadowColor:
+                            const Color(0xFFEF4444).withValues(alpha: 0.3),
+                        elevation: 4,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    )
+                  else
+                    ElevatedButton.icon(
+                      onPressed: () => _watchRecording(liveClass),
+                      icon: const Icon(Icons.play_circle_outline,
+                          color: Colors.white, size: 16),
+                      label: const Text(
+                        'Watch Playback',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF475569),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(
-                liveClass.scheduledAt.toString().split('.')[0],
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-              const SizedBox(width: 12),
-              const Icon(Icons.class_, size: 12, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(
-                'Class ${liveClass.class_}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            liveClass.subject,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (isLive)
-            ElevatedButton.icon(
-              onPressed: () => _joinBroadcasting(liveClass),
-              icon: const Icon(Icons.video_call, color: Colors.white),
-              label: Text('Open Studio'.tr(ref), style: const TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            )
-          else if (isScheduled)
-            ElevatedButton.icon(
-              onPressed: () => _startBroadcasting(liveClass),
-              icon: const Icon(Icons.play_arrow, color: Colors.white),
-              label: Text('Start Broadcasting'.tr(ref), style: const TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -406,7 +666,8 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => _TeacherLiveBroadcastingScreen(liveClass: liveClass),
+              builder: (context) =>
+                  _TeacherLiveBroadcastingScreen(liveClass: liveClass),
             ),
           ).then((_) => _loadLiveClasses());
         }
@@ -438,7 +699,8 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => _TeacherLiveBroadcastingScreen(liveClass: liveClass),
+          builder: (context) =>
+              _TeacherLiveBroadcastingScreen(liveClass: liveClass),
         ),
       ).then((_) => _loadLiveClasses());
     }
@@ -448,7 +710,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
     final titleController = TextEditingController();
     final linkController = TextEditingController(text: 'In-App');
     final durationController = TextEditingController(text: '60');
-    
+
     // Will be loaded dynamically from teacher's classes/subjects
     List<String> availableClasses = [];
     List<String> availableSubjects = [];
@@ -466,19 +728,30 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-
             // Kick off loading once when dialog first opens
             if (isLoadingMeta && availableClasses.isEmpty) {
               Future.microtask(() async {
                 try {
                   final classes = await _apiService.getMyClasses();
                   final subjects = await _apiService.getSubjects();
-                  final classNames = classes.map((c) => c.name).where((n) => n.isNotEmpty).toList();
-                  final subjectNames = subjects.map((s) => s.name).where((n) => n.isNotEmpty).toList();
+                  final classNames = classes
+                      .map((c) => c.name)
+                      .where((n) => n.isNotEmpty)
+                      .toSet()
+                      .toList();
+                  final subjectNames = subjects
+                      .map((s) => s.name)
+                      .where((n) => n.isNotEmpty)
+                      .toSet()
+                      .toList();
                   if (context.mounted) {
                     setDialogState(() {
-                      availableClasses = classNames.isNotEmpty ? classNames : ['No Classes Found'];
-                      availableSubjects = subjectNames.isNotEmpty ? subjectNames : ['No Subjects Found'];
+                      availableClasses = classNames.isNotEmpty
+                          ? classNames
+                          : ['No Classes Found'];
+                      availableSubjects = subjectNames.isNotEmpty
+                          ? subjectNames
+                          : ['No Subjects Found'];
                       selectedClass = availableClasses.first;
                       selectedSubject = availableSubjects.first;
                       isLoadingMeta = false;
@@ -500,13 +773,17 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
 
             return AlertDialog(
               backgroundColor: const Color(0xFF1E293B),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
               title: Row(
                 children: [
-                  const Icon(Icons.video_call, color: Color(0xFFEF4444), size: 28),
+                  const Icon(Icons.video_call,
+                      color: Color(0xFFEF4444), size: 28),
                   const SizedBox(width: 8),
                   Text(
-                    isUploadRecording ? 'Upload Recording' : 'Schedule Live Class',
+                    isUploadRecording
+                        ? 'Upload Recording'
+                        : 'Schedule Live Class',
                     style: const TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 18,
@@ -525,294 +802,408 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                           children: [
                             CircularProgressIndicator(color: Color(0xFFEF4444)),
                             SizedBox(height: 12),
-                            Text('Loading your classes...', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                            Text('Loading your classes...',
+                                style: TextStyle(
+                                    color: Colors.white54, fontSize: 12)),
                           ],
                         ),
                       ),
                     )
                   : SingleChildScrollView(
-
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tab Switcher
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setDialogState(() {
-                              isUploadRecording = false;
-                              selectedPlatform = 'In-App';
-                              linkController.text = 'In-App';
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: !isUploadRecording ? const Color(0xFFEF4444) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: !isUploadRecording ? Colors.transparent : Colors.white10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'Live Class',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: !isUploadRecording ? Colors.white : Colors.white60,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Tab Switcher
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setDialogState(() {
+                                    isUploadRecording = false;
+                                    selectedPlatform = 'In-App';
+                                    linkController.text = 'In-App';
+                                  }),
+                                  child: Container(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: !isUploadRecording
+                                          ? const Color(0xFFEF4444)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: !isUploadRecording
+                                              ? Colors.transparent
+                                              : Colors.white10),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'Live Class',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: !isUploadRecording
+                                              ? Colors.white
+                                              : Colors.white60,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setDialogState(() {
-                              isUploadRecording = true;
-                              linkController.text = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&modestbranding=1&rel=0';
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isUploadRecording ? const Color(0xFFEF4444) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: isUploadRecording ? Colors.transparent : Colors.white10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'Recording',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: isUploadRecording ? Colors.white : Colors.white60,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Title Field
-                    const Text('Class Title', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: titleController,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: isUploadRecording ? 'e.g. Physics — Wave Optics' : 'e.g. Physics — Optics Chapter 9',
-                        hintStyle: const TextStyle(color: Colors.white30),
-                        filled: true,
-                        fillColor: const Color(0xFF0F172A),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
- 
-                    // Target Class & Subject Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Target Class', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
-                                value: (selectedClass != null && availableClasses.contains(selectedClass)) ? selectedClass : (availableClasses.isNotEmpty ? availableClasses.first : null),
-                                dropdownColor: const Color(0xFF1E293B),
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: const Color(0xFF0F172A),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                ),
-                                items: availableClasses
-                                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                                    .toList(),
-                                onChanged: (val) => setDialogState(() => selectedClass = val),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Subject', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 6),
-                              DropdownButtonFormField<String>(
-                                value: (selectedSubject != null && availableSubjects.contains(selectedSubject)) ? selectedSubject : (availableSubjects.isNotEmpty ? availableSubjects.first : null),
-                                dropdownColor: const Color(0xFF1E293B),
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: const Color(0xFF0F172A),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                ),
-                                items: availableSubjects
-                                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                                    .toList(),
-                                onChanged: (val) => setDialogState(() => selectedSubject = val),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
- 
-                    // Platform Selector (only if not recording)
-                    if (!isUploadRecording) ...[
-                      const Text('Platform', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedPlatform,
-                        dropdownColor: const Color(0xFF1E293B),
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: const Color(0xFF0F172A),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        ),
-                        items: ['In-App', 'Zoom', 'Google Meet', 'YouTube']
-                            .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                            .toList(),
-                        onChanged: (val) => setDialogState(() {
-                          selectedPlatform = val ?? 'In-App';
-                          if (selectedPlatform == 'In-App') {
-                            linkController.text = 'In-App';
-                          } else if (selectedPlatform == 'Zoom') {
-                            linkController.text = 'https://zoom.us/j/1234567890';
-                          } else if (selectedPlatform == 'Google Meet') {
-                            linkController.text = 'https://meet.google.com/abc-defg-hij';
-                          } else if (selectedPlatform == 'YouTube') {
-                            linkController.text = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
-                          }
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
- 
-                    // Date & Time Picker (if scheduling upcoming)
-                    if (!isUploadRecording) ...[
-                      const Text('Scheduled Time', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 6),
-                      GestureDetector(
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDateTime,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 30)),
-                          );
-                          if (date != null && context.mounted) {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.fromDateTime(selectedDateTime),
-                            );
-                            if (time != null) {
-                              setDialogState(() {
-                                selectedDateTime = DateTime(
-                                  date.year,
-                                  date.month,
-                                  date.day,
-                                  time.hour,
-                                  time.minute,
-                                );
-                              });
-                            }
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today, color: Colors.white54, size: 16),
                               const SizedBox(width: 8),
-                              Text(
-                                selectedDateTime.toString().split('.')[0],
-                                style: const TextStyle(color: Colors.white, fontSize: 12),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setDialogState(() {
+                                    isUploadRecording = true;
+                                    linkController.text =
+                                        'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&modestbranding=1&rel=0';
+                                  }),
+                                  child: Container(
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isUploadRecording
+                                          ? const Color(0xFFEF4444)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: isUploadRecording
+                                              ? Colors.transparent
+                                              : Colors.white10),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'Recording',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isUploadRecording
+                                              ? Colors.white
+                                              : Colors.white60,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
- 
-                    // Duration and Stream/Recording Link
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(height: 16),
+
+                          // Title Field
+                          const Text('Class Title',
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: titleController,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: isUploadRecording
+                                  ? 'e.g. Physics — Wave Optics'
+                                  : 'e.g. Physics — Optics Chapter 9',
+                              hintStyle: const TextStyle(color: Colors.white30),
+                              filled: true,
+                              fillColor: const Color(0xFF0F172A),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Target Class & Subject Row
+                          Row(
                             children: [
-                              const Text('Duration (min)', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: durationController,
-                                keyboardType: TextInputType.number,
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: const Color(0xFF0F172A),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Target Class',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: (selectedClass != null &&
+                                              availableClasses
+                                                  .contains(selectedClass))
+                                          ? selectedClass
+                                          : (availableClasses.isNotEmpty
+                                              ? availableClasses.first
+                                              : null),
+                                      dropdownColor: const Color(0xFF1E293B),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                      items: availableClasses
+                                          .map((c) => DropdownMenuItem(
+                                              value: c, child: Text(c)))
+                                          .toList(),
+                                      onChanged: (val) => setDialogState(
+                                          () => selectedClass = val),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Subject',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: (selectedSubject != null &&
+                                              availableSubjects
+                                                  .contains(selectedSubject))
+                                          ? selectedSubject
+                                          : (availableSubjects.isNotEmpty
+                                              ? availableSubjects.first
+                                              : null),
+                                      dropdownColor: const Color(0xFF1E293B),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                      items: availableSubjects
+                                          .map((s) => DropdownMenuItem(
+                                              value: s, child: Text(s)))
+                                          .toList(),
+                                      onChanged: (val) => setDialogState(
+                                          () => selectedSubject = val),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        if (isUploadRecording || selectedPlatform != 'In-App') ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isUploadRecording ? 'Recording Embed URL' : 'Meeting / Stream URL',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                          const SizedBox(height: 12),
+
+                          // Platform Selector (only if not recording)
+                          if (!isUploadRecording) ...[
+                            const Text('Platform',
+                                style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            DropdownButtonFormField<String>(
+                              initialValue: selectedPlatform,
+                              dropdownColor: const Color(0xFF1E293B),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: const Color(0xFF0F172A),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 10),
+                              ),
+                              items: [
+                                'In-App',
+                                'Zoom',
+                                'Google Meet',
+                                'YouTube'
+                              ]
+                                  .map((p) => DropdownMenuItem(
+                                      value: p, child: Text(p)))
+                                  .toList(),
+                              onChanged: (val) => setDialogState(() {
+                                selectedPlatform = val ?? 'In-App';
+                                if (selectedPlatform == 'In-App') {
+                                  linkController.text = 'In-App';
+                                } else if (selectedPlatform == 'Zoom') {
+                                  linkController.text =
+                                      'https://zoom.us/j/1234567890';
+                                } else if (selectedPlatform == 'Google Meet') {
+                                  linkController.text =
+                                      'https://meet.google.com/abc-defg-hij';
+                                } else if (selectedPlatform == 'YouTube') {
+                                  linkController.text =
+                                      'https://www.youtube.com/embed/dQw4w9WgXcQ';
+                                }
+                              }),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // Date & Time Picker (if scheduling upcoming)
+                          if (!isUploadRecording) ...[
+                            const Text('Scheduled Time',
+                                style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final date = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedDateTime,
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime.now()
+                                      .add(const Duration(days: 30)),
+                                );
+                                if (date != null && context.mounted) {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.fromDateTime(
+                                        selectedDateTime),
+                                  );
+                                  if (time != null) {
+                                    setDialogState(() {
+                                      selectedDateTime = DateTime(
+                                        date.year,
+                                        date.month,
+                                        date.day,
+                                        time.hour,
+                                        time.minute,
+                                      );
+                                    });
+                                  }
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F172A),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                const SizedBox(height: 6),
-                                TextField(
-                                  controller: linkController,
-                                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: const Color(0xFF0F172A),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today,
+                                        color: Colors.white54, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      selectedDateTime.toString().split('.')[0],
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // Duration and Stream/Recording Link
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Duration (min)',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    TextField(
+                                      controller: durationController,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isUploadRecording ||
+                                  selectedPlatform != 'In-App') ...[
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isUploadRecording
+                                            ? 'Recording Embed URL'
+                                            : 'Meeting / Stream URL',
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      TextField(
+                                        controller: linkController,
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 12),
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: const Color(0xFF0F172A),
+                                          border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              borderSide: BorderSide.none),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 12, vertical: 10),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
-                            ),
+                            ],
                           ),
+                          const SizedBox(height: 8),
                         ],
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
               actions: [
                 TextButton(
                   onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white54)),
                 ),
                 ElevatedButton(
                   onPressed: isSubmitting
@@ -820,54 +1211,76 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                       : () async {
                           final title = titleController.text.trim();
                           final link = linkController.text.trim();
-                          final duration = int.tryParse(durationController.text.trim()) ?? 60;
- 
+                          final duration =
+                              int.tryParse(durationController.text.trim()) ??
+                                  60;
+
                           if (title.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('⚠️ Title is required')),
+                              const SnackBar(
+                                  content: Text('⚠️ Title is required')),
                             );
                             return;
                           }
-                          if ((isUploadRecording || selectedPlatform != 'In-App') && link.isEmpty) {
+                          if ((isUploadRecording ||
+                                  selectedPlatform != 'In-App') &&
+                              link.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('⚠️ URL link is required')),
+                              const SnackBar(
+                                  content: Text('⚠️ URL link is required')),
                             );
                             return;
                           }
- 
+
                           final messenger = ScaffoldMessenger.of(context);
                           final navigator = Navigator.of(context);
                           setDialogState(() => isSubmitting = true);
- 
+
                           try {
                             await _apiService.createLiveClass(
                               title: title,
                               classId: selectedClass ?? '',
                               subject: selectedSubject ?? '',
-                              scheduledAt: isUploadRecording ? DateTime.now() : selectedDateTime,
+                              scheduledAt: isUploadRecording
+                                  ? DateTime.now()
+                                  : selectedDateTime,
                               durationMinutes: duration,
-                              status: isUploadRecording ? 'recorded' : 'scheduled',
-                              streamUrl: isUploadRecording ? null : (selectedPlatform == 'In-App' ? 'In-App' : link),
+                              status:
+                                  isUploadRecording ? 'recorded' : 'scheduled',
+                              streamUrl: isUploadRecording
+                                  ? null
+                                  : (selectedPlatform == 'In-App'
+                                      ? 'In-App'
+                                      : link),
                               recordingUrl: isUploadRecording ? link : null,
-                              platform: isUploadRecording ? 'Recorded' : selectedPlatform,
-                              meetingLink: isUploadRecording ? null : (selectedPlatform == 'In-App' ? 'In-App' : link),
+                              platform: isUploadRecording
+                                  ? 'Recorded'
+                                  : selectedPlatform,
+                              meetingLink: isUploadRecording
+                                  ? null
+                                  : (selectedPlatform == 'In-App'
+                                      ? 'In-App'
+                                      : link),
                             );
- 
+
                             navigator.pop();
                             _loadLiveClasses();
- 
+
                             messenger.showSnackBar(
                               SnackBar(
                                 backgroundColor: const Color(0xFF10B981),
                                 content: Row(
                                   children: [
-                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const Icon(Icons.check_circle,
+                                        color: Colors.white),
                                     const SizedBox(width: 8),
                                     Text(
                                       isUploadRecording
                                           ? 'Recorded class uploaded successfully!'
                                           : 'Live class scheduled successfully!',
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold),
                                     ),
                                   ],
                                 ),
@@ -882,12 +1295,666 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFEF4444),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   child: isSubmitting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : Text(isUploadRecording ? 'Upload' : 'Schedule', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : Text(isUploadRecording ? 'Upload' : 'Schedule',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _watchRecording(TeacherLiveClass liveClass) {
+    context.go('/teacher/live-classes/play/${liveClass.id}');
+  }
+
+  void _confirmDelete(TeacherLiveClass liveClass) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded,
+                  color: Color(0xFFEF4444), size: 28),
+              SizedBox(width: 8),
+              Text(
+                'Delete Class',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to delete "${liveClass.title}"? This action cannot be undone.',
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child:
+                  const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _deleteLiveClass(liveClass.id);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Delete',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteLiveClass(String id) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await _apiService.deleteLiveClass(id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Color(0xFF10B981),
+            content: Text('✅ Live class deleted successfully.'),
+          ),
+        );
+      }
+      _loadLiveClasses();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error deleting class: $e')),
+        );
+      }
+    }
+  }
+
+  void _showEditDialog(TeacherLiveClass liveClass) {
+    final titleController = TextEditingController(text: liveClass.title);
+    final linkController = TextEditingController(
+        text: liveClass.meetingLink ?? liveClass.recordingUrl ?? '');
+    final durationController = TextEditingController(
+        text: (liveClass.durationMinutes ?? 60).toString());
+
+    List<String> availableClasses = [];
+    List<String> availableSubjects = [];
+    String? selectedClass;
+    String? selectedSubject;
+    String selectedPlatform = liveClass.platform;
+    String selectedStatus = liveClass.status;
+    DateTime selectedDateTime = liveClass.scheduledAt;
+    bool isSubmitting = false;
+    bool isLoadingMeta = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            if (isLoadingMeta && availableClasses.isEmpty) {
+              Future.microtask(() async {
+                try {
+                  final classes = await _apiService.getMyClasses();
+                  final subjects = await _apiService.getSubjects();
+                  final classNames = classes
+                      .map((c) => c.name)
+                      .where((n) => n.isNotEmpty)
+                      .toSet()
+                      .toList();
+                  final subjectNames = subjects
+                      .map((s) => s.name)
+                      .where((n) => n.isNotEmpty)
+                      .toSet()
+                      .toList();
+                  if (context.mounted) {
+                    setDialogState(() {
+                      availableClasses = classNames.isNotEmpty
+                          ? classNames
+                          : ['No Classes Found'];
+                      availableSubjects = subjectNames.isNotEmpty
+                          ? subjectNames
+                          : ['No Subjects Found'];
+
+                      selectedClass = availableClasses.firstWhere(
+                        (c) =>
+                            c.toLowerCase() == liveClass.class_.toLowerCase(),
+                        orElse: () => availableClasses.first,
+                      );
+                      selectedSubject = availableSubjects.firstWhere(
+                        (s) =>
+                            s.toLowerCase() == liveClass.subject.toLowerCase(),
+                        orElse: () => availableSubjects.first,
+                      );
+                      isLoadingMeta = false;
+                    });
+                  }
+                } catch (_) {
+                  if (context.mounted) {
+                    setDialogState(() {
+                      availableClasses = [liveClass.class_];
+                      availableSubjects = [liveClass.subject];
+                      selectedClass = liveClass.class_;
+                      selectedSubject = liveClass.subject;
+                      isLoadingMeta = false;
+                    });
+                  }
+                }
+              });
+            }
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E293B),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.edit, color: Color(0xFFEF4444), size: 28),
+                  SizedBox(width: 8),
+                  Text(
+                    'Edit Live Class',
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              content: isLoadingMeta
+                  ? const SizedBox(
+                      height: 100,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: Color(0xFFEF4444)),
+                            SizedBox(height: 12),
+                            Text('Loading class metadata...',
+                                style: TextStyle(
+                                    color: Colors.white54, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Class Title',
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: titleController,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 13),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: const Color(0xFF0F172A),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Target Class',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: selectedClass,
+                                      dropdownColor: const Color(0xFF0F172A),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                      items: availableClasses
+                                          .map((c) => DropdownMenuItem(
+                                              value: c, child: Text(c)))
+                                          .toList(),
+                                      onChanged: (val) => setDialogState(
+                                          () => selectedClass = val),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Subject',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: selectedSubject,
+                                      dropdownColor: const Color(0xFF0F172A),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                      items: availableSubjects
+                                          .map((s) => DropdownMenuItem(
+                                              value: s, child: Text(s)))
+                                          .toList(),
+                                      onChanged: (val) => setDialogState(
+                                          () => selectedSubject = val),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Platform',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: [
+                                        'In-App',
+                                        'Zoom',
+                                        'Google Meet',
+                                        'YouTube',
+                                        'Recorded'
+                                      ].contains(selectedPlatform)
+                                          ? selectedPlatform
+                                          : 'In-App',
+                                      dropdownColor: const Color(0xFF0F172A),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                      items: [
+                                        'In-App',
+                                        'Zoom',
+                                        'Google Meet',
+                                        'YouTube',
+                                        'Recorded'
+                                      ]
+                                          .map((p) => DropdownMenuItem(
+                                              value: p, child: Text(p)))
+                                          .toList(),
+                                      onChanged: (val) => setDialogState(() =>
+                                          selectedPlatform = val ?? 'In-App'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Status',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: [
+                                        'scheduled',
+                                        'ongoing',
+                                        'live',
+                                        'completed',
+                                        'recorded',
+                                        'cancelled'
+                                      ].contains(selectedStatus.toLowerCase())
+                                          ? selectedStatus.toLowerCase()
+                                          : 'scheduled',
+                                      dropdownColor: const Color(0xFF0F172A),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                      items: const [
+                                        DropdownMenuItem(
+                                            value: 'scheduled',
+                                            child: Text('Scheduled')),
+                                        DropdownMenuItem(
+                                            value: 'ongoing',
+                                            child: Text('Ongoing')),
+                                        DropdownMenuItem(
+                                            value: 'live', child: Text('Live')),
+                                        DropdownMenuItem(
+                                            value: 'completed',
+                                            child: Text('Completed')),
+                                        DropdownMenuItem(
+                                            value: 'recorded',
+                                            child: Text('Recorded')),
+                                        DropdownMenuItem(
+                                            value: 'cancelled',
+                                            child: Text('Cancelled')),
+                                      ],
+                                      onChanged: (val) => setDialogState(() =>
+                                          selectedStatus = val ?? 'scheduled'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text('Scheduled Time',
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDateTime,
+                                firstDate: DateTime.now()
+                                    .subtract(const Duration(days: 365)),
+                                lastDate: DateTime.now()
+                                    .add(const Duration(days: 365)),
+                              );
+                              if (date != null && context.mounted) {
+                                final time = await showTimePicker(
+                                  context: context,
+                                  initialTime:
+                                      TimeOfDay.fromDateTime(selectedDateTime),
+                                );
+                                if (time != null) {
+                                  setDialogState(() {
+                                    selectedDateTime = DateTime(
+                                      date.year,
+                                      date.month,
+                                      date.day,
+                                      time.hour,
+                                      time.minute,
+                                    );
+                                  });
+                                }
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F172A),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today,
+                                      color: Colors.white54, size: 16),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    selectedDateTime.toString().split('.')[0],
+                                    style: const TextStyle(
+                                        color: Colors.white, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Duration (min)',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    TextField(
+                                      controller: durationController,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Meeting / Recording URL',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 6),
+                                    TextField(
+                                      controller: linkController,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 12),
+                                      decoration: InputDecoration(
+                                        filled: true,
+                                        fillColor: const Color(0xFF0F172A),
+                                        border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide.none),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 10),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final title = titleController.text.trim();
+                          final link = linkController.text.trim();
+                          final duration =
+                              int.tryParse(durationController.text.trim()) ??
+                                  60;
+
+                          if (title.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('⚠️ Title is required')),
+                            );
+                            return;
+                          }
+
+                          final messenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(context);
+                          setDialogState(() => isSubmitting = true);
+
+                          try {
+                            final updates = {
+                              'title': title,
+                              'target_class': selectedClass,
+                              'subject': selectedSubject,
+                              'scheduled_at':
+                                  selectedDateTime.toIso8601String(),
+                              'duration_minutes': duration,
+                              'status': selectedStatus,
+                              'platform': selectedPlatform,
+                              if (selectedStatus == 'recorded' ||
+                                  selectedStatus == 'completed')
+                                'recording_url': link.isEmpty
+                                    ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+                                    : link
+                              else
+                                'meeting_link': link,
+                            };
+
+                            await _apiService.patchLiveClass(
+                                liveClass.id, updates);
+
+                            navigator.pop();
+                            _loadLiveClasses();
+
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                backgroundColor: Color(0xFF10B981),
+                                content: Row(
+                                  children: [
+                                    Icon(Icons.check_circle,
+                                        color: Colors.white),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Live class updated successfully!',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            setDialogState(() => isSubmitting = false);
+                            messenger.showSnackBar(
+                              SnackBar(content: Text('❌ Error: $e')),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Save',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -904,10 +1971,12 @@ class _TeacherLiveBroadcastingScreen extends StatefulWidget {
   const _TeacherLiveBroadcastingScreen({required this.liveClass});
 
   @override
-  State<_TeacherLiveBroadcastingScreen> createState() => _TeacherLiveBroadcastingScreenState();
+  State<_TeacherLiveBroadcastingScreen> createState() =>
+      _TeacherLiveBroadcastingScreenState();
 }
 
-class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcastingScreen> {
+class _TeacherLiveBroadcastingScreenState
+    extends State<_TeacherLiveBroadcastingScreen> {
   final TeacherApiService _apiService = TeacherApiService();
   List<Map<String, dynamic>> _comments = [];
   bool _isMuted = false;
@@ -915,7 +1984,7 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
   bool _isSharing = false;
   bool _isEnding = false;
   final int _viewers = 35;
-  
+
   final TextEditingController _replyController = TextEditingController();
   Map<String, dynamic>? _pinnedComment;
   Timer? _commentsTimer;
@@ -942,7 +2011,8 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
       if (mounted) {
         setState(() {
           _comments = comments;
-          final pinned = comments.firstWhere((c) => c['pinned'] == true, orElse: () => {});
+          final pinned =
+              comments.firstWhere((c) => c['pinned'] == true, orElse: () => {});
           if (pinned.isNotEmpty) {
             _pinnedComment = pinned;
           } else {
@@ -957,7 +2027,8 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
     final text = _replyController.text.trim();
     if (text.isEmpty) return;
     try {
-      final res = await _apiService.postComment(widget.liveClass.id, text, isPinned: pin);
+      final res = await _apiService.postComment(widget.liveClass.id, text,
+          isPinned: pin);
       if (res != null) {
         _replyController.clear();
         _loadComments();
@@ -970,7 +2041,13 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
     try {
       await _apiService.patchLiveClass(widget.liveClass.id, {
         "status": "recorded",
-        "recording_url": widget.liveClass.meetingLink ?? "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "recording_url": (widget.liveClass.platform.toLowerCase() == 'in-app' ||
+                widget.liveClass.platform.toLowerCase() == 'edushamiit' ||
+                widget.liveClass.meetingLink == 'In-App' ||
+                widget.liveClass.meetingLink == null)
+            ? "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+            : (widget.liveClass.meetingLink ??
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"),
       });
       if (mounted) {
         Navigator.pop(context);
@@ -1025,7 +2102,8 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                         ),
                         Text(
                           '${widget.liveClass.subject} · ${widget.liveClass.class_}',
-                          style: const TextStyle(fontSize: 11, color: Colors.white54),
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.white54),
                         ),
                       ],
                     ),
@@ -1033,7 +2111,8 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                   const SizedBox(width: 8),
                   // LIVE badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.red,
                       borderRadius: BorderRadius.circular(6),
@@ -1052,7 +2131,10 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                         const SizedBox(width: 4),
                         const Text(
                           'LIVE',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
                       ],
                     ),
@@ -1060,14 +2142,18 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                   const SizedBox(width: 8),
                   // Viewers
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black38,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '👥 $_viewers',
-                      style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -1087,11 +2173,13 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                           ? const Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.videocam_off, size: 64, color: Colors.white38),
+                                Icon(Icons.videocam_off,
+                                    size: 64, color: Colors.white38),
                                 SizedBox(height: 8),
                                 Text(
                                   'Camera is Off',
-                                  style: TextStyle(color: Colors.white38, fontSize: 13),
+                                  style: TextStyle(
+                                      color: Colors.white38, fontSize: 13),
                                 ),
                               ],
                             )
@@ -1102,7 +2190,10 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                                 Container(
                                   decoration: const BoxDecoration(
                                     gradient: LinearGradient(
-                                      colors: [Color(0xFF0C4A6E), Color(0xFF0369A1)],
+                                      colors: [
+                                        Color(0xFF0C4A6E),
+                                        Color(0xFF0369A1)
+                                      ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
@@ -1117,7 +2208,9 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      _isSharing ? 'Screen Share Active' : 'Broadcasting Live Video',
+                                      _isSharing
+                                          ? 'Screen Share Active'
+                                          : 'Broadcasting Live Video',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -1127,7 +2220,8 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                                     const SizedBox(height: 4),
                                     const Text(
                                       'EduSHAMIIT Broadcasting Studio',
-                                      style: TextStyle(color: Colors.white38, fontSize: 11),
+                                      style: TextStyle(
+                                          color: Colors.white38, fontSize: 11),
                                     ),
                                   ],
                                 ),
@@ -1145,16 +2239,21 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.screen_share, size: 64, color: Colors.white),
+                              Icon(Icons.screen_share,
+                                  size: 64, color: Colors.white),
                               SizedBox(height: 12),
                               Text(
                                 'You are sharing your screen',
-                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
                               ),
                               SizedBox(height: 4),
                               Text(
                                 'Students see your active presentations',
-                                style: TextStyle(color: Colors.white70, fontSize: 12),
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 12),
                               ),
                             ],
                           ),
@@ -1173,7 +2272,9 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                         decoration: BoxDecoration(
                           color: const Color(0xFF4F46E5).withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(10),
-                          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black54, blurRadius: 6)
+                          ],
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1186,12 +2287,18 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                                 children: [
                                   Text(
                                     '${_pinnedComment!['user']} (${_pinnedComment!['role'].toString().toUpperCase()})',
-                                    style: const TextStyle(fontSize: 10, color: Colors.white70, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     _pinnedComment!['text'] ?? '',
-                                    style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -1213,22 +2320,29 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                   children: [
                     // Chat header
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       decoration: const BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Colors.white10)),
+                        border:
+                            Border(bottom: BorderSide(color: Colors.white10)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.chat_bubble_outline, size: 14, color: Colors.white70),
+                          const Icon(Icons.chat_bubble_outline,
+                              size: 14, color: Colors.white70),
                           const SizedBox(width: 6),
                           const Text(
                             'Live Comments Feed',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white70),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white70),
                           ),
                           const Spacer(),
                           Text(
                             '${_comments.length} comments',
-                            style: const TextStyle(fontSize: 10, color: Colors.white38),
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.white38),
                           ),
                         ],
                       ),
@@ -1240,11 +2354,13 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                           ? const Center(
                               child: Text(
                                 'No comments yet. Students will appear here.',
-                                style: TextStyle(color: Colors.white38, fontSize: 11),
+                                style: TextStyle(
+                                    color: Colors.white38, fontSize: 11),
                               ),
                             )
                           : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
                               itemCount: _comments.length,
                               itemBuilder: (context, index) {
                                 final comment = _comments[index];
@@ -1252,7 +2368,8 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 10),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         width: 24,
@@ -1263,15 +2380,22 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                                         ),
                                         child: Center(
                                           child: Text(
-                                            comment['user'] != null && comment['user'].isNotEmpty ? comment['user'][0] : '👤',
-                                            style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                                            comment['user'] != null &&
+                                                    comment['user'].isNotEmpty
+                                                ? comment['user'][0]
+                                                : '👤',
+                                            style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold),
                                           ),
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
@@ -1280,20 +2404,28 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.bold,
-                                                    color: isTeacher ? const Color(0xFF34D399) : const Color(0xFFA78BFA),
+                                                    color: isTeacher
+                                                        ? const Color(
+                                                            0xFF34D399)
+                                                        : const Color(
+                                                            0xFFA78BFA),
                                                   ),
                                                 ),
                                                 const SizedBox(width: 6),
                                                 const Text(
                                                   'Just now',
-                                                  style: TextStyle(fontSize: 8, color: Colors.white38),
+                                                  style: TextStyle(
+                                                      fontSize: 8,
+                                                      color: Colors.white38),
                                                 ),
                                               ],
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               comment['text'] ?? '',
-                                              style: const TextStyle(fontSize: 11, color: Colors.white70),
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.white70),
                                             ),
                                           ],
                                         ),
@@ -1317,30 +2449,35 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                           Expanded(
                             child: TextField(
                               controller: _replyController,
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
                               decoration: InputDecoration(
                                 hintText: 'Post announcement / reply...',
-                                hintStyle: const TextStyle(color: Colors.white30, fontSize: 12),
+                                hintStyle: const TextStyle(
+                                    color: Colors.white30, fontSize: 12),
                                 filled: true,
                                 fillColor: const Color(0xFF1E293B),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(20),
                                   borderSide: BorderSide.none,
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           // Post Announcement Button (Pins the message instantly)
                           IconButton(
-                            icon: const Icon(Icons.push_pin, color: Color(0xFF818CF8), size: 20),
+                            icon: const Icon(Icons.push_pin,
+                                color: Color(0xFF818CF8), size: 20),
                             tooltip: 'Pin Announcement',
                             onPressed: () => _postTeacherReply(pin: true),
                           ),
                           // Regular send button
                           IconButton(
-                            icon: const Icon(Icons.send, color: Color(0xFF10B981), size: 20),
+                            icon: const Icon(Icons.send,
+                                color: Color(0xFF10B981), size: 20),
                             onPressed: () => _postTeacherReply(pin: false),
                           ),
                         ],
@@ -1373,7 +2510,8 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                   // Screen Share
                   _buildStudioControlBtn(
                     icon: Icons.screen_share,
-                    color: _isSharing ? const Color(0xFF4F46E5) : Colors.white24,
+                    color:
+                        _isSharing ? const Color(0xFF4F46E5) : Colors.white24,
                     onTap: () => setState(() => _isSharing = !_isSharing),
                   ),
                   // End Class Button (saves recording)
@@ -1382,14 +2520,21 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: _isEnding
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
                         : const Text(
                             'End Session',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ],
@@ -1401,7 +2546,10 @@ class _TeacherLiveBroadcastingScreenState extends State<_TeacherLiveBroadcasting
     );
   }
 
-  Widget _buildStudioControlBtn({required IconData icon, required Color color, required VoidCallback onTap}) {
+  Widget _buildStudioControlBtn(
+      {required IconData icon,
+      required Color color,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(

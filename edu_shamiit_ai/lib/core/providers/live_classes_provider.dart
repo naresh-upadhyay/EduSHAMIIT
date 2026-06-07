@@ -7,6 +7,9 @@ import 'api_provider.dart';
 class LiveClassModel {
   final String id;
   final String subject;
+  final String? title;
+  final String? description;
+  final String? subjectName;
   final String teacher;
   final String? started;
   final int? viewers;
@@ -25,6 +28,9 @@ class LiveClassModel {
   LiveClassModel({
     required this.id,
     required this.subject,
+    this.title,
+    this.description,
+    this.subjectName,
     required this.teacher,
     this.started,
     this.viewers,
@@ -45,6 +51,9 @@ class LiveClassModel {
     return LiveClassModel(
       id: json['id'] ?? '',
       subject: json['subject'] ?? '',
+      title: json['title'],
+      description: json['description'],
+      subjectName: json['subject_name'] ?? json['subject_name_db'],
       teacher: json['teacher'] ?? '',
       started: json['started'],
       viewers: json['viewers'],
@@ -66,6 +75,9 @@ class LiveClassModel {
     return {
       'id': id,
       'subject': subject,
+      'title': title,
+      'description': description,
+      'subject_name': subjectName,
       'teacher': teacher,
       'started': started,
       'viewers': viewers,
@@ -129,7 +141,7 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
       state = state.copyWith(isLoading: true, error: null);
     }
     try {
-      final response = await _apiService.get('/student/live-classes');
+      final response = await _apiService.get('/student/live-classes', useCache: false);
       if (response['success'] == true) {
         final data = response['data'] as Map<String, dynamic>;
         state = state.copyWith(

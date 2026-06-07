@@ -20,13 +20,13 @@ class TeacherTimetable extends ConsumerStatefulWidget {
 
 class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   DateTime _selectedDate = DateTime.now();
   List<TeacherTimetablePeriod> _allPeriods = [];
   List<TeacherTimetablePeriod> _periods = [];
   bool _isLoading = true;
   String? _error;
-  
+
   // Class filter options
   String _selectedClassFilter = 'All';
   List<String> _classFilters = ['All'];
@@ -47,11 +47,14 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
       ]);
       final profile = results[0] as TeacherProfile;
       final myClassesList = results[1] as List<TeacherMyClass>;
-      
+
       if (!mounted) return;
       setState(() {
         _profile = profile;
-        _myClasses = myClassesList.map((c) => c.name).where((name) => name.isNotEmpty).toList();
+        _myClasses = myClassesList
+            .map((c) => c.name)
+            .where((name) => name.isNotEmpty)
+            .toList();
         final allClasses = {...profile.classes, ..._myClasses};
         final sortedClasses = allClasses.toList()..sort();
         _classFilters = ['All', ...sortedClasses];
@@ -77,18 +80,23 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
     });
 
     try {
-      final dateStr = "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+      final dateStr =
+          "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
       final periods = await _apiService.getTimetable(date: dateStr);
       if (!mounted) return;
       setState(() {
         _allPeriods = periods;
         // Dynamically add unique classes from timetable (primary source) + profile classes + myClasses
-        final uniqueClasses = periods.map((p) => p.class_).where((c) => c.isNotEmpty && c != 'All' && c != 'All Classes').toSet();
-        final profileClasses = (_profile?.classes ?? []).where((c) => c.isNotEmpty).toSet();
+        final uniqueClasses = periods
+            .map((p) => p.class_)
+            .where((c) => c.isNotEmpty && c != 'All' && c != 'All Classes')
+            .toSet();
+        final profileClasses =
+            (_profile?.classes ?? []).where((c) => c.isNotEmpty).toSet();
         final allClasses = {...profileClasses, ..._myClasses, ...uniqueClasses};
         final sortedClasses = allClasses.toList()..sort();
         _classFilters = ['All', ...sortedClasses];
-        
+
         // If current filter is no longer valid, reset to All
         if (!_classFilters.contains(_selectedClassFilter)) {
           _selectedClassFilter = 'All';
@@ -109,7 +117,10 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
     if (_selectedClassFilter == 'All') {
       _periods = List.from(_allPeriods);
     } else {
-      _periods = _allPeriods.where((p) => p.class_.toLowerCase() == _selectedClassFilter.toLowerCase()).toList();
+      _periods = _allPeriods
+          .where((p) =>
+              p.class_.toLowerCase() == _selectedClassFilter.toLowerCase())
+          .toList();
     }
     // Sort by start time
     _periods.sort((a, b) => a.startTime.compareTo(b.startTime));
@@ -134,8 +145,31 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
   }
 
   String _formatFullDate(DateTime date) {
-    const weekdays = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const weekdays = [
+      '',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    const months = [
+      '',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
     return "${weekdays[date.weekday]}, ${months[date.month]} ${date.day}";
   }
 
@@ -150,12 +184,14 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0F1D) : const Color(0xFFF0F4FF),
+      backgroundColor:
+          isDark ? const Color(0xFF0A0F1D) : const Color(0xFFF0F4FF),
       body: Column(
         children: [
           // Header Gradient matching Mockup style
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
@@ -170,7 +206,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                      onPressed: () =>
+                          safeGoBack(context, '/teacher/dashboard'),
                     ),
                     const SizedBox(width: 4),
                     const Expanded(
@@ -187,7 +224,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     InkWell(
                       onTap: () => _selectDate(context),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
@@ -195,7 +233,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.calendar_month, color: Colors.white, size: 14),
+                            const Icon(Icons.calendar_month,
+                                color: Colors.white, size: 14),
                             const SizedBox(width: 4),
                             Text(
                               'Select Date'.tr(ref),
@@ -221,7 +260,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Weekly horizontal date chips (Mockup design: MON 24, TUE 25...)
                 SizedBox(
                   height: 60,
@@ -230,10 +269,11 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     itemCount: 7,
                     itemBuilder: (context, index) {
                       final offset = index - 3;
-                      final dateOfChoice = _selectedDate.add(Duration(days: offset));
+                      final dateOfChoice =
+                          _selectedDate.add(Duration(days: offset));
                       final isSelected = offset == 0;
                       final dayName = _getWeekdayAbbr(dateOfChoice.weekday);
-                      
+
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -246,12 +286,19 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
                             gradient: isSelected
-                                ? const LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)])
+                                ? const LinearGradient(colors: [
+                                    Color(0xFF0EA5E9),
+                                    Color(0xFF06B6D4)
+                                  ])
                                 : null,
-                            color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
+                            color: isSelected
+                                ? null
+                                : Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isSelected ? Colors.transparent : Colors.white.withValues(alpha: 0.2),
+                              color: isSelected
+                                  ? Colors.transparent
+                                  : Colors.white.withValues(alpha: 0.2),
                               width: 1,
                             ),
                           ),
@@ -263,7 +310,9 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                                 style: TextStyle(
                                   fontSize: 8.5,
                                   fontWeight: FontWeight.w600,
-                                  color: isSelected ? Colors.white : Colors.white60,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white60,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -305,33 +354,38 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     },
                     child: Container(
                       margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isSelected 
+                        color: isSelected
                             ? const Color(0xFF1E40AF)
                             : (isDark ? const Color(0xFF1E293B) : Colors.white),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected 
-                              ? Colors.transparent 
+                          color: isSelected
+                              ? Colors.transparent
                               : (isDark ? Colors.white12 : Colors.grey[300]!),
                         ),
-                        boxShadow: isSelected ? [] : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
+                        boxShadow: isSelected
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
                       ),
                       child: Text(
                         cls == 'All' ? 'All Classes' : 'Class $cls',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: isSelected 
-                              ? Colors.white 
-                              : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF475569)),
                         ),
                       ),
                     ),
@@ -344,15 +398,18 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
           // Main schedule view
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF1E40AF)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF1E40AF)))
                 : _error != null
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
                             const SizedBox(height: 16),
-                            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                            Text('Error: $_error',
+                                style: const TextStyle(color: Colors.red)),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadTimetable,
@@ -366,15 +423,20 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text('🏖️', style: TextStyle(fontSize: 48)),
+                                const Text('🏖️',
+                                    style: TextStyle(fontSize: 48)),
                                 const SizedBox(height: 12),
                                 Text(
-                                  _selectedDate.weekday == 7 ? 'No Classes Today (Sunday)' : 'No classes scheduled',
+                                  _selectedDate.weekday == 7
+                                      ? 'No Classes Today (Sunday)'
+                                      : 'No classes scheduled',
                                   style: TextStyle(
                                     fontFamily: AppFonts.heading,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: isDark ? Colors.white70 : const Color(0xFF0F172A),
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF0F172A),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -382,14 +444,17 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                                   'Enjoy your rest day!',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isDark ? Colors.white30 : Colors.grey[500],
+                                    color: isDark
+                                        ? Colors.white30
+                                        : Colors.grey[500],
                                   ),
                                 ),
                               ],
                             ),
                           )
                         : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
                             itemCount: _periods.length,
                             itemBuilder: (context, index) {
                               return _buildPeriodCard(_periods[index]);
@@ -398,7 +463,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
           ),
         ],
       ),
-      
+
       // Float Button to Schedule Class / Meetings — positioned on start (left) to avoid bot icon
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
@@ -469,11 +534,12 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
               child: Container(
                 decoration: BoxDecoration(
                   color: accent,
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(4)),
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(4)),
                 ),
               ),
             ),
-            
+
             Padding(
               padding: const EdgeInsets.only(left: 12),
               child: Row(
@@ -490,7 +556,11 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             fontFamily: AppFonts.heading,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: isNow ? accent : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                            color: isNow
+                                ? accent
+                                : (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A)),
                           ),
                         ),
                         Text(
@@ -503,7 +573,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                       ],
                     ),
                   ),
-                  
+
                   // Dot separator
                   Container(
                     width: 6,
@@ -514,7 +584,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  
+
                   // Period Details
                   Expanded(
                     child: Column(
@@ -526,7 +596,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             fontFamily: AppFonts.heading,
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -542,16 +613,19 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                       ],
                     ),
                   ),
-                  
+
                   // Room / Now badge
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (period.roomNumber != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.05)
+                                : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -559,14 +633,17 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white70 : const Color(0xFF475569),
+                              color: isDark
+                                  ? Colors.white70
+                                  : const Color(0xFF475569),
                             ),
                           ),
                         ),
                       if (isNow) ...[
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: const Color(0xFFDCFCE7),
                             borderRadius: BorderRadius.circular(5),
@@ -643,7 +720,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                           fontFamily: AppFonts.heading,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       Text(
@@ -660,13 +738,16 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.02)
+                    : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDetailRow('Time:', '${period.startTime} – ${period.endTime}'),
+                  _buildDetailRow(
+                      'Time:', '${period.startTime} – ${period.endTime}'),
                   _buildDetailRow('Room/Location:', period.roomNumber ?? 'N/A'),
                   _buildDetailRow('Period Type:', period.periodNumber),
                   _buildDetailRow('Teacher:', period.teacherName ?? 'You'),
@@ -676,7 +757,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     const SizedBox(height: 8),
                     const Text(
                       'This is a scheduled digital class meeting. Students can join online via their student portal schedule.',
-                      style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                      style:
+                          TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
                     ),
                   ],
                 ],
@@ -724,7 +806,9 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(period.periodNumber == 'Live Class' ? 'Dismiss' : 'Close'),
+                    child: Text(period.periodNumber == 'Live Class'
+                        ? 'Dismiss'
+                        : 'Close'),
                   ),
                 ),
               ],
@@ -757,7 +841,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
     final isLive = statusLower == 'ongoing' || statusLower == 'live';
     final platformLower = (period.platform ?? 'In-App').toLowerCase();
     final meetingLink = period.meetingLink ?? '';
-    
+
     final auth = ref.read(authProvider);
 
     if (platformLower == 'in-app' || platformLower == 'edushamiit') {
@@ -768,7 +852,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
           });
         } catch (_) {}
       }
-      
+
       if (!mounted) return;
       context.push(
         '/live-room',
@@ -856,7 +940,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF192231) : Colors.white,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: SingleChildScrollView(
               child: Column(
@@ -884,71 +969,101 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Meeting type Dropdown
-                  const Text('Meeting Type', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  const Text('Meeting Type',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     initialValue: typeFilter,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                    items: ['Extra Class', 'Parent-Teacher Meeting', 'Staff Meeting', 'Live Class']
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    dropdownColor:
+                        isDark ? const Color(0xFF1E293B) : Colors.white,
+                    style:
+                        TextStyle(color: isDark ? Colors.white : Colors.black),
+                    items: [
+                      'Extra Class',
+                      'Parent-Teacher Meeting',
+                      'Staff Meeting',
+                      'Live Class'
+                    ]
+                        .map((type) =>
+                            DropdownMenuItem(value: type, child: Text(type)))
                         .toList(),
                     onChanged: (val) {
                       if (val != null) setModalState(() => typeFilter = val);
                     },
                     decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 12),
 
                   // Class Dropdown
-                  const Text('Class Target', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  const Text('Class Target',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     initialValue: classFilter,
-                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
-                    items: _classFilters.where((c) => c != 'All')
-                        .map((c) => DropdownMenuItem(value: c, child: Text('Class $c')))
+                    dropdownColor:
+                        isDark ? const Color(0xFF1E293B) : Colors.white,
+                    style:
+                        TextStyle(color: isDark ? Colors.white : Colors.black),
+                    items: _classFilters
+                        .where((c) => c != 'All')
+                        .map((c) =>
+                            DropdownMenuItem(value: c, child: Text('Class $c')))
                         .toList(),
                     onChanged: (val) {
                       if (val != null) setModalState(() => classFilter = val);
                     },
                     decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 12),
 
                   // Subject TextField
-                  const Text('Subject/Topic', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  const Text('Subject/Topic',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: subjectController,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                    style:
+                        TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       hintText: 'e.g. Calculus Ch.7',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 12),
 
                   // Platform and Link for Live Class
                   if (typeFilter == 'Live Class') ...[
-                    const Text('Platform', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                    const Text('Platform',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      value: livePlatform,
-                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                      initialValue: livePlatform,
+                      dropdownColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
+                      style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black),
                       items: ['In-App', 'Zoom', 'Google Meet', 'YouTube']
-                          .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                          .map(
+                              (p) => DropdownMenuItem(value: p, child: Text(p)))
                           .toList(),
                       onChanged: (val) {
                         if (val != null) {
@@ -957,31 +1072,41 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             if (livePlatform == 'In-App') {
                               liveLinkController.text = 'In-App';
                             } else if (livePlatform == 'Zoom') {
-                              liveLinkController.text = 'https://zoom.us/j/1234567890';
+                              liveLinkController.text =
+                                  'https://zoom.us/j/1234567890';
                             } else if (livePlatform == 'Google Meet') {
-                              liveLinkController.text = 'https://meet.google.com/abc-defg-hij';
+                              liveLinkController.text =
+                                  'https://meet.google.com/abc-defg-hij';
                             } else if (livePlatform == 'YouTube') {
-                              liveLinkController.text = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+                              liveLinkController.text =
+                                  'https://www.youtube.com/embed/dQw4w9WgXcQ';
                             }
                           });
                         }
                       },
                       decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                     const SizedBox(height: 12),
                     if (livePlatform != 'In-App') ...[
-                      const Text('Meeting Link', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                      const Text('Meeting Link',
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 6),
                       TextField(
                         controller: liveLinkController,
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                        style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black),
                         decoration: InputDecoration(
                           hintText: 'e.g. https://meet.google.com/...',
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -989,14 +1114,17 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                   ],
 
                   // Date Picker Field
-                  const Text('Date', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  const Text('Date',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   InkWell(
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
                         initialDate: selectedModalDate,
-                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        firstDate:
+                            DateTime.now().subtract(const Duration(days: 365)),
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                         builder: (context, child) {
                           return Theme(
@@ -1007,24 +1135,30 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                                 onSurface: isDark ? Colors.white : Colors.black,
                               ),
                               dialogTheme: DialogThemeData(
-                                backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                backgroundColor: isDark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white,
                               ),
                             ),
                             child: child!,
                           );
                         },
                       );
-                      if (date != null) setModalState(() => selectedModalDate = date);
+                      if (date != null)
+                        setModalState(() => selectedModalDate = date);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: isDark ? Colors.white24 : Colors.grey[350]!),
+                        border: Border.all(
+                            color: isDark ? Colors.white24 : Colors.grey[350]!),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 16, color: Color(0xFF1E40AF)),
+                          const Icon(Icons.calendar_today,
+                              size: 16, color: Color(0xFF1E40AF)),
                           const SizedBox(width: 8),
                           Text(
                             "${selectedModalDate.year}-${selectedModalDate.month.toString().padLeft(2, '0')}-${selectedModalDate.day.toString().padLeft(2, '0')}",
@@ -1047,20 +1181,28 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Start Time', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                            const Text('Start Time',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700)),
                             const SizedBox(height: 6),
                             InkWell(
                               onTap: () async {
-                                final time = await showTimePicker(context: context, initialTime: startTime);
-                                if (time != null) setModalState(() => startTime = time);
+                                final time = await showTimePicker(
+                                    context: context, initialTime: startTime);
+                                if (time != null)
+                                  setModalState(() => startTime = time);
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: isDark ? Colors.white24 : Colors.grey[350]!),
+                                  border: Border.all(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : Colors.grey[350]!),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text('${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}'),
+                                child: Text(
+                                    '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}'),
                               ),
                             ),
                           ],
@@ -1071,20 +1213,28 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('End Time', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                            const Text('End Time',
+                                style: TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.w700)),
                             const SizedBox(height: 6),
                             InkWell(
                               onTap: () async {
-                                final time = await showTimePicker(context: context, initialTime: endTime);
-                                if (time != null) setModalState(() => endTime = time);
+                                final time = await showTimePicker(
+                                    context: context, initialTime: endTime);
+                                if (time != null)
+                                  setModalState(() => endTime = time);
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: isDark ? Colors.white24 : Colors.grey[350]!),
+                                  border: Border.all(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : Colors.grey[350]!),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text('${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}'),
+                                child: Text(
+                                    '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}'),
                               ),
                             ),
                           ],
@@ -1095,15 +1245,20 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                   const SizedBox(height: 12),
 
                   // Room TextField
-                  const Text('Room/Location', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  const Text('Room/Location',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: roomController,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                    style:
+                        TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       hintText: 'e.g. Room 301, Staff Room',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -1114,18 +1269,21 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     child: ElevatedButton(
                       onPressed: () async {
                         if (subjectController.text.trim().isEmpty) return;
-                        
-                        final startStr = "${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00";
-                        final endStr = "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00";
-                        final dateStr = "${selectedModalDate.year}-${selectedModalDate.month.toString().padLeft(2, '0')}-${selectedModalDate.day.toString().padLeft(2, '0')}";
-                        
+
+                        final startStr =
+                            "${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00";
+                        final endStr =
+                            "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00";
+                        final dateStr =
+                            "${selectedModalDate.year}-${selectedModalDate.month.toString().padLeft(2, '0')}-${selectedModalDate.day.toString().padLeft(2, '0')}";
+
                         final messenger = ScaffoldMessenger.of(context);
                         Navigator.pop(context);
-                        
+
                         setState(() {
                           _isLoading = true;
                         });
-                        
+
                         try {
                           if (typeFilter == 'Live Class') {
                             final scheduledAt = DateTime(
@@ -1135,8 +1293,10 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                               startTime.hour,
                               startTime.minute,
                             );
-                            final startMinutes = startTime.hour * 60 + startTime.minute;
-                            final endMinutes = endTime.hour * 60 + endTime.minute;
+                            final startMinutes =
+                                startTime.hour * 60 + startTime.minute;
+                            final endMinutes =
+                                endTime.hour * 60 + endTime.minute;
                             int duration = endMinutes - startMinutes;
                             if (duration <= 0) duration = 60;
 
@@ -1149,10 +1309,12 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                               scheduledAt: scheduledAt,
                               durationMinutes: duration,
                               status: 'scheduled',
-                              streamUrl: livePlatform == 'In-App' ? 'In-App' : link,
+                              streamUrl:
+                                  livePlatform == 'In-App' ? 'In-App' : link,
                               recordingUrl: null,
                               platform: livePlatform,
-                              meetingLink: livePlatform == 'In-App' ? 'In-App' : link,
+                              meetingLink:
+                                  livePlatform == 'In-App' ? 'In-App' : link,
                             );
                           }
 
@@ -1166,19 +1328,22 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             room: roomController.text.isNotEmpty
                                 ? roomController.text
                                 : (typeFilter == 'Live Class'
-                                    ? (livePlatform == 'In-App' ? 'In-App Live Room' : livePlatform)
+                                    ? (livePlatform == 'In-App'
+                                        ? 'In-App Live Room'
+                                        : livePlatform)
                                     : 'Room 101'),
                           );
-                          
+
                           setState(() {
                             _selectedDate = selectedModalDate;
                           });
                           await _loadTimetable();
-                          
+
                           if (mounted) {
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text('$typeFilter scheduled successfully!'),
+                                content:
+                                    Text('$typeFilter scheduled successfully!'),
                                 backgroundColor: const Color(0xFF059669),
                               ),
                             );
@@ -1225,13 +1390,13 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
       final now = DateTime.now();
       final startTime = _parseTimeStringToTimeOfDay(startStr);
       final endTime = _parseTimeStringToTimeOfDay(endStr);
-      
+
       if (startTime == null || endTime == null) return false;
-      
+
       final nowMinutes = now.hour * 60 + now.minute;
       final startMinutes = startTime.hour * 60 + startTime.minute;
       final endMinutes = endTime.hour * 60 + endTime.minute;
-      
+
       return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
     } catch (_) {
       return false;
@@ -1244,16 +1409,16 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
       bool isPM = cleaned.contains('PM');
       bool isAM = cleaned.contains('AM');
       cleaned = cleaned.replaceAll('AM', '').replaceAll('PM', '').trim();
-      
+
       final parts = cleaned.split(':');
       if (parts.isEmpty) return null;
-      
+
       var hour = int.parse(parts[0]);
       var minute = parts.length > 1 ? int.parse(parts[1].split(' ')[0]) : 0;
-      
+
       if (isPM && hour < 12) hour += 12;
       if (isAM && hour == 12) hour = 0;
-      
+
       return TimeOfDay(hour: hour, minute: minute);
     } catch (_) {
       return null;

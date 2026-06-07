@@ -20,7 +20,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
   int _activeTab = 0; // 0 = Calendar, 1 = Subjects, 2 = Logs
   DateTime _currentMonth = DateTime.now();
   DateTime _selectedDay = DateTime.now();
-  
+
   // Log Search and Filter state
   String _searchQuery = '';
   String _statusFilter = 'All'; // All, Present, Absent, Late, Void
@@ -66,7 +66,8 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 64, color: StudentColors.error),
+                const Icon(Icons.error_outline,
+                    size: 64, color: StudentColors.error),
                 const SizedBox(height: 16),
                 Text(
                   'Failed to load attendance'.tr(ref),
@@ -90,13 +91,15 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: StudentColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   icon: const Icon(Icons.refresh, color: Colors.white),
-                  label: Text('Retry'.tr(ref), style: const TextStyle(color: Colors.white)),
+                  label: Text('Retry'.tr(ref),
+                      style: const TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -115,22 +118,23 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
     final absentDays = summary['absent_days'] as int? ?? 0;
     final lateDays = summary['late_days'] as int? ?? 0;
     final voidDays = summary['void_days'] as int? ?? 0;
-    final totalDays = summary['total_days'] as int? ?? 0;
 
     return Scaffold(
-      backgroundColor: isDark ? StudentColors.darkBackground : StudentColors.background,
+      backgroundColor:
+          isDark ? StudentColors.darkBackground : StudentColors.background,
       body: Column(
         children: [
           // Header with Back Button
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
-            decoration: BoxDecoration(
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [StudentColors.primary, StudentColors.primaryDeep],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(24),
                 bottomRight: Radius.circular(24),
               ),
@@ -138,7 +142,8 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                  icon: const Icon(Icons.arrow_back_ios,
+                      color: Colors.white, size: 20),
                   onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 4),
@@ -173,7 +178,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                     child: Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           colors: [
                             StudentColors.primary,
                             StudentColors.primaryDeep,
@@ -184,7 +189,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: StudentColors.primary.withOpacity(0.3),
+                            color: StudentColors.primary.withValues(alpha: 0.3),
                             blurRadius: 16,
                             offset: const Offset(0, 8),
                           ),
@@ -207,7 +212,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  overallPct >= 75 ? 'Good Standing' : 'At Risk',
+                                  overallPct >= 75
+                                      ? 'Good Standing'
+                                      : 'At Risk',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 24,
@@ -217,7 +224,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  overallPct >= 75 
+                                  overallPct >= 75
                                       ? 'Great job! Your attendance is in the safe zone.'
                                       : 'Action needed! Maintain at least 75% attendance.',
                                   style: const TextStyle(
@@ -242,8 +249,11 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                                   child: CircularProgressIndicator(
                                     value: overallPct / 100,
                                     strokeWidth: 8,
-                                    backgroundColor: Colors.white.withOpacity(0.15),
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                    backgroundColor:
+                                        Colors.white.withValues(alpha: 0.15),
+                                    valueColor:
+                                        const AlwaysStoppedAnimation<Color>(
+                                            Colors.white),
                                   ),
                                 ),
                                 Text(
@@ -276,7 +286,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                           label: 'Present'.tr(ref),
                           color: StudentColors.success,
                           bgColor: isDark
-                              ? StudentColors.success.withOpacity(0.1)
+                              ? StudentColors.success.withValues(alpha: 0.1)
                               : StudentColors.successBg,
                           isDark: isDark,
                         ),
@@ -287,7 +297,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                           label: 'Absent'.tr(ref),
                           color: StudentColors.error,
                           bgColor: isDark
-                              ? StudentColors.error.withOpacity(0.1)
+                              ? StudentColors.error.withValues(alpha: 0.1)
                               : StudentColors.errorBg,
                           isDark: isDark,
                         ),
@@ -298,7 +308,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                           label: 'Late'.tr(ref),
                           color: StudentColors.warning,
                           bgColor: isDark
-                              ? StudentColors.warning.withOpacity(0.1)
+                              ? StudentColors.warning.withValues(alpha: 0.1)
                               : StudentColors.warningBg,
                           isDark: isDark,
                         ),
@@ -309,7 +319,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                           label: 'Void'.tr(ref),
                           color: Colors.grey,
                           bgColor: isDark
-                              ? Colors.grey.withOpacity(0.1)
+                              ? Colors.grey.withValues(alpha: 0.1)
                               : Colors.grey.shade100,
                           isDark: isDark,
                         ),
@@ -319,17 +329,22 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
 
                   // Custom Segmented Control for Tabs
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: isDark ? StudentColors.darkSurface : const Color(0xFFF1F5F9),
+                      color: isDark
+                          ? StudentColors.darkSurface
+                          : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
                       children: [
-                        _buildTabButton(0, 'Calendar', Icons.calendar_month, isDark),
+                        _buildTabButton(
+                            0, 'Calendar', Icons.calendar_month, isDark),
                         _buildTabButton(1, 'Subjects', Icons.menu_book, isDark),
-                        _buildTabButton(2, 'Logs & History', Icons.list_alt, isDark),
+                        _buildTabButton(
+                            2, 'Logs & History', Icons.list_alt, isDark),
                       ],
                     ),
                   ),
@@ -371,7 +386,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             boxShadow: isSelected && !isDark
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -396,7 +411,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
                       ? (isDark ? Colors.white : StudentColors.primary)
-                      : (isDark ? StudentColors.darkText2 : StudentColors.text2),
+                      : (isDark
+                          ? StudentColors.darkText2
+                          : StudentColors.text2),
                   fontFamily: AppFonts.heading,
                 ),
               ),
@@ -427,7 +444,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
           boxShadow: [
             if (!isDark)
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -471,16 +488,19 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
 
   // --- CALENDAR TAB ---
   Widget _buildCalendarTab(List<AttendanceRecord> records, bool isDark) {
-    final startWeekday = DateTime(_currentMonth.year, _currentMonth.month, 1).weekday; // 1=Mon, 7=Sun
+    final startWeekday = DateTime(_currentMonth.year, _currentMonth.month, 1)
+        .weekday; // 1=Mon, 7=Sun
     final startOffset = startWeekday % 7; // Sunday=0, Mon=1...
     final daysNum = _daysInMonth(_currentMonth);
     final totalCells = startOffset + daysNum;
 
     // Filter selected day records
-    final selectedDayRecords = records.where((r) =>
-        r.date.year == _selectedDay.year &&
-        r.date.month == _selectedDay.month &&
-        r.date.day == _selectedDay.day).toList();
+    final selectedDayRecords = records
+        .where((r) =>
+            r.date.year == _selectedDay.year &&
+            r.date.month == _selectedDay.month &&
+            r.date.day == _selectedDay.day)
+        .toList();
 
     return Column(
       key: const ValueKey('CalendarTab'),
@@ -503,10 +523,12 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: Icon(Icons.chevron_left, color: isDark ? Colors.white : StudentColors.text),
+                      icon: Icon(Icons.chevron_left,
+                          color: isDark ? Colors.white : StudentColors.text),
                       onPressed: () {
                         setState(() {
-                          _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1, 1);
+                          _currentMonth = DateTime(
+                              _currentMonth.year, _currentMonth.month - 1, 1);
                         });
                       },
                     ),
@@ -520,21 +542,24 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.chevron_right, color: isDark ? Colors.white : StudentColors.text),
+                      icon: Icon(Icons.chevron_right,
+                          color: isDark ? Colors.white : StudentColors.text),
                       onPressed: () {
                         setState(() {
-                          _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 1);
+                          _currentMonth = DateTime(
+                              _currentMonth.year, _currentMonth.month + 1, 1);
                         });
                       },
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Weekdays Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) {
+                  children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                      .map((d) {
                     return Expanded(
                       child: Center(
                         child: Text(
@@ -542,7 +567,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? StudentColors.darkText3 : StudentColors.text3,
+                            color: isDark
+                                ? StudentColors.darkText3
+                                : StudentColors.text3,
                           ),
                         ),
                       ),
@@ -568,7 +595,8 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                     }
 
                     final day = index - startOffset + 1;
-                    final cellDate = DateTime(_currentMonth.year, _currentMonth.month, day);
+                    final cellDate =
+                        DateTime(_currentMonth.year, _currentMonth.month, day);
                     final isToday = DateTime.now().year == cellDate.year &&
                         DateTime.now().month == cellDate.month &&
                         DateTime.now().day == cellDate.day;
@@ -576,12 +604,15 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                         _selectedDay.month == cellDate.month &&
                         _selectedDay.day == cellDate.day;
 
-                    final dayRecords = records.where((r) =>
-                        r.date.year == cellDate.year &&
-                        r.date.month == cellDate.month &&
-                        r.date.day == cellDate.day).toList();
+                    final dayRecords = records
+                        .where((r) =>
+                            r.date.year == cellDate.year &&
+                            r.date.month == cellDate.month &&
+                            r.date.day == cellDate.day)
+                        .toList();
 
-                    return _buildCalendarDayCell(day, cellDate, isToday, isSelected, dayRecords, isDark);
+                    return _buildCalendarDayCell(
+                        day, cellDate, isToday, isSelected, dayRecords, isDark);
                   },
                 ),
               ],
@@ -614,13 +645,15 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
       child: Container(
         decoration: BoxDecoration(
           color: isSelected
-              ? StudentColors.primary.withOpacity(0.15)
+              ? StudentColors.primary.withValues(alpha: 0.15)
               : (isToday ? StudentColors.primaryLight : Colors.transparent),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? StudentColors.primary
-                : (isToday ? StudentColors.primary.withOpacity(0.3) : Colors.transparent),
+                : (isToday
+                    ? StudentColors.primary.withValues(alpha: 0.3)
+                    : Colors.transparent),
             width: 1.5,
           ),
         ),
@@ -631,7 +664,8 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               '$day',
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    isToday || isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected
                     ? StudentColors.primary
                     : (isDark ? Colors.white : StudentColors.text),
@@ -693,7 +727,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -704,7 +738,8 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
         children: [
           Row(
             children: [
-              const Icon(Icons.event_note, color: StudentColors.primary, size: 20),
+              const Icon(Icons.event_note,
+                  color: StudentColors.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 formattedDate,
@@ -724,12 +759,16 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.calendar_today_outlined, color: isDark ? Colors.white24 : Colors.grey.shade300, size: 40),
+                    Icon(Icons.calendar_today_outlined,
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                        size: 40),
                     const SizedBox(height: 8),
                     Text(
                       'No attendance marked for this day.',
                       style: TextStyle(
-                        color: isDark ? StudentColors.darkText3 : StudentColors.text3,
+                        color: isDark
+                            ? StudentColors.darkText3
+                            : StudentColors.text3,
                         fontSize: 13,
                       ),
                     ),
@@ -758,35 +797,43 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
     Color statusBg;
     String statusText;
     IconData statusIcon;
-    
+
     switch (rec.status) {
       case 'present':
         statusColor = StudentColors.success;
-        statusBg = isDark ? StudentColors.success.withOpacity(0.1) : StudentColors.successBg;
+        statusBg = isDark
+            ? StudentColors.success.withValues(alpha: 0.1)
+            : StudentColors.successBg;
         statusText = 'Present';
         statusIcon = Icons.check_circle;
         break;
       case 'absent':
         statusColor = StudentColors.error;
-        statusBg = isDark ? StudentColors.error.withOpacity(0.1) : StudentColors.errorBg;
+        statusBg = isDark
+            ? StudentColors.error.withValues(alpha: 0.1)
+            : StudentColors.errorBg;
         statusText = 'Absent';
         statusIcon = Icons.cancel;
         break;
       case 'late':
         statusColor = StudentColors.warning;
-        statusBg = isDark ? StudentColors.warning.withOpacity(0.1) : StudentColors.warningBg;
+        statusBg = isDark
+            ? StudentColors.warning.withValues(alpha: 0.1)
+            : StudentColors.warningBg;
         statusText = 'Late';
         statusIcon = Icons.watch_later;
         break;
       case 'void':
         statusColor = Colors.grey;
-        statusBg = isDark ? Colors.grey.withOpacity(0.1) : Colors.grey.shade100;
+        statusBg =
+            isDark ? Colors.grey.withValues(alpha: 0.1) : Colors.grey.shade100;
         statusText = 'Void';
         statusIcon = Icons.block;
         break;
       default:
         statusColor = Colors.grey;
-        statusBg = isDark ? Colors.grey.withOpacity(0.1) : Colors.grey.shade100;
+        statusBg =
+            isDark ? Colors.grey.withValues(alpha: 0.1) : Colors.grey.shade100;
         statusText = 'Unknown';
         statusIcon = Icons.help_outline;
     }
@@ -808,7 +855,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: StudentColors.primary.withOpacity(0.1),
+              color: StudentColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -835,23 +882,29 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   'Marked by: ${rec.markedByName ?? "Teacher"} • ${DateFormat('MMM d, yyyy').format(rec.date)}',
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? StudentColors.darkText3 : StudentColors.text3,
+                    color:
+                        isDark ? StudentColors.darkText3 : StudentColors.text3,
                   ),
                 ),
                 if (hasRemarks) ...[
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                       ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.chat_bubble_outline, size: 10, color: isDark ? Colors.white60 : Colors.blueGrey),
+                        Icon(Icons.chat_bubble_outline,
+                            size: 10,
+                            color: isDark ? Colors.white60 : Colors.blueGrey),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -876,7 +929,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             decoration: BoxDecoration(
               color: statusBg,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -903,11 +956,16 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
     if (subjectName == null) return Icons.school;
     final name = subjectName.toLowerCase();
     if (name.contains('math')) return Icons.calculate;
-    if (name.contains('sci') || name.contains('phys') || name.contains('chem') || name.contains('bio')) {
+    if (name.contains('sci') ||
+        name.contains('phys') ||
+        name.contains('chem') ||
+        name.contains('bio')) {
       return Icons.science;
     }
     if (name.contains('eng') || name.contains('lit')) return Icons.menu_book;
-    if (name.contains('hist') || name.contains('geo') || name.contains('social')) {
+    if (name.contains('hist') ||
+        name.contains('geo') ||
+        name.contains('social')) {
       return Icons.public;
     }
     if (name.contains('art') || name.contains('draw')) return Icons.palette;
@@ -935,7 +993,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.menu_book, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                  Icon(Icons.menu_book,
+                      size: 48,
+                      color: isDark ? Colors.white24 : Colors.grey.shade300),
                   const SizedBox(height: 16),
                   const Text(
                     'No subject-wise records available.',
@@ -958,7 +1018,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               final present = subject['present'] ?? 0;
               final total = subject['total'] ?? 0;
               final pct = (subject['pct'] as num?)?.toDouble() ?? 0.0;
-              
+
               Color progressColor;
               if (pct >= 85) {
                 progressColor = StudentColors.success;
@@ -974,12 +1034,14 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   color: isDark ? StudentColors.darkSurface : Colors.white,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: isDark ? StudentColors.darkBorder : StudentColors.border,
+                    color: isDark
+                        ? StudentColors.darkBorder
+                        : StudentColors.border,
                   ),
                   boxShadow: [
                     if (!isDark)
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withValues(alpha: 0.02),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -993,7 +1055,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: progressColor.withOpacity(0.1),
+                            color: progressColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -1012,7 +1074,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : StudentColors.text,
+                                  color: isDark
+                                      ? Colors.white
+                                      : StudentColors.text,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -1020,7 +1084,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                                 'Present in $present of $total lectures',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: isDark ? StudentColors.darkText3 : StudentColors.text3,
+                                  color: isDark
+                                      ? StudentColors.darkText3
+                                      : StudentColors.text3,
                                 ),
                               ),
                             ],
@@ -1041,9 +1107,11 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                             if (pct < 75)
                               Container(
                                 margin: const EdgeInsets.only(top: 4),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: StudentColors.error.withOpacity(0.1),
+                                  color: StudentColors.error
+                                      .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
@@ -1064,8 +1132,11 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                       borderRadius: BorderRadius.circular(6),
                       child: LinearProgressIndicator(
                         value: total > 0 ? (present / total) : 0.0,
-                        backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                        valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                        backgroundColor: isDark
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF1F5F9),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(progressColor),
                         minHeight: 8,
                       ),
                     ),
@@ -1074,14 +1145,14 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               );
             },
           ),
-        
         const SizedBox(height: 24),
         _buildMonthlyTrendSection(monthly, isDark),
       ],
     );
   }
 
-  Widget _buildMonthlyTrendSection(List<Map<String, dynamic>> monthly, bool isDark) {
+  Widget _buildMonthlyTrendSection(
+      List<Map<String, dynamic>> monthly, bool isDark) {
     if (monthly.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -1110,7 +1181,7 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               final m = monthly[index];
               final name = m['month'] ?? 'Unknown';
               final pct = (m['pct'] as num?)?.toDouble() ?? 0.0;
-              
+
               Color pctColor;
               if (pct >= 85) {
                 pctColor = StudentColors.success;
@@ -1128,12 +1199,14 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                   color: isDark ? StudentColors.darkSurface : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? StudentColors.darkBorder : StudentColors.border,
+                    color: isDark
+                        ? StudentColors.darkBorder
+                        : StudentColors.border,
                   ),
                   boxShadow: [
                     if (!isDark)
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.01),
+                        color: Colors.black.withValues(alpha: 0.01),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -1148,7 +1221,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? StudentColors.darkText2 : StudentColors.text2,
+                        color: isDark
+                            ? StudentColors.darkText2
+                            : StudentColors.text2,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1176,9 +1251,14 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
   // --- LOGS TAB ---
   Widget _buildLogsTab(List<AttendanceRecord> records, bool isDark) {
     final filtered = records.where((r) {
-      final matchesSearch = (r.subjectName ?? 'Entire Day').toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (r.markedByName ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesStatus = _statusFilter == 'All' || r.status == _statusFilter.toLowerCase();
+      final matchesSearch = (r.subjectName ?? 'Entire Day')
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          (r.markedByName ?? '')
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
+      final matchesStatus =
+          _statusFilter == 'All' || r.status == _statusFilter.toLowerCase();
       return matchesSearch && matchesStatus;
     }).toList();
 
@@ -1203,18 +1283,20 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: isDark ? StudentColors.darkBorder : StudentColors.border,
+                  color:
+                      isDark ? StudentColors.darkBorder : StudentColors.border,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(
-                  color: isDark ? StudentColors.darkBorder : StudentColors.border,
+                  color:
+                      isDark ? StudentColors.darkBorder : StudentColors.border,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
+                borderSide: const BorderSide(
                   color: StudentColors.primary,
                   width: 1.5,
                 ),
@@ -1222,13 +1304,14 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             ),
           ),
         ),
-        
+
         // Status Filter Chips
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
-            children: ['All', 'Present', 'Absent', 'Late', 'Void'].map((status) {
+            children:
+                ['All', 'Present', 'Absent', 'Late', 'Void'].map((status) {
               final isSelected = _statusFilter == status;
               Color chipColor;
               switch (status) {
@@ -1270,13 +1353,17 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
                     }
                   },
                   selectedColor: chipColor,
-                  backgroundColor: isDark ? StudentColors.darkSurface : const Color(0xFFF1F5F9),
+                  backgroundColor: isDark
+                      ? StudentColors.darkSurface
+                      : const Color(0xFFF1F5F9),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: BorderSide(
                       color: isSelected
                           ? Colors.transparent
-                          : (isDark ? StudentColors.darkBorder : const Color(0xFFE2E8F0)),
+                          : (isDark
+                              ? StudentColors.darkBorder
+                              : const Color(0xFFE2E8F0)),
                     ),
                   ),
                 ),
@@ -1284,9 +1371,9 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             }).toList(),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Log List
         if (filtered.isEmpty)
           Padding(
@@ -1294,12 +1381,16 @@ class _StudentAttendanceState extends ConsumerState<StudentAttendance> {
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.history_toggle_off, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                  Icon(Icons.history_toggle_off,
+                      size: 48,
+                      color: isDark ? Colors.white24 : Colors.grey.shade300),
                   const SizedBox(height: 16),
                   Text(
                     'No matching records found.',
                     style: TextStyle(
-                      color: isDark ? StudentColors.darkText3 : StudentColors.text3,
+                      color: isDark
+                          ? StudentColors.darkText3
+                          : StudentColors.text3,
                     ),
                   ),
                 ],

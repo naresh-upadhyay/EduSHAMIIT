@@ -1,10 +1,16 @@
 port: 7880
 bind_addresses:
   - ""
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50050
+  use_external_ip: false
+  enable_loopback_candidate: true
 redis:
   address: redis:6379
   password: redis_password_2026
 keys:
-  devkey: secretkey
+  devkey: secretkey_edushamiit_livekit_2026_secure
 logging:
   level: info

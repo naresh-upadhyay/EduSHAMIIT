@@ -92,8 +92,18 @@ class _StudentFeesState extends ConsumerState<StudentFees>
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
@@ -104,9 +114,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
 
   String _formatAmount(double value) {
     return value.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
   Color _getStatusColor(String status) {
@@ -151,17 +161,18 @@ class _StudentFeesState extends ConsumerState<StudentFees>
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF0FDF9),
+      return const Scaffold(
+        backgroundColor: Color(0xFFF0FDF9),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF059669)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
               ),
-              const SizedBox(height: 16),
-              const Text('Loading your fees...', style: TextStyle(color: Color(0xFF64748B))),
+              SizedBox(height: 16),
+              Text('Loading your fees...',
+                  style: TextStyle(color: Color(0xFF64748B))),
             ],
           ),
         ),
@@ -175,7 +186,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: StudentColors.error),
+              const Icon(Icons.error_outline,
+                  size: 64, color: StudentColors.error),
               const SizedBox(height: 16),
               const Text(
                 'Failed to load fees',
@@ -213,7 +225,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
         children: [
           // Header with gradient
           Container(
-            padding: EdgeInsets.fromLTRB(0, Responsive.headerTopPadding(context), 0, 24),
+            padding: EdgeInsets.fromLTRB(
+                0, Responsive.headerTopPadding(context), 0, 24),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -291,10 +304,15 @@ class _StudentFeesState extends ConsumerState<StudentFees>
   Widget _buildOutstandingCard() {
     final double amount = _totalOutstanding;
     final hasOutstanding = amount > 0;
-    
+
     // Find next due date
     DateTime? nextDueDate;
-    final pendingFees = _feeRecords.where((f) => f.status == 'pending' || f.status == 'partial' || f.status == 'overdue').toList();
+    final pendingFees = _feeRecords
+        .where((f) =>
+            f.status == 'pending' ||
+            f.status == 'partial' ||
+            f.status == 'overdue')
+        .toList();
     if (pendingFees.isNotEmpty) {
       pendingFees.sort((a, b) => a.dueDate.compareTo(b.dueDate));
       nextDueDate = pendingFees.first.dueDate;
@@ -332,7 +350,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               fontFamily: AppFonts.heading,
               fontSize: 32,
               fontWeight: FontWeight.w900,
-              color: hasOutstanding ? const Color(0xFFEF4444) : const Color(0xFF059669),
+              color: hasOutstanding
+                  ? const Color(0xFFEF4444)
+                  : const Color(0xFF059669),
               letterSpacing: -1,
             ),
           ),
@@ -412,7 +432,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF059669) : const Color(0xFFECFDF5),
+                  color: isSelected
+                      ? const Color(0xFF059669)
+                      : const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
@@ -438,7 +460,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
         : filter == 'Paid'
             ? _feeRecords.where((f) => f.status == 'paid').toList()
             : _feeRecords
-                .where((f) => f.status == 'pending' || f.status == 'partial' || f.status == 'overdue')
+                .where((f) =>
+                    f.status == 'pending' ||
+                    f.status == 'partial' ||
+                    f.status == 'overdue')
                 .toList();
 
     if (fees.isEmpty) {
@@ -540,7 +565,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                           color: StudentColors.text,
                         ),
                       ),
-                      if (fee.feePeriod != null && fee.feePeriod!.isNotEmpty) ...[
+                      if (fee.feePeriod != null &&
+                          fee.feePeriod!.isNotEmpty) ...[
                         const SizedBox(height: 1),
                         Text(
                           fee.feePeriod!,
@@ -578,7 +604,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: statusBgColor,
                         borderRadius: BorderRadius.circular(6),
@@ -599,7 +626,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
           ),
 
           // Fee breakdown if there are late fines or discounts
-          if (fee.lateFine > 0 || fee.discount > 0 || fee.status == 'partial') ...[
+          if (fee.lateFine > 0 ||
+              fee.discount > 0 ||
+              fee.status == 'partial') ...[
             Container(
               margin: const EdgeInsets.fromLTRB(14, 0, 14, 0),
               padding: const EdgeInsets.all(10),
@@ -609,17 +638,23 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               ),
               child: Column(
                 children: [
-                  _buildBreakdownRow('Base Amount', fee.amount - fee.lateFine + fee.discount),
+                  _buildBreakdownRow(
+                      'Base Amount', fee.amount - fee.lateFine + fee.discount),
                   if (fee.lateFine > 0)
-                    _buildBreakdownRow('Late Fine', fee.lateFine, isNegative: false, isRed: true),
+                    _buildBreakdownRow('Late Fine', fee.lateFine,
+                        isNegative: false, isRed: true),
                   if (fee.discount > 0)
-                    _buildBreakdownRow('Discount', fee.discount, isNegative: true),
+                    _buildBreakdownRow('Discount', fee.discount,
+                        isNegative: true),
                   if (fee.status == 'partial' && fee.paidAmount > 0)
-                    _buildBreakdownRow('Amount Paid', fee.paidAmount, isNegative: true),
+                    _buildBreakdownRow('Amount Paid', fee.paidAmount,
+                        isNegative: true),
                   const Divider(height: 12, thickness: 0.5),
                   _buildBreakdownRow(
                     fee.status == 'partial' ? 'Balance Due' : 'Net Amount',
-                    fee.dueAmount > 0 ? fee.dueAmount : fee.amount + fee.lateFine - fee.discount,
+                    fee.dueAmount > 0
+                        ? fee.dueAmount
+                        : fee.amount + fee.lateFine - fee.discount,
                     isBold: true,
                   ),
                 ],
@@ -635,7 +670,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               children: [
                 if (fee.paymentMethod != null && fee.status == 'paid') ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF0FFF4),
                       borderRadius: BorderRadius.circular(6),
@@ -652,11 +688,14 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   ),
                 ],
                 const Spacer(),
-                if (fee.status == 'pending' || fee.status == 'partial' || fee.status == 'overdue') ...[
+                if (fee.status == 'pending' ||
+                    fee.status == 'partial' ||
+                    fee.status == 'overdue') ...[
                   SizedBox(
                     height: 30,
                     child: ElevatedButton(
-                      onPressed: () => _showPaymentModal(context, targetFee: fee),
+                      onPressed: () =>
+                          _showPaymentModal(context, targetFee: fee),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF059669),
                         foregroundColor: Colors.white,
@@ -670,7 +709,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                         fee.status == 'partial'
                             ? 'Pay Balance ₹${fee.dueAmount.toStringAsFixed(0)}'
                             : 'Pay Now',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
@@ -682,7 +722,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                       icon: const Icon(Icons.download, size: 12),
                       label: const Text(
                         'Receipt',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFECFDF5),
@@ -704,7 +745,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     );
   }
 
-  Widget _buildBreakdownRow(String label, double amount, {
+  Widget _buildBreakdownRow(
+    String label,
+    double amount, {
     bool isNegative = false,
     bool isRed = false,
     bool isBold = false,
@@ -751,7 +794,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
             SizedBox(height: 16),
             Text(
               'No receipts available',
-              style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+              style: TextStyle(
+                  fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
             ),
             SizedBox(height: 8),
             Text(
@@ -766,7 +810,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     // Group paid fees by transaction ID
     final Map<String, List<FeeRecord>> groupedReceipts = {};
     for (var fee in paidFees) {
-      final txId = fee.transactionId ?? 'TXN-LEGACY-${fee.id.substring(0, 8).toUpperCase()}';
+      final txId = fee.transactionId ??
+          'TXN-LEGACY-${fee.id.substring(0, 8).toUpperCase()}';
       groupedReceipts.putIfAbsent(txId, () => []).add(fee);
     }
 
@@ -804,7 +849,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     ),
                     Text(
                       '${uniqueTxIds.length} receipt${uniqueTxIds.length != 1 ? 's' : ''} available for download',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF059669)),
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF059669)),
                     ),
                   ],
                 ),
@@ -820,8 +866,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
 
   Widget _buildReceiptCard(List<FeeRecord> items) {
     final firstFee = items.first;
-    final txId = firstFee.transactionId ?? 'TXN-${firstFee.id.substring(0, 8).toUpperCase()}';
-    final receiptNo = 'REC/${firstFee.paidDate?.year ?? 2026}/${firstFee.id.substring(0, 6).toUpperCase()}';
+    final txId = firstFee.transactionId ??
+        'TXN-${firstFee.id.substring(0, 8).toUpperCase()}';
+    final receiptNo =
+        'REC/${firstFee.paidDate?.year ?? 2026}/${firstFee.id.substring(0, 6).toUpperCase()}';
 
     // Calculate total amount
     final double totalAmount = items.fold(0.0, (sum, f) => sum + f.paidAmount);
@@ -889,7 +937,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFECFDF5),
                     borderRadius: BorderRadius.circular(6),
@@ -912,28 +961,37 @@ class _StudentFeesState extends ConsumerState<StudentFees>
             padding: const EdgeInsets.all(14),
             child: Column(
               children: [
-                _buildReceiptDetailRow('Amount', '₹${totalAmount.toStringAsFixed(0)}', isAmount: true),
+                _buildReceiptDetailRow(
+                    'Amount', '₹${totalAmount.toStringAsFixed(0)}',
+                    isAmount: true),
                 const SizedBox(height: 6),
                 _buildReceiptDetailRow(
                   'Date',
-                  firstFee.paidDate != null ? _formatDate(firstFee.paidDate!) : 'N/A',
+                  firstFee.paidDate != null
+                      ? _formatDate(firstFee.paidDate!)
+                      : 'N/A',
                 ),
                 const SizedBox(height: 6),
-                _buildReceiptDetailRow('Mode', _getPayMethodLabel(firstFee.paymentMethod)),
+                _buildReceiptDetailRow(
+                    'Mode', _getPayMethodLabel(firstFee.paymentMethod)),
                 const SizedBox(height: 6),
                 _buildReceiptDetailRow('Transaction', txId),
                 if (items.length > 1) ...[
                   const Divider(height: 16),
                   ...items.map((item) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(item.month, style: const TextStyle(fontSize: 11, color: StudentColors.text2)),
-                        Text('₹${item.paidAmount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  )),
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(item.month,
+                                style: const TextStyle(
+                                    fontSize: 11, color: StudentColors.text2)),
+                            Text('₹${item.paidAmount.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                    fontSize: 11, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      )),
                 ],
                 const SizedBox(height: 12),
 
@@ -945,7 +1003,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     icon: const Icon(Icons.download, size: 16),
                     label: const Text(
                       'Download Receipt PDF',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF059669),
@@ -966,7 +1025,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     );
   }
 
-  Widget _buildReceiptDetailRow(String label, String value, {bool isAmount = false}) {
+  Widget _buildReceiptDetailRow(String label, String value,
+      {bool isAmount = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -983,7 +1043,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
             fontSize: 12,
             fontWeight: isAmount ? FontWeight.w800 : FontWeight.w600,
             color: isAmount ? const Color(0xFF059669) : const Color(0xFF1E293B),
-            fontFamily: value.startsWith('EDU-') || value.startsWith('TXN-') ? 'monospace' : null,
+            fontFamily: value.startsWith('EDU-') || value.startsWith('TXN-')
+                ? 'monospace'
+                : null,
           ),
         ),
       ],
@@ -992,20 +1054,28 @@ class _StudentFeesState extends ConsumerState<StudentFees>
 
   String _getPayMethodIcon(String method) {
     switch (method.toLowerCase()) {
-      case 'upi': return '📱';
-      case 'card': return '💳';
-      case 'netbanking': return '🏦';
-      default: return '💰';
+      case 'upi':
+        return '📱';
+      case 'card':
+        return '💳';
+      case 'netbanking':
+        return '🏦';
+      default:
+        return '💰';
     }
   }
 
   String _getPayMethodLabel(String? method) {
     if (method == null) return 'Online Payment';
     switch (method.toLowerCase()) {
-      case 'upi': return 'UPI Transfer';
-      case 'card': return 'Credit/Debit Card';
-      case 'netbanking': return 'Net Banking';
-      default: return method.toUpperCase();
+      case 'upi':
+        return 'UPI Transfer';
+      case 'card':
+        return 'Credit/Debit Card';
+      case 'netbanking':
+        return 'Net Banking';
+      default:
+        return method.toUpperCase();
     }
   }
 
@@ -1013,12 +1083,18 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     final firstFee = items.first;
     final studentName = _profile?.fullName ?? 'Student';
     final studentId = _profile?.rollNumber ?? 'N/A';
-    final studentClass = '${_profile?.className ?? ''} ${_profile?.section ?? ''}'.trim();
-    final txId = firstFee.transactionId ?? 'TXN-${firstFee.id.substring(0, 8).toUpperCase()}';
-    final receiptNo = 'REC/${firstFee.paidDate?.year ?? 2026}/${firstFee.id.substring(0, 6).toUpperCase()}';
-    final payDate = firstFee.paidDate != null ? _formatDate(firstFee.paidDate!) : _formatCurrentDate();
+    final studentClass =
+        '${_profile?.className ?? ''} ${_profile?.section ?? ''}'.trim();
+    final txId = firstFee.transactionId ??
+        'TXN-${firstFee.id.substring(0, 8).toUpperCase()}';
+    final receiptNo =
+        'REC/${firstFee.paidDate?.year ?? 2026}/${firstFee.id.substring(0, 6).toUpperCase()}';
+    final payDate = firstFee.paidDate != null
+        ? _formatDate(firstFee.paidDate!)
+        : _formatCurrentDate();
     final payMethod = _getPayMethodLabel(firstFee.paymentMethod);
-    final double totalPaidAmount = items.fold(0.0, (sum, f) => sum + f.paidAmount);
+    final double totalPaidAmount =
+        items.fold(0.0, (sum, f) => sum + f.paidAmount);
 
     // Generate PDF
     final pdf = pw.Document();
@@ -1036,7 +1112,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                 padding: const pw.EdgeInsets.all(20),
                 decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#059669'),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(12)),
                 ),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -1075,7 +1152,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                         ),
                         pw.Text(
                           'Academic Year 2025-26',
-                          style: const pw.TextStyle(fontSize: 10, color: PdfColors.white),
+                          style: const pw.TextStyle(
+                              fontSize: 10, color: PdfColors.white),
                         ),
                       ],
                     ),
@@ -1087,10 +1165,12 @@ class _StudentFeesState extends ConsumerState<StudentFees>
 
               // Status badge
               pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#ECFDF5'),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(6)),
                   border: pw.Border.all(color: PdfColor.fromHex('#A7F3D0')),
                 ),
                 child: pw.Text(
@@ -1119,7 +1199,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                 padding: const pw.EdgeInsets.all(14),
                 decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#F8FAFC'),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
                   border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
                 ),
                 child: pw.Column(
@@ -1147,27 +1228,46 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                 padding: const pw.EdgeInsets.all(14),
                 decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#F8FAFC'),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
                   border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
                 ),
                 child: pw.Column(
                   children: [
                     if (items.length == 1) ...[
                       _pdfRow('Fee Type', firstFee.month),
-                      if (firstFee.feePeriod != null) _pdfRow('Period', firstFee.feePeriod!),
-                      if (firstFee.description != null) _pdfRow('Description', firstFee.description!),
-                      _pdfRow('Base Amount', 'Rs. ${firstFee.amount.toStringAsFixed(2)}'),
-                      if (firstFee.lateFine > 0) _pdfRow('Late Fine', 'Rs. ${firstFee.lateFine.toStringAsFixed(2)}', isRed: true),
-                      if (firstFee.discount > 0) _pdfRow('Discount', '-Rs. ${firstFee.discount.toStringAsFixed(2)}', isGreen: true),
+                      if (firstFee.feePeriod != null)
+                        _pdfRow('Period', firstFee.feePeriod!),
+                      if (firstFee.description != null)
+                        _pdfRow('Description', firstFee.description!),
+                      _pdfRow('Base Amount',
+                          'Rs. ${firstFee.amount.toStringAsFixed(2)}'),
+                      if (firstFee.lateFine > 0)
+                        _pdfRow('Late Fine',
+                            'Rs. ${firstFee.lateFine.toStringAsFixed(2)}',
+                            isRed: true),
+                      if (firstFee.discount > 0)
+                        _pdfRow('Discount',
+                            '-Rs. ${firstFee.discount.toStringAsFixed(2)}',
+                            isGreen: true),
                     ] else ...[
                       for (var item in items) ...[
-                        _pdfRow('${item.month} (${item.feePeriod ?? ''})', 'Rs. ${item.paidAmount.toStringAsFixed(2)}'),
-                        if (item.lateFine > 0) _pdfRow('  - Late Fine', 'Rs. ${item.lateFine.toStringAsFixed(2)}', isRed: true),
-                        if (item.discount > 0) _pdfRow('  - Discount', '-Rs. ${item.discount.toStringAsFixed(2)}', isGreen: true),
+                        _pdfRow('${item.month} (${item.feePeriod ?? ''})',
+                            'Rs. ${item.paidAmount.toStringAsFixed(2)}'),
+                        if (item.lateFine > 0)
+                          _pdfRow('  - Late Fine',
+                              'Rs. ${item.lateFine.toStringAsFixed(2)}',
+                              isRed: true),
+                        if (item.discount > 0)
+                          _pdfRow('  - Discount',
+                              '-Rs. ${item.discount.toStringAsFixed(2)}',
+                              isGreen: true),
                       ],
                     ],
                     pw.Divider(color: PdfColor.fromHex('#E2E8F0')),
-                    _pdfRow('Total Amount Paid', 'Rs. ${totalPaidAmount.toStringAsFixed(2)}', isBold: true, isGreen: true),
+                    _pdfRow('Total Amount Paid',
+                        'Rs. ${totalPaidAmount.toStringAsFixed(2)}',
+                        isBold: true, isGreen: true),
                   ],
                 ),
               ),
@@ -1188,7 +1288,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                 padding: const pw.EdgeInsets.all(14),
                 decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#F8FAFC'),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
                   border: pw.Border.all(color: PdfColor.fromHex('#E2E8F0')),
                 ),
                 child: pw.Column(
@@ -1211,11 +1312,13 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                 children: [
                   pw.Text(
                     'This is a computer-generated receipt. No signature required.',
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                    style: const pw.TextStyle(
+                        fontSize: 8, color: PdfColors.grey600),
                   ),
                   pw.Text(
                     'Generated: ${_formatDate(DateTime.now())}',
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                    style: const pw.TextStyle(
+                        fontSize: 8, color: PdfColors.grey600),
                   ),
                 ],
               ),
@@ -1226,7 +1329,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     );
 
     final pdfBytes = await pdf.save();
-    final filename = 'Receipt_${firstFee.month.replaceAll(' ', '_')}_$receiptNo.pdf';
+    final filename =
+        'Receipt_${firstFee.month.replaceAll(' ', '_')}_$receiptNo.pdf';
 
     if (kIsWeb) {
       try {
@@ -1237,7 +1341,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               content: Text('📄 Receipt downloaded successfully: $filename'),
               backgroundColor: const Color(0xFF059669),
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
           );
         }
@@ -1288,7 +1393,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     );
   }
 
-  Widget _buildUpiAppItem(String name, String emoji, bool isSelected, VoidCallback onTap) {
+  Widget _buildUpiAppItem(
+      String name, String emoji, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1297,7 +1403,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
           color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+            color:
+                isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
             width: 1.5,
           ),
         ),
@@ -1310,7 +1417,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               style: TextStyle(
                 fontSize: 8,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? const Color(0xFF4F46E5) : StudentColors.text2,
+                color:
+                    isSelected ? const Color(0xFF4F46E5) : StudentColors.text2,
               ),
             ),
           ],
@@ -1321,15 +1429,16 @@ class _StudentFeesState extends ConsumerState<StudentFees>
 
   void _showPaymentModal(BuildContext context, {FeeRecord? targetFee}) {
     // If targetFee is null, we create a temporary "Outstanding Fee" representing the total outstanding balance
-    final fee = targetFee ?? FeeRecord(
-      id: '',
-      month: 'Outstanding Fee',
-      amount: _totalOutstanding,
-      paidAmount: 0,
-      dueAmount: _totalOutstanding,
-      status: 'pending',
-      dueDate: DateTime.now(),
-    );
+    final fee = targetFee ??
+        FeeRecord(
+          id: '',
+          month: 'Outstanding Fee',
+          amount: _totalOutstanding,
+          paidAmount: 0,
+          dueAmount: _totalOutstanding,
+          status: 'pending',
+          dueDate: DateTime.now(),
+        );
 
     if (fee.id.isEmpty && _totalOutstanding <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1353,7 +1462,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
         final cardExpiryController = TextEditingController();
         final cardCvvController = TextEditingController();
         final cardNameController = TextEditingController();
-        final amountController = TextEditingController(text: amountToPay.toStringAsFixed(0));
+        final amountController =
+            TextEditingController(text: amountToPay.toStringAsFixed(0));
 
         String selectedBank = 'State Bank of India';
         String? selectedUpiApp;
@@ -1361,7 +1471,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             Future<void> processPayment(String method) async {
-              final double paymentAmount = double.tryParse(amountController.text) ?? 0.0;
+              final double paymentAmount =
+                  double.tryParse(amountController.text) ?? 0.0;
               if (paymentAmount <= 0) {
                 setModalState(() {
                   errorMessage = 'Please enter a valid amount to pay.';
@@ -1370,7 +1481,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               }
               if (paymentAmount > amountToPay) {
                 setModalState(() {
-                  errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                  errorMessage =
+                      'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
                 });
                 return;
               }
@@ -1384,7 +1496,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                 if (fee.id.isEmpty) {
                   // Pay all outstanding fees!
                   final pendingFeesList = _feeRecords
-                      .where((f) => f.status == 'pending' || f.status == 'partial' || f.status == 'overdue')
+                      .where((f) =>
+                          f.status == 'pending' ||
+                          f.status == 'partial' ||
+                          f.status == 'overdue')
                       .toList();
 
                   if (pendingFeesList.isEmpty) {
@@ -1397,8 +1512,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     amount: paymentAmount,
                     paymentMethod: method,
                     upiId: method == 'upi' ? upiController.text : null,
-                    cardNumber: method == 'card' ? cardNumberController.text : null,
-                    cardExpiry: method == 'card' ? cardExpiryController.text : null,
+                    cardNumber:
+                        method == 'card' ? cardNumberController.text : null,
+                    cardExpiry:
+                        method == 'card' ? cardExpiryController.text : null,
                     cardCvv: method == 'card' ? cardCvvController.text : null,
                     bankName: method == 'netbanking' ? selectedBank : null,
                   );
@@ -1417,8 +1534,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     amount: paymentAmount,
                     paymentMethod: method,
                     upiId: method == 'upi' ? upiController.text : null,
-                    cardNumber: method == 'card' ? cardNumberController.text : null,
-                    cardExpiry: method == 'card' ? cardExpiryController.text : null,
+                    cardNumber:
+                        method == 'card' ? cardNumberController.text : null,
+                    cardExpiry:
+                        method == 'card' ? cardExpiryController.text : null,
                     cardCvv: method == 'card' ? cardCvvController.text : null,
                     bankName: method == 'netbanking' ? selectedBank : null,
                   );
@@ -1466,9 +1585,11 @@ class _StudentFeesState extends ConsumerState<StudentFees>
             }
 
             Widget buildFeeSummary() {
-              final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+              final double enteredAmount =
+                  double.tryParse(amountController.text) ?? 0.0;
               final double remainingAmount = amountToPay - enteredAmount;
-              final bool isInvalid = enteredAmount <= 0 || enteredAmount > amountToPay;
+              final bool isInvalid =
+                  enteredAmount <= 0 || enteredAmount > amountToPay;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -1490,11 +1611,17 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                             children: [
                               Text(
                                 fee.month,
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: StudentColors.text),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: StudentColors.text),
                               ),
                               if (fee.feePeriod != null) ...[
                                 const SizedBox(height: 2),
-                                Text(fee.feePeriod!, style: const TextStyle(color: StudentColors.text3, fontSize: 10)),
+                                Text(fee.feePeriod!,
+                                    style: const TextStyle(
+                                        color: StudentColors.text3,
+                                        fontSize: 10)),
                               ],
                             ],
                           ),
@@ -1506,7 +1633,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: isInvalid ? Colors.red : const Color(0xFF059669),
+                              color: isInvalid
+                                  ? Colors.red
+                                  : const Color(0xFF059669),
                               width: 1.5,
                             ),
                           ),
@@ -1526,7 +1655,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                               Expanded(
                                 child: TextField(
                                   controller: amountController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w900,
@@ -1534,7 +1665,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                                   ),
                                   decoration: const InputDecoration(
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        vertical: 8, horizontal: 2),
                                     border: InputBorder.none,
                                   ),
                                   onChanged: (val) {
@@ -1553,7 +1685,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                       children: [
                         const Text(
                           'Remaining Balance after Payment:',
-                          style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500),
                         ),
                         Text(
                           isInvalid
@@ -1577,7 +1712,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
             Widget buildLockBanner() {
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(10),
@@ -1589,7 +1725,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     SizedBox(width: 8),
                     Text(
                       '256-bit SSL Encrypted · Secure Payment',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF059669), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF059669),
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -1613,7 +1752,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     Expanded(
                       child: Text(
                         errorMessage!,
-                        style: const TextStyle(fontSize: 11, color: Color(0xFFB91C1C), fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFB91C1C),
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -1630,8 +1772,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   buildFeeSummary(),
                   buildLockBanner(),
                   buildErrorMsg(),
-                  _buildPaymentMethod('📱', 'UPI Payment', 'Google Pay, PhonePe, Paytm', () {
-                    final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+                  _buildPaymentMethod(
+                      '📱', 'UPI Payment', 'Google Pay, PhonePe, Paytm', () {
+                    final double enteredAmount =
+                        double.tryParse(amountController.text) ?? 0.0;
                     if (enteredAmount <= 0) {
                       setModalState(() {
                         errorMessage = 'Please enter a valid amount to pay.';
@@ -1640,7 +1784,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     }
                     if (enteredAmount > amountToPay) {
                       setModalState(() {
-                        errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                        errorMessage =
+                            'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
                       });
                       return;
                     }
@@ -1649,8 +1794,11 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                       errorMessage = null;
                     });
                   }),
-                  _buildPaymentMethod('💳', 'Credit / Debit Card', 'Visa, Mastercard, RuPay', () {
-                    final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+                  _buildPaymentMethod(
+                      '💳', 'Credit / Debit Card', 'Visa, Mastercard, RuPay',
+                      () {
+                    final double enteredAmount =
+                        double.tryParse(amountController.text) ?? 0.0;
                     if (enteredAmount <= 0) {
                       setModalState(() {
                         errorMessage = 'Please enter a valid amount to pay.';
@@ -1659,7 +1807,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     }
                     if (enteredAmount > amountToPay) {
                       setModalState(() {
-                        errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                        errorMessage =
+                            'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
                       });
                       return;
                     }
@@ -1668,17 +1817,20 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                       errorMessage = null;
                     });
                   }),
-                  _buildPaymentMethod('🏦', 'Net Banking', 'All major banks supported', () {
-                    final double enteredAmount = double.tryParse(amountController.text) ?? 0.0;
+                  _buildPaymentMethod(
+                      '🏦', 'Net Banking', 'All major banks supported', () {
+                    final double enteredAmount =
+                        double.tryParse(amountController.text) ?? 0.0;
                     if (enteredAmount <= 0) {
                       setModalState(() {
                         errorMessage = 'Please enter a valid amount to pay.';
                       });
                       return;
-                        }
+                    }
                     if (enteredAmount > amountToPay) {
                       setModalState(() {
-                        errorMessage = 'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
+                        errorMessage =
+                            'Payment amount cannot exceed the balance due of ₹${amountToPay.toStringAsFixed(0)}.';
                       });
                       return;
                     }
@@ -1705,34 +1857,41 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   buildErrorMsg(),
                   const Text(
                     'Select UPI App',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: StudentColors.text),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: StudentColors.text),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildUpiAppItem('Google Pay', '📱', selectedUpiApp == 'gpay', () {
+                      _buildUpiAppItem(
+                          'Google Pay', '📱', selectedUpiApp == 'gpay', () {
                         setModalState(() {
                           selectedUpiApp = 'gpay';
                           upiController.text = 'student@okaxis';
                           errorMessage = null;
                         });
                       }),
-                      _buildUpiAppItem('PhonePe', '💜', selectedUpiApp == 'phonepe', () {
+                      _buildUpiAppItem(
+                          'PhonePe', '💜', selectedUpiApp == 'phonepe', () {
                         setModalState(() {
                           selectedUpiApp = 'phonepe';
                           upiController.text = 'student@ybl';
                           errorMessage = null;
                         });
                       }),
-                      _buildUpiAppItem('Paytm', '💙', selectedUpiApp == 'paytm', () {
+                      _buildUpiAppItem('Paytm', '💙', selectedUpiApp == 'paytm',
+                          () {
                         setModalState(() {
                           selectedUpiApp = 'paytm';
                           upiController.text = 'student@paytm';
                           errorMessage = null;
                         });
                       }),
-                      _buildUpiAppItem('BHIM', '🇮🇳', selectedUpiApp == 'bhim', () {
+                      _buildUpiAppItem('BHIM', '🇮🇳', selectedUpiApp == 'bhim',
+                          () {
                         setModalState(() {
                           selectedUpiApp = 'bhim';
                           upiController.text = 'student@upi';
@@ -1744,16 +1903,22 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   const SizedBox(height: 12),
                   const Text(
                     'Or enter UPI ID manually',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: StudentColors.text),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: StudentColors.text),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: upiController,
                     decoration: InputDecoration(
                       hintText: 'e.g. mobile@upi',
-                      hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: StudentColors.text3),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                       prefixIcon: const Icon(Icons.alternate_email, size: 16),
                     ),
                     style: const TextStyle(fontSize: 13),
@@ -1763,10 +1928,13 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => setModalState(() { currentStep = 'select'; }),
+                          onPressed: () => setModalState(() {
+                            currentStep = 'select';
+                          }),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text('Back'),
                         ),
@@ -1775,8 +1943,11 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            if (upiController.text.trim().isEmpty || !upiController.text.contains('@')) {
-                              setModalState(() { errorMessage = 'Invalid UPI ID Format'; });
+                            if (upiController.text.trim().isEmpty ||
+                                !upiController.text.contains('@')) {
+                              setModalState(() {
+                                errorMessage = 'Invalid UPI ID Format';
+                              });
                             } else {
                               processPayment('upi');
                             }
@@ -1785,9 +1956,11 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                             backgroundColor: const Color(0xFF059669),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text('Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
+                          child: Text(
+                              'Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
                         ),
                       ),
                     ],
@@ -1803,29 +1976,39 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   buildFeeSummary(),
                   buildLockBanner(),
                   buildErrorMsg(),
-                  const Text('Cardholder Name', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                  const Text('Cardholder Name',
+                      style:
+                          TextStyle(fontSize: 11, color: StudentColors.text3)),
                   const SizedBox(height: 4),
                   TextField(
                     controller: cardNameController,
                     decoration: InputDecoration(
                       hintText: 'Naresh Upadhyay',
-                      hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: StudentColors.text3),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     style: const TextStyle(fontSize: 13),
                   ),
                   const SizedBox(height: 10),
-                  const Text('Card Number', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                  const Text('Card Number',
+                      style:
+                          TextStyle(fontSize: 11, color: StudentColors.text3)),
                   const SizedBox(height: 4),
                   TextField(
                     controller: cardNumberController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       hintText: 'XXXX XXXX XXXX XXXX',
-                      hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      hintStyle: const TextStyle(
+                          fontSize: 12, color: StudentColors.text3),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                       prefixIcon: const Icon(Icons.credit_card, size: 16),
                     ),
                     style: const TextStyle(fontSize: 13),
@@ -1837,15 +2020,20 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Expiry Date', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                            const Text('Expiry Date',
+                                style: TextStyle(
+                                    fontSize: 11, color: StudentColors.text3)),
                             const SizedBox(height: 4),
                             TextField(
                               controller: cardExpiryController,
                               decoration: InputDecoration(
                                 hintText: 'MM/YY',
-                                hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                hintStyle: const TextStyle(
+                                    fontSize: 12, color: StudentColors.text3),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10)),
                               ),
                               style: const TextStyle(fontSize: 13),
                             ),
@@ -1857,7 +2045,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('CVV', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
+                            const Text('CVV',
+                                style: TextStyle(
+                                    fontSize: 11, color: StudentColors.text3)),
                             const SizedBox(height: 4),
                             TextField(
                               controller: cardCvvController,
@@ -1865,9 +2055,12 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                               obscureText: true,
                               decoration: InputDecoration(
                                 hintText: '•••',
-                                hintStyle: const TextStyle(fontSize: 12, color: StudentColors.text3),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                hintStyle: const TextStyle(
+                                    fontSize: 12, color: StudentColors.text3),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10)),
                               ),
                               style: const TextStyle(fontSize: 13),
                             ),
@@ -1881,10 +2074,13 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => setModalState(() { currentStep = 'select'; }),
+                          onPressed: () => setModalState(() {
+                            currentStep = 'select';
+                          }),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text('Back'),
                         ),
@@ -1894,13 +2090,26 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                         child: ElevatedButton(
                           onPressed: () {
                             if (cardNameController.text.trim().isEmpty) {
-                              setModalState(() { errorMessage = 'Cardholder Name Required'; });
-                            } else if (cardNumberController.text.replaceAll(' ', '').length < 12) {
-                              setModalState(() { errorMessage = 'Invalid Card Number'; });
-                            } else if (cardExpiryController.text.trim().isEmpty) {
-                              setModalState(() { errorMessage = 'Card Expiry Required'; });
+                              setModalState(() {
+                                errorMessage = 'Cardholder Name Required';
+                              });
+                            } else if (cardNumberController.text
+                                    .replaceAll(' ', '')
+                                    .length <
+                                12) {
+                              setModalState(() {
+                                errorMessage = 'Invalid Card Number';
+                              });
+                            } else if (cardExpiryController.text
+                                .trim()
+                                .isEmpty) {
+                              setModalState(() {
+                                errorMessage = 'Card Expiry Required';
+                              });
                             } else if (cardCvvController.text.length != 3) {
-                              setModalState(() { errorMessage = 'Invalid CVV (3 digits)'; });
+                              setModalState(() {
+                                errorMessage = 'Invalid CVV (3 digits)';
+                              });
                             } else {
                               processPayment('card');
                             }
@@ -1909,9 +2118,11 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                             backgroundColor: const Color(0xFF059669),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text('Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
+                          child: Text(
+                              'Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
                         ),
                       ),
                     ],
@@ -1929,7 +2140,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   buildErrorMsg(),
                   const Text(
                     'Select Your Bank',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: StudentColors.text),
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: StudentColors.text),
                   ),
                   const SizedBox(height: 8),
                   Container(
@@ -1955,12 +2169,15 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                         ].map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
-                            child: Text(value, style: const TextStyle(fontSize: 13)),
+                            child: Text(value,
+                                style: const TextStyle(fontSize: 13)),
                           );
                         }).toList(),
                         onChanged: (String? newValue) {
                           if (newValue != null) {
-                            setModalState(() { selectedBank = newValue; });
+                            setModalState(() {
+                              selectedBank = newValue;
+                            });
                           }
                         },
                       ),
@@ -1976,10 +2193,13 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => setModalState(() { currentStep = 'select'; }),
+                          onPressed: () => setModalState(() {
+                            currentStep = 'select';
+                          }),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
                           child: const Text('Back'),
                         ),
@@ -1992,9 +2212,11 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                             backgroundColor: const Color(0xFF059669),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
                           ),
-                          child: Text('Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
+                          child: Text(
+                              'Pay ₹${(double.tryParse(amountController.text) ?? amountToPay).toStringAsFixed(0)}'),
                         ),
                       ),
                     ],
@@ -2009,16 +2231,20 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669))),
+                      CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Color(0xFF059669))),
                       SizedBox(height: 16),
                       Text(
                         'Processing secure payment...',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13),
                       ),
                       SizedBox(height: 4),
                       Text(
                         'Do not close this window or press back.',
-                        style: TextStyle(color: StudentColors.text3, fontSize: 10),
+                        style:
+                            TextStyle(color: StudentColors.text3, fontSize: 10),
                       ),
                     ],
                   ),
@@ -2027,7 +2253,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
             }
 
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              padding:
+                  EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
               child: Container(
                 padding: const EdgeInsets.all(20),
                 constraints: BoxConstraints(
@@ -2046,7 +2273,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     );
   }
 
-  Widget _buildPaymentMethod(String icon, String title, String subtitle, VoidCallback onTap) {
+  Widget _buildPaymentMethod(
+      String icon, String title, String subtitle, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -2065,13 +2293,18 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 13)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: StudentColors.text3, fontSize: 10)),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          color: StudentColors.text3, fontSize: 10)),
                 ],
               ),
             ),
-            const Text('›', style: TextStyle(fontSize: 20, color: Color(0xFFCBD5E1))),
+            const Text('›',
+                style: TextStyle(fontSize: 20, color: Color(0xFFCBD5E1))),
           ],
         ),
       ),
@@ -2081,8 +2314,10 @@ class _StudentFeesState extends ConsumerState<StudentFees>
   void _showPaymentSuccess(BuildContext context, Map<String, dynamic> result) {
     final data = result['data'] as Map<String, dynamic>? ?? {};
     final recipient = data['recipient_details'] as Map<String, dynamic>? ?? {};
-    final String transactionId = data['transaction_id'] ?? 'TXN-${DateTime.now().millisecondsSinceEpoch}';
-    final double amount = double.tryParse(data['amount']?.toString() ?? '0') ?? 0;
+    final String transactionId = data['transaction_id'] ??
+        'TXN-${DateTime.now().millisecondsSinceEpoch}';
+    final double amount =
+        double.tryParse(data['amount']?.toString() ?? '0') ?? 0;
     final String method = data['payment_method'] ?? 'UPI';
 
     showModalBottomSheet(
@@ -2091,7 +2326,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
       isScrollControlled: true,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -2103,8 +2339,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
               Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFECFDF5),
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
@@ -2158,10 +2394,14 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     children: [
                       const Text(
                         'Recipient Details',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0284C7)),
                       ),
                       const SizedBox(height: 8),
-                      _buildSuccessRow('Name', recipient['account_holder_name'] ?? ''),
+                      _buildSuccessRow(
+                          'Name', recipient['account_holder_name'] ?? ''),
                       if (method == 'upi' && recipient['upi_id'] != null) ...[
                         const SizedBox(height: 4),
                         _buildSuccessRow('UPI ID', recipient['upi_id']),
@@ -2169,9 +2409,11 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                         const SizedBox(height: 4),
                         _buildSuccessRow('Bank', recipient['bank_name'] ?? ''),
                         const SizedBox(height: 4),
-                        _buildSuccessRow('Account No.', recipient['account_number']),
+                        _buildSuccessRow(
+                            'Account No.', recipient['account_number']),
                         const SizedBox(height: 4),
-                        _buildSuccessRow('IFSC Code', recipient['ifsc_code'] ?? ''),
+                        _buildSuccessRow(
+                            'IFSC Code', recipient['ifsc_code'] ?? ''),
                       ],
                     ],
                   ),
@@ -2186,9 +2428,12 @@ class _StudentFeesState extends ConsumerState<StudentFees>
                     backgroundColor: const Color(0xFF059669),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  child: const Text('Done',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                 ),
               ),
             ],
@@ -2202,7 +2447,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
         Flexible(
           child: Text(
             value,

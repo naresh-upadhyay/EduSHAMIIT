@@ -12,7 +12,8 @@ class CallNotificationOverlay extends StatefulWidget {
   const CallNotificationOverlay({super.key, required this.child});
 
   @override
-  State<CallNotificationOverlay> createState() => _CallNotificationOverlayState();
+  State<CallNotificationOverlay> createState() =>
+      _CallNotificationOverlayState();
 }
 
 class _CallNotificationOverlayState extends State<CallNotificationOverlay>
@@ -33,7 +34,8 @@ class _CallNotificationOverlayState extends State<CallNotificationOverlay>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1.5),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
 
     _callService.incomingCall.addListener(_onIncomingCallChanged);
   }
@@ -138,9 +140,9 @@ class _CallNotificationOverlayState extends State<CallNotificationOverlay>
             Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
                 ),
               ),
@@ -152,7 +154,10 @@ class _CallNotificationOverlayState extends State<CallNotificationOverlay>
                         errorBuilder: (_, __, ___) => Center(
                           child: Text(
                             initials,
-                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -160,7 +165,10 @@ class _CallNotificationOverlayState extends State<CallNotificationOverlay>
                   : Center(
                       child: Text(
                         initials,
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
             ),
@@ -179,7 +187,9 @@ class _CallNotificationOverlayState extends State<CallNotificationOverlay>
                     ),
                   ),
                   Text(
-                    isVideo ? '📹 Incoming Video Call' : '📞 Incoming Voice Call',
+                    isVideo
+                        ? '📹 Incoming Video Call'
+                        : '📞 Incoming Voice Call',
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 11,
@@ -200,7 +210,8 @@ class _CallNotificationOverlayState extends State<CallNotificationOverlay>
                   color: Colors.redAccent,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 22),
+                child: const Icon(Icons.call_end_rounded,
+                    color: Colors.white, size: 22),
               ),
             ),
             const SizedBox(width: 8),

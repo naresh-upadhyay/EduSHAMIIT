@@ -379,6 +379,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/teacher/live-classes',
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherLiveClasses()),
+          routes: [
+            GoRoute(
+              path: 'play/:id',
+              pageBuilder: (context, state) {
+                final classId = state.pathParameters['id']!;
+                return NoTransitionPage(
+                  child: StudentLiveClassPlayerScreen(classId: classId),
+                );
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/teacher/live-session',
