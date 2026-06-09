@@ -212,6 +212,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher_live_classes_fab',
         onPressed: () => _showScheduleDialog(),
         backgroundColor: const Color(0xFFEF4444),
         icon: const Icon(Icons.video_call, color: Colors.white),

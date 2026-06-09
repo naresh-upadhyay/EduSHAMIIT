@@ -134,6 +134,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher_homework_fab',
         onPressed: _showCreateModal,
         backgroundColor: _kPink,
         foregroundColor: Colors.white,

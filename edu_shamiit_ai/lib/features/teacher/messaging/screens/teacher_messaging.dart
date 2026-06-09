@@ -45,7 +45,9 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
       await ref.read(messagingProvider.notifier).fetchMessages();
       if (widget.initialChatId != null && mounted) {
         final conversations = ref.read(messagingProvider).conversations;
-        final match = conversations.where((c) => c.id == widget.initialChatId).firstOrNull;
+        final match = conversations
+            .where((c) => c.id == widget.initialChatId)
+            .firstOrNull;
         if (match != null) {
           _openChat(match);
         } else {
@@ -65,8 +67,9 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
 
     final channelName = 'messages_list_teach_$currentUserId';
     _realtimeChannel = Supabase.instance.client.channel(channelName);
-    
-    _realtimeChannel!.onPostgresChanges(
+
+    _realtimeChannel!
+        .onPostgresChanges(
       event: PostgresChangeEvent.insert,
       schema: 'public',
       table: 'messages',
@@ -76,13 +79,15 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
         final msgGroupId = newRecord['group_id'] as String?;
         final msgSenderId = newRecord['sender_id'] as String?;
         final msgReceiverId = newRecord['receiver_id'] as String?;
-        
+
         bool shouldUpdate = false;
         if (msgGroupId != null) {
           final conversations = ref.read(messagingProvider).conversations;
-          shouldUpdate = conversations.any((c) => c.type == 'group' && c.id == msgGroupId);
+          shouldUpdate =
+              conversations.any((c) => c.type == 'group' && c.id == msgGroupId);
         } else {
-          shouldUpdate = msgSenderId == currentUserId || msgReceiverId == currentUserId;
+          shouldUpdate =
+              msgSenderId == currentUserId || msgReceiverId == currentUserId;
         }
 
         if (shouldUpdate) {
@@ -90,7 +95,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
           ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
         }
       },
-    ).subscribe((status, [error]) {
+    )
+        .subscribe((status, [error]) {
       debugPrint('[Realtime List] Channel status: $status, error: $error');
     });
   }
@@ -99,7 +105,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
     final query = _searchController.text.trim();
     if (query.isNotEmpty) {
       setState(() => _isSearching = true);
-      final results = await ref.read(messagingProvider.notifier).searchUsers(query);
+      final results =
+          await ref.read(messagingProvider.notifier).searchUsers(query);
       setState(() {
         _searchResults = results;
         _isSearching = false;
@@ -126,7 +133,7 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
     final diff = now.difference(dateTime);
-    
+
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
@@ -158,8 +165,10 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
     // Filter conversations by category
     final filteredConversations = conversations.where((c) {
       if (_selectedCategory == 0) return true;
-      if (_selectedCategory == 1) return c.type == 'direct' && c.role == 'teacher';
-      if (_selectedCategory == 2) return c.type == 'direct' && c.role == 'student';
+      if (_selectedCategory == 1)
+        return c.type == 'direct' && c.role == 'teacher';
+      if (_selectedCategory == 2)
+        return c.type == 'direct' && c.role == 'student';
       if (_selectedCategory == 3) return c.type == 'group';
       return true;
     }).toList();
@@ -172,7 +181,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF0EA5E9), Color(0xFF0369A1)],
@@ -217,14 +227,16 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                       )
                     : null,
                 hintText: '🔍 Search teachers, students...',
-                hintStyle: const TextStyle(fontSize: 12, color: TeacherColors.text3),
+                hintStyle:
+                    const TextStyle(fontSize: 12, color: TeacherColors.text3),
                 filled: true,
                 fillColor: TeacherColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: TeacherColors.border),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
           ),
@@ -261,7 +273,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.chat_bubble_outline, size: 64, color: TeacherColors.text3),
+                                    Icon(Icons.chat_bubble_outline,
+                                        size: 64, color: TeacherColors.text3),
                                     SizedBox(height: 16),
                                     Text(
                                       'No messages yet',
@@ -279,7 +292,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                                 padding: const EdgeInsets.all(14),
                                 itemCount: filteredConversations.length,
                                 itemBuilder: (context, index) {
-                                  return _buildChatTile(filteredConversations[index]);
+                                  return _buildChatTile(
+                                      filteredConversations[index]);
                                 },
                               ),
           ),
@@ -438,7 +452,9 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
               ),
             );
             if (mounted) {
-              ref.read(messagingProvider.notifier).fetchMessages(useCache: false);
+              ref
+                  .read(messagingProvider.notifier)
+                  .fetchMessages(useCache: false);
             }
           },
           child: Container(
@@ -465,14 +481,16 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                     ),
                     borderRadius: BorderRadius.circular(50),
                   ),
-                  child: u['avatar_url'] != null && (u['avatar_url'] as String).isNotEmpty
+                  child: u['avatar_url'] != null &&
+                          (u['avatar_url'] as String).isNotEmpty
                       ? ClipOval(
                           child: Image.network(
                             u['avatar_url'] as String,
                             fit: BoxFit.cover,
                             width: 42,
                             height: 42,
-                            errorBuilder: (context, error, stackTrace) => Center(
+                            errorBuilder: (context, error, stackTrace) =>
+                                Center(
                               child: Text(
                                 initial,
                                 style: const TextStyle(
@@ -535,10 +553,9 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
 
   Widget _buildChatTile(ChatConversation conversation) {
     final gradient = _getGradientForSender(conversation.id);
-    final initial = conversation.name.isNotEmpty 
-        ? conversation.name[0].toUpperCase() 
-        : 'U';
-    
+    final initial =
+        conversation.name.isNotEmpty ? conversation.name[0].toUpperCase() : 'U';
+
     return GestureDetector(
       onTap: () => _openChat(conversation),
       child: Container(
@@ -565,17 +582,22 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                     gradient: gradient,
                     borderRadius: BorderRadius.circular(50),
                   ),
-                  child: conversation.avatarUrl != null && conversation.avatarUrl!.isNotEmpty
+                  child: conversation.avatarUrl != null &&
+                          conversation.avatarUrl!.isNotEmpty
                       ? ClipOval(
                           child: Image.network(
                             conversation.avatarUrl!,
                             fit: BoxFit.cover,
                             width: 42,
                             height: 42,
-                            errorBuilder: (context, error, stackTrace) => Center(
+                            errorBuilder: (context, error, stackTrace) =>
+                                Center(
                               child: Text(
                                 initial,
-                                style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
                               ),
                             ),
                           ),
@@ -583,7 +605,10 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                       : Center(
                           child: Text(
                             initial,
-                            style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                 ),
@@ -620,7 +645,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                       if (conversation.type == 'group') ...[
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: const Color(0xFFE0F2FE),
                             borderRadius: BorderRadius.circular(4),
@@ -642,8 +668,12 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                     conversation.lastMessage,
                     style: TextStyle(
                       fontSize: 10,
-                      color: conversation.unreadCount > 0 ? TeacherColors.text : TeacherColors.text3,
-                      fontWeight: conversation.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+                      color: conversation.unreadCount > 0
+                          ? TeacherColors.text
+                          : TeacherColors.text3,
+                      fontWeight: conversation.unreadCount > 0
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -664,7 +694,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                 if (conversation.unreadCount > 0) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: const BoxDecoration(
                       color: TeacherColors.primary,
                       borderRadius: BorderRadius.all(Radius.circular(10)),
@@ -672,7 +703,10 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                     child: Center(
                       child: Text(
                         '${conversation.unreadCount}',
-                        style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 8,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -706,7 +740,8 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
     try {
       final client = Supabase.instance.client;
       // 1. Check if it's a group
-      final groupRes = await client.from('groups').select().eq('id', id).maybeSingle();
+      final groupRes =
+          await client.from('groups').select().eq('id', id).maybeSingle();
       if (groupRes != null) {
         if (!mounted) return;
         await Navigator.push(
@@ -725,9 +760,10 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
         }
         return;
       }
-      
+
       // 2. Otherwise check if it's a user profile
-      final profileRes = await client.from('profiles').select().eq('id', id).maybeSingle();
+      final profileRes =
+          await client.from('profiles').select().eq('id', id).maybeSingle();
       if (profileRes != null) {
         if (!mounted) return;
         await Navigator.push(
@@ -796,33 +832,52 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
                           itemBuilder: (context, index) {
                             final g = groups[index];
                             final name = g['name'] as String;
-                            final desc = g['description'] as String? ?? 'No description';
+                            final desc =
+                                g['description'] as String? ?? 'No description';
                             final id = g['id'] as String;
                             final isMember = g['is_member'] as bool? ?? false;
-                            
+
                             return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                              title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              subtitle: Text(desc, style: const TextStyle(fontSize: 11, color: TeacherColors.text3)),
+                              contentPadding:
+                                  const EdgeInsets.symmetric(vertical: 4),
+                              title: Text(name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
+                              subtitle: Text(desc,
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: TeacherColors.text3)),
                               trailing: isMember
-                                  ? const Text('Joined', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))
+                                  ? const Text('Joined',
+                                      style: TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12))
                                   : ElevatedButton(
                                       onPressed: () async {
-                                        final messenger = ScaffoldMessenger.of(context);
+                                        final messenger =
+                                            ScaffoldMessenger.of(context);
                                         Navigator.pop(context);
-                                        final ok = await ref.read(messagingProvider.notifier).joinGroup(id);
+                                        final ok = await ref
+                                            .read(messagingProvider.notifier)
+                                            .joinGroup(id);
                                         if (ok && mounted) {
                                           messenger.showSnackBar(
-                                            SnackBar(content: Text('Joined squad "$name"!')),
+                                            SnackBar(
+                                                content: Text(
+                                                    'Joined squad "$name"!')),
                                           );
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: TeacherColors.primary,
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16),
                                       ),
-                                      child: const Text('Join', style: TextStyle(fontSize: 12)),
+                                      child: const Text('Join',
+                                          style: TextStyle(fontSize: 12)),
                                     ),
                             );
                           },
@@ -867,7 +922,8 @@ class _ChatDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<_ChatDetailScreen> createState() => _ChatDetailScreenState();
 }
 
-class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with TickerProviderStateMixin {
+class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen>
+    with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   RealtimeChannel? _realtimeChannel;
@@ -886,10 +942,13 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   void initState() {
     super.initState();
     _messageController.addListener(_onMessageTextChanged);
-    _micPulseController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
-    
+    _micPulseController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 1));
+
     Future.microtask(() async {
-      await ref.read(messagingProvider.notifier).fetchChatHistory(widget.senderId);
+      await ref
+          .read(messagingProvider.notifier)
+          .fetchChatHistory(widget.senderId);
       _updateLastSeenMessageId();
     });
 
@@ -919,9 +978,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
         return;
       }
       await ref.read(messagingProvider.notifier).fetchChatHistory(
-        widget.senderId,
-        refreshConversations: false,
-      );
+            widget.senderId,
+            refreshConversations: false,
+          );
       _updateLastSeenMessageId();
     });
   }
@@ -933,8 +992,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
 
     final channelName = 'messages_chat_teach_${widget.senderId}_$currentUserId';
     _realtimeChannel = Supabase.instance.client.channel(channelName);
-    
-    _realtimeChannel!.onPostgresChanges(
+
+    _realtimeChannel!
+        .onPostgresChanges(
       event: PostgresChangeEvent.insert,
       schema: 'public',
       table: 'messages',
@@ -944,39 +1004,52 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
         final msgGroupId = newRecord['group_id'] as String?;
         final msgSenderId = newRecord['sender_id'] as String?;
         final msgReceiverId = newRecord['receiver_id'] as String?;
-        
+
         debugPrint('[Realtime] Received insert payload: $newRecord');
-        
+
         bool shouldUpdate = false;
         if (widget.isGroup) {
-          shouldUpdate = msgGroupId?.toLowerCase() == widget.senderId.toLowerCase();
-          debugPrint('[Realtime] group_id: $msgGroupId, widget.senderId: ${widget.senderId}, shouldUpdate: $shouldUpdate');
+          shouldUpdate =
+              msgGroupId?.toLowerCase() == widget.senderId.toLowerCase();
+          debugPrint(
+              '[Realtime] group_id: $msgGroupId, widget.senderId: ${widget.senderId}, shouldUpdate: $shouldUpdate');
         } else {
-          final isFromPartner = msgSenderId?.toLowerCase() == widget.senderId.toLowerCase() &&
-              (msgReceiverId == null || msgReceiverId.toLowerCase() == currentUserId.toLowerCase());
-          final isFromMe = msgSenderId?.toLowerCase() == currentUserId.toLowerCase() &&
-              (msgReceiverId == null || msgReceiverId.toLowerCase() == widget.senderId.toLowerCase());
+          final isFromPartner = msgSenderId?.toLowerCase() ==
+                  widget.senderId.toLowerCase() &&
+              (msgReceiverId == null ||
+                  msgReceiverId.toLowerCase() == currentUserId.toLowerCase());
+          final isFromMe = msgSenderId?.toLowerCase() ==
+                  currentUserId.toLowerCase() &&
+              (msgReceiverId == null ||
+                  msgReceiverId.toLowerCase() == widget.senderId.toLowerCase());
           final noReceiver = msgReceiverId == null || msgReceiverId.isEmpty;
-          final involvesMe = msgSenderId?.toLowerCase() == currentUserId.toLowerCase() ||
-              msgSenderId?.toLowerCase() == widget.senderId.toLowerCase();
-          shouldUpdate = isFromPartner || isFromMe || (noReceiver && involvesMe);
-          debugPrint('[Realtime] isFromPartner: $isFromPartner, isFromMe: $isFromMe, noReceiver: $noReceiver, shouldUpdate: $shouldUpdate');
+          final involvesMe =
+              msgSenderId?.toLowerCase() == currentUserId.toLowerCase() ||
+                  msgSenderId?.toLowerCase() == widget.senderId.toLowerCase();
+          shouldUpdate =
+              isFromPartner || isFromMe || (noReceiver && involvesMe);
+          debugPrint(
+              '[Realtime] isFromPartner: $isFromPartner, isFromMe: $isFromMe, noReceiver: $noReceiver, shouldUpdate: $shouldUpdate');
         }
 
         if (shouldUpdate) {
-          ref.read(messagingProvider.notifier).appendNewMessage(newRecord, currentUserId);
+          ref
+              .read(messagingProvider.notifier)
+              .appendNewMessage(newRecord, currentUserId);
           _lastSeenMessageId = newRecord['id'] as String? ?? _lastSeenMessageId;
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted) {
               ref.read(messagingProvider.notifier).fetchChatHistory(
-                widget.senderId,
-                refreshConversations: msgSenderId?.toLowerCase() != currentUserId.toLowerCase(),
-              );
+                    widget.senderId,
+                    refreshConversations: msgSenderId?.toLowerCase() !=
+                        currentUserId.toLowerCase(),
+                  );
             }
           });
         }
       },
-    ).subscribe((status, [error]) {
+    )
+        .subscribe((status, [error]) {
       debugPrint('[Realtime] Channel status: $status, error: $error');
     });
   }
@@ -1018,10 +1091,15 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       try {
         _sttAvailable = await _stt.initialize(
           onError: (e) {
-            if (mounted) setState(() { _isListening = false; });
+            if (mounted)
+              setState(() {
+                _isListening = false;
+              });
           },
           onStatus: (s) {
-            if ((s == 'done' || s == 'notListening') && mounted && _isListening) {
+            if ((s == 'done' || s == 'notListening') &&
+                mounted &&
+                _isListening) {
               _onSttDone();
             }
           },
@@ -1034,7 +1112,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     if (!mounted) return;
     if (!_sttAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Speech recognition is not available on this device.')),
+        const SnackBar(
+            content:
+                Text('Speech recognition is not available on this device.')),
       );
       return;
     }
@@ -1071,7 +1151,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       );
     } catch (e) {
       if (mounted) {
-        setState(() { _isListening = false; });
+        setState(() {
+          _isListening = false;
+        });
         _micPulseController.stop();
       }
     }
@@ -1114,8 +1196,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
             animation: _micPulseController,
             builder: (_, __) => Icon(
               Icons.mic_rounded,
-              color: Colors.red.withValues(
-                  alpha: 0.5 + 0.5 * _micPulseController.value),
+              color: Colors.red
+                  .withValues(alpha: 0.5 + 0.5 * _micPulseController.value),
               size: 20 + 4 * _micPulseController.value,
             ),
           ),
@@ -1126,7 +1208,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               style: TextStyle(
                 fontSize: 13,
                 color: _liveWords.isEmpty ? Colors.grey : Colors.black87,
-                fontStyle: _liveWords.isEmpty ? FontStyle.italic : FontStyle.normal,
+                fontStyle:
+                    _liveWords.isEmpty ? FontStyle.italic : FontStyle.normal,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -1245,26 +1328,28 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   Future<void> _pickMedia(ImageSource source) async {
     final pickedFile = await ImagePicker().pickImage(source: source);
     if (pickedFile == null) return;
-    
+
     final bytes = await pickedFile.readAsBytes();
     final filename = pickedFile.name;
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('📸 Uploading image...'), duration: Duration(seconds: 2)),
+        const SnackBar(
+            content: Text('📸 Uploading image...'),
+            duration: Duration(seconds: 2)),
       );
     }
-    
+
     try {
       final response = await ref.read(apiServiceProvider).multipartPostBytes(
-        '/teacher/messages/upload',
-        bytes,
-        filename,
-        'file',
-      );
+            '/teacher/messages/upload',
+            bytes,
+            filename,
+            'file',
+          );
       final data = response.containsKey('data') ? response['data'] : response;
       final url = data['url'] as String;
-      
+
       _sendMessage('[IMAGE]$url');
     } catch (e) {
       if (mounted) {
@@ -1278,28 +1363,30 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   Future<void> _pickDocument() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.any);
     if (result == null || result.files.isEmpty) return;
-    
+
     final file = result.files.first;
     final bytes = file.bytes;
     if (bytes == null) return;
     final filename = file.name;
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('📄 Uploading document...'), duration: Duration(seconds: 2)),
+        const SnackBar(
+            content: Text('📄 Uploading document...'),
+            duration: Duration(seconds: 2)),
       );
     }
-    
+
     try {
       final response = await ref.read(apiServiceProvider).multipartPostBytes(
-        '/teacher/messages/upload',
-        bytes,
-        filename,
-        'file',
-      );
+            '/teacher/messages/upload',
+            bytes,
+            filename,
+            'file',
+          );
       final data = response.containsKey('data') ? response['data'] : response;
       final url = data['url'] as String;
-      
+
       _sendMessage('[DOCUMENT]$url|$filename');
     } catch (e) {
       if (mounted) {
@@ -1311,7 +1398,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   }
 
   Future<void> _clearChat() async {
-    final ok = await ref.read(messagingProvider.notifier).clearChat(widget.senderId);
+    final ok =
+        await ref.read(messagingProvider.notifier).clearChat(widget.senderId);
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Chat cleared successfully!')),
@@ -1327,27 +1415,30 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       );
       return;
     }
-    
+
     final StringBuffer sb = StringBuffer();
     sb.writeln('========================================');
     sb.writeln('EduSHAMIIT Chat Export with: ${widget.senderName}');
     sb.writeln('Exported on: ${DateTime.now().toLocal()}');
     sb.writeln('========================================\n');
-    
+
     final currentUserId = ref.read(authProvider).userData?['id'] as String?;
-    
+
     for (final msg in history) {
       final timeStr = msg.createdAt.toLocal().toString();
-      final senderName = msg.senderId == currentUserId ? 'You' : (msg.senderName ?? 'Contact');
+      final senderName =
+          msg.senderId == currentUserId ? 'You' : (msg.senderName ?? 'Contact');
       sb.writeln('[$timeStr] $senderName: ${msg.content}');
     }
-    
+
     try {
       final content = sb.toString();
-      final dataUri = 'data:text/plain;charset=utf-8,${Uri.encodeComponent(content)}';
-      final filename = "chat_export_${widget.senderName.replaceAll(' ', '_')}.txt";
+      final dataUri =
+          'data:text/plain;charset=utf-8,${Uri.encodeComponent(content)}';
+      final filename =
+          "chat_export_${widget.senderName.replaceAll(' ', '_')}.txt";
       await getDownloadHelper().downloadFile(dataUri, filename);
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Chat exported successfully as $filename')),
@@ -1378,7 +1469,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
             children: [
               Icon(Icons.reply, color: Colors.white, size: 18),
               SizedBox(width: 8),
-              Text('Reply', style: TextStyle(color: Colors.white, fontSize: 13)),
+              Text('Reply',
+                  style: TextStyle(color: Colors.white, fontSize: 13)),
             ],
           ),
         ),
@@ -1399,7 +1491,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               children: [
                 Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
                 SizedBox(width: 8),
-                Text('Delete', style: TextStyle(color: Colors.redAccent, fontSize: 13)),
+                Text('Delete',
+                    style: TextStyle(color: Colors.redAccent, fontSize: 13)),
               ],
             ),
           ),
@@ -1425,7 +1518,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   }
 
   Future<void> _deleteMessage(String messageId) async {
-    final ok = await ref.read(messagingProvider.notifier).deleteMessage(messageId, widget.senderId);
+    final ok = await ref
+        .read(messagingProvider.notifier)
+        .deleteMessage(messageId, widget.senderId);
     if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Message deleted successfully!')),
@@ -1450,7 +1545,10 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               children: [
                 Text(
                   'Replying to ${msgName(_replyingTo!)}',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: TeacherColors.primary),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: TeacherColors.primary),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -1515,14 +1613,16 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   void _showDetailsView() async {
     List<Map<String, dynamic>> groupMembers = [];
     bool isLoadingMembers = false;
-    
+
     if (widget.isGroup) {
       setState(() => isLoadingMembers = true);
-      groupMembers = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+      groupMembers = await ref
+          .read(messagingProvider.notifier)
+          .fetchGroupMembers(widget.senderId);
       if (!mounted) return;
       setState(() => isLoadingMembers = false);
     }
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1530,12 +1630,14 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final currentUserId = ref.read(authProvider).userData?['id'] as String?;
+            final currentUserId =
+                ref.read(authProvider).userData?['id'] as String?;
             final currentUserMember = groupMembers.firstWhere(
               (m) => m['id'] == currentUserId,
               orElse: () => <String, dynamic>{},
             );
-            final isCurrentUserAdmin = currentUserMember['group_role'] == 'admin';
+            final isCurrentUserAdmin =
+                currentUserMember['group_role'] == 'admin';
 
             return DraggableScrollableSheet(
               initialChildSize: 0.85,
@@ -1545,7 +1647,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                 return Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   child: ListView(
                     controller: scrollController,
@@ -1570,30 +1673,48 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                               height: 80,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
+                                  colors: [
+                                    Color(0xFF0EA5E9),
+                                    Color(0xFF06B6D4)
+                                  ],
                                 ),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.lightBlue.shade100, width: 3),
+                                border: Border.all(
+                                    color: Colors.lightBlue.shade100, width: 3),
                               ),
-                              child: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
+                              child: widget.avatarUrl != null &&
+                                      widget.avatarUrl!.isNotEmpty
                                   ? ClipOval(
                                       child: Image.network(
                                         widget.avatarUrl!,
                                         fit: BoxFit.cover,
                                         width: 80,
                                         height: 80,
-                                        errorBuilder: (context, error, stackTrace) => Center(
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Center(
                                           child: Text(
-                                            widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
-                                            style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+                                            widget.senderName.isNotEmpty
+                                                ? widget.senderName[0]
+                                                    .toUpperCase()
+                                                : 'U',
+                                            style: const TextStyle(
+                                                fontSize: 32,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold),
                                           ),
                                         ),
                                       ),
                                     )
                                   : Center(
                                       child: Text(
-                                        widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
-                                        style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+                                        widget.senderName.isNotEmpty
+                                            ? widget.senderName[0].toUpperCase()
+                                            : 'U',
+                                        style: const TextStyle(
+                                            fontSize: 32,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                     ),
                             ),
@@ -1609,7 +1730,10 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                             const SizedBox(height: 4),
                             Text(
                               widget.isGroup ? "Study Group" : "School Member",
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
@@ -1620,17 +1744,23 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                       if (widget.isGroup) ...[
                         Row(
                           children: [
-                            const Icon(Icons.info_outline, color: TeacherColors.primary, size: 20),
+                            const Icon(Icons.info_outline,
+                                color: TeacherColors.primary, size: 20),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text("Description", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                  const Text("Description",
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 2),
                                   Text(
                                     "Active collaboration, notes sharing, and revision queries squad.",
-                                    style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey[800]),
                                   ),
                                 ],
                               ),
@@ -1645,11 +1775,14 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                           children: [
                             Text(
                               "Group Members (${groupMembers.length})",
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.person_add_alt_1_rounded, color: TeacherColors.primary, size: 20),
-                              onPressed: () => _showAddMemberDialog(setSheetState, groupMembers),
+                              icon: const Icon(Icons.person_add_alt_1_rounded,
+                                  color: TeacherColors.primary, size: 20),
+                              onPressed: () => _showAddMemberDialog(
+                                  setSheetState, groupMembers),
                             ),
                           ],
                         ),
@@ -1659,7 +1792,10 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                         else if (groupMembers.isEmpty)
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Center(child: Text("No members in this group", style: TextStyle(fontSize: 12, color: Colors.grey))),
+                            child: Center(
+                                child: Text("No members in this group",
+                                    style: TextStyle(
+                                        fontSize: 12, color: Colors.grey))),
                           )
                         else
                           ListView.builder(
@@ -1668,13 +1804,16 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                             itemCount: groupMembers.length,
                             itemBuilder: (context, index) {
                               final member = groupMembers[index];
-                              final mName = member['full_name'] as String? ?? 'Member';
-                              final mRole = member['role'] as String? ?? 'student';
-                              final gRole = member['group_role'] as String? ?? 'member';
+                              final mName =
+                                  member['full_name'] as String? ?? 'Member';
+                              final mRole =
+                                  member['role'] as String? ?? 'student';
+                              final gRole =
+                                  member['group_role'] as String? ?? 'member';
                               final isCreator = gRole == 'admin';
                               final mId = member['id'] as String;
                               final isSelf = mId == currentUserId;
-                              
+
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 onTap: (isCurrentUserAdmin && !isSelf)
@@ -1685,7 +1824,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                                           groupMembers,
                                         )
                                     : null,
-                                leading: member['avatar_url'] != null && (member['avatar_url'] as String).isNotEmpty
+                                leading: member['avatar_url'] != null &&
+                                        (member['avatar_url'] as String)
+                                            .isNotEmpty
                                     ? SizedBox(
                                         width: 40,
                                         height: 40,
@@ -1695,28 +1836,59 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                                             fit: BoxFit.cover,
                                             width: 40,
                                             height: 40,
-                                            errorBuilder: (context, error, stackTrace) => Container(
-                                              color: TeacherColors.primary.withValues(alpha: 0.1),
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
+                                              color: TeacherColors.primary
+                                                  .withValues(alpha: 0.1),
                                               alignment: Alignment.center,
-                                              child: Text(mName.isNotEmpty ? mName[0].toUpperCase() : 'M', style: const TextStyle(color: TeacherColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                                              child: Text(
+                                                  mName.isNotEmpty
+                                                      ? mName[0].toUpperCase()
+                                                      : 'M',
+                                                  style: const TextStyle(
+                                                      color:
+                                                          TeacherColors.primary,
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
                                             ),
                                           ),
                                         ),
                                       )
                                     : CircleAvatar(
-                                        backgroundColor: TeacherColors.primary.withValues(alpha: 0.1),
-                                        child: Text(mName.isNotEmpty ? mName[0].toUpperCase() : 'M', style: const TextStyle(color: TeacherColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                                        backgroundColor: TeacherColors.primary
+                                            .withValues(alpha: 0.1),
+                                        child: Text(
+                                            mName.isNotEmpty
+                                                ? mName[0].toUpperCase()
+                                                : 'M',
+                                            style: const TextStyle(
+                                                color: TeacherColors.primary,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold)),
                                       ),
-                                title: Text(mName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                subtitle: Text(mRole.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                title: Text(mName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13)),
+                                subtitle: Text(mRole.toUpperCase(),
+                                    style: const TextStyle(
+                                        fontSize: 10, color: Colors.grey)),
                                 trailing: isCreator
                                     ? Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
                                           color: Colors.orange.shade50,
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
-                                        child: const Text('Admin', style: TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold)),
+                                        child: const Text('Admin',
+                                            style: TextStyle(
+                                                fontSize: 8,
+                                                color: Colors.orange,
+                                                fontWeight: FontWeight.bold)),
                                       )
                                     : null,
                               );
@@ -1727,13 +1899,17 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: () => _leaveGroupAction(context),
-                            icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 16),
-                            label: const Text("Leave Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            icon: const Icon(Icons.exit_to_app,
+                                color: Colors.white, size: 16),
+                            label: const Text("Leave Group",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ),
@@ -1743,13 +1919,19 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                             width: double.infinity,
                             child: OutlinedButton.icon(
                               onPressed: () => _deleteGroupAction(context),
-                              icon: const Icon(Icons.delete_forever, color: Colors.red, size: 16),
-                              label: const Text("Delete Group", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              icon: const Icon(Icons.delete_forever,
+                                  color: Colors.red, size: 16),
+                              label: const Text("Delete Group",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.red,
                                 side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
                           ),
@@ -1757,21 +1939,44 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                       ] else ...[
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.email_outlined, color: TeacherColors.primary),
-                          title: const Text("Email Address", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                          subtitle: Text("${widget.senderName.toLowerCase().replaceAll(' ', '.')}@edushamiit.edu", style: const TextStyle(fontSize: 13)),
+                          leading: const Icon(Icons.email_outlined,
+                              color: TeacherColors.primary),
+                          title: const Text("Email Address",
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                              "${widget.senderName.toLowerCase().replaceAll(' ', '.')}@edushamiit.edu",
+                              style: const TextStyle(fontSize: 13)),
                         ),
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.verified_user_outlined, color: TeacherColors.primary),
-                          title: const Text("Role & Identity", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                          subtitle: Text(widget.senderName.contains('Sharma') || widget.senderName.contains('Verma') ? "Teacher (Faculty)" : "Student classmate (Class X-A)", style: const TextStyle(fontSize: 13)),
+                          leading: const Icon(Icons.verified_user_outlined,
+                              color: TeacherColors.primary),
+                          title: const Text("Role & Identity",
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                              widget.senderName.contains('Sharma') ||
+                                      widget.senderName.contains('Verma')
+                                  ? "Teacher (Faculty)"
+                                  : "Student classmate (Class X-A)",
+                              style: const TextStyle(fontSize: 13)),
                         ),
                         const ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.school_outlined, color: TeacherColors.primary),
-                          title: Text("Institution", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                          subtitle: Text("EduSHAMIIT Public School", style: TextStyle(fontSize: 13)),
+                          leading: Icon(Icons.school_outlined,
+                              color: TeacherColors.primary),
+                          title: Text("Institution",
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.bold)),
+                          subtitle: Text("EduSHAMIIT Public School",
+                              style: TextStyle(fontSize: 13)),
                         ),
                       ],
                     ],
@@ -1800,7 +2005,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             mName,
             style: const TextStyle(
@@ -1814,23 +2020,29 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
             children: [
               ListTile(
                 leading: Icon(
-                  isAdmin ? Icons.admin_panel_settings_outlined : Icons.admin_panel_settings,
+                  isAdmin
+                      ? Icons.admin_panel_settings_outlined
+                      : Icons.admin_panel_settings,
                   color: TeacherColors.primary,
                 ),
                 title: Text(isAdmin ? 'Dismiss as Admin' : 'Make Group Admin'),
                 onTap: () async {
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(dialogContext);
-                  
+
                   final newRole = isAdmin ? 'member' : 'admin';
-                  final ok = await ref.read(messagingProvider.notifier).changeMemberRole(
-                    widget.senderId,
-                    mId,
-                    newRole,
-                  );
-                  
+                  final ok = await ref
+                      .read(messagingProvider.notifier)
+                      .changeMemberRole(
+                        widget.senderId,
+                        mId,
+                        newRole,
+                      );
+
                   if (ok) {
-                    final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+                    final updated = await ref
+                        .read(messagingProvider.notifier)
+                        .fetchGroupMembers(widget.senderId);
                     setSheetState(() {
                       groupMembers.clear();
                       groupMembers.addAll(updated);
@@ -1840,25 +2052,33 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                     );
                   } else {
                     messenger.showSnackBar(
-                      const SnackBar(content: Text('Failed to update role. A group must have at least one admin.')),
+                      const SnackBar(
+                          content: Text(
+                              'Failed to update role. A group must have at least one admin.')),
                     );
                   }
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.person_remove_outlined, color: Colors.red),
-                title: const Text('Remove from Group', style: TextStyle(color: Colors.red)),
+                leading:
+                    const Icon(Icons.person_remove_outlined, color: Colors.red),
+                title: const Text('Remove from Group',
+                    style: TextStyle(color: Colors.red)),
                 onTap: () async {
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(dialogContext);
-                  
-                  final ok = await ref.read(messagingProvider.notifier).removeGroupMember(
-                    widget.senderId,
-                    mId,
-                  );
-                  
+
+                  final ok = await ref
+                      .read(messagingProvider.notifier)
+                      .removeGroupMember(
+                        widget.senderId,
+                        mId,
+                      );
+
                   if (ok) {
-                    final updated = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+                    final updated = await ref
+                        .read(messagingProvider.notifier)
+                        .fetchGroupMembers(widget.senderId);
                     setSheetState(() {
                       groupMembers.clear();
                       groupMembers.addAll(updated);
@@ -1885,9 +2105,12 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Delete Group", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-          content: const Text("Are you sure you want to permanently delete this group? All messages and members will be removed."),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Delete Group",
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          content: const Text(
+              "Are you sure you want to permanently delete this group? All messages and members will be removed."),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -1897,15 +2120,19 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               onPressed: () async {
                 final messenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(context);
-                
+
                 Navigator.pop(dialogContext); // close dialog
-                Navigator.pop(sheetContext);  // close sheet
-                
-                final ok = await ref.read(messagingProvider.notifier).deleteGroup(widget.senderId);
+                Navigator.pop(sheetContext); // close sheet
+
+                final ok = await ref
+                    .read(messagingProvider.notifier)
+                    .deleteGroup(widget.senderId);
                 if (ok) {
-                  navigator.pop(); // return from ChatDetailScreen to Conversation list
+                  navigator
+                      .pop(); // return from ChatDetailScreen to Conversation list
                   messenger.showSnackBar(
-                    const SnackBar(content: Text('Group deleted successfully.')),
+                    const SnackBar(
+                        content: Text('Group deleted successfully.')),
                   );
                 } else {
                   messenger.showSnackBar(
@@ -1914,7 +2141,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              child: const Text("Delete",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.white)),
             ),
           ],
         );
@@ -1922,19 +2151,22 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
     );
   }
 
-  void _showAddMemberDialog(void Function(void Function()) setSheetState, List<Map<String, dynamic>> currentMembers) {
+  void _showAddMemberDialog(void Function(void Function()) setSheetState,
+      List<Map<String, dynamic>> currentMembers) {
     final searchMemberController = TextEditingController();
     List<Map<String, dynamic>> searchMemberResults = [];
     bool isSearching = false;
-    
+
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Add Group Member', style: TextStyle(fontFamily: AppFonts.heading)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: const Text('Add Group Member',
+                  style: TextStyle(fontFamily: AppFonts.heading)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1947,7 +2179,9 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                     onChanged: (val) async {
                       if (val.trim().isNotEmpty) {
                         setDialogState(() => isSearching = true);
-                        final res = await ref.read(messagingProvider.notifier).searchUsers(val.trim());
+                        final res = await ref
+                            .read(messagingProvider.notifier)
+                            .searchUsers(val.trim());
                         setDialogState(() {
                           searchMemberResults = res;
                           isSearching = false;
@@ -1963,8 +2197,11 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                   const SizedBox(height: 12),
                   if (isSearching)
                     const Center(child: CircularProgressIndicator())
-                  else if (searchMemberResults.isEmpty && searchMemberController.text.trim().isNotEmpty)
-                    const Center(child: Text('No results found', style: TextStyle(fontSize: 12, color: Colors.grey)))
+                  else if (searchMemberResults.isEmpty &&
+                      searchMemberController.text.trim().isNotEmpty)
+                    const Center(
+                        child: Text('No results found',
+                            style: TextStyle(fontSize: 12, color: Colors.grey)))
                   else
                     SizedBox(
                       height: 150,
@@ -1976,43 +2213,56 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                           final uName = u['full_name'] as String? ?? 'User';
                           final uId = u['id'] as String;
                           final uRole = u['role'] as String? ?? 'student';
-                          
+
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text(uName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            subtitle: Text(uRole.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            title: Text(uName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
+                            subtitle: Text(uRole.toUpperCase(),
+                                style: const TextStyle(
+                                    fontSize: 10, color: Colors.grey)),
                             trailing: IconButton(
-                              icon: const Icon(Icons.add_circle, color: TeacherColors.primary),
+                              icon: const Icon(Icons.add_circle,
+                                  color: TeacherColors.primary),
                               onPressed: () async {
                                 final messenger = ScaffoldMessenger.of(context);
                                 Navigator.pop(context);
                                 try {
                                   final client = ref.read(apiServiceProvider);
                                   // First add member in group_members table
-                                  await client.post('/groups/${widget.senderId}/members', {
+                                  await client.post(
+                                      '/groups/${widget.senderId}/members', {
                                     'member_id': uId,
                                   });
-                                  
+
                                   // Then send direct system announcement
                                   await client.post('/student/messages/send', {
                                     'group_id': widget.senderId,
-                                    'content': '📢 $uName joined the squad revision!'
+                                    'content':
+                                        '📢 $uName joined the squad revision!'
                                   });
-                                  
-                                  final updatedMembers = await ref.read(messagingProvider.notifier).fetchGroupMembers(widget.senderId);
+
+                                  final updatedMembers = await ref
+                                      .read(messagingProvider.notifier)
+                                      .fetchGroupMembers(widget.senderId);
                                   if (!mounted) return;
                                   setSheetState(() {
                                     currentMembers.clear();
                                     currentMembers.addAll(updatedMembers);
                                   });
-                                  
+
                                   messenger.showSnackBar(
-                                    SnackBar(content: Text('Added $uName to group!')),
+                                    SnackBar(
+                                        content:
+                                            Text('Added $uName to group!')),
                                   );
                                 } catch (e) {
                                   if (!mounted) return;
                                   messenger.showSnackBar(
-                                    const SnackBar(content: Text('Added member to group!')),
+                                    const SnackBar(
+                                        content:
+                                            Text('Added member to group!')),
                                   );
                                 }
                               },
@@ -2041,9 +2291,12 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Leave Group?', style: TextStyle(fontFamily: AppFonts.heading)),
-          content: Text('Are you sure you want to leave the study group "${widget.senderName}"?'),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Leave Group?',
+              style: TextStyle(fontFamily: AppFonts.heading)),
+          content: Text(
+              'Are you sure you want to leave the study group "${widget.senderName}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -2053,23 +2306,29 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               onPressed: () async {
                 final navigator = Navigator.of(context);
                 final scaffoldMessenger = ScaffoldMessenger.of(context);
-                
+
                 Navigator.pop(dialogContext);
                 Navigator.pop(sheetContext);
-                
-                final ok = await ref.read(messagingProvider.notifier).leaveGroup(widget.senderId);
+
+                final ok = await ref
+                    .read(messagingProvider.notifier)
+                    .leaveGroup(widget.senderId);
                 if (ok) {
                   navigator.pop();
                   scaffoldMessenger.showSnackBar(
-                    SnackBar(content: Text('You left group "${widget.senderName}"')),
+                    SnackBar(
+                        content: Text('You left group "${widget.senderName}"')),
                   );
                 } else {
                   scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Failed to leave group. Please try again.')),
+                    const SnackBar(
+                        content:
+                            Text('Failed to leave group. Please try again.')),
                   );
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, foregroundColor: Colors.white),
               child: const Text('Leave'),
             ),
           ],
@@ -2118,16 +2377,26 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                           height: 36,
                           errorBuilder: (context, error, stackTrace) => Center(
                             child: Text(
-                              widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
-                              style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                              widget.senderName.isNotEmpty
+                                  ? widget.senderName[0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
                       )
                     : Center(
                         child: Text(
-                          widget.senderName.isNotEmpty ? widget.senderName[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                          widget.senderName.isNotEmpty
+                              ? widget.senderName[0].toUpperCase()
+                              : 'U',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
               ),
@@ -2147,7 +2416,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                     ),
                     Text(
                       widget.isGroup ? 'Study Group' : 'Online',
-                      style: const TextStyle(fontSize: 10, color: Colors.white70),
+                      style:
+                          const TextStyle(fontSize: 10, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -2166,7 +2436,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             onSelected: (val) {
               if (val == 'clear') {
                 _clearChat();
@@ -2181,7 +2452,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
               ),
               const PopupMenuItem(
                 value: 'export',
-                child: Text('Export Chat (.txt)', style: TextStyle(fontSize: 13)),
+                child:
+                    Text('Export Chat (.txt)', style: TextStyle(fontSize: 13)),
               ),
             ],
           ),
@@ -2195,7 +2467,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                 ? const Center(
                     child: Text(
                       'No messages yet. Say hello! 👋',
-                      style: TextStyle(color: TeacherColors.text3, fontSize: 13),
+                      style:
+                          TextStyle(color: TeacherColors.text3, fontSize: 13),
                     ),
                   )
                 : ListView.builder(
@@ -2218,17 +2491,21 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   }
 
   Widget _buildMessageBubble(MessageItem msg, bool isMe) {
-    final timeStr = '${msg.createdAt.hour.toString().padLeft(2, '0')}:${msg.createdAt.minute.toString().padLeft(2, '0')}';
-    
+    final timeStr =
+        '${msg.createdAt.hour.toString().padLeft(2, '0')}:${msg.createdAt.minute.toString().padLeft(2, '0')}';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           GestureDetector(
-            onLongPressStart: (details) => _showMessageContextMenu(details.globalPosition, msg, isMe),
+            onLongPressStart: (details) =>
+                _showMessageContextMenu(details.globalPosition, msg, isMe),
             child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.75),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isMe ? TeacherColors.primary : TeacherColors.surface,
@@ -2263,25 +2540,32 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                     GestureDetector(
                       onTap: () {
                         final rawUrl = msg.content.substring('[IMAGE]'.length);
-                        final imageUrl = rawUrl.replaceAll('http://kong:8000', 'http://127.0.0.1:8000');
-                        ImagePreviewDialog.show(context, imageUrl, title: 'Image View');
+                        final imageUrl = rawUrl.replaceAll(
+                            'http://kong:8000', 'http://127.0.0.1:8000');
+                        ImagePreviewDialog.show(context, imageUrl,
+                            title: 'Image View');
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Image.network(
-                            msg.content.substring('[IMAGE]'.length).replaceAll('http://kong:8000', 'http://127.0.0.1:8000'),
+                            msg.content.substring('[IMAGE]'.length).replaceAll(
+                                'http://kong:8000', 'http://127.0.0.1:8000'),
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
                               padding: const EdgeInsets.all(12),
                               color: Colors.black12,
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.broken_image, color: Colors.grey, size: 16),
+                                  Icon(Icons.broken_image,
+                                      color: Colors.grey, size: 16),
                                   SizedBox(width: 8),
-                                  Text('Failed to load image', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                  Text('Failed to load image',
+                                      style: TextStyle(
+                                          color: Colors.grey, fontSize: 11)),
                                 ],
                               ),
                             ),
@@ -2290,68 +2574,80 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                       ),
                     ),
                   ] else if (msg.content.startsWith('[DOCUMENT]')) ...[
-                    Builder(
-                      builder: (context) {
-                        final parts = msg.content.substring('[DOCUMENT]'.length).split('|');
-                        final url = parts[0];
-                        final name = parts.length > 1 ? parts[1] : 'Attachment';
-                        final resolvedUrl = url.replaceAll('http://kong:8000', 'http://127.0.0.1:8000');
-                        return InkWell(
-                          onTap: () async {
+                    Builder(builder: (context) {
+                      final parts =
+                          msg.content.substring('[DOCUMENT]'.length).split('|');
+                      final url = parts[0];
+                      final name = parts.length > 1 ? parts[1] : 'Attachment';
+                      final resolvedUrl = url.replaceAll(
+                          'http://kong:8000', 'http://127.0.0.1:8000');
+                      return InkWell(
+                        onTap: () async {
+                          try {
+                            await getDownloadHelper()
+                                .downloadFile(resolvedUrl, name);
+                          } catch (_) {
                             try {
-                              await getDownloadHelper().downloadFile(resolvedUrl, name);
-                            } catch (_) {
-                              try {
-                                final uri = Uri.parse(resolvedUrl);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                }
-                              } catch (_) {}
-                            }
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isMe ? Colors.white.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.insert_drive_file, color: isMe ? Colors.white : TeacherColors.primary, size: 24),
-                                const SizedBox(width: 10),
-                                Flexible(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: isMe ? Colors.white : Colors.black87,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Tap to view / download',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          color: isMe ? Colors.white70 : Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                              final uri = Uri.parse(resolvedUrl);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri,
+                                    mode: LaunchMode.externalApplication);
+                              }
+                            } catch (_) {}
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isMe
+                                ? Colors.white.withValues(alpha: 0.15)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        );
-                      }
-                    ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.insert_drive_file,
+                                  color: isMe
+                                      ? Colors.white
+                                      : TeacherColors.primary,
+                                  size: 24),
+                              const SizedBox(width: 10),
+                              Flexible(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: isMe
+                                            ? Colors.white
+                                            : Colors.black87,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Tap to view / download',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: isMe
+                                            ? Colors.white70
+                                            : Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
                   ] else ...[
                     Text(
                       msg.content,
@@ -2388,7 +2684,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
   Widget _buildComposeBar() {
     final text = _messageController.text.trim();
     final isEmpty = text.isEmpty;
- 
+
     return SafeArea(
       top: false,
       bottom: true,
@@ -2401,7 +2697,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: TeacherColors.primary, size: 26),
+              icon: const Icon(Icons.add_circle_outline,
+                  color: TeacherColors.primary, size: 26),
               onPressed: _showAttachMenu,
             ),
             Expanded(
@@ -2409,14 +2706,16 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                 controller: _messageController,
                 decoration: InputDecoration(
                   hintText: 'Type a message...',
-                  hintStyle: const TextStyle(fontSize: 12, color: TeacherColors.text3),
+                  hintStyle:
+                      const TextStyle(fontSize: 12, color: TeacherColors.text3),
                   filled: true,
                   fillColor: const Color(0xFFF1F5F9),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 onSubmitted: (value) => _sendMessage(value),
               ),
@@ -2433,32 +2732,35 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                 }
               },
               child: AnimatedBuilder(
-                animation: _micPulseController,
-                builder: (_, __) {
-                  final pulsing = _isListening;
-                  return Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: pulsing ? Colors.red : TeacherColors.primary,
-                      shape: BoxShape.circle,
-                      boxShadow: pulsing ? [
-                        BoxShadow(
-                          color: Colors.red.withValues(alpha: 0.35 + 0.35 * _micPulseController.value),
-                          blurRadius: 8 + 6 * _micPulseController.value,
-                        )
-                      ] : null,
-                    ),
-                    child: Icon(
-                      pulsing
-                          ? Icons.stop_rounded
-                          : (isEmpty ? Icons.mic : Icons.send),
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  );
-                }
-              ),
+                  animation: _micPulseController,
+                  builder: (_, __) {
+                    final pulsing = _isListening;
+                    return Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: pulsing ? Colors.red : TeacherColors.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: pulsing
+                            ? [
+                                BoxShadow(
+                                  color: Colors.red.withValues(
+                                      alpha: 0.35 +
+                                          0.35 * _micPulseController.value),
+                                  blurRadius: 8 + 6 * _micPulseController.value,
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        pulsing
+                            ? Icons.stop_rounded
+                            : (isEmpty ? Icons.mic : Icons.send),
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    );
+                  }),
             ),
             const SizedBox(width: 6),
             GestureDetector(
@@ -2472,7 +2774,8 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
                   ),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.smart_toy_rounded, size: 18, color: Colors.white),
+                child: const Icon(Icons.smart_toy_rounded,
+                    size: 18, color: Colors.white),
               ),
             ),
           ],
@@ -2480,27 +2783,31 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen> with Ticke
       ),
     );
   }
- 
+
   void _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
-    
+
     String content = text.trim();
     if (_replyingTo != null) {
       final senderName = msgName(_replyingTo!);
       content = '↳ "$senderName: ${_replyingTo!.content}"\n\n$content';
     }
-    
+
     _messageController.clear();
     setState(() {
       _replyingTo = null;
     });
 
     if (widget.isGroup) {
-      await ref.read(messagingProvider.notifier).sendMessage(content, groupId: widget.senderId);
+      await ref
+          .read(messagingProvider.notifier)
+          .sendMessage(content, groupId: widget.senderId);
     } else {
-      await ref.read(messagingProvider.notifier).sendMessage(content, receiverId: widget.senderId);
+      await ref
+          .read(messagingProvider.notifier)
+          .sendMessage(content, receiverId: widget.senderId);
     }
-    
+
     _scrollToBottom();
   }
 }
@@ -2519,7 +2826,8 @@ class _CallOverlayScreen extends StatefulWidget {
   State<_CallOverlayScreen> createState() => _CallOverlayScreenState();
 }
 
-class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTickerProviderStateMixin {
+class _CallOverlayScreenState extends State<_CallOverlayScreen>
+    with SingleTickerProviderStateMixin {
   String _status = 'Ringing...';
   int _duration = 0;
   Timer? _ringTimer;
@@ -2573,7 +2881,8 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
 
   @override
   Widget build(BuildContext context) {
-    final initials = widget.callerName.isNotEmpty ? widget.callerName[0].toUpperCase() : 'U';
+    final initials =
+        widget.callerName.isNotEmpty ? widget.callerName[0].toUpperCase() : 'U';
     final isRinging = _status == 'Ringing...';
 
     return Scaffold(
@@ -2594,7 +2903,8 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                   child: Center(
                     child: Opacity(
                       opacity: 0.15,
-                      child: Icon(Icons.videocam, size: 200, color: Colors.lightBlue.shade200),
+                      child: Icon(Icons.videocam,
+                          size: 200, color: Colors.lightBlue.shade200),
                     ),
                   ),
                 ),
@@ -2607,18 +2917,24 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                   if (!widget.isVideo || _isCamOff) ...[
                     ScaleTransition(
                       scale: Tween<double>(begin: 0.95, end: 1.05).animate(
-                        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+                        CurvedAnimation(
+                            parent: _pulseController, curve: Curves.easeInOut),
                       ),
                       child: Container(
                         width: 120,
                         height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.lightBlue.shade900.withValues(alpha: 0.5),
-                          border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.5), width: 4),
+                          color:
+                              Colors.lightBlue.shade900.withValues(alpha: 0.5),
+                          border: Border.all(
+                              color: const Color(0xFF0EA5E9)
+                                  .withValues(alpha: 0.5),
+                              width: 4),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
+                              color: const Color(0xFF0EA5E9)
+                                  .withValues(alpha: 0.3),
                               blurRadius: 20,
                               spreadRadius: 10,
                             ),
@@ -2627,7 +2943,10 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                         child: Center(
                           child: Text(
                             initials,
-                            style: const TextStyle(fontSize: 48, color: Colors.white, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 48,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -2647,15 +2966,19 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                     isRinging ? 'Ringing...' : _formatDuration(_duration),
                     style: TextStyle(
                       fontSize: 14,
-                      color: isRinging ? Colors.lightBlue.shade300 : Colors.green.shade400,
+                      color: isRinging
+                          ? Colors.lightBlue.shade300
+                          : Colors.green.shade400,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
                     ),
                   ),
                   const Spacer(),
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 20),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(28),
@@ -2678,7 +3001,9 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                         IconButton(
                           icon: Icon(
                             _isSpeakerOn ? Icons.volume_up : Icons.volume_down,
-                            color: _isSpeakerOn ? const Color(0xFF06B6D4) : Colors.white,
+                            color: _isSpeakerOn
+                                ? const Color(0xFF06B6D4)
+                                : Colors.white,
                             size: 24,
                           ),
                           onPressed: () {
@@ -2706,7 +3031,8 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Call with ${widget.callerName} ended'),
+                                content: Text(
+                                    'Call with ${widget.callerName} ended'),
                               ),
                             );
                           },
@@ -2717,7 +3043,8 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.call_end, color: Colors.white, size: 24),
+                            child: const Icon(Icons.call_end,
+                                color: Colors.white, size: 24),
                           ),
                         ),
                       ],
@@ -2738,7 +3065,9 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                     color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white24, width: 1.5),
-                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 8)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black38, blurRadius: 8)
+                    ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(11),
@@ -2747,7 +3076,10 @@ class _CallOverlayScreenState extends State<_CallOverlayScreen> with SingleTicke
                       child: const Center(
                         child: Text(
                           'You',
-                          style: TextStyle(fontSize: 11, color: Colors.white60, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.white60,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -2766,7 +3098,8 @@ class _CreateGroupBottomSheet extends ConsumerStatefulWidget {
   const _CreateGroupBottomSheet({required this.isTeacher});
 
   @override
-  ConsumerState<_CreateGroupBottomSheet> createState() => _CreateGroupBottomSheetState();
+  ConsumerState<_CreateGroupBottomSheet> createState() =>
+      _CreateGroupBottomSheetState();
 }
 
 class DashedCirclePainter extends CustomPainter {
@@ -2788,7 +3121,8 @@ class DashedCirclePainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final radius = size.width / 2;
-    final rect = Rect.fromCircle(center: Offset(radius, radius), radius: radius);
+    final rect =
+        Rect.fromCircle(center: Offset(radius, radius), radius: radius);
 
     final sweepAngle = (2 * 3.141592653589793) / (dashCount * 2);
 
@@ -2806,11 +3140,12 @@ class DashedCirclePainter extends CustomPainter {
   }
 }
 
-class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet> {
+class _CreateGroupBottomSheetState
+    extends ConsumerState<_CreateGroupBottomSheet> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
   final _searchController = TextEditingController();
-  
+
   List<Map<String, dynamic>> _filteredCandidates = [];
   final Set<String> _selectedUserIds = {};
   bool _isLoadingCandidates = false;
@@ -2819,7 +3154,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
   String? _groupAvatarName;
   Timer? _searchDebounceTimer;
 
-  int _activeTab = 0; 
+  int _activeTab = 0;
   String _groupLevel = 'class';
 
   @override
@@ -2840,17 +3175,18 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
   }
 
   Future<void> _pickGroupAvatar() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1000, imageQuality: 90);
+    final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery, maxWidth: 1000, imageQuality: 90);
     if (picked == null) return;
-    
+
     final croppedBytes = await _cropImage(picked.path);
     if (croppedBytes == null) return;
-    
+
     String filename = picked.name;
     if (!filename.contains('.')) {
       filename += '.jpg';
     }
-    
+
     setState(() {
       _groupAvatarBytes = croppedBytes;
       _groupAvatarName = filename;
@@ -2903,11 +3239,11 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
     _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () async {
       final query = _searchController.text.trim();
       if (!mounted) return;
-      
+
       setState(() => _isLoadingCandidates = true);
       final res = await ref.read(messagingProvider.notifier).searchUsers(query);
       if (!mounted) return;
-      
+
       setState(() {
         _filteredCandidates = res;
         _isLoadingCandidates = false;
@@ -2917,22 +3253,26 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
 
   List<Map<String, dynamic>> _getFilteredByRole(int tabIndex) {
     if (tabIndex == 0) return _filteredCandidates;
-    if (tabIndex == 1) return _filteredCandidates.where((u) => u['role'] == 'student').toList();
-    if (tabIndex == 2) return _filteredCandidates.where((u) => u['role'] == 'teacher').toList();
+    if (tabIndex == 1)
+      return _filteredCandidates.where((u) => u['role'] == 'student').toList();
+    if (tabIndex == 2)
+      return _filteredCandidates.where((u) => u['role'] == 'teacher').toList();
     if (tabIndex == 3) {
       return _filteredCandidates.where((u) {
         final role = (u['role'] as String? ?? '').toLowerCase();
         return role == 'hod' || role == 'principal' || role == 'admin';
       }).toList();
     }
-    if (tabIndex == 4) return _filteredCandidates.where((u) => u['role'] == 'parent').toList();
+    if (tabIndex == 4)
+      return _filteredCandidates.where((u) => u['role'] == 'parent').toList();
     return _filteredCandidates;
   }
 
   Widget _buildRoleTab(String label, int index) {
     final isActive = _activeTab == index;
-    final primaryColor = widget.isTeacher ? const Color(0xFF0EA5E9) : const Color(0xFF4F46E5);
-    
+    final primaryColor =
+        widget.isTeacher ? const Color(0xFF0EA5E9) : const Color(0xFF4F46E5);
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -2960,8 +3300,10 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = widget.isTeacher ? const Color(0xFF0EA5E9) : const Color(0xFF4F46E5);
-    final accentColor = widget.isTeacher ? const Color(0xFF0369A1) : const Color(0xFF7C3AED);
+    final primaryColor =
+        widget.isTeacher ? const Color(0xFF0EA5E9) : const Color(0xFF4F46E5);
+    final accentColor =
+        widget.isTeacher ? const Color(0xFF0369A1) : const Color(0xFF7C3AED);
     final bottomOffset = MediaQuery.of(context).viewInsets.bottom;
 
     final userData = ref.watch(authProvider).userData ?? {};
@@ -2970,7 +3312,8 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
     final isStudent = userRole == 'student';
 
     final activeList = _getFilteredByRole(_activeTab);
-    final allSelected = activeList.isNotEmpty && activeList.every((u) => _selectedUserIds.contains(u['id']));
+    final allSelected = activeList.isNotEmpty &&
+        activeList.every((u) => _selectedUserIds.contains(u['id']));
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -2985,7 +3328,8 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: [primaryColor, accentColor]),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: Row(
@@ -2996,7 +3340,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      widget.isTeacher ? 'Create Class Group' : 'Create Study Group',
+                      widget.isTeacher
+                          ? 'Create Class Group'
+                          : 'Create Study Group',
                       style: const TextStyle(
                         fontFamily: AppFonts.heading,
                         fontSize: 16,
@@ -3050,7 +3396,10 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                           const SizedBox(height: 6),
                           const Text(
                             'Add Group Icon',
-                            style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -3058,48 +3407,64 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                     const SizedBox(height: 20),
                     const Text(
                       'Group Name',
-                      style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     TextField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        hintText: widget.isTeacher ? 'e.g. Class X-A Updates' : 'e.g. Physics Revision Squad',
-                        hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+                        hintText: widget.isTeacher
+                            ? 'e.g. Class X-A Updates'
+                            : 'e.g. Physics Revision Squad',
+                        hintStyle:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0), width: 1.5),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0), width: 1.5),
                         ),
                       ),
                     ),
                     const SizedBox(height: 14),
                     const Text(
                       'Description (Optional)',
-                      style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     TextField(
                       controller: _descController,
                       decoration: InputDecoration(
                         hintText: 'What is this group for?',
-                        hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+                        hintStyle:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                         filled: true,
                         fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0), width: 1.5),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                          borderSide: const BorderSide(
+                              color: Color(0xFFE2E8F0), width: 1.5),
                         ),
                       ),
                     ),
@@ -3108,7 +3473,10 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                     // Group Privacy Type Selection
                     const Text(
                       'GROUP PRIVACY',
-                      style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -3117,14 +3485,17 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                           child: GestureDetector(
                             onTap: () => setState(() => _groupLevel = 'class'),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 10),
                               decoration: BoxDecoration(
                                 color: _groupLevel == 'class'
                                     ? primaryColor.withValues(alpha: 0.1)
                                     : const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: _groupLevel == 'class' ? primaryColor : const Color(0xFFCBD5E1),
+                                  color: _groupLevel == 'class'
+                                      ? primaryColor
+                                      : const Color(0xFFCBD5E1),
                                   width: _groupLevel == 'class' ? 1.5 : 1,
                                 ),
                               ),
@@ -3133,14 +3504,20 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.lock_outline_rounded, color: _groupLevel == 'class' ? primaryColor : Colors.grey, size: 16),
+                                      Icon(Icons.lock_outline_rounded,
+                                          color: _groupLevel == 'class'
+                                              ? primaryColor
+                                              : Colors.grey,
+                                          size: 16),
                                       const SizedBox(width: 6),
                                       Text(
                                         '🔒 Private',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: _groupLevel == 'class' ? primaryColor : Colors.grey[700],
+                                          color: _groupLevel == 'class'
+                                              ? primaryColor
+                                              : Colors.grey[700],
                                         ),
                                       ),
                                     ],
@@ -3150,7 +3527,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                     'Only selected members\ncan see and join',
                                     style: TextStyle(
                                       fontSize: 9,
-                                      color: _groupLevel == 'class' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
+                                      color: _groupLevel == 'class'
+                                          ? primaryColor.withValues(alpha: 0.8)
+                                          : Colors.grey,
                                       height: 1.4,
                                     ),
                                   ),
@@ -3164,14 +3543,17 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                           child: GestureDetector(
                             onTap: () => setState(() => _groupLevel = 'school'),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 10),
                               decoration: BoxDecoration(
                                 color: _groupLevel == 'school'
                                     ? primaryColor.withValues(alpha: 0.1)
                                     : const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: _groupLevel == 'school' ? primaryColor : const Color(0xFFCBD5E1),
+                                  color: _groupLevel == 'school'
+                                      ? primaryColor
+                                      : const Color(0xFFCBD5E1),
                                   width: _groupLevel == 'school' ? 1.5 : 1,
                                 ),
                               ),
@@ -3180,14 +3562,20 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.public_rounded, color: _groupLevel == 'school' ? primaryColor : Colors.grey, size: 16),
+                                      Icon(Icons.public_rounded,
+                                          color: _groupLevel == 'school'
+                                              ? primaryColor
+                                              : Colors.grey,
+                                          size: 16),
                                       const SizedBox(width: 6),
                                       Text(
                                         '🌐 Public (School)',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: _groupLevel == 'school' ? primaryColor : Colors.grey[700],
+                                          color: _groupLevel == 'school'
+                                              ? primaryColor
+                                              : Colors.grey[700],
                                         ),
                                       ),
                                     ],
@@ -3197,7 +3585,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                     'Visible to school\nAnyone in school can join',
                                     style: TextStyle(
                                       fontSize: 9,
-                                      color: _groupLevel == 'school' ? primaryColor.withValues(alpha: 0.8) : Colors.grey,
+                                      color: _groupLevel == 'school'
+                                          ? primaryColor.withValues(alpha: 0.8)
+                                          : Colors.grey,
                                       height: 1.4,
                                     ),
                                   ),
@@ -3227,17 +3617,21 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search, size: 18),
                           hintText: '🔍 Search by name or role...',
-                          hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+                          hintStyle:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                           filled: true,
                           fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                            borderSide: const BorderSide(
+                                color: Color(0xFFE2E8F0), width: 1.5),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                            borderSide: const BorderSide(
+                                color: Color(0xFFE2E8F0), width: 1.5),
                           ),
                         ),
                       ),
@@ -3262,7 +3656,8 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                       if (activeList.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
@@ -3293,7 +3688,10 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                               const SizedBox(width: 10),
                               const Text(
                                 'Select All Shown',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                    color: Colors.black87),
                               ),
                             ],
                           ),
@@ -3303,28 +3701,46 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                          border: Border.all(
+                              color: const Color(0xFFE2E8F0), width: 1.5),
                         ),
                         child: _isLoadingCandidates
                             ? const Center(child: CircularProgressIndicator())
                             : activeList.isEmpty
-                                ? const Center(child: Text('No school members found', style: TextStyle(fontSize: 12, color: Colors.grey)))
+                                ? const Center(
+                                    child: Text('No school members found',
+                                        style: TextStyle(
+                                            fontSize: 12, color: Colors.grey)))
                                 : ListView.separated(
-                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8, horizontal: 12),
                                     itemCount: activeList.length,
-                                    separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                                    separatorBuilder: (context, index) =>
+                                        const Divider(
+                                            height: 1,
+                                            color: Color(0xFFF1F5F9)),
                                     itemBuilder: (context, index) {
                                       final u = activeList[index];
                                       final id = u['id'] as String;
-                                      final name = u['full_name'] as String? ?? 'User';
-                                      final role = u['role'] as String? ?? 'student';
-                                      final isSelected = _selectedUserIds.contains(id);
-                                      final avatarUrl = u['avatar_url'] as String?;
-                                      
-                                      final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+                                      final name =
+                                          u['full_name'] as String? ?? 'User';
+                                      final role =
+                                          u['role'] as String? ?? 'student';
+                                      final isSelected =
+                                          _selectedUserIds.contains(id);
+                                      final avatarUrl =
+                                          u['avatar_url'] as String?;
+
+                                      final initial = name.isNotEmpty
+                                          ? name[0].toUpperCase()
+                                          : 'U';
                                       final isTeacher = role == 'teacher';
-                                      final bg = isTeacher ? const Color(0xFFEEF2FF) : const Color(0xFFFFF1F2);
-                                      final fg = isTeacher ? const Color(0xFF4F46E5) : const Color(0xFFE11D48);
+                                      final bg = isTeacher
+                                          ? const Color(0xFFEEF2FF)
+                                          : const Color(0xFFFFF1F2);
+                                      final fg = isTeacher
+                                          ? const Color(0xFF4F46E5)
+                                          : const Color(0xFFE11D48);
 
                                       return InkWell(
                                         onTap: () {
@@ -3337,10 +3753,12 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                           });
                                         },
                                         child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
                                           child: Row(
                                             children: [
-                                              avatarUrl != null && avatarUrl.isNotEmpty
+                                              avatarUrl != null &&
+                                                      avatarUrl.isNotEmpty
                                                   ? SizedBox(
                                                       width: 32,
                                                       height: 32,
@@ -3350,12 +3768,23 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                                           fit: BoxFit.cover,
                                                           width: 32,
                                                           height: 32,
-                                                          errorBuilder: (context, error, stackTrace) => Container(
+                                                          errorBuilder: (context,
+                                                                  error,
+                                                                  stackTrace) =>
+                                                              Container(
                                                             color: bg,
-                                                            alignment: Alignment.center,
+                                                            alignment: Alignment
+                                                                .center,
                                                             child: Text(
-                                                              isTeacher ? '👨‍🏫' : initial,
-                                                              style: TextStyle(fontSize: 12, color: fg, fontWeight: FontWeight.bold),
+                                                              isTeacher
+                                                                  ? '👨‍🏫'
+                                                                  : initial,
+                                                              style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: fg,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold),
                                                             ),
                                                           ),
                                                         ),
@@ -3365,22 +3794,35 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                                       radius: 16,
                                                       backgroundColor: bg,
                                                       child: Text(
-                                                        isTeacher ? '👨‍🏫' : initial,
-                                                        style: TextStyle(fontSize: 12, color: fg, fontWeight: FontWeight.bold),
+                                                        isTeacher
+                                                            ? '👨‍🏫'
+                                                            : initial,
+                                                        style: TextStyle(
+                                                            fontSize: 12,
+                                                            color: fg,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
                                                       ),
                                                     ),
                                               const SizedBox(width: 10),
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
                                                       name,
-                                                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          fontSize: 12),
                                                     ),
                                                     Text(
                                                       role.toUpperCase(),
-                                                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                                      style: const TextStyle(
+                                                          fontSize: 9,
+                                                          color: Colors.grey),
                                                     ),
                                                   ],
                                                 ),
@@ -3393,7 +3835,8 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                                                     if (val == true) {
                                                       _selectedUserIds.add(id);
                                                     } else {
-                                                      _selectedUserIds.remove(id);
+                                                      _selectedUserIds
+                                                          .remove(id);
                                                     }
                                                   });
                                                 },
@@ -3434,35 +3877,41 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   final desc = _descController.text.trim();
                   if (name.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter a group name')),
+                      const SnackBar(
+                          content: Text('Please enter a group name')),
                     );
                     return;
                   }
-                  
+
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
-                  
+
                   final level = isStudent ? 'class' : 'school';
                   final className = isStudent ? userClass : null;
                   final isPrivate = _groupLevel == 'class';
 
-                  final ok = await ref.read(messagingProvider.notifier).createGroup(
-                    name,
-                    desc,
-                    memberIds: _selectedUserIds.toList(),
-                    avatarBytes: _groupAvatarBytes,
-                    avatarFilename: _groupAvatarName,
-                    groupLevel: level,
-                    className: className,
-                    isPrivate: isPrivate,
-                  );
+                  final ok =
+                      await ref.read(messagingProvider.notifier).createGroup(
+                            name,
+                            desc,
+                            memberIds: _selectedUserIds.toList(),
+                            avatarBytes: _groupAvatarBytes,
+                            avatarFilename: _groupAvatarName,
+                            groupLevel: level,
+                            className: className,
+                            isPrivate: isPrivate,
+                          );
                   if (ok) {
                     messenger.showSnackBar(
-                      SnackBar(content: Text('🎉 Group "$name" Created successfully!')),
+                      SnackBar(
+                          content:
+                              Text('🎉 Group "$name" Created successfully!')),
                     );
                   } else {
                     messenger.showSnackBar(
-                      const SnackBar(content: Text('Failed to create group. Please try again.')),
+                      const SnackBar(
+                          content: Text(
+                              'Failed to create group. Please try again.')),
                     );
                   }
                 },
@@ -3470,14 +3919,16 @@ class _CreateGroupBottomSheetState extends ConsumerState<_CreateGroupBottomSheet
                   backgroundColor: primaryColor,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   elevation: 2,
                 ),
                 child: Text(
                   _groupLevel == 'class'
                       ? 'Create Private Group (${_selectedUserIds.length})'
                       : 'Create Public Group (${_selectedUserIds.length})',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ),
             ),

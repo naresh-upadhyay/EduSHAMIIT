@@ -15,6 +15,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:edu_shamiit_ai/core/config/app_config.dart';
+import 'package:file_picker/file_picker.dart';
 
 class StudentLiveClasses extends ConsumerStatefulWidget {
   const StudentLiveClasses({super.key});
@@ -785,11 +788,11 @@ class _StudentLiveClassPlayerScreenState
   bool _isLoadingComments = true;
   bool _isLiked = false;
   bool _isDisliked = false;
-  bool _isSubscribed = false;
-  bool _isSaved = false;
+  RealtimeChannel? _commentsRealtimeChannel;
 
   int _likeCount = 342;
   int _userRating = 0;
+  double _avgRating = 0.0;
   bool _hasRated = false;
   bool _showAudioWarning = true;
   bool _showIntroOverlay = true;
@@ -797,6 +800,8 @@ class _StudentLiveClassPlayerScreenState
   final TextEditingController _commentController = TextEditingController();
   String? _replyingToCommentId;
   final TextEditingController _replyController = TextEditingController();
+  String? _editingCommentId;
+  final TextEditingController _editCommentController = TextEditingController();
 
   final TextEditingController _notesController = TextEditingController();
   bool _notesSaved = false;
@@ -804,46 +809,53 @@ class _StudentLiveClassPlayerScreenState
   LiveClassModel? _localClassData;
   bool _isLoadingClassData = true;
 
-  String _activeTab =
-      'Overview'; // 'Overview', 'Chapters', 'Resources', 'Notes'
+  String _activeTab = 'Overview'; // 'Overview', 'Chapters', 'Resources', 'Notes'
 
-  final List<Map<String, dynamic>> _chapters = [
-    {'time': '00:00', 'seconds': 0, 'title': 'Introduction & Class Overview'},
-    {'time': '02:15', 'seconds': 135, 'title': 'Core Concepts & Background'},
-    {
-      'time': '08:40',
-      'seconds': 520,
-      'title': 'Practical Walkthrough & Calculations'
-    },
-    {'time': '12:10', 'seconds': 730, 'title': 'Student Live Q&A Session'},
-    {
-      'time': '17:45',
-      'seconds': 1065,
-      'title': 'Summary & Homework Assignment'
-    },
-  ];
+  List<Map<String, dynamic>> _chapters = [];
+  List<Map<String, dynamic>> _resources = [];
+  List<Map<String, dynamic>> _relatedLectures = [];
 
-  final List<Map<String, String>> _resources = [
-    {'title': 'Lecture Notes Handout.pdf', 'size': '2.4 MB', 'type': 'pdf'},
-    {'title': 'Practice Exercise Sheet.pdf', 'size': '1.1 MB', 'type': 'pdf'},
-    {'title': 'Formulas Reference Card.pdf', 'size': '850 KB', 'type': 'pdf'},
-  ];
+  final ScrollController _leftScrollController = ScrollController();
+  bool _isScrolled = false;
+
+  void _onLeftScroll() {
+    if (_leftScrollController.hasClients) {
+      final offset = _leftScrollController.offset;
+      if (offset > 120) {
+        if (!_isScrolled) {
+          setState(() {
+            _isScrolled = true;
+          });
+        }
+      } else {
+        if (_isScrolled) {
+          setState(() {
+            _isScrolled = false;
+          });
+        }
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _viewInstanceKey =
         '${widget.classId}-${DateTime.now().millisecondsSinceEpoch}';
+    _leftScrollController.addListener(_onLeftScroll);
     _loadClassDataAndComments();
+    _subscribeRealtimeComments();
   }
 
   @override
   void didUpdateWidget(StudentLiveClassPlayerScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.classId != widget.classId) {
+      _unsubscribeRealtimeComments();
       _viewInstanceKey =
           '${widget.classId}-${DateTime.now().millisecondsSinceEpoch}';
       _loadClassDataAndComments();
+      _subscribeRealtimeComments();
     }
   }
 
@@ -869,14 +881,53 @@ class _StudentLiveClassPlayerScreenState
     });
 
     _loadComments();
+    _loadRelatedLectures();
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.get('/live-classes/${widget.classId}');
+      final response = await apiService.get('/live-classes/${widget.classId}/playback-info', useCache: false);
       if (response['success'] == true && response['data'] != null) {
+        final data = response['data'];
         if (mounted) {
           setState(() {
-            _localClassData = LiveClassModel.fromJson(response['data']);
+            _localClassData = LiveClassModel.fromJson(data);
+            _likeCount = data['like_count'] ?? 342;
+            _isLiked = data['is_liked'] ?? false;
+            _isDisliked = data['is_disliked'] ?? false;
+            _avgRating = (data['avg_rating'] as num?)?.toDouble() ?? 0.0;
+            _userRating = data['user_rating'] ?? 0;
+            _hasRated = data['has_rated'] ?? false;
+            
+            // Map chapters
+            final List<dynamic> chList = data['chapters'] ?? [];
+            _chapters = chList.map((ch) {
+              final int secs = ch['time_seconds'] ?? 0;
+              final m = secs ~/ 60;
+              final s = secs % 60;
+              return {
+                'id': ch['id']?.toString() ?? '',
+                'time': '${m.toString().padLeft(2, "0")}:${s.toString().padLeft(2, "0")}',
+                'seconds': secs,
+                'title': ch['title']?.toString() ?? ''
+              };
+            }).toList();
+            
+            // Map resources
+            final List<dynamic> resList = data['resources'] ?? [];
+            _resources = resList.map((res) {
+              return {
+                'id': res['id']?.toString() ?? '',
+                'title': res['title']?.toString() ?? 'Resource',
+                'size': res['file_size']?.toString() ?? '2.0 MB',
+                'file_url': res['file_url']?.toString() ?? '',
+                'type': 'pdf'
+              };
+            }).toList();
+
+            final String nText = data['notes_text'] ?? '';
+            _notesController.text = nText;
+            _notesSaved = nText.isNotEmpty;
+            
             _isLoadingClassData = false;
             _showIntroOverlay = true;
           });
@@ -885,8 +936,7 @@ class _StudentLiveClassPlayerScreenState
         }
       }
     } catch (e) {
-      debugPrint(
-          '[PlayerScreen] Failed to fetch from single class endpoint: $e');
+      debugPrint('[PlayerScreen] Failed to fetch from playback-info endpoint: $e');
     }
 
     // Fallback: check provider list
@@ -950,6 +1000,161 @@ class _StudentLiveClassPlayerScreenState
         _isLoadingComments = false;
       });
     }
+  }
+
+  void _subscribeRealtimeComments() {
+    try {
+      final channelName = 'live-class-comments-${widget.classId}';
+      
+      _commentsRealtimeChannel = Supabase.instance.client.channel(channelName);
+      
+      _commentsRealtimeChannel!
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'live_class_comments',
+            callback: (payload) {
+              if (!mounted) return;
+              
+              if (payload.eventType == PostgresChangeEvent.delete) {
+                final oldRecord = payload.oldRecord;
+                final deletedId = oldRecord['id']?.toString();
+                if (deletedId != null) {
+                  // Check if this comment (or any reply) is in our local list of comments
+                  bool isLocal = false;
+                  for (var comment in _comments) {
+                    if (comment['id']?.toString() == deletedId) {
+                      isLocal = true;
+                      break;
+                    }
+                    final replies = comment['replies'] as List?;
+                    if (replies != null) {
+                      for (var reply in replies) {
+                        if (reply is Map && reply['id']?.toString() == deletedId) {
+                          isLocal = true;
+                          break;
+                        }
+                      }
+                    }
+                    if (isLocal) break;
+                  }
+                  
+                  if (isLocal) {
+                    debugPrint('[CommentsRealtime] Local comment/reply deleted. Refreshing comments.');
+                    _loadComments();
+                  }
+                }
+              } else {
+                // For INSERT and UPDATE, the payload has the full record
+                final newRecord = payload.newRecord;
+                final recordClassId = newRecord['live_class_id']?.toString();
+                if (recordClassId != null && recordClassId == widget.classId) {
+                  debugPrint('[CommentsRealtime] Local comment/reply inserted/updated. Refreshing comments.');
+                  _loadComments();
+                }
+              }
+            },
+          )
+          .subscribe((status, [error]) {
+            debugPrint('[CommentsRealtime] Subscription status: $status, error: $error');
+          });
+      debugPrint('[CommentsRealtime] Registered subscription for channel: $channelName');
+    } catch (e) {
+      debugPrint('[CommentsRealtime] Failed to subscribe: $e');
+    }
+  }
+
+  void _unsubscribeRealtimeComments() {
+    try {
+      if (_commentsRealtimeChannel != null) {
+        Supabase.instance.client.removeChannel(_commentsRealtimeChannel!);
+        _commentsRealtimeChannel = null;
+        debugPrint('[CommentsRealtime] Unsubscribed channel');
+      }
+    } catch (e) {
+      debugPrint('[CommentsRealtime] Failed to unsubscribe: $e');
+    }
+  }
+
+  Future<void> _loadRelatedLectures() async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.get('/live-classes/${widget.classId}/related');
+      if (response['success'] == true && response['data'] != null) {
+        if (mounted) {
+          setState(() {
+            _relatedLectures = List<Map<String, dynamic>>.from(response['data']);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading related lectures: $e');
+    }
+  }
+
+  Future<void> _submitEditComment(String commentId) async {
+    final text = _editCommentController.text.trim();
+    if (text.isEmpty) return;
+    
+    final success = await ref
+        .read(liveClassesProvider.notifier)
+        .editComment(widget.classId, commentId, text);
+        
+    if (success) {
+      setState(() {
+        _editingCommentId = null;
+      });
+      _loadComments();
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to edit comment.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showDeleteConfirmation(String commentId) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0F172A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text('Delete Comment', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          content: const Text('Are you sure you want to delete this comment? This action cannot be undone.', style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white60, fontSize: 11)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final success = await ref
+                    .read(liveClassesProvider.notifier)
+                    .deleteComment(widget.classId, commentId);
+                if (success) {
+                  _loadComments();
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to delete comment.')),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+              child: const Text('Delete', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _postComment(String text) async {
@@ -1050,6 +1255,7 @@ class _StudentLiveClassPlayerScreenState
         } else {
           final videoUrl = _getEmbedUrl(resolvedUrl);
           return html.IFrameElement()
+            ..id = 'live-class-iframe-player'
             ..width = '100%'
             ..height = '100%'
             ..src = videoUrl
@@ -1112,16 +1318,1166 @@ class _StudentLiveClassPlayerScreenState
     }
   }
 
-  void _shareStream() {
-    final String path = html.window.location.href;
-    Clipboard.setData(ClipboardData(text: path));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🔗 Playback share link copied to clipboard!'),
-        backgroundColor: Color(0xFF10B981),
-      ),
-    );
+  void _setPointerEvents(bool enabled) {
+    if (kIsWeb) {
+      try {
+        final video = html.document.getElementById('live-class-video-player');
+        if (video != null) {
+          video.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+        final iframe = html.document.getElementById('live-class-iframe-player');
+        if (iframe != null) {
+          iframe.style.pointerEvents = enabled ? 'auto' : 'none';
+        }
+      } catch (e) {
+        debugPrint('Error setting pointer events: $e');
+      }
+    }
   }
+
+  Future<void> _toggleLike() async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.post('/live-classes/${widget.classId}/like', {});
+      if (response['success'] == true) {
+        setState(() {
+          _likeCount = response['like_count'] ?? _likeCount;
+          _isLiked = response['is_liked'] ?? false;
+          _isDisliked = response['is_disliked'] ?? false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error toggling like: $e');
+    }
+  }
+
+  Future<void> _toggleDislike() async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.post('/live-classes/${widget.classId}/dislike', {});
+      if (response['success'] == true) {
+        setState(() {
+          _likeCount = response['like_count'] ?? _likeCount;
+          _isLiked = response['is_liked'] ?? false;
+          _isDisliked = response['is_disliked'] ?? false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error toggling dislike: $e');
+    }
+  }
+
+  Future<void> _submitRating(int stars) async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.post('/live-classes/${widget.classId}/rate', {'rating': stars});
+      if (response['success'] == true) {
+        setState(() {
+          _userRating = stars;
+          _hasRated = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⭐ Thank you for rating this lecture $stars stars!'),
+              backgroundColor: const Color(0xFFF59E0B),
+            ),
+          );
+        }
+        _loadClassDataAndComments();
+      } else if (response['status'] == 403 || response['detail']?.toString().contains('cannot rate') == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Instructors cannot rate their own sessions.'),
+              backgroundColor: Color(0xFF92400E),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error submitting rating: $e');
+    }
+  }
+
+  Future<void> _saveNotes() async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final text = _notesController.text;
+      final response = await apiService.post('/live-classes/${widget.classId}/notes', {'notes_text': text});
+      if (response['success'] == true) {
+        setState(() {
+          _notesSaved = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Notes successfully saved for this lecture.'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving notes: $e');
+    }
+  }
+
+  Future<void> _updateOverview(String newTitle, String newDesc) async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.put('/live-classes/${widget.classId}/overview', {
+        'title': newTitle,
+        'description': newDesc
+      });
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✓ Overview updated successfully!'), backgroundColor: Color(0xFF10B981)),
+        );
+        _loadClassDataAndComments();
+      }
+    } catch (e) {
+      debugPrint('Error updating overview: $e');
+    }
+  }
+
+  int _parseTimeString(String timeStr) {
+    try {
+      final cleanStr = timeStr.trim();
+      final parts = cleanStr.split(':');
+      if (parts.length == 2) {
+        final m = int.tryParse(parts[0]) ?? 0;
+        final s = int.tryParse(parts[1]) ?? 0;
+        return m * 60 + s;
+      } else if (parts.length == 3) {
+        final h = int.tryParse(parts[0]) ?? 0;
+        final m = int.tryParse(parts[1]) ?? 0;
+        final s = int.tryParse(parts[2]) ?? 0;
+        return h * 3600 + m * 60 + s;
+      }
+      return int.tryParse(cleanStr) ?? 0;
+    } catch (e) {
+      debugPrint('Error parsing time string: $e');
+      return 0;
+    }
+  }
+
+  Future<void> _addChapter(String title, int seconds) async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.post('/live-classes/${widget.classId}/chapters', {
+        'title': title,
+        'time_seconds': seconds
+      });
+      if (response['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Chapter added successfully!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+        _loadClassDataAndComments();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to add chapter: ${response['detail'] ?? 'Unknown error'}'),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error adding chapter: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding chapter: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteChapter(String chapterId) async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.delete('/live-classes/${widget.classId}/chapters/$chapterId');
+      if (response['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Chapter deleted successfully!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+        _loadClassDataAndComments();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete chapter: ${response['detail'] ?? 'Unknown error'}'),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error deleting chapter: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting chapter: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _addResource(String title, String fileUrl, {String sizeStr = '2.0 MB'}) async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.post('/live-classes/${widget.classId}/resources', {
+        'title': title,
+        'file_url': fileUrl,
+        'file_size': sizeStr
+      });
+      if (response['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Resource added successfully!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+        _loadClassDataAndComments();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to add resource: ${response['detail'] ?? 'Unknown error'}'),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error adding resource: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding resource: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteResource(String resourceId) async {
+    try {
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.delete('/live-classes/${widget.classId}/resources/$resourceId');
+      if (response['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Resource deleted successfully!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+        _loadClassDataAndComments();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete resource: ${response['detail'] ?? 'Unknown error'}'),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error deleting resource: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting resource: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEditOverviewDialog(LiveClassModel classData) {
+    final titleCtrl = TextEditingController(text: classData.title ?? classData.subject);
+    final descCtrl = TextEditingController(text: classData.description ?? '');
+    _setPointerEvents(false);
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 480,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 40,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [Color(0xFF1E293B), Color(0xFF0F172A)]),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.edit_note_rounded,
+                          color: Color(0xFF38BDF8), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Edit Class Overview',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Colors.white38, size: 18),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              // Body
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildPremiumTextField(
+                        controller: titleCtrl,
+                        label: 'Class Title',
+                        icon: Icons.title_rounded),
+                    const SizedBox(height: 16),
+                    _buildPremiumTextField(
+                        controller: descCtrl,
+                        label: 'Description',
+                        icon: Icons.description_rounded,
+                        maxLines: 4),
+                  ],
+                ),
+              ),
+              // Footer
+              Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _buildDialogButton(
+                      label: 'Cancel',
+                      onTap: () => Navigator.pop(ctx),
+                      isPrimary: false,
+                    ),
+                    const SizedBox(width: 10),
+                    _buildDialogButton(
+                      label: 'Save Changes',
+                      icon: Icons.check_rounded,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _updateOverview(titleCtrl.text, descCtrl.text);
+                      },
+                      isPrimary: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) => _setPointerEvents(true));
+  }
+
+  void _showAddChapterDialog() {
+    final titleCtrl = TextEditingController();
+    final timeCtrl = TextEditingController(text: '00:00');
+    _setPointerEvents(false);
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 440,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 40,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [Color(0xFF1E293B), Color(0xFF0F172A)]),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.playlist_add_rounded,
+                          color: Color(0xFFEF4444), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Add Timeline Chapter',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Colors.white38, size: 18),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildPremiumTextField(
+                        controller: titleCtrl,
+                        label: 'Chapter Title',
+                        icon: Icons.bookmark_rounded),
+                    const SizedBox(height: 16),
+                    _buildPremiumTextField(
+                        controller: timeCtrl,
+                        label: 'Timestamp (MM:SS or HH:MM:SS)',
+                        icon: Icons.schedule_rounded),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _buildDialogButton(
+                      label: 'Cancel',
+                      onTap: () => Navigator.pop(ctx),
+                      isPrimary: false,
+                    ),
+                    const SizedBox(width: 10),
+                    _buildDialogButton(
+                      label: 'Add Chapter',
+                      icon: Icons.add_circle_rounded,
+                      onTap: () {
+                        final title = titleCtrl.text.trim();
+                        final timeStr = timeCtrl.text.trim();
+                        if (title.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ Chapter title cannot be empty'),
+                              backgroundColor: Color(0xFFDC2626),
+                            ),
+                          );
+                          return;
+                        }
+                        if (timeStr.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ Timestamp cannot be empty'),
+                              backgroundColor: Color(0xFFDC2626),
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(ctx);
+                        final secs = _parseTimeString(timeStr);
+                        _addChapter(title, secs);
+                      },
+                      isPrimary: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).then((_) => _setPointerEvents(true));
+  }
+
+  void _showAddResourceDialog() {
+    final titleCtrl = TextEditingController();
+    final urlCtrl =
+        TextEditingController(text: '${AppConfig.baseUrl}/api/documents/download');
+    
+    // Picked file state
+    Uint8List? pickedFileBytes;
+    String pickedFileName = '';
+    int pickedFileSize = 0;
+
+    _setPointerEvents(false);
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          
+          Future<void> pickLocalFile() async {
+            try {
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.any,
+                allowMultiple: false,
+                withData: true,
+              );
+              if (result != null && result.files.single.bytes != null) {
+                setDialogState(() {
+                  pickedFileBytes = result.files.single.bytes;
+                  pickedFileName = result.files.single.name;
+                  pickedFileSize = result.files.single.size;
+                  
+                  // Auto-fill title if empty
+                  if (titleCtrl.text.isEmpty) {
+                    titleCtrl.text = pickedFileName.replaceAll(RegExp(r'\.[^.]+$'), '');
+                  }
+                  urlCtrl.text = pickedFileName;
+                });
+              }
+            } catch (e) {
+              debugPrint('Error picking file: $e');
+            }
+          }
+
+          String getFileSizeString(int bytes) {
+            if (bytes < 1024) return '$bytes B';
+            if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+            return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+          }
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              width: 440,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 40,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)]),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.attach_file_rounded,
+                              color: Color(0xFF10B981), size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Add Downloadable Resource',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white38, size: 18),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        _buildPremiumTextField(
+                            controller: titleCtrl,
+                            label: 'Resource Name',
+                            icon: Icons.description_rounded),
+                        const SizedBox(height: 16),
+                        
+                        // Local File Section
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: pickedFileBytes != null
+                                  ? const Color(0xFF10B981)
+                                  : Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Local Document Upload',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (pickedFileBytes != null)
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          pickedFileBytes = null;
+                                          pickedFileName = '';
+                                          pickedFileSize = 0;
+                                          urlCtrl.text = '${AppConfig.baseUrl}/api/documents/download';
+                                        });
+                                      },
+                                      icon: const Icon(Icons.clear_rounded, size: 12, color: Colors.redAccent),
+                                      label: const Text('Clear', style: TextStyle(fontSize: 10, color: Colors.redAccent)),
+                                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              if (pickedFileBytes == null)
+                                ElevatedButton.icon(
+                                  onPressed: pickLocalFile,
+                                  icon: const Icon(Icons.upload_file_rounded, size: 14),
+                                  label: const Text('Choose File from Device', style: TextStyle(fontSize: 11)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    foregroundColor: const Color(0xFF10B981),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  ),
+                                )
+                              else
+                                Row(
+                                  children: [
+                                    const Icon(Icons.insert_drive_file_rounded, color: Color(0xFF10B981), size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            pickedFileName,
+                                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            getFileSizeString(pickedFileSize),
+                                            style: const TextStyle(color: Colors.white38, fontSize: 9),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        if (pickedFileBytes == null)
+                          _buildPremiumTextField(
+                              controller: urlCtrl,
+                              label: 'File URL / Download Link',
+                              icon: Icons.link_rounded),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _buildDialogButton(
+                          label: 'Cancel',
+                          onTap: () => Navigator.pop(ctx),
+                          isPrimary: false,
+                        ),
+                        const SizedBox(width: 10),
+                        _buildDialogButton(
+                          label: 'Add Resource',
+                          icon: Icons.upload_file_rounded,
+                          onTap: () async {
+                            final title = titleCtrl.text.trim();
+                            if (title.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('⚠️ Resource name cannot be empty'),
+                                  backgroundColor: Color(0xFFDC2626),
+                                ),
+                              );
+                              return;
+                            }
+
+                            Navigator.pop(ctx);
+
+                            String fileUrl = '';
+                            String fileSizeStr = '2.0 MB';
+
+                            if (pickedFileBytes != null) {
+                              try {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Uploading file to storage...'),
+                                      backgroundColor: Color(0xFF38BDF8),
+                                    ),
+                                  );
+                                }
+
+                                final apiService = ref.read(apiServiceProvider);
+                                final uploadRes = await apiService.multipartPostBytes(
+                                  '/documents/upload',
+                                  pickedFileBytes!,
+                                  pickedFileName,
+                                  'file',
+                                  fields: {
+                                    'title': title,
+                                    'description': 'Uploaded for Live Class session',
+                                    'category': 'my_uploads',
+                                  },
+                                );
+
+                                if (uploadRes['success'] == true && uploadRes['data']?['document'] != null) {
+                                  final doc = uploadRes['data']['document'];
+                                  fileUrl = doc['file_url'] ?? '';
+                                  final rawSize = doc['file_size'] as num?;
+                                  fileSizeStr = getFileSizeString(rawSize?.toInt() ?? pickedFileSize);
+                                } else {
+                                  throw 'Upload response failed';
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('❌ File upload failed: $e'),
+                                      backgroundColor: const Color(0xFFDC2626),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+                            } else {
+                              fileUrl = urlCtrl.text.trim();
+                              if (fileUrl.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('⚠️ File URL / Download Link cannot be empty'),
+                                    backgroundColor: Color(0xFFDC2626),
+                                  ),
+                                );
+                                return;
+                              }
+                            }
+
+                            _addResource(title, fileUrl, sizeStr: fileSizeStr);
+                          },
+                          isPrimary: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ).then((_) => _setPointerEvents(true));
+  }
+
+  void _showShareModalDialog() {
+    final searchCtrl = TextEditingController();
+    List<Map<String, dynamic>> searchList = [];
+    bool isSearching = false;
+    _setPointerEvents(false);
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          Future<void> triggerSearch(String q) async {
+            if (q.trim().isEmpty) {
+              setDialogState(() {
+                searchList = [];
+              });
+              return;
+            }
+            setDialogState(() {
+              isSearching = true;
+            });
+            try {
+              final apiService = ref.read(apiServiceProvider);
+              final response = await apiService.get('/live-classes/school-users', query: {'search': q}, useCache: false);
+              if (response['success'] == true && response['data'] != null) {
+                if (dialogCtx.mounted) {
+                  setDialogState(() {
+                    searchList = List<Map<String, dynamic>>.from(response['data']);
+                    isSearching = false;
+                  });
+                }
+              }
+            } catch (e) {
+              if (dialogCtx.mounted) {
+                setDialogState(() {
+                  isSearching = false;
+                });
+              }
+            }
+          }
+
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              width: 480,
+              height: 520,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 40,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)]),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.share_rounded,
+                              color: Color(0xFF38BDF8), size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Share Class Recording',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white38, size: 18),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Search bar
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    child: TextField(
+                      controller: searchCtrl,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Search school members...',
+                        hintStyle:
+                            const TextStyle(color: Colors.white24, fontSize: 12),
+                        prefixIcon:
+                            const Icon(Icons.search, color: Colors.white38, size: 18),
+                        filled: true,
+                        fillColor: const Color(0xFF1E293B),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF38BDF8), width: 1.5),
+                        ),
+                      ),
+                      onChanged: triggerSearch,
+                    ),
+                  ),
+                  // Results list
+                  Expanded(
+                    child: isSearching
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                                color: Color(0xFF38BDF8)))
+                        : searchList.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.group_outlined,
+                                        color:
+                                            Colors.white.withValues(alpha: 0.1),
+                                        size: 48),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'Search by name to find\nschool members',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          color: Colors.white24, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 4),
+                                itemCount: searchList.length,
+                                itemBuilder: (itemCtx, index) {
+                                  final member = searchList[index];
+                                  final name = member['full_name'] ?? 'User';
+                                  final roleLabel =
+                                      (member['role'] ?? 'student')
+                                          .toString()
+                                          .toUpperCase();
+                                  return Container(
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1E293B),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 34,
+                                          height: 34,
+                                          decoration: const BoxDecoration(
+                                            gradient: LinearGradient(colors: [
+                                              Color(0xFF4F46E5),
+                                              Color(0xFF06B6D4)
+                                            ]),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              name.isNotEmpty ? name[0] : '?',
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight:
+                                                      FontWeight.bold),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(name,
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                              Text(roleLabel,
+                                                  style: const TextStyle(
+                                                      color: Colors.white38,
+                                                      fontSize: 9)),
+                                            ],
+                                          ),
+                                        ),
+                                        MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              Navigator.pop(ctx);
+                                              try {
+                                                final apiService =
+                                                    ref.read(apiServiceProvider);
+                                                final res = await apiService.post(
+                                                  '/live-classes/${widget.classId}/share',
+                                                  {'shared_to_id': member['id']},
+                                                );
+                                                if (res['success'] == true) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                            '✓ Shared with $name!'),
+                                                        backgroundColor:
+                                                            const Color(
+                                                                0xFF10B981),
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              } catch (e) {
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content:
+                                                          Text('Failed: $e'),
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFFEF4444),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 14, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF38BDF8)
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                    color: const Color(0xFF38BDF8)
+                                                        .withValues(alpha: 0.3)),
+                                              ),
+                                              child: const Text(
+                                                'Share',
+                                                style: TextStyle(
+                                                    color: Color(0xFF38BDF8),
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                  // Footer
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _buildDialogButton(
+                          label: 'Close',
+                          onTap: () => Navigator.pop(ctx),
+                          isPrimary: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ).then((_) => _setPointerEvents(true));
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1135,7 +2491,7 @@ class _StudentLiveClassPlayerScreenState
     }
 
     final classData = _localClassData;
-    final isTeacher = ref.read(authProvider).role == UserRole.teacher;
+    final isTeacher = ref.watch(authProvider).role == UserRole.teacher;
 
     if (classData == null) {
       return Scaffold(
@@ -1188,31 +2544,62 @@ class _StudentLiveClassPlayerScreenState
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left Column (70% width): Player, Title, Tabs
+        // Left Column (70% width): Player, Title, Tabs (Sticky/Shrinking on scroll)
         Expanded(
           flex: 7,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
             children: [
-              // Player container
-              _buildPlayerArea(classData, isLive, isTeacher),
-
-              // Autoplay Unmute Alert Banner
-              if (_showAudioWarning && kIsWeb) _buildMuteWarningBanner(),
-
-              // Information Panel (Title, Description, Tabs)
-              Expanded(
+              // Scrollable content
+              Positioned.fill(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
+                  controller: _leftScrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Spacer that matches the height of the video player
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        height: _isScrolled
+                            ? 156
+                            : (MediaQuery.of(context).size.width * 0.7 * 9 / 16) + 16,
+                      ),
+                      // Autoplay Unmute Alert Banner
+                      if (_showAudioWarning && kIsWeb) ...[
+                        _buildMuteWarningBanner(),
+                        const SizedBox(height: 12),
+                      ],
                       _buildTitleBlock(classData),
                       const SizedBox(height: 16),
                       _buildTabBar(),
                       const SizedBox(height: 16),
                       _buildTabContent(classData),
                     ],
+                  ),
+                ),
+              ),
+              // Pinned/Sticky Video Player
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  height: _isScrolled
+                      ? 140
+                      : MediaQuery.of(context).size.width * 0.7 * 9 / 16,
+                  child: Container(
+                    color: Colors.black,
+                    child: _isScrolled
+                        ? Center(
+                            child: AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: _buildPlayerArea(classData, isLive, isTeacher),
+                            ),
+                          )
+                        : _buildPlayerArea(classData, isLive, isTeacher),
                   ),
                 ),
               ),
@@ -1429,8 +2816,8 @@ class _StudentLiveClassPlayerScreenState
 
             // Intro overlay card
             if (_showIntroOverlay)
-              IgnorePointer(
-                child: Positioned.fill(
+              Positioned.fill(
+                child: IgnorePointer(
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.85),
                     child: Center(
@@ -1547,12 +2934,12 @@ class _StudentLiveClassPlayerScreenState
   }
 
   Widget _buildTitleBlock(LiveClassModel classData) {
-    // Show title or subject
     final String displayTitle =
         (classData.title != null && classData.title!.isNotEmpty)
             ? classData.title!
             : classData.subject;
     final String displaySub = classData.subjectName ?? classData.subject;
+    final isTeacher = ref.watch(authProvider).role == UserRole.teacher;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1587,6 +2974,15 @@ class _StudentLiveClassPlayerScreenState
                     color: Colors.white),
               ),
             ),
+            if (isTeacher) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.edit_rounded, color: Color(0xFF38BDF8), size: 18),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _showEditOverviewDialog(classData),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 6),
@@ -1599,6 +2995,14 @@ class _StudentLiveClassPlayerScreenState
   }
 
   Widget _buildQuickActionsPanel(LiveClassModel classData) {
+    final isTeacher = ref.watch(authProvider).role == UserRole.teacher;
+    final auth = ref.watch(authProvider);
+    // Check if this teacher owns this class (for rating restriction)
+    final bool isOwnClass = isTeacher &&
+        (auth.userData?['id'] != null &&
+            classData.teacherId != null &&
+            auth.userData!['id'].toString() == classData.teacherId.toString());
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1646,42 +3050,11 @@ class _StudentLiveClassPlayerScreenState
                   ],
                 ),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isSubscribed = !_isSubscribed;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_isSubscribed
-                          ? '🔔 Notifications enabled for ${classData.teacher}'
-                          : '🔕 Notifications disabled'),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isSubscribed
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFEF4444),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-                child: Text(
-                  _isSubscribed ? 'Subscribed' : 'Subscribe',
-                  style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Action buttons: Like, Share, Save, Rate Class
+          // Action buttons: Like, Share
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -1695,17 +3068,7 @@ class _StudentLiveClassPlayerScreenState
                   child: Row(
                     children: [
                       InkWell(
-                        onTap: () {
-                          setState(() {
-                            _isLiked = !_isLiked;
-                            if (_isLiked) {
-                              _likeCount++;
-                              _isDisliked = false;
-                            } else {
-                              _likeCount--;
-                            }
-                          });
-                        },
+                        onTap: _toggleLike,
                         borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(24),
                             bottomLeft: Radius.circular(24)),
@@ -1735,14 +3098,7 @@ class _StudentLiveClassPlayerScreenState
                       ),
                       Container(width: 1, height: 16, color: Colors.white24),
                       InkWell(
-                        onTap: () {
-                          setState(() {
-                            _isDisliked = !_isDisliked;
-                            if (_isDisliked) {
-                              _isLiked = false;
-                            }
-                          });
-                        },
+                        onTap: _toggleDislike,
                         borderRadius: const BorderRadius.only(
                             topRight: Radius.circular(24),
                             bottomRight: Radius.circular(24)),
@@ -1765,41 +3121,40 @@ class _StudentLiveClassPlayerScreenState
                 ),
                 const SizedBox(width: 8),
 
-                // Share
+                // Share Hub
                 InkWell(
-                  onTap: _shareStream,
+                  onTap: _showShareModalDialog,
                   borderRadius: BorderRadius.circular(24),
-                  child: _buildActionBadge(Icons.share_rounded, 'Share'),
+                  child: _buildActionBadge(
+                    Icons.share_rounded,
+                    'Share Hub',
+                  ),
                 ),
                 const SizedBox(width: 8),
 
-                // Save
+                // Copy Link
                 InkWell(
                   onTap: () {
-                    setState(() {
-                      _isSaved = !_isSaved;
-                    });
+                    final String path = html.window.location.href;
+                    Clipboard.setData(ClipboardData(text: path));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(_isSaved
-                              ? '📁 Saved to library!'
-                              : '📁 Removed from library')),
+                      const SnackBar(
+                        content: Text('🔗 Playback share link copied to clipboard!'),
+                        backgroundColor: Color(0xFF10B981),
+                      ),
                     );
                   },
                   borderRadius: BorderRadius.circular(24),
                   child: _buildActionBadge(
-                    _isSaved
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    'Save',
-                    isSelected: _isSaved,
+                    Icons.link_rounded,
+                    'Copy Link',
                   ),
                 ),
               ],
             ),
           ),
 
-          // Rating Dialog Section
+          // Rating Section
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
@@ -1811,47 +3166,60 @@ class _StudentLiveClassPlayerScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Rate this lecture session:',
-                  style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isOwnClass
+                          ? 'Session rating (yours):'
+                          : 'Rate this lecture session:',
+                      style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    if (_avgRating > 0)
+                      Text(
+                        '⭐ ${_avgRating.toStringAsFixed(1)} average',
+                        style: const TextStyle(
+                            color: Color(0xFFF59E0B),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: List.generate(5, (index) {
-                    final int starValue = index + 1;
-                    return IconButton(
-                      icon: Icon(
-                        _userRating >= starValue
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: _userRating >= starValue
-                            ? const Color(0xFFF59E0B)
-                            : Colors.white24,
-                      ),
-                      iconSize: 24,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: _hasRated
-                          ? null
-                          : () {
-                              setState(() {
-                                _userRating = starValue;
-                                _hasRated = true;
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      '⭐ Thank you for rating this lecture $starValue stars!'),
-                                  backgroundColor: const Color(0xFFF59E0B),
-                                ),
-                              );
-                            },
-                    );
-                  }),
-                ),
+                if (isOwnClass)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      '⚠️ Instructors cannot rate their own sessions.',
+                      style: TextStyle(
+                          color: Color(0xFFF59E0B),
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic),
+                    ),
+                  )
+                else
+                  Row(
+                    children: List.generate(5, (index) {
+                      final int starValue = index + 1;
+                      return IconButton(
+                        icon: Icon(
+                          _userRating >= starValue
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          color: _userRating >= starValue
+                              ? const Color(0xFFF59E0B)
+                              : Colors.white24,
+                        ),
+                        iconSize: 24,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: _hasRated ? null : () => _submitRating(starValue),
+                      );
+                    }),
+                  ),
               ],
             ),
           ),
@@ -1892,7 +3260,7 @@ class _StudentLiveClassPlayerScreenState
   }
 
   Widget _buildTabBar() {
-    final List<String> tabs = ['Overview', 'Chapters', 'Resources', 'My Notes'];
+    final List<String> tabs = ['Overview', 'Chapters', 'Resources', 'Notes'];
     return Container(
       height: 40,
       decoration: const BoxDecoration(
@@ -1935,111 +3303,196 @@ class _StudentLiveClassPlayerScreenState
   }
 
   Widget _buildTabContent(LiveClassModel classData) {
+    final isTeacher = ref.watch(authProvider).role == UserRole.teacher;
+
     switch (_activeTab) {
       case 'Chapters':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Lecture Timeline Chapters',
-                style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Lecture Timeline Chapters',
+                    style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+                if (isTeacher)
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF38BDF8), size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: _showAddChapterDialog,
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
-            ..._chapters.map((ch) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
+            if (_chapters.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text('No timeline chapters defined.', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                ),
+              )
+            else
+              ..._chapters.map((ch) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Material(
                     color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(8)),
-                child: ListTile(
-                  dense: true,
-                  leading: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4)),
-                    child: Text(
-                      ch['time'],
-                      style: const TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10),
+                    borderRadius: BorderRadius.circular(8),
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      dense: true,
+                      leading: Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4)),
+                        child: Text(
+                          ch['time'],
+                          style: const TextStyle(
+                              color: Color(0xFFEF4444),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10),
+                        ),
+                      ),
+                      title: Text(ch['title'],
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.87),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isTeacher)
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 16),
+                              onPressed: () => _deleteChapter(ch['id']),
+                            ),
+                          const Icon(Icons.play_circle_fill_rounded,
+                              color: Colors.white30, size: 18),
+                        ],
+                      ),
+                      onTap: () => _seekVideo(ch['seconds']),
                     ),
                   ),
-                  title: Text(ch['title'],
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.87),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-                  trailing: const Icon(Icons.play_circle_fill_rounded,
-                      color: Colors.white30, size: 18),
-                  onTap: () => _seekVideo(ch['seconds']),
-                ),
-              );
-            }),
+                );
+              }),
           ],
         );
       case 'Resources':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Downloadable Lecture Materials',
-                style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Downloadable Lecture Materials',
+                    style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+                if (isTeacher)
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF38BDF8), size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: _showAddResourceDialog,
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
-            ..._resources.map((res) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(8)),
-                child: ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.picture_as_pdf_rounded,
-                      color: Color(0xFFEF4444), size: 20),
-                  title: Text(res['title']!,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.87),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-                  subtitle: Text(res['size']!,
-                      style:
-                          const TextStyle(color: Colors.white38, fontSize: 9)),
-                  trailing: const Icon(Icons.download_rounded,
-                      color: Color(0xFF38BDF8), size: 18),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('📥 Downloading ${res['title']}...'),
-                          backgroundColor: const Color(0xFF38BDF8)),
-                    );
-                  },
+            if (_resources.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text('No resources available for download.', style: TextStyle(color: Colors.white38, fontSize: 11)),
                 ),
-              );
-            }),
+              )
+            else
+              ..._resources.map((res) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(8),
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.picture_as_pdf_rounded,
+                          color: Color(0xFFEF4444), size: 20),
+                      title: Text(res['title']!,
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.87),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                      subtitle: Text(res['size']!,
+                          style:
+                              const TextStyle(color: Colors.white38, fontSize: 9)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isTeacher) ...[
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 16),
+                              onPressed: () => _deleteResource(res['id']),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          const Icon(Icons.download_rounded,
+                              color: Color(0xFF38BDF8), size: 18),
+                        ],
+                      ),
+                      onTap: () {
+                        final url = res['file_url'];
+                        if (url != null && url.isNotEmpty) {
+                          try {
+                            final uri = Uri.parse(_fixStorageUrl(url));
+                            launchUrl(uri, mode: LaunchMode.externalApplication);
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Could not open resource: $e')),
+                            );
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('📥 Downloading ${res['title']}...'),
+                                backgroundColor: const Color(0xFF38BDF8)),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                );
+              }),
           ],
         );
       case 'Notes':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Take session notes:',
-                style: TextStyle(
+            Text(
+                isTeacher
+                    ? 'Take session notes (shared with students):'
+                    : 'Session notes (view-only):',
+                style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 12,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             TextField(
               controller: _notesController,
+              enabled: isTeacher,
               maxLines: 6,
               style: const TextStyle(color: Colors.white, fontSize: 12),
               decoration: InputDecoration(
-                hintText:
-                    'Type your lecture summary, key formulas or remarks here...',
+                hintText: isTeacher
+                    ? 'Type your lecture summary, key formulas or remarks here...'
+                    : 'No notes added for this lecture yet.',
                 hintStyle: const TextStyle(color: Colors.white24, fontSize: 11),
                 fillColor: const Color(0xFF1E293B),
                 filled: true,
@@ -2047,43 +3500,42 @@ class _StudentLiveClassPlayerScreenState
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none),
               ),
+              onChanged: (text) {
+                if (_notesSaved) {
+                  setState(() {
+                    _notesSaved = false;
+                  });
+                }
+              },
             ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _notesSaved ? '✓ Saved locally' : 'Unsaved changes',
-                  style: TextStyle(
-                      color: _notesSaved
-                          ? const Color(0xFF10B981)
-                          : Colors.white24,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _notesSaved = true;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              '✓ Notes successfully saved for this lecture.'),
-                          backgroundColor: Color(0xFF10B981)),
-                    );
-                  },
-                  icon: const Icon(Icons.save_rounded, size: 14),
-                  label:
-                      const Text('Save Notes', style: TextStyle(fontSize: 10)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEF4444),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            if (isTeacher) ...[
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _notesSaved ? '✓ Saved successfully' : 'Unsaved changes',
+                    style: TextStyle(
+                        color: _notesSaved
+                            ? const Color(0xFF10B981)
+                            : Colors.white24,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
-            ),
+                  ElevatedButton.icon(
+                    onPressed: _saveNotes,
+                    icon: const Icon(Icons.save_rounded, size: 14),
+                    label:
+                        const Text('Save Notes', style: TextStyle(fontSize: 10)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         );
       case 'Overview':
@@ -2092,6 +3544,12 @@ class _StudentLiveClassPlayerScreenState
                 classData.description!.isNotEmpty)
             ? classData.description!
             : 'Welcome to this recorded lecture session. In this session, we investigate deep curriculum concepts, go through live practice files, and check step-by-step calculations. Review resources and seek direct chapters to skip ahead.';
+        
+        final durationVal = classData.toJson().containsKey('duration') ? classData.toJson()['duration'] : null;
+        final String durationDisplay = durationVal != null 
+            ? '${(durationVal as num).toInt() ~/ 60} min' 
+            : '${classData.date?.split('·').skip(1).firstOrNull ?? "Recorded"}';
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2116,7 +3574,7 @@ class _StudentLiveClassPlayerScreenState
             _buildDetailRow('Platform / Server:', classData.platform),
             _buildDetailRow('Stream Type:', classData.type.toUpperCase()),
             _buildDetailRow('Duration mapped:',
-                '${classData.timeUntil ?? "Recorded Class"} (${classData.date ?? ""})'),
+                '$durationDisplay (${classData.date?.split('·').firstOrNull ?? "Recorded Class"})'),
           ],
         );
     }
@@ -2141,12 +3599,97 @@ class _StudentLiveClassPlayerScreenState
     );
   }
 
-  Widget _buildSidebarLecturesList() {
-    final recordedList = ref.read(liveClassesProvider).recorded;
-    final otherRecordings =
-        recordedList.where((c) => c.id != widget.classId).toList();
+  /// Premium styled text field for dialogs
+  Widget _buildPremiumTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: const TextStyle(color: Colors.white, fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle:
+            const TextStyle(color: Colors.white38, fontSize: 12),
+        prefixIcon: Icon(icon, color: Colors.white24, size: 18),
+        filled: true,
+        fillColor: const Color(0xFF1E293B),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 1.5),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+      ),
+    );
+  }
 
-    if (otherRecordings.isEmpty) return const SizedBox();
+  /// Premium styled button for dialogs
+  Widget _buildDialogButton({
+    required String label,
+    required VoidCallback onTap,
+    required bool isPrimary,
+    IconData? icon,
+  }) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: isPrimary
+                ? const LinearGradient(
+                    colors: [Color(0xFFEF4444), Color(0xFFDC2626)])
+                : null,
+            color: isPrimary ? null : Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: isPrimary
+                ? null
+                : Border.all(
+                    color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon,
+                    color: isPrimary ? Colors.white : Colors.white54,
+                    size: 14),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isPrimary ? Colors.white : Colors.white54,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarLecturesList() {
+    if (_relatedLectures.isEmpty) return const SizedBox();
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -2162,56 +3705,56 @@ class _StudentLiveClassPlayerScreenState
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: otherRecordings.length,
+            itemCount: _relatedLectures.length,
             itemBuilder: (context, index) {
-              final rec = otherRecordings[index];
+              final rec = _relatedLectures[index];
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
+                child: Material(
                   color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(12),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.02)),
-                ),
-                child: ListTile(
-                  dense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  leading: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(8)),
-                    child: Center(
-                      child: Text(rec.icon.isNotEmpty ? rec.icon : '📚',
-                          style: const TextStyle(fontSize: 18)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.02)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    dense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    leading: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Center(
+                        child: Text(rec['icon']?.toString() ?? '📚',
+                            style: const TextStyle(fontSize: 18)),
+                      ),
                     ),
+                    title: Text(
+                      rec['subject']?.toString() ?? 'Related Lecture',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${rec['teacher'] ?? "Teacher"} · ${rec['date'] ?? "Recorded"}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 9),
+                    ),
+                    onTap: () {
+                      final isTeacher =
+                          ref.read(authProvider).role == UserRole.teacher;
+                      final String routePath = isTeacher
+                          ? '/teacher/live-classes/play/${rec['id']}'
+                          : '/student/live-classes/play/${rec['id']}';
+                      context.go(routePath);
+                    },
                   ),
-                  title: Text(
-                    (rec.title != null && rec.title!.isNotEmpty)
-                        ? rec.title!
-                        : rec.subject,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    '${rec.teacher} · ${rec.date ?? "Recorded"}',
-                    style: const TextStyle(color: Colors.white38, fontSize: 9),
-                  ),
-                  onTap: () {
-                    // Update URL and reload the video page
-                    final isTeacher =
-                        ref.read(authProvider).role == UserRole.teacher;
-                    final String routePath = isTeacher
-                        ? '/teacher/live-classes/play/${rec.id}'
-                        : '/student/live-classes/play/${rec.id}';
-                    context.go(routePath);
-                  },
                 ),
               );
             },
@@ -2283,6 +3826,17 @@ class _StudentLiveClassPlayerScreenState
     final commentId = comment['id'].toString();
     final likes = comment['likes'] ?? 0;
 
+    final authState = ref.watch(authProvider);
+    final currentUserId = authState.userData?['id']?.toString() ?? '';
+    final commentUserId = comment['user_id']?.toString() ?? '';
+    final bool isOwner = currentUserId.isNotEmpty &&
+        commentUserId.isNotEmpty &&
+        currentUserId.toLowerCase() == commentUserId.toLowerCase();
+    
+    debugPrint('[CommentsTest] commentId: $commentId, currentUserId: $currentUserId, commentUserId: $commentUserId, isOwner: $isOwner, commentText: ${comment['text']}');
+    final bool canDelete = isOwner;
+    final bool canEdit = isOwner;
+
     return Padding(
       padding: EdgeInsets.only(bottom: 12, left: isReply ? 24 : 0),
       child: Column(
@@ -2337,19 +3891,132 @@ class _StudentLiveClassPlayerScreenState
                           ),
                         ],
                         const SizedBox(width: 8),
-                        Text(comment['time'] ?? 'Just now',
-                            style: const TextStyle(
-                                fontSize: 8, color: Colors.white24)),
+                        Text(
+                          '${comment['time'] ?? 'Just now'}${comment['is_edited'] == true ? ' · edited' : ''}',
+                          style: const TextStyle(fontSize: 8, color: Colors.white24),
+                        ),
+                        if (canEdit || canDelete) ...[
+                          const Spacer(),
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert_rounded, size: 12, color: Colors.white38),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(maxWidth: 100),
+                            color: const Color(0xFF1E293B),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                setState(() {
+                                  _editingCommentId = commentId;
+                                  _editCommentController.text = comment['text'] ?? '';
+                                });
+                              } else if (value == 'delete') {
+                                _showDeleteConfirmation(commentId);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              if (canEdit)
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  height: 32,
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit_rounded, size: 12, color: Colors.white70),
+                                      SizedBox(width: 6),
+                                      Text('Edit', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                                    ],
+                                  ),
+                                ),
+                              if (canDelete)
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  height: 32,
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete_rounded, size: 12, color: Colors.redAccent),
+                                      SizedBox(width: 6),
+                                      Text('Delete', style: TextStyle(color: Colors.redAccent, fontSize: 10)),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ]
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      comment['text'] ?? '',
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 10.5,
-                          height: 1.35),
-                    ),
+                    if (_editingCommentId == commentId)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: _editCommentController,
+                              style: const TextStyle(color: Colors.white, fontSize: 10.5),
+                              maxLines: null,
+                              decoration: InputDecoration(
+                                fillColor: const Color(0xFF1E293B),
+                                filled: true,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.white10),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.white10),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () => _submitEditComment(commentId),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF38BDF8),
+                                    foregroundColor: Colors.black,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  ),
+                                  child: const Text('Save', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _editingCommentId = null;
+                                    });
+                                  },
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.white60,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text('Cancel', style: TextStyle(fontSize: 9)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        comment['text'] ?? '',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 10.5,
+                            height: 1.35),
+                      ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -2483,9 +4150,13 @@ class _StudentLiveClassPlayerScreenState
 
   @override
   void dispose() {
+    _unsubscribeRealtimeComments();
     _commentController.dispose();
     _replyController.dispose();
+    _editCommentController.dispose();
     _notesController.dispose();
+    _leftScrollController.dispose();
     super.dispose();
   }
 }
+

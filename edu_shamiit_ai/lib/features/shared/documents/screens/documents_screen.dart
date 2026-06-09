@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/models/document_model.dart';
 import 'package:edu_shamiit_ai/core/providers/documents_provider.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
+import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
 import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
     if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
     if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
@@ -158,6 +161,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'documents_screen_fab',
         onPressed: _showUploadSheet,
         backgroundColor: _kPrimary,
         icon: const Icon(Icons.upload_rounded, color: Colors.white),
@@ -176,10 +180,25 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
 
   Future<void> _downloadDocument(DocumentModel doc) async {
     try {
-      final url = doc.isFileBacked
+      final url = doc.fileUrl;
+      if (url != null && (url.contains('/live-classes/play/') || url.contains('/play/'))) {
+        final uri = Uri.parse(url);
+        final pathSegments = uri.pathSegments;
+        final classId = pathSegments.isNotEmpty ? pathSegments.last : '';
+        if (classId.isNotEmpty) {
+          final auth = ref.read(authProvider);
+          final isTeacher = auth.role.value == 'teacher';
+          final targetRoute = isTeacher 
+              ? '/teacher/live-classes/play/$classId' 
+              : '/student/live-classes/play/$classId';
+          context.go(targetRoute);
+          return;
+        }
+      }
+      final downloadUrl = doc.isFileBacked
           ? doc.fileUrl!
           : '${AppConfig.apiBaseUrl}/documents/${doc.id}/download';
-      await getDownloadHelper().downloadFile(url, doc.fileName ?? 'document');
+      await getDownloadHelper().downloadFile(downloadUrl, doc.fileName ?? 'document');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

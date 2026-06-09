@@ -183,6 +183,7 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher_exams_fab',
         onPressed: () => _showCreateExamDialog(),
         backgroundColor: const Color(0xFF6366F1),
         icon: const Icon(Icons.add, color: Colors.white),

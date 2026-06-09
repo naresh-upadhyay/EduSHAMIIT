@@ -50,8 +50,16 @@ class ApiService {
 
   Future<Map<String, dynamic>> _fetchAndCache(String endpoint, Map<String, dynamic>? query, String cacheKey) async {
     try {
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint')
-          .replace(queryParameters: query);
+      var uri = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+      if (query != null && query.isNotEmpty) {
+        final Map<String, String> mergedParams = {...uri.queryParameters};
+        query.forEach((key, value) {
+          if (value != null) {
+            mergedParams[key] = value.toString();
+          }
+        });
+        uri = uri.replace(queryParameters: mergedParams);
+      }
       final response = await _client
           .get(uri, headers: await _headers)
           .timeout(AppConfig.apiTimeout);

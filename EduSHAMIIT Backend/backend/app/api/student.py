@@ -1124,6 +1124,7 @@ async def student_live_classes(user=Depends(get_current_user), school_id=Depends
             
         mapped = {
             "id": c["id"],
+            "teacher_id": c.get("teacher_id"),
             "subject": c["title"], # To match mockup "Physics — Optics Chapter 9"
             "subject_name": subj_name,
             "title": c.get("title", ""),
@@ -1200,6 +1201,7 @@ async def get_live_class_comments(live_class_id: str, user=Depends(get_current_u
             
         mapped = {
             "id": c["id"],
+            "user_id": c.get("user_id"),
             "user": prof.get("full_name", "User"),
             "avatar": prof.get("avatar_url") or (prof.get("full_name", "U")[0] if prof.get("full_name") else "U"),
             "text": c["comment"],
@@ -1208,6 +1210,7 @@ async def get_live_class_comments(live_class_id: str, user=Depends(get_current_u
             "pinned": c.get("is_pinned", False),
             "role": prof.get("role", "student"),
             "parent_id": c.get("parent_id"),
+            "is_edited": c.get("is_edited", False),
             "replies": []
         }
         
@@ -1251,7 +1254,8 @@ async def add_live_class_comment(live_class_id: str, request: dict, user=Depends
         "comment": comment_text,
         "is_pinned": is_pinned,
         "likes": 0,
-        "parent_id": parent_id
+        "parent_id": parent_id,
+        "is_edited": False
     }
     res = await sb.table("live_class_comments").insert(data).aexecute()
     new_comment = res.data[0] if res.data else {}
@@ -1260,6 +1264,7 @@ async def add_live_class_comment(live_class_id: str, request: dict, user=Depends
         "success": True, 
         "data": {
             "id": new_comment.get("id"),
+            "user_id": user["id"],
             "user": prof.get("full_name", "User"),
             "avatar": prof.get("avatar_url") or (prof.get("full_name", "U")[0] if prof.get("full_name") else "U"),
             "text": comment_text,
@@ -1268,9 +1273,68 @@ async def add_live_class_comment(live_class_id: str, request: dict, user=Depends
             "pinned": is_pinned,
             "role": user_role,
             "parent_id": parent_id,
+            "is_edited": False,
             "replies": []
         }
     }
+
+
+@router.put("/live-classes/{live_class_id}/comments/{comment_id}")
+async def edit_live_class_comment(
+    live_class_id: str,
+    comment_id: str,
+    request: dict,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    comment_text = request.get("comment")
+    if not comment_text:
+        raise HTTPException(status_code=400, detail="comment text is required")
+        
+    # 1. Fetch comment to verify owner
+    comment_res = await sb.table("live_class_comments").select("*").eq("id", comment_id).maybe_single().aexecute()
+    if not comment_res.data:
+        raise HTTPException(status_code=404, detail="Comment not found")
+        
+    comment_data = comment_res.data
+    if str(comment_data.get("user_id")) != str(user["id"]):
+        raise HTTPException(status_code=403, detail="You can only edit your own comments")
+        
+    # 2. Update comment text and is_edited
+    res = await sb.table("live_class_comments").update({
+        "comment": comment_text,
+        "is_edited": True
+    }).eq("id", comment_id).aexecute()
+    
+    return {"success": True, "data": res.data[0] if res.data else {}}
+
+
+@router.delete("/live-classes/{live_class_id}/comments/{comment_id}")
+async def delete_live_class_comment(
+    live_class_id: str,
+    comment_id: str,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    
+    # 1. Fetch comment to verify permissions
+    comment_res = await sb.table("live_class_comments").select("*").eq("id", comment_id).maybe_single().aexecute()
+    if not comment_res.data:
+        raise HTTPException(status_code=404, detail="Comment not found")
+        
+    comment_data = comment_res.data
+    is_owner = str(comment_data.get("user_id")) == str(user["id"])
+    is_teacher = user.get("role") in ("teacher", "admin", "teacher_admin")
+    
+    if not is_owner:
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this comment")
+        
+    # 2. Delete the comment
+    await sb.table("live_class_comments").delete().eq("id", comment_id).aexecute()
+    return {"success": True, "message": "Comment deleted successfully"}
+
 
 
 

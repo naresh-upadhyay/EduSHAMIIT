@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:livekit_client/livekit_client.dart';
 import '../../core/services/in_app_live_room_service.dart';
+import '../../core/utils/fullscreen_helper.dart';
 
 class InAppLiveRoomScreen extends StatefulWidget {
   final String liveClassId;
@@ -34,6 +35,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
 
   bool _isChatOpen = false;
   bool _isParticipantsOpen = false;
+  bool _isScreenShareMaximized = false;
+  Object? _fullscreenSubscription;
   final TextEditingController _chatController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
 
@@ -55,6 +58,14 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
     );
 
     _initRoom();
+
+    _fullscreenSubscription = subscribeToFullscreenChanges(() {
+      if (mounted && _isScreenShareMaximized) {
+        setState(() {
+          _isScreenShareMaximized = false;
+        });
+      }
+    });
 
     _sessionStopwatch.start();
     _timerTick = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -153,6 +164,7 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
     for (final r in _reactions) {
       r.controller.dispose();
     }
+    unsubscribeFromFullscreenChanges(_fullscreenSubscription);
     super.dispose();
   }
 
@@ -307,12 +319,207 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
     );
   }
 
+  Widget _buildScreenShareCard(LiveKitParticipantTrack track) {
+    final showAvatar = track.isCamOff || track.videoTrack == null;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.transparent, // Fully transparent to eliminate letterbox background wings
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Stack(
+        children: [
+          // Stream rendering
+          if (!showAvatar)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: VideoTrackRenderer(
+                  track.videoTrack!,
+                  fit: VideoViewFit.contain,
+                  mirrorMode: VideoViewMirrorMode.off, // Screen shares are never mirrored
+                ),
+              ),
+            )
+          else
+            Center(
+              child: Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                      width: 1.5),
+                ),
+                child: Center(
+                  child: Text(
+                    track.name.isNotEmpty ? track.name[0].toUpperCase() : 'U',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFF818CF8),
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // User Metadata Label Overlay
+          Positioned(
+            bottom: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    track.isLocal ? 'You (${track.name})' : track.name,
+                    style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'SCREEN SHARE',
+                      style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Maximize / Restore Toggle Button Overlay (Bottom-Right)
+          Positioned(
+            bottom: 12,
+            right: 12,
+            child: Tooltip(
+              message: _isScreenShareMaximized ? 'Exit full screen' : 'View in full screen',
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    _isScreenShareMaximized ? Icons.fullscreen_exit : Icons.fullscreen,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isScreenShareMaximized = !_isScreenShareMaximized;
+                      toggleBrowserFullscreen(_isScreenShareMaximized);
+                    });
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVideoGrid(List<LiveKitParticipantTrack> tracks) {
     if (tracks.isEmpty) {
       return const Center(
           child: CircularProgressIndicator(color: Color(0xFF6366F1)));
     }
 
+    // Check if any participant is currently sharing screen
+    final screenShareTrack = tracks.where((t) => t.isScreenShare).firstOrNull;
+
+    if (screenShareTrack != null) {
+      final otherTracks = tracks.where((t) => !t.isScreenShare).toList();
+      
+      // If maximized, occupy 100% space and hide other camera feeds
+      if (_isScreenShareMaximized) {
+        return Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: _buildScreenShareCard(screenShareTrack),
+        );
+      }
+
+      final isWideScreen = MediaQuery.of(context).size.width > 900;
+
+      if (isWideScreen) {
+        // Desktop/Tablet split layout: Screen share on left, vertical cameras on right
+        return Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: _buildScreenShareCard(screenShareTrack),
+              ),
+            ),
+            if (otherTracks.isNotEmpty)
+              Container(
+                width: 220, // Clean width for right sidebar tiles
+                padding: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                child: ListView.builder(
+                  scrollDirection: Axis.vertical,
+                  itemCount: otherTracks.length,
+                  itemBuilder: (context, index) {
+                    return AspectRatio(
+                      aspectRatio: 1.33,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: _buildVideoCard(otherTracks[index]),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      } else {
+        // Portrait/Mobile layout: Screen share on top, horizontal cameras at bottom
+        return Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: _buildScreenShareCard(screenShareTrack),
+              ),
+            ),
+            if (otherTracks.isNotEmpty)
+              SizedBox(
+                height: 120, // Compact height
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  itemCount: otherTracks.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: 160,
+                      margin: const EdgeInsets.only(right: 12),
+                      child: _buildVideoCard(otherTracks[index]),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      }
+    }
+
+    // Standard Grid view when no one is sharing screen
     if (tracks.length == 1) {
       return _buildVideoCard(tracks.first);
     }
@@ -363,8 +570,8 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
               borderRadius: BorderRadius.circular(18),
               child: VideoTrackRenderer(
                 track.videoTrack!,
-                fit: VideoViewFit.cover,
-                mirrorMode: track.isLocal
+                fit: track.isScreenShare ? VideoViewFit.contain : VideoViewFit.cover,
+                mirrorMode: track.isLocal && !track.isScreenShare
                     ? VideoViewMirrorMode.mirror
                     : VideoViewMirrorMode.off,
               ),
@@ -520,18 +727,32 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
             ),
             const SizedBox(width: 14),
             // Screen Share Toggle
-            _buildRoundButton(
-              onPressed: () => _roomService.toggleScreenShare(),
-              icon: _roomService.isScreenSharing
-                  ? Icons.stop_screen_share
-                  : Icons.screen_share,
-              backgroundColor: _roomService.isScreenSharing
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFF334155),
-              iconColor: Colors.white,
-              tooltip: _roomService.isScreenSharing
-                  ? 'Stop screen sharing'
-                  : 'Share screen',
+            Builder(
+              builder: (context) {
+                final isSomeoneElseSharing = _roomService.isAnyScreenSharing && !_roomService.isScreenSharing;
+                return _buildRoundButton(
+                  onPressed: isSomeoneElseSharing
+                      ? () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Only one person is allowed to share their screen at a time.'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      : () => _roomService.toggleScreenShare(),
+                  icon: _roomService.isScreenSharing
+                      ? Icons.stop_screen_share
+                      : Icons.screen_share,
+                  backgroundColor: _roomService.isScreenSharing
+                      ? const Color(0xFF10B981)
+                      : (isSomeoneElseSharing ? const Color(0xFF1E293B) : const Color(0xFF334155)),
+                  iconColor: isSomeoneElseSharing ? Colors.white24 : Colors.white,
+                  tooltip: _roomService.isScreenSharing
+                      ? 'Stop screen sharing'
+                      : (isSomeoneElseSharing ? 'Screen share is currently active by another participant' : 'Share screen'),
+                );
+              }
             ),
             const SizedBox(width: 14),
             // Hand Raise
@@ -547,6 +768,24 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
             const SizedBox(width: 14),
             // Reactions Popup
             _buildReactionsTrigger(),
+            if (widget.currentUserRole == 'teacher') ...[
+              const SizedBox(width: 14),
+              // Start/Stop Recording (Teacher only)
+              _buildRoundButton(
+                onPressed: () => _toggleRecording(),
+                icon: _roomService.isRecording
+                    ? Icons.stop
+                    : Icons.fiber_manual_record,
+                backgroundColor: _roomService.isRecording
+                    ? Colors.red
+                    : const Color(0xFF334155),
+                iconColor:
+                    _roomService.isRecording ? Colors.white : Colors.red,
+                tooltip: _roomService.isRecording
+                    ? 'Stop recording'
+                    : 'Start recording',
+              ),
+            ],
             const SizedBox(width: 24),
             // Disconnect Call
             _buildRoundButton(
@@ -947,6 +1186,22 @@ class _InAppLiveRoomScreenState extends State<InAppLiveRoomScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _toggleRecording() async {
+    try {
+      if (_roomService.isRecording) {
+        await _roomService.stopRecording();
+      } else {
+        await _roomService.startRecording();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update recording: $e')),
+        );
+      }
+    }
   }
 }
 

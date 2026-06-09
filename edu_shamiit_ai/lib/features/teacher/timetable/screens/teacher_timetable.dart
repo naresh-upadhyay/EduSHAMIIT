@@ -467,6 +467,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
       // Float Button to Schedule Class / Meetings — positioned on start (left) to avoid bot icon
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher_timetable_fab',
         onPressed: _showScheduleModal,
         backgroundColor: const Color(0xFF1E40AF),
         foregroundColor: Colors.white,

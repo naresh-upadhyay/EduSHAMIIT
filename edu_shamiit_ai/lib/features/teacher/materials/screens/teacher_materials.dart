@@ -204,6 +204,7 @@ class _TeacherMaterialsState extends ConsumerState<TeacherMaterials> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher_materials_fab',
         onPressed: () => _showUploadDialog(),
         backgroundColor: const Color(0xFFF59E0B),
         icon: const Icon(Icons.upload, color: Colors.white),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 class AiFab extends StatelessWidget {
   final Gradient gradient;
@@ -13,6 +13,7 @@ class AiFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton(
+      heroTag: 'ai_chatbot_fab',
       onPressed: onPressed,
       child: Container(
         width: 56,

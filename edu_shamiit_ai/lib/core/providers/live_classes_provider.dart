@@ -24,6 +24,7 @@ class LiveClassModel {
   final String? recordingUrl;
   final String platform; // 'Zoom', 'Google Meet', 'YouTube', 'In-App', etc.
   final String? meetingLink;
+  final String? teacherId;
 
   LiveClassModel({
     required this.id,
@@ -45,6 +46,7 @@ class LiveClassModel {
     this.recordingUrl,
     this.platform = 'In-App',
     this.meetingLink,
+    this.teacherId,
   });
 
   factory LiveClassModel.fromJson(Map<String, dynamic> json) {
@@ -68,6 +70,7 @@ class LiveClassModel {
       recordingUrl: json['recording_url'],
       platform: json['platform'] ?? 'In-App',
       meetingLink: json['meeting_link'],
+      teacherId: json['teacher_id'],
     );
   }
 
@@ -242,13 +245,20 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
 
   Future<List<Map<String, dynamic>>> fetchComments(String classId) async {
     try {
-      final response = await _apiService.get('/student/live-classes/$classId/comments');
+      final response = await _apiService.get('/student/live-classes/$classId/comments', useCache: false);
+      debugPrint('[Comments] Response success: ${response['success']}, keys: ${response.keys.toList()}');
       if (response['success'] == true) {
-        final list = response['data']['comments'] as List<dynamic>?;
-        return list?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+        final dataField = response['data'];
+        if (dataField is Map) {
+          final list = dataField['comments'] as List<dynamic>?;
+          debugPrint('[Comments] Fetched ${list?.length ?? 0} comments for $classId');
+          return list?.map((e) => Map<String, dynamic>.from(e)).toList() ?? [];
+        }
       }
+      debugPrint('[Comments] Failed: ${response['message'] ?? response['detail'] ?? 'unknown'}');
       return [];
     } catch (e) {
+      debugPrint('[Comments] Exception: $e');
       return [];
     }
   }
@@ -268,6 +278,31 @@ class LiveClassesNotifier extends StateNotifier<LiveClassesState> {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<bool> editComment(String classId, String commentId, String text) async {
+    try {
+      final response = await _apiService.put(
+        '/student/live-classes/$classId/comments/$commentId',
+        {'comment': text},
+      );
+      return response['success'] == true;
+    } catch (e) {
+      debugPrint('[Comments] Edit exception: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteComment(String classId, String commentId) async {
+    try {
+      final response = await _apiService.delete(
+        '/student/live-classes/$classId/comments/$commentId',
+      );
+      return response['success'] == true;
+    } catch (e) {
+      debugPrint('[Comments] Delete exception: $e');
+      return false;
     }
   }
 }

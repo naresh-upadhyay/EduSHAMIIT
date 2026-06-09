@@ -57,6 +57,7 @@ class LiveKitParticipantTrack {
   final bool isMicMuted;
   final bool isCamOff;
   final bool isHandRaised;
+  final bool isScreenShare;
 
   LiveKitParticipantTrack({
     required this.userId,
@@ -67,6 +68,7 @@ class LiveKitParticipantTrack {
     required this.isMicMuted,
     required this.isCamOff,
     required this.isHandRaised,
+    this.isScreenShare = false,
   });
 }
 
@@ -83,6 +85,9 @@ class InAppLiveRoomService extends ChangeNotifier {
   bool _isCamOff = false;
   bool _isRecording = false;
 
+  ConnectionQuality? _lastConnectionQuality;
+  DateTime? _lastCongestionAlertTime;
+
   final List<LiveRoomChatMessage> _chatMessages = [];
   final Set<String> _raisedHands = {};
 
@@ -97,6 +102,30 @@ class InAppLiveRoomService extends ChangeNotifier {
   bool get isScreenSharing => _isScreenSharing;
   bool get isMicMuted => _isMicMuted;
   bool get isCamOff => _isCamOff;
+
+  /// Check if any participant (local or remote) is currently sharing their screen
+  bool get isAnyScreenSharing {
+    if (_room == null) return false;
+    
+    // Check local participant
+    final localScreenPub = _room!.localParticipant?.videoTrackPublications
+        .where((p) => p.source == TrackSource.screenShareVideo)
+        .firstOrNull;
+    if (localScreenPub != null && !localScreenPub.muted) {
+      return true;
+    }
+
+    // Check remote participants
+    for (final p in _room!.remoteParticipants.values) {
+      final screenPub = p.videoTrackPublications
+          .where((pub) => pub.source == TrackSource.screenShareVideo)
+          .firstOrNull;
+      if (screenPub != null && screenPub.subscribed && !screenPub.muted) {
+        return true;
+      }
+    }
+    return false;
+  }
   bool get isRecording => _isRecording;
   List<LiveRoomChatMessage> get chatMessages => _chatMessages;
   Stream<Map<String, dynamic>> get onReactionReceived =>
@@ -122,8 +151,16 @@ class InAppLiveRoomService extends ChangeNotifier {
     // 1. Add Local Participant
     final localPart = _room?.localParticipant;
     if (localPart != null) {
-      final localVideo =
-          localPart.videoTrackPublications.firstOrNull?.track as VideoTrack?;
+      final camPub = localPart.videoTrackPublications
+          .where((p) => p.source == TrackSource.camera)
+          .firstOrNull;
+      final screenPub = localPart.videoTrackPublications
+          .where((p) => p.source == TrackSource.screenShareVideo)
+          .firstOrNull;
+
+      final localVideo = camPub?.track as VideoTrack? ??
+          (screenPub == null ? localPart.videoTrackPublications.firstOrNull?.track as VideoTrack? : null);
+
       tracks.add(LiveKitParticipantTrack(
         userId: currentUserId,
         name: currentUserName,
@@ -133,23 +170,46 @@ class InAppLiveRoomService extends ChangeNotifier {
         isMicMuted: _isMicMuted,
         isCamOff: _isCamOff,
         isHandRaised: _raisedHands.contains(currentUserId),
+        isScreenShare: false,
       ));
+
+      if (screenPub != null && screenPub.track != null) {
+        tracks.add(LiveKitParticipantTrack(
+          userId: '${currentUserId}_screen',
+          name: '$currentUserName\'s Screen',
+          role: currentUserRole,
+          videoTrack: screenPub.track as VideoTrack?,
+          isLocal: true,
+          isMicMuted: true,
+          isCamOff: false,
+          isHandRaised: false,
+          isScreenShare: true,
+        ));
+      }
     }
 
     // 2. Add Remote Participants
     _room?.remoteParticipants.forEach((peerId, remotePart) {
       final role = remotePart.metadata ?? 'student';
       final name = remotePart.name;
-      final video =
-          remotePart.videoTrackPublications.firstOrNull?.track as VideoTrack?;
+      
+      final camPub = remotePart.videoTrackPublications
+          .where((p) => p.source == TrackSource.camera)
+          .firstOrNull;
+      final screenPub = remotePart.videoTrackPublications
+          .where((p) => p.source == TrackSource.screenShareVideo)
+          .firstOrNull;
+
+      final video = camPub?.track as VideoTrack? ??
+          (screenPub == null ? remotePart.videoTrackPublications.firstOrNull?.track as VideoTrack? : null);
+
       final micMuted =
           !(remotePart.audioTrackPublications.firstOrNull?.subscribed ??
                   false) ||
               (remotePart.audioTrackPublications.firstOrNull?.muted ?? true);
-      final camOff =
-          !(remotePart.videoTrackPublications.firstOrNull?.subscribed ??
-                  false) ||
-              (remotePart.videoTrackPublications.firstOrNull?.muted ?? true);
+      final camOff = camPub == null ||
+          !camPub.subscribed ||
+          camPub.muted;
 
       tracks.add(LiveKitParticipantTrack(
         userId: peerId,
@@ -160,7 +220,22 @@ class InAppLiveRoomService extends ChangeNotifier {
         isMicMuted: micMuted,
         isCamOff: camOff,
         isHandRaised: _raisedHands.contains(peerId),
+        isScreenShare: false,
       ));
+
+      if (screenPub != null && screenPub.subscribed && !screenPub.muted && screenPub.track != null) {
+        tracks.add(LiveKitParticipantTrack(
+          userId: '${peerId}_screen',
+          name: '$name\'s Screen',
+          role: role,
+          videoTrack: screenPub.track as VideoTrack?,
+          isLocal: false,
+          isMicMuted: true,
+          isCamOff: false,
+          isHandRaised: false,
+          isScreenShare: true,
+        ));
+      }
     });
 
     return tracks;
@@ -175,7 +250,6 @@ class InAppLiveRoomService extends ChangeNotifier {
       if (currentUserRole == 'teacher') {
         try {
           await apiService.post('/live-classes/$liveClassId/start', {});
-          _isRecording = true;
         } catch (e) {
           debugPrint(
               '[LiveKitService] Warning: Failed to start session on backend: $e');
@@ -192,6 +266,7 @@ class InAppLiveRoomService extends ChangeNotifier {
       final tokenResponse = await apiService.get(
           '/livekit/token?room=$liveClassId&identity=$currentUserId&name=$currentUserName');
       final String token = tokenResponse['token'];
+      _isRecording = tokenResponse['is_recording'] ?? false;
       // Map internal Docker hostname (livekit:7880) → localhost:7880 so the browser can reach it.
       // The backend returns LIVEKIT_URL which is an internal Docker network address.
       String sfuUrl = tokenResponse['livekit_url'] ?? 'ws://localhost:7880';
@@ -210,11 +285,9 @@ class InAppLiveRoomService extends ChangeNotifier {
       _room = Room(
         roomOptions: RoomOptions(
           // ─── Camera: Capture in 1080p for teacher (pristine clarity) and 720p for students ───
-          defaultCameraCaptureOptions: CameraCaptureOptions(
+          defaultCameraCaptureOptions: const CameraCaptureOptions(
             cameraPosition: CameraPosition.front,
-            params: currentUserRole == 'teacher'
-                ? VideoParametersPresets.h1080_169 // 1920×1080 @ 30fps
-                : VideoParametersPresets.h720_169, // 1280×720 @ 30fps
+            params: VideoParametersPresets.h720_169, // Default capture preset; overridden dynamically on publish
           ),
           // ─── Video Publish: High bitrate VP8/VP9 for maximum quality ───────────────────
           defaultVideoPublishOptions: VideoPublishOptions(
@@ -223,28 +296,12 @@ class InAppLiveRoomService extends ChangeNotifier {
             degradationPreference: DegradationPreference.maintainResolution,
             videoEncoding: VideoEncoding(
               maxBitrate: currentUserRole == 'teacher'
-                  ? 4500 * 1000 // 4.5 Mbps for teacher (Vanilla WebRTC level)
-                  : 2000 * 1000, // 2.0 Mbps for student
+                  ? 3000 * 1000 // 3.0 Mbps max for teacher (supports 1080p stream if available)
+                  : 1500 * 1000, // 1.5 Mbps max for student (720p stream)
               maxFramerate: 30,
             ),
-            simulcast: currentUserRole != 'teacher',
-            // Explicit simulcast layers (low → mid resolution rungs)
-            videoSimulcastLayers: [
-              const VideoParameters(
-                dimensions: VideoDimensions(640, 360),
-                encoding: VideoEncoding(
-                  maxBitrate: 350 * 1000, // 350 kbps – low-bandwidth layer
-                  maxFramerate: 20,
-                ),
-              ),
-              const VideoParameters(
-                dimensions: VideoDimensions(960, 540),
-                encoding: VideoEncoding(
-                  maxBitrate: 900 * 1000, // 900 kbps – mid-bandwidth layer
-                  maxFramerate: 25,
-                ),
-              ),
-            ],
+            simulcast: true, // Enable simulcast for smart runtime quality adaptation
+            videoSimulcastLayers: const [], // Empty = auto compute optimal layers based on input resolution
             // 3 Mbps for screen share — content-heavy, needs more bitrate
             screenShareEncoding: const VideoEncoding(
               maxBitrate: 3000 * 1000,
@@ -286,9 +343,9 @@ class InAppLiveRoomService extends ChangeNotifier {
 
       // Enable camera and microphone automatically on join
       await _room?.localParticipant?.setMicrophoneEnabled(true);
-      await _room?.localParticipant?.setCameraEnabled(true);
+      await _publishCameraWithFallback();
 
-      // Load chat history from backend database
+      // Load chat history from database backend
       try {
         final chatResponse =
             await apiService.get('/live-classes/$liveClassId/chat');
@@ -300,7 +357,9 @@ class InAppLiveRoomService extends ChangeNotifier {
       } catch (_) {}
 
       // System message: recording starts
-      _addSystemMessage("Recording Started");
+      if (_isRecording) {
+        _addSystemMessage("Recording Started");
+      }
 
       notifyListeners();
       _roomUpdateController.add(null);
@@ -323,14 +382,85 @@ class InAppLiveRoomService extends ChangeNotifier {
   Future<void> toggleCamera() async {
     if (_room == null) return;
     _isCamOff = !_isCamOff;
-    await _room?.localParticipant?.setCameraEnabled(!_isCamOff);
+    if (_isCamOff) {
+      await _room?.localParticipant?.setCameraEnabled(false);
+    } else {
+      await _publishCameraWithFallback();
+    }
     notifyListeners();
     _roomUpdateController.add(null);
+  }
+
+  /// Publishes the camera with fallback options for older or lower-end devices.
+  /// First, it tries the requested high resolution (e.g. 1080p for teacher).
+  /// If that fails, it falls back to 720p.
+  /// If that also fails, it falls back to default settings/resolution.
+  Future<void> _publishCameraWithFallback() async {
+    final localParticipant = _room?.localParticipant;
+    if (localParticipant == null) return;
+
+    if (_isCamOff) {
+      await localParticipant.setCameraEnabled(false);
+      return;
+    }
+
+    final List<VideoParameters> resolutionSequence = [];
+
+    if (currentUserRole == 'teacher') {
+      resolutionSequence.addAll([
+        VideoParametersPresets.h1080_169,
+        VideoParametersPresets.h720_169,
+        VideoParametersPresets.h540_169,
+      ]);
+    } else {
+      resolutionSequence.addAll([
+        VideoParametersPresets.h720_169,
+        VideoParametersPresets.h540_169,
+      ]);
+    }
+
+    bool success = false;
+    for (final preset in resolutionSequence) {
+      try {
+        debugPrint('[LiveKitService] Attempting camera publish with preset: ${preset.dimensions.width}x${preset.dimensions.height}');
+        await localParticipant.setCameraEnabled(
+          true,
+          cameraCaptureOptions: CameraCaptureOptions(
+            cameraPosition: CameraPosition.front,
+            params: preset,
+          ),
+        );
+        debugPrint('[LiveKitService] Camera successfully published with preset: ${preset.dimensions.width}x${preset.dimensions.height}');
+        success = true;
+        break;
+      } catch (e) {
+        debugPrint('[LiveKitService] Failed to publish camera with preset (${preset.dimensions.width}x${preset.dimensions.height}): $e');
+      }
+    }
+
+    if (!success) {
+      debugPrint('[LiveKitService] Attempting default camera fallback');
+      try {
+        await localParticipant.setCameraEnabled(true);
+        debugPrint('[LiveKitService] Camera successfully published with default settings');
+      } catch (e) {
+        debugPrint('[LiveKitService] Failed to publish camera even with default settings: $e');
+        _isCamOff = true;
+        _safeNotify();
+        _safeRoomUpdate();
+      }
+    }
   }
 
   /// Toggle Screen Sharing
   Future<void> toggleScreenShare() async {
     if (_room == null) return;
+
+    if (!_isScreenSharing && isAnyScreenSharing) {
+      debugPrint('[LiveKitService] Prevented screen share: Another participant is already sharing.');
+      return;
+    }
+
     _isScreenSharing = !_isScreenSharing;
     await _room?.localParticipant?.setScreenShareEnabled(_isScreenSharing);
     notifyListeners();
@@ -453,6 +583,10 @@ class InAppLiveRoomService extends ChangeNotifier {
       }
       _safeNotify();
       _safeRoomUpdate();
+    } else if (event is ParticipantConnectionQualityUpdatedEvent) {
+      if (event.participant.identity == currentUserId) {
+        _handleConnectionQualityChange(event.connectionQuality);
+      }
     } else if (event is DataReceivedEvent) {
       try {
         final decoded = json.decode(utf8.decode(event.data));
@@ -484,6 +618,14 @@ class InAppLiveRoomService extends ChangeNotifier {
           if (target == currentUserId) {
             _handleHostControlAction(action);
           }
+        } else if (type == 'recording_status') {
+          final isRec = decoded['isRecording'] as bool? ?? false;
+          if (isRec != _isRecording) {
+            _isRecording = isRec;
+            _addSystemMessage(isRec ? "Recording Started" : "Recording Stopped");
+            _safeNotify();
+            _safeRoomUpdate();
+          }
         }
       } catch (e) {
         debugPrint('[LiveKitService] Error parsing data packet: $e');
@@ -503,6 +645,25 @@ class InAppLiveRoomService extends ChangeNotifier {
         _controlStreamController.add({'action': 'removed'});
       }
       leaveRoom();
+    }
+  }
+
+  /// Handle connection quality changes of the local participant
+  void _handleConnectionQualityChange(ConnectionQuality quality) {
+    if (quality == _lastConnectionQuality) return;
+    _lastConnectionQuality = quality;
+
+    debugPrint('[LiveKitService] Connection quality changed for local participant: $quality');
+    if (quality == ConnectionQuality.poor) {
+      final now = DateTime.now();
+      if (_lastCongestionAlertTime == null || 
+          now.difference(_lastCongestionAlertTime!) > const Duration(minutes: 2)) {
+        _lastCongestionAlertTime = now;
+        debugPrint('[LiveKitService] Smart network decision: Network congestion detected. WebRTC is dynamically scaling down bitrate/resolution.');
+        _addSystemMessage("Network congestion detected. Optimizing video streaming quality dynamically.");
+        _safeNotify();
+        _safeRoomUpdate();
+      }
     }
   }
 
@@ -530,6 +691,30 @@ class InAppLiveRoomService extends ChangeNotifier {
     if (!_isDisposed && !_roomUpdateController.isClosed) {
       _roomUpdateController.add(null);
     }
+  }
+
+  /// Start recording (Teacher only)
+  Future<void> startRecording() async {
+    if (currentUserRole != 'teacher') return;
+    final apiService = ApiService();
+    await apiService.post('/live-classes/$liveClassId/recording/start', {});
+    _isRecording = true;
+    await _broadcastData({'type': 'recording_status', 'isRecording': true});
+    _addSystemMessage("Recording Started");
+    _safeNotify();
+    _safeRoomUpdate();
+  }
+
+  /// Stop recording (Teacher only)
+  Future<void> stopRecording() async {
+    if (currentUserRole != 'teacher') return;
+    final apiService = ApiService();
+    await apiService.post('/live-classes/$liveClassId/recording/stop', {});
+    _isRecording = false;
+    await _broadcastData({'type': 'recording_status', 'isRecording': false});
+    _addSystemMessage("Recording Stopped");
+    _safeNotify();
+    _safeRoomUpdate();
   }
 
   /// Leave call and clean up connection resources
