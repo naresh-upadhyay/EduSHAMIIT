@@ -674,6 +674,7 @@ async def end_live_class(
     school_id=Depends(require_school_id),
 ):
     sb = get_supabase()
+    end_time = datetime.now(timezone.utc)
     
     # 1. Get class details to calculate durations
     class_res = await sb.table("live_classes").select("*").eq("id", live_class_id).maybe_single().aexecute()
@@ -681,9 +682,34 @@ async def end_live_class(
         raise HTTPException(status_code=404, detail="Live class not found")
         
     lc = class_res.data
-    start_time = datetime.fromisoformat(lc["scheduled_at"].replace("Z", "+00:00"))
-    end_time = datetime.now(timezone.utc)
-    actual_duration_seconds = max(1, int((end_time - start_time).total_seconds()))
+    # Calculate actual recording duration using Redis accumulated timer
+    actual_duration_seconds = 0
+    try:
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            import time
+            started_at_str = await rc.get(f"live_class:{live_class_id}:recording_started_at")
+            acc_str = await rc.get(f"live_class:{live_class_id}:accumulated_recording_duration")
+            accumulated = int(acc_str) if acc_str else 0
+            
+            if started_at_str:
+                duration_val = int(time.time()) - int(started_at_str)
+                accumulated += max(0, duration_val)
+                await rc.delete(f"live_class:{live_class_id}:recording_started_at")
+                
+            actual_duration_seconds = max(1, accumulated)
+            # Clean up Redis keys
+            await rc.delete(f"live_class:{live_class_id}:accumulated_recording_duration")
+    except Exception as e:
+        print(f"[Recording API] Failed to process timer in Redis on end: {e}")
+        
+    if not actual_duration_seconds:
+        # Fallback to original scheduled_at difference
+        start_time = datetime.fromisoformat(lc["scheduled_at"].replace("Z", "+00:00"))
+        end_time = datetime.now(timezone.utc)
+        actual_duration_seconds = max(1, int((end_time - start_time).total_seconds()))
+
     actual_duration_minutes = max(1, int(actual_duration_seconds / 60))
     
     # 2. Update status in live_classes
@@ -787,6 +813,19 @@ async def start_recording(
     if not class_res.data:
         raise HTTPException(status_code=404, detail="Live class not found")
     
+    # Start timer in Redis to track actual active recording duration
+    try:
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            import time
+            await rc.set(f"live_class:{live_class_id}:recording_started_at", str(int(time.time())), ex=86400)
+            acc = await rc.get(f"live_class:{live_class_id}:accumulated_recording_duration")
+            if not acc:
+                await rc.set(f"live_class:{live_class_id}:accumulated_recording_duration", "0", ex=86400)
+    except Exception as e:
+        print(f"[Recording API] Failed to start timer in Redis: {e}")
+    
     # Trigger egress composite recording
     background_tasks.add_task(initiate_room_egress, live_class_id)
     
@@ -813,9 +852,33 @@ async def stop_recording(
         raise HTTPException(status_code=404, detail="Live class not found")
         
     lc = class_res.data
-    start_time = datetime.fromisoformat(lc["scheduled_at"].replace("Z", "+00:00"))
-    end_time = datetime.now(timezone.utc)
-    actual_duration_seconds = max(1, int((end_time - start_time).total_seconds()))
+    # Stop timer and accumulate duration
+    actual_duration_seconds = 0
+    try:
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            import time
+            started_at_str = await rc.get(f"live_class:{live_class_id}:recording_started_at")
+            acc_str = await rc.get(f"live_class:{live_class_id}:accumulated_recording_duration")
+            accumulated = int(acc_str) if acc_str else 0
+            
+            if started_at_str:
+                duration_val = int(time.time()) - int(started_at_str)
+                accumulated += max(0, duration_val)
+                await rc.set(f"live_class:{live_class_id}:accumulated_recording_duration", str(accumulated), ex=86400)
+                await rc.delete(f"live_class:{live_class_id}:recording_started_at")
+                
+            actual_duration_seconds = max(1, accumulated)
+    except Exception as e:
+        print(f"[Recording API] Failed to process timer in Redis: {e}")
+        
+    if not actual_duration_seconds:
+        # Fallback to original scheduled_at difference
+        start_time = datetime.fromisoformat(lc["scheduled_at"].replace("Z", "+00:00"))
+        end_time = datetime.now(timezone.utc)
+        actual_duration_seconds = max(1, int((end_time - start_time).total_seconds()))
+        
     print(f"[Recording API] Calculated recording duration: {actual_duration_seconds} seconds")
 
     # Stop active egress (without deleting room)
@@ -1125,6 +1188,24 @@ async def get_live_class_playback_info(
         raise HTTPException(status_code=404, detail="Live class not found")
         
     lc = class_res.data
+    # Increment view count for completed/recorded classes
+    if lc.get("status") in ("recorded", "completed"):
+        current_viewers = lc.get("viewer_count") or 0
+        new_viewers = current_viewers + 1
+        await sb.table("live_classes").update({"viewer_count": new_viewers}).eq("id", live_class_id).aexecute()
+        lc["viewer_count"] = new_viewers
+        
+        # Invalidate student live classes cache to update listing views count
+        try:
+            from app.cache.redis_client import get_redis
+            rc = get_redis()
+            if rc:
+                keys = await rc.keys(f"{school_id}:student_live_classes:*")
+                if keys:
+                    await rc.delete(*keys)
+        except Exception:
+            pass
+
     subj = lc.get("subjects") or {}
     subj_name = subj.get("name", "Subject")
     teacher_name = lc.get("profiles", {}).get("full_name") if lc.get("profiles") else "Teacher"
@@ -1144,6 +1225,28 @@ async def get_live_class_playback_info(
             duration = rec["duration"]
         if rec.get("recording_url"):
             recording_url = rec["recording_url"]
+
+    # Calculate date_str dynamically
+    scheduled_at = lc.get("scheduled_at")
+    date_str = None
+    if scheduled_at:
+        try:
+            from datetime import datetime
+            scheduled_at_dt = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
+            h = duration // 3600
+            m = (duration % 3600) // 60
+            s = duration % 60
+            if h > 0:
+                duration_str = f"{h}h {m}m" if s == 0 else f"{h}h {m}m {s}s"
+            elif m > 0:
+                duration_str = f"{m}m {s}s"
+            else:
+                duration_str = f"{s}s"
+            date_str = f"{scheduled_at_dt.strftime('%b %d')} · {duration_str}"
+        except Exception:
+            pass
+    if not date_str:
+        date_str = "Class session details"
 
     # 3. Fetch Likes and Dislikes
     likes_res = await sb.table("live_class_likes")\
@@ -1182,19 +1285,8 @@ async def get_live_class_playback_info(
         .order("time_seconds", ascending=True)\
         .aexecute()
         
-    # Seed default chapters if empty
+    # Seed default chapters if empty (removed dummy chapters seeding)
     chapters = chapters_res.data or []
-    if not chapters:
-        # Generate dynamic initial chapters based on class duration
-        ch_1 = {"school_id": school_id, "live_class_id": live_class_id, "title": "Introduction & Class Overview", "time_seconds": 0}
-        ch_2 = {"school_id": school_id, "live_class_id": live_class_id, "title": "Core Concepts & Background", "time_seconds": min(135, duration)}
-        ch_3 = {"school_id": school_id, "live_class_id": live_class_id, "title": "Practical Walkthrough", "time_seconds": min(520, duration)}
-        try:
-            insert_res = await sb.table("live_class_chapters").insert([ch_1, ch_2, ch_3]).aexecute()
-            chapters = insert_res.data or []
-        except Exception as e:
-            print(f"[PlaybackInfo] Error auto-inserting chapters: {e}")
-            chapters = []
 
     # 6. Fetch Resources
     resources_res = await sb.table("live_class_resources")\
@@ -1203,17 +1295,8 @@ async def get_live_class_playback_info(
         .order("created_at", ascending=True)\
         .aexecute()
         
+    # Removed dummy resources seeding
     resources = resources_res.data or []
-    if not resources:
-        # Seed default resources
-        res_1 = {"school_id": school_id, "live_class_id": live_class_id, "title": "Lecture Notes Handout.pdf", "file_url": "http://127.0.0.1:8000/api/documents/download", "file_size": "2.4 MB"}
-        res_2 = {"school_id": school_id, "live_class_id": live_class_id, "title": "Practice Exercise Sheet.pdf", "file_url": "http://127.0.0.1:8000/api/documents/download", "file_size": "1.1 MB"}
-        try:
-            insert_res = await sb.table("live_class_resources").insert([res_1, res_2]).aexecute()
-            resources = insert_res.data or []
-        except Exception as e:
-            print(f"[PlaybackInfo] Error auto-inserting resources: {e}")
-            resources = []
 
     # 7. Fetch Notes
     # If the user is a student, we fetch the notes written by the teacher of this live class.
@@ -1251,7 +1334,9 @@ async def get_live_class_playback_info(
             "platform": lc.get("platform", "In-App"),
             "meeting_link": lc.get("meeting_link"),
             "duration": duration,  # Actual duration in seconds
-            "like_count": like_count + 342,  # Adding 342 base likes to match mock aesthetics
+            "date": date_str,
+            "like_count": like_count,
+            "dislike_count": dislike_count,
             "is_liked": is_liked,
             "is_disliked": is_disliked,
             "avg_rating": avg_rating,
@@ -1292,10 +1377,12 @@ async def toggle_live_class_like(
     likes_res = await sb.table("live_class_likes").select("is_dislike").eq("live_class_id", live_class_id).aexecute()
     likes_data = likes_res.data or []
     like_count = len([x for x in likes_data if not x.get("is_dislike")])
+    dislike_count = len([x for x in likes_data if x.get("is_dislike")])
     return {
         "success": True, 
         "action": action,
-        "like_count": like_count + 342,
+        "like_count": like_count,
+        "dislike_count": dislike_count,
         "is_liked": action == "liked",
         "is_disliked": False
     }
@@ -1328,13 +1415,40 @@ async def toggle_live_class_dislike(
     likes_res = await sb.table("live_class_likes").select("is_dislike").eq("live_class_id", live_class_id).aexecute()
     likes_data = likes_res.data or []
     like_count = len([x for x in likes_data if not x.get("is_dislike")])
+    dislike_count = len([x for x in likes_data if x.get("is_dislike")])
     return {
         "success": True, 
         "action": action,
-        "like_count": like_count + 342,
+        "like_count": like_count,
+        "dislike_count": dislike_count,
         "is_liked": False,
         "is_disliked": action == "disliked"
     }
+
+@router.post("/live-classes/{live_class_id}/recording/duration")
+async def update_recording_duration(
+    live_class_id: str,
+    payload: dict,
+    user=Depends(get_current_user),
+):
+    duration = payload.get("duration")
+    if duration is None:
+        raise HTTPException(status_code=400, detail="Duration is required")
+    sb = get_supabase()
+    # Update duration in live_class_recordings
+    await sb.table("live_class_recordings").update({"duration": int(duration)}).eq("live_class_id", live_class_id).aexecute()
+    # Also invalidate student live classes cache to update listing duration
+    try:
+        from app.cache.redis_client import get_redis
+        rc = get_redis()
+        if rc:
+            keys = await rc.keys("*:student_live_classes:*")
+            if keys:
+                await rc.delete(*keys)
+    except Exception:
+        pass
+        
+    return {"success": True, "message": "Recording duration updated successfully"}
 
 @router.post("/live-classes/{live_class_id}/rate")
 async def rate_live_class(

@@ -1068,7 +1068,7 @@ async def student_live_classes(user=Depends(get_current_user), school_id=Depends
                 student_class = profile_res.data.get("class")
             
     query = (sb.table("live_classes")
-               .select("*, subjects(name, icon, color), profiles!teacher_id(full_name)")
+               .select("*, subjects(name, icon, color), profiles!teacher_id(full_name), live_class_recordings(duration)")
                .eq("school_id", school_id))
     if student_class:
         query = query.eq("target_class", student_class)
@@ -1092,7 +1092,7 @@ async def student_live_classes(user=Depends(get_current_user), school_id=Depends
         started_str = "Started 25 min ago"
         time_str = "2:00 PM"
         time_until_str = "In 1h 30m"
-        date_str = "Mar 25 · 45 min · Dr. Verma"
+        date_str = "Mar 25 · 45 min"
         
         try:
             scheduled_at_dt = datetime.fromisoformat(c["scheduled_at"].replace("Z", "+00:00"))
@@ -1117,8 +1117,32 @@ async def student_live_classes(user=Depends(get_current_user), school_id=Depends
                 mins_part = int((diff_hours - hours_part) * 60)
                 time_until_str = f"In {hours_part}h" if mins_part == 0 else f"In {hours_part}h {mins_part}m"
                 
+            # Format duration cleanly
+            duration_str = None
+            recs = c.get("live_class_recordings")
+            if recs:
+                rec_duration = None
+                if isinstance(recs, list) and len(recs) > 0:
+                    rec_duration = recs[0].get("duration")
+                elif isinstance(recs, dict):
+                    rec_duration = recs.get("duration")
+                
+                if rec_duration is not None:
+                    h = rec_duration // 3600
+                    m = (rec_duration % 3600) // 60
+                    s = rec_duration % 60
+                    if h > 0:
+                        duration_str = f"{h}h {m}m" if s == 0 else f"{h}h {m}m {s}s"
+                    elif m > 0:
+                        duration_str = f"{m}m {s}s"
+                    else:
+                        duration_str = f"{s}s"
+            
+            if not duration_str:
+                duration_str = f"{c.get('duration_minutes', 45)} min"
+
             # Format date
-            date_str = f"{scheduled_at_dt.strftime('%b %d')} · {c.get('duration_minutes', 45)} min · {teacher_name.split()[-1] if teacher_name else 'Teacher'}"
+            date_str = f"{scheduled_at_dt.strftime('%b %d')} · {duration_str}"
         except Exception:
             pass
             

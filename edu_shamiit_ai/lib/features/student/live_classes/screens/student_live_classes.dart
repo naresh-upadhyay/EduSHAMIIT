@@ -790,7 +790,8 @@ class _StudentLiveClassPlayerScreenState
   bool _isDisliked = false;
   RealtimeChannel? _commentsRealtimeChannel;
 
-  int _likeCount = 342;
+  int _likeCount = 0;
+  int _dislikeCount = 0;
   int _userRating = 0;
   double _avgRating = 0.0;
   bool _hasRated = false;
@@ -815,34 +816,11 @@ class _StudentLiveClassPlayerScreenState
   List<Map<String, dynamic>> _resources = [];
   List<Map<String, dynamic>> _relatedLectures = [];
 
-  final ScrollController _leftScrollController = ScrollController();
-  bool _isScrolled = false;
-
-  void _onLeftScroll() {
-    if (_leftScrollController.hasClients) {
-      final offset = _leftScrollController.offset;
-      if (offset > 120) {
-        if (!_isScrolled) {
-          setState(() {
-            _isScrolled = true;
-          });
-        }
-      } else {
-        if (_isScrolled) {
-          setState(() {
-            _isScrolled = false;
-          });
-        }
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
     _viewInstanceKey =
         '${widget.classId}-${DateTime.now().millisecondsSinceEpoch}';
-    _leftScrollController.addListener(_onLeftScroll);
     _loadClassDataAndComments();
     _subscribeRealtimeComments();
   }
@@ -891,7 +869,8 @@ class _StudentLiveClassPlayerScreenState
         if (mounted) {
           setState(() {
             _localClassData = LiveClassModel.fromJson(data);
-            _likeCount = data['like_count'] ?? 342;
+            _likeCount = data['like_count'] ?? 0;
+            _dislikeCount = data['dislike_count'] ?? 0;
             _isLiked = data['is_liked'] ?? false;
             _isDisliked = data['is_disliked'] ?? false;
             _avgRating = (data['avg_rating'] as num?)?.toDouble() ?? 0.0;
@@ -1198,6 +1177,66 @@ class _StudentLiveClassPlayerScreenState
     }
   }
 
+  Future<void> _updateRecordingDurationOnServer(int durationSec) async {
+    final currentDurationStr = _localClassData?.date?.split('·').skip(1).firstOrNull?.trim();
+    if (currentDurationStr == '1s' || currentDurationStr == '0s' || currentDurationStr == null || currentDurationStr.isEmpty) {
+      try {
+        final apiService = ref.read(apiServiceProvider);
+        final response = await apiService.post(
+          '/live-classes/${widget.classId}/recording/duration',
+          {'duration': durationSec},
+        );
+        if (response['success'] == true) {
+          debugPrint('[Player] Successfully updated database duration to $durationSec seconds');
+          if (mounted) {
+            setState(() {
+              if (_localClassData != null) {
+                final datePart = _localClassData!.date?.split('·').firstOrNull?.trim() ?? '';
+                final h = durationSec ~/ 3600;
+                final m = (durationSec % 3600) ~/ 60;
+                final s = durationSec % 60;
+                String durationStr;
+                if (h > 0) {
+                  durationStr = '${h}h ${m}m ${s}s';
+                } else if (m > 0) {
+                  durationStr = '${m}m ${s}s';
+                } else {
+                  durationStr = '${s}s';
+                }
+                final newDateStr = datePart.isNotEmpty ? '$datePart · $durationStr' : durationStr;
+                
+                _localClassData = LiveClassModel(
+                  id: _localClassData!.id,
+                  subject: _localClassData!.subject,
+                  title: _localClassData!.title,
+                  description: _localClassData!.description,
+                  subjectName: _localClassData!.subjectName,
+                  teacher: _localClassData!.teacher,
+                  started: _localClassData!.started,
+                  viewers: _localClassData!.viewers,
+                  time: _localClassData!.time,
+                  timeUntil: _localClassData!.timeUntil,
+                  date: newDateStr,
+                  icon: _localClassData!.icon,
+                  color: _localClassData!.color,
+                  isLive: _localClassData!.isLive,
+                  type: _localClassData!.type,
+                  streamUrl: _localClassData!.streamUrl,
+                  recordingUrl: _localClassData!.recordingUrl,
+                  platform: _localClassData!.platform,
+                  meetingLink: _localClassData!.meetingLink,
+                  teacherId: _localClassData!.teacherId,
+                );
+              }
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('[Player] Failed to update duration on server: $e');
+      }
+    }
+  }
+
   void _registerIframe(LiveClassModel classData, String viewKey) {
     if (_registeredViewKeys.contains(viewKey)) return;
     _registeredViewKeys.add(viewKey);
@@ -1251,6 +1290,21 @@ class _StudentLiveClassPlayerScreenState
             ..style.background = '#000';
           video.setAttribute('playsinline', '');
           video.setAttribute('webkit-playsinline', '');
+
+          // Listen for metadata load to capture actual duration
+          video.onLoadedMetadata.listen((event) {
+            try {
+              final num actualDur = video.duration;
+              if (actualDur > 0 && actualDur.isFinite) {
+                final int actualDurSec = actualDur.round();
+                debugPrint('[Player] Video duration loaded: $actualDurSec seconds');
+                _updateRecordingDurationOnServer(actualDurSec);
+              }
+            } catch (e) {
+              debugPrint('[Player] Error reading video duration: $e');
+            }
+          });
+
           return video;
         } else {
           final videoUrl = _getEmbedUrl(resolvedUrl);
@@ -1342,6 +1396,7 @@ class _StudentLiveClassPlayerScreenState
       if (response['success'] == true) {
         setState(() {
           _likeCount = response['like_count'] ?? _likeCount;
+          _dislikeCount = response['dislike_count'] ?? _dislikeCount;
           _isLiked = response['is_liked'] ?? false;
           _isDisliked = response['is_disliked'] ?? false;
         });
@@ -1358,6 +1413,7 @@ class _StudentLiveClassPlayerScreenState
       if (response['success'] == true) {
         setState(() {
           _likeCount = response['like_count'] ?? _likeCount;
+          _dislikeCount = response['dislike_count'] ?? _dislikeCount;
           _isLiked = response['is_liked'] ?? false;
           _isDisliked = response['is_disliked'] ?? false;
         });
@@ -2544,66 +2600,31 @@ class _StudentLiveClassPlayerScreenState
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left Column (70% width): Player, Title, Tabs (Sticky/Shrinking on scroll)
+        // Left Column (70% width): Player, Title, Tabs
         Expanded(
           flex: 7,
-          child: Stack(
-            children: [
-              // Scrollable content
-              Positioned.fill(
-                child: SingleChildScrollView(
-                  controller: _leftScrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Spacer that matches the height of the video player
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeInOut,
-                        height: _isScrolled
-                            ? 156
-                            : (MediaQuery.of(context).size.width * 0.7 * 9 / 16) + 16,
-                      ),
-                      // Autoplay Unmute Alert Banner
-                      if (_showAudioWarning && kIsWeb) ...[
-                        _buildMuteWarningBanner(),
-                        const SizedBox(height: 12),
-                      ],
-                      _buildTitleBlock(classData),
-                      const SizedBox(height: 16),
-                      _buildTabBar(),
-                      const SizedBox(height: 16),
-                      _buildTabContent(classData),
-                    ],
-                  ),
-                ),
-              ),
-              // Pinned/Sticky Video Player
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  height: _isScrolled
-                      ? 140
-                      : MediaQuery.of(context).size.width * 0.7 * 9 / 16,
-                  child: Container(
-                    color: Colors.black,
-                    child: _isScrolled
-                        ? Center(
-                            child: AspectRatio(
-                              aspectRatio: 16 / 9,
-                              child: _buildPlayerArea(classData, isLive, isTeacher),
-                            ),
-                          )
-                        : _buildPlayerArea(classData, isLive, isTeacher),
-                  ),
-                ),
-              ),
-            ],
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _buildPlayerArea(classData, isLive, isTeacher),
+                const SizedBox(height: 16),
+                // Autoplay Unmute Alert Banner
+                if (_showAudioWarning && kIsWeb) ...[
+                  _buildMuteWarningBanner(),
+                  const SizedBox(height: 12),
+                ],
+                _buildTitleBlock(classData),
+                const SizedBox(height: 16),
+                _buildTabBar(),
+                const SizedBox(height: 16),
+                _buildTabContent(classData),
+              ],
+            ),
           ),
         ),
 
@@ -2621,6 +2642,8 @@ class _StudentLiveClassPlayerScreenState
                 const Divider(color: Colors.white10, height: 1),
                 Expanded(
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics()),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -2656,6 +2679,8 @@ class _StudentLiveClassPlayerScreenState
         // Scrollable Details & Sidebar
         Expanded(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics()),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -3105,14 +3130,24 @@ class _StudentLiveClassPlayerScreenState
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 8),
-                          child: Icon(
-                            _isDisliked
-                                ? Icons.thumb_down_rounded
-                                : Icons.thumb_down_outlined,
-                            color: _isDisliked
-                                ? const Color(0xFFEF4444)
-                                : Colors.white70,
-                            size: 14,
+                          child: Row(
+                            children: [
+                              Icon(
+                                _isDisliked
+                                    ? Icons.thumb_down_rounded
+                                    : Icons.thumb_down_outlined,
+                                color: _isDisliked
+                                    ? const Color(0xFFEF4444)
+                                    : Colors.white70,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text('$_dislikeCount',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ),
                       ),
@@ -3546,9 +3581,22 @@ class _StudentLiveClassPlayerScreenState
             : 'Welcome to this recorded lecture session. In this session, we investigate deep curriculum concepts, go through live practice files, and check step-by-step calculations. Review resources and seek direct chapters to skip ahead.';
         
         final durationVal = classData.toJson().containsKey('duration') ? classData.toJson()['duration'] : null;
-        final String durationDisplay = durationVal != null 
-            ? '${(durationVal as num).toInt() ~/ 60} min' 
-            : '${classData.date?.split('·').skip(1).firstOrNull ?? "Recorded"}';
+        String durationDisplay = "Recorded";
+        if (durationVal != null) {
+          final int totalSecs = (durationVal as num).toInt();
+          final int h = totalSecs ~/ 3600;
+          final int m = (totalSecs % 3600) ~/ 60;
+          final int s = totalSecs % 60;
+          if (h > 0) {
+            durationDisplay = '${h}h ${m}m ${s}s';
+          } else if (m > 0) {
+            durationDisplay = '${m}m ${s}s';
+          } else {
+            durationDisplay = '${s}s';
+          }
+        } else {
+          durationDisplay = classData.date?.split('·').skip(1).firstOrNull?.trim() ?? "Recorded";
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4155,7 +4203,6 @@ class _StudentLiveClassPlayerScreenState
     _replyController.dispose();
     _editCommentController.dispose();
     _notesController.dispose();
-    _leftScrollController.dispose();
     super.dispose();
   }
 }
