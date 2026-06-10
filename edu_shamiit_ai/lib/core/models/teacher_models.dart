@@ -87,7 +87,7 @@ String _normalizeTeacherRoute(dynamic value,
     '/leave': '/teacher/leave',
     '/liveclasses': '/teacher/live-classes',
     '/live-classes': '/teacher/live-classes',
-    '/materials': '/teacher/materials',
+    '/documents': '/teacher/documents',
     '/salary': '/teacher/salary',
     '/profile': '/teacher/profile',
     '/notifications': '/teacher/notifications',
@@ -403,7 +403,7 @@ class TeacherDashboard {
                 icon: '🎥',
                 route: '/teacher/live-classes'),
             QuickAccessItem(
-                title: 'Materials', icon: '📁', route: '/teacher/materials'),
+                title: 'Documents', icon: '📁', route: '/teacher/documents'),
             QuickAccessItem(
                 title: 'Salary', icon: '💰', route: '/teacher/salary'),
           ],
@@ -1302,84 +1302,7 @@ class TeacherLiveClass {
   }
 }
 
-/// Teaching material model
-@immutable
-class TeachingMaterial {
-  final String id;
-  final String title;
-  final String description;
-  final String class_;
-  final String subject;
-  final String materialType; // pdf, video, ppt, doc, link
-  final String? fileUrl;
-  final String? thumbnailUrl;
-  final int? fileSize;
-  final String uploadedBy;
-  final DateTime uploadedAt;
-  final int downloadCount;
-  final double? rating;
 
-  const TeachingMaterial({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.class_,
-    required this.subject,
-    required this.materialType,
-    this.fileUrl,
-    this.thumbnailUrl,
-    this.fileSize,
-    required this.uploadedBy,
-    required this.uploadedAt,
-    required this.downloadCount,
-    this.rating,
-  });
-
-  factory TeachingMaterial.fromJson(Map<String, dynamic> json) {
-    final attachments = json['attachment_urls'];
-    String? attachmentUrl;
-    if (attachments is List && attachments.isNotEmpty) {
-      attachmentUrl = attachments.first.toString();
-    }
-
-    return TeachingMaterial(
-      id: (json['id'] ?? json['material_id'] ?? '').toString(),
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      class_: (json['class'] ?? json['target_class'] ?? '').toString(),
-      subject: json['subject'] as String? ?? '',
-      materialType: (json['material_type'] ?? json['type'] ?? '').toString(),
-      fileUrl: (json['file_url'] ?? attachmentUrl) as String?,
-      thumbnailUrl: json['thumbnail_url'] as String?,
-      fileSize: json['file_size'] as int?,
-      uploadedBy: json['uploaded_by'] as String? ?? '',
-      uploadedAt: (json['uploaded_at'] ?? json['created_at']) != null
-          ? DateTime.parse(
-              (json['uploaded_at'] ?? json['created_at']) as String)
-          : DateTime.now(),
-      downloadCount: json['download_count'] as int? ?? 0,
-      rating: (json['rating'] as num?)?.toDouble(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'description': description,
-      'class': class_,
-      'subject': subject,
-      'material_type': materialType,
-      'file_url': fileUrl,
-      'thumbnail_url': thumbnailUrl,
-      'file_size': fileSize,
-      'uploaded_by': uploadedBy,
-      'uploaded_at': uploadedAt.toIso8601String(),
-      'download_count': downloadCount,
-      'rating': rating,
-    };
-  }
-}
 
 /// Salary slip model
 @immutable

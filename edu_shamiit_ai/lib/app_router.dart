@@ -50,7 +50,7 @@ import 'package:edu_shamiit_ai/features/teacher/salary/screens/teacher_salary.da
 import 'package:edu_shamiit_ai/features/teacher/submissions/screens/teacher_submissions.dart';
 import 'package:edu_shamiit_ai/features/teacher/notifications/screens/teacher_notifications.dart';
 import 'package:edu_shamiit_ai/features/teacher/live_classes/screens/teacher_live_classes.dart';
-import 'package:edu_shamiit_ai/features/teacher/materials/screens/teacher_materials.dart';
+
 import 'package:edu_shamiit_ai/features/teacher/student_directory/screens/teacher_student_directory.dart';
 import 'package:edu_shamiit_ai/shared/widgets/student_shell_scaffold.dart';
 import 'package:edu_shamiit_ai/shared/widgets/teacher_shell_scaffold.dart';
@@ -395,10 +395,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/teacher/live-session',
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherLiveClasses()),
         ),
-        GoRoute(
-          path: '/teacher/materials',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMaterials()),
-        ),
+
         GoRoute(
           path: '/teacher/student-directory',
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherStudentDirectory()),

@@ -124,6 +124,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
           _Header(
             onUpload: _showUploadSheet,
             searchController: _searchController,
+            onBack: () {
+              final auth = ref.read(authProvider);
+              final isTeacher = auth.role.value == 'teacher';
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(isTeacher ? '/teacher/dashboard' : '/student/dashboard');
+              }
+            },
           ),
           _TabBar(
             controller: _tabController,
@@ -265,10 +274,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
 class _Header extends StatelessWidget {
   final VoidCallback onUpload;
   final TextEditingController searchController;
+  final VoidCallback onBack;
 
   const _Header({
     required this.onUpload,
     required this.searchController,
+    required this.onBack,
   });
 
   @override
@@ -282,12 +293,19 @@ class _Header extends StatelessWidget {
         ),
       ),
       padding: EdgeInsets.fromLTRB(
-          20, MediaQuery.of(context).padding.top + 16, 20, 16),
+          12, MediaQuery.of(context).padding.top + 16, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: onBack,
+              ),
+              const SizedBox(width: 8),
               Container(
                 width: 44,
                 height: 44,
