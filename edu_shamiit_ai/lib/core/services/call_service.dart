@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 import 'dart:async';
 import 'dart:convert';
-import 'dart:js' as js;
+import 'package:edu_shamiit_ai/core/utils/js_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -84,6 +84,8 @@ class CallService {
 
   // Global listener channel (always active when user is logged in)
   RealtimeChannel? _globalIncomingChannel;
+  int _globalReconnectAttempts = 0;
+  Timer? _globalReconnectTimer;
 
   // ICE config returned from backend
   Map<String, dynamic> _iceConfig = {
@@ -124,6 +126,10 @@ class CallService {
 
   /// Must be called once at app startup (after auth is established)
   Future<void> initialize(String currentUserId, String fastApiBaseUrl) async {
+    if (_currentUserId == currentUserId && _globalIncomingChannel != null) {
+      debugPrint('[CallService] Already initialized for user $currentUserId. Skipping duplicate initialization.');
+      return;
+    }
     _fastApiBaseUrl = fastApiBaseUrl;
     _currentUserId = currentUserId;
     await _setupGlobalIncomingListener(currentUserId);
@@ -131,9 +137,15 @@ class CallService {
   }
 
   void dispose() {
+    _globalReconnectTimer?.cancel();
+    _globalReconnectTimer = null;
     _teardownSignaling();
-    _globalIncomingChannel?.unsubscribe();
-    _globalIncomingChannel = null;
+    if (_globalIncomingChannel != null) {
+      try {
+        _globalIncomingChannel!.unsubscribe();
+      } catch (_) {}
+      _globalIncomingChannel = null;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -153,9 +165,7 @@ class CallService {
 
     try {
       if (kIsWeb) {
-        final hasMediaDevices = js.context.callMethod(
-            'eval', ["typeof navigator.mediaDevices !== 'undefined'"]);
-        if (hasMediaDevices == false) {
+        if (hasMediaDevices() == false) {
           throw Exception(
               'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.');
         }
@@ -220,7 +230,7 @@ class CallService {
           errMsg =
               'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.';
         }
-        js.context.callMethod('alert', [errMsg.replaceAll('Exception: ', '')]);
+        jsAlert(errMsg.replaceAll('Exception: ', ''));
       }
       await _endCallLocally();
     }
@@ -236,9 +246,7 @@ class CallService {
 
     try {
       if (kIsWeb) {
-        final hasMediaDevices = js.context.callMethod(
-            'eval', ["typeof navigator.mediaDevices !== 'undefined'"]);
-        if (hasMediaDevices == false) {
+        if (hasMediaDevices() == false) {
           throw Exception(
               'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.');
         }
@@ -301,7 +309,7 @@ class CallService {
           errMsg =
               'Camera/Microphone access is blocked because this page is not served over a secure connection (HTTPS or localhost).\n\nTo allow calls on this device:\n1. Open chrome://flags/#unsafely-treat-insecure-origin-as-secure in Chrome.\n2. Enable the flag and add the current website URL (e.g. http://192.168.1.10:63305) to the list.\n3. Relaunch your browser.';
         }
-        js.context.callMethod('alert', [errMsg.replaceAll('Exception: ', '')]);
+        jsAlert(errMsg.replaceAll('Exception: ', ''));
       }
       await _endCallLocally();
     }
@@ -369,12 +377,59 @@ class CallService {
     onCallStateChanged?.call();
   }
 
-  void toggleCamera() {
+  Future<void> toggleCamera() async {
     if (_localStream == null) return;
     _isCameraOff = !_isCameraOff;
-    for (final track in _localStream!.getVideoTracks()) {
-      track.enabled = !_isCameraOff;
+
+    if (_isCameraOff) {
+      // Stop and remove video tracks to release the camera hardware access
+      for (final track in _localStream!.getVideoTracks()) {
+        try {
+          track.enabled = false;
+          await track.stop();
+        } catch (e) {
+          debugPrint('[CallService] Error stopping camera track: $e');
+        }
+        _localStream!.removeTrack(track);
+      }
+    } else {
+      // If screen sharing is active, stop it first
+      if (_isScreenSharing) {
+        await stopScreenShare();
+      }
+
+      // Re-enable camera by acquiring a new video track
+      try {
+        final constraints = <String, dynamic>{
+          'audio': false,
+          'video': {
+            'facingMode': 'user',
+            'width': {'ideal': 1280},
+            'height': {'ideal': 720},
+          },
+        };
+        final newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        final videoTrack = newStream.getVideoTracks().firstOrNull;
+
+        if (videoTrack != null) {
+          await _localStream!.addTrack(videoTrack);
+
+          // Replace the video track in peer connection
+          if (_peerConnection != null) {
+            final senders = await _peerConnection!.getSenders();
+            for (final sender in senders) {
+              if (sender.track?.kind == 'video') {
+                await sender.replaceTrack(videoTrack);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[CallService] Error re-enabling camera: $e');
+        _isCameraOff = true; // Roll back on failure
+      }
     }
+
     onCallStateChanged?.call();
   }
 
@@ -447,6 +502,12 @@ class CallService {
   String _channelName(String sessionId) => 'call_signal_$sessionId';
 
   Future<void> _setupGlobalIncomingListener(String userId) async {
+    _globalReconnectTimer?.cancel();
+    if (_globalIncomingChannel != null) {
+      debugPrint('[CallService] Global listener channel already set up. Skipping re-creation.');
+      return;
+    }
+
     final sb = Supabase.instance.client;
     final globalChannel = 'incoming_calls_$userId';
     _globalIncomingChannel = sb.channel(globalChannel);
@@ -470,8 +531,50 @@ class CallService {
         _handleIncomingOffer(payload);
       },
     )
-        .subscribe((status, [error]) {
-      debugPrint('[CallService] Global listener: $status, error: $error');
+        .subscribe((status, [error]) async {
+      debugPrint('[CallService] Global listener status: $status, error: $error');
+
+      if (status == RealtimeSubscribeStatus.subscribed) {
+        _globalReconnectAttempts = 0;
+      } else if (status == RealtimeSubscribeStatus.channelError) {
+        debugPrint('[CallService] Global listener subscription error ($status). Attempting reconnect...');
+
+        // If JWT token has expired or is invalid, try refreshing the session
+        final errorStr = error?.toString() ?? '';
+        if (errorStr.contains('InvalidJWTToken') || errorStr.contains('expired')) {
+          debugPrint('[CallService] Token expired/invalid. Refreshing session...');
+          try {
+            await sb.auth.refreshSession();
+            debugPrint('[CallService] Session refresh successful. Realtime will auto-reconnect.');
+          } catch (e) {
+            debugPrint('[CallService] Error refreshing session: $e');
+            _scheduleGlobalReconnect(userId);
+          }
+        } else {
+          _scheduleGlobalReconnect(userId);
+        }
+      }
+    });
+  }
+
+  void _scheduleGlobalReconnect(String userId) {
+    _globalReconnectTimer?.cancel();
+    if (_currentUserId != userId) return; // Don't reconnect if user changed or signed out
+
+    _globalReconnectAttempts++;
+    final delaySeconds = (_globalReconnectAttempts * 5).clamp(2, 60);
+    debugPrint('[CallService] Scheduling global reconnect in $delaySeconds seconds (attempt $_globalReconnectAttempts)');
+
+    _globalReconnectTimer = Timer(Duration(seconds: delaySeconds), () async {
+      if (_currentUserId == userId) {
+        if (_globalIncomingChannel != null) {
+          try {
+            await _globalIncomingChannel!.unsubscribe();
+          } catch (_) {}
+          _globalIncomingChannel = null;
+        }
+        _setupGlobalIncomingListener(userId);
+      }
     });
   }
 
@@ -503,7 +606,9 @@ class CallService {
       _startRingtone();
 
       // Callee subscribes to signaling channel immediately to listen for early hangup / cancel events
-      _subscribeSignalingChannel(channelName);
+      _subscribeSignalingChannel(channelName).catchError((e) {
+        debugPrint('[CallService] Error early subscribing to incoming channel $channelName: $e');
+      });
     } catch (e) {
       debugPrint('[CallService] Error parsing incoming offer: $e');
     }
@@ -745,8 +850,11 @@ class CallService {
 
           // Wait 2 seconds before unsubscribing to allow the WebSocket server to process the message
           Future.delayed(const Duration(seconds: 2), () {
-            incomingChannel.unsubscribe();
+            incomingChannel.unsubscribe().catchError((_) {});
           });
+        } else if (status == RealtimeSubscribeStatus.channelError ||
+                   status == RealtimeSubscribeStatus.timedOut) {
+          incomingChannel.unsubscribe().catchError((_) {});
         }
       });
     }
@@ -791,73 +899,7 @@ class CallService {
   void _startRingtone() {
     if (!kIsWeb) return;
     try {
-      js.context.callMethod('eval', [
-        '''
-        if (!window.ringingSynth) {
-          const AudioContext = window.AudioContext || window.webkitAudioContext;
-          if (AudioContext) {
-            const ctx = new AudioContext();
-            let isPlaying = false;
-            let timer = null;
-            
-            window.ringingSynth = {
-              start: function() {
-                if (isPlaying) return;
-                isPlaying = true;
-                if (ctx.state === 'suspended') {
-                  ctx.resume();
-                }
-                
-                function playRing() {
-                  if (!isPlaying) return;
-                  
-                  const osc1 = ctx.createOscillator();
-                  const osc2 = ctx.createOscillator();
-                  const gain = ctx.createGain();
-                  
-                  osc1.type = 'sine';
-                  osc1.frequency.value = 400;
-                  
-                  osc2.type = 'sine';
-                  osc2.frequency.value = 450;
-                  
-                  gain.gain.setValueAtTime(0, ctx.currentTime);
-                  gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.1);
-                  gain.gain.setValueAtTime(0.15, ctx.currentTime + 1.8);
-                  gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2.0);
-                  
-                  osc1.connect(gain);
-                  osc2.connect(gain);
-                  gain.connect(ctx.destination);
-                  
-                  osc1.start();
-                  osc2.start();
-                  
-                  osc1.stop(ctx.currentTime + 2.0);
-                  osc2.stop(ctx.currentTime + 2.0);
-                  
-                  timer = setTimeout(() => {
-                    if (isPlaying) playRing();
-                  }, 3000);
-                }
-                
-                playRing();
-              },
-              stop: function() {
-                isPlaying = false;
-                if (timer) {
-                  clearTimeout(timer);
-                  timer = null;
-                }
-              }
-            };
-          }
-        }
-        if (window.ringingSynth) {
-          window.ringingSynth.start();
-        }
-        '''
-      ]);
+      startWebRingtone();
       debugPrint('[CallService] Started synthesized incoming ringtone');
     } catch (e) {
       debugPrint('[CallService] Error playing synthesized ringtone: $e');
@@ -867,13 +909,7 @@ class CallService {
   void _stopRingtone() {
     if (!kIsWeb) return;
     try {
-      js.context.callMethod('eval', [
-        '''
-        if (window.ringingSynth) {
-          window.ringingSynth.stop();
-        }
-        '''
-      ]);
+      stopWebRingtone();
       debugPrint('[CallService] Stopped synthesized incoming ringtone');
     } catch (e) {
       debugPrint('[CallService] Error stopping synthesized ringtone: $e');

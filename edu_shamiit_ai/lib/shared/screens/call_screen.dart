@@ -276,7 +276,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                         background: _callService.isCameraOff
                             ? Colors.redAccent.withValues(alpha: 0.25)
                             : Colors.white.withValues(alpha: 0.15),
-                        onTap: () => setState(() => _callService.toggleCamera()),
+                        onTap: _callService.toggleCamera,
                       ),
                       _buildControlButton(
                         icon: _callService.isScreenSharing ? Icons.stop_screen_share_rounded : Icons.screen_share_rounded,
@@ -406,9 +406,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   Widget _buildHangupButton(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        final nav = Navigator.of(context);
         await _callService.hangUp();
-        if (mounted) nav.pop();
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,

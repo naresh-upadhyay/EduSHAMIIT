@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/app.dart';
 import 'package:edu_shamiit_ai/core/services/supabase_service.dart';
 import 'package:edu_shamiit_ai/core/services/cache_service.dart';
-import 'package:edu_shamiit_ai/core/services/call_service.dart';
+
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
-import 'package:edu_shamiit_ai/core/config/app_config.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,11 +44,6 @@ void main() async {
   final authState = container.read(authProvider);
   if (authState.isAuthenticated) {
     container.read(roleProvider.notifier).setRole(authState.role);
-    // Initialize CallService for authenticated user
-    final userId = authState.userData?['id'] as String? ?? '';
-    if (userId.isNotEmpty) {
-      await CallService.instance.initialize(userId, AppConfig.baseUrl);
-    }
   }
 
   runApp(

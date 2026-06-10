@@ -952,9 +952,11 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen>
         AnimationController(vsync: this, duration: const Duration(seconds: 1));
 
     Future.microtask(() async {
+      if (!mounted) return;
       await ref
           .read(messagingProvider.notifier)
           .fetchChatHistory(widget.senderId);
+      if (!mounted) return;
       _updateLastSeenMessageId();
     });
 
@@ -963,6 +965,7 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen>
   }
 
   void _updateLastSeenMessageId() {
+    if (!mounted) return;
     final history = ref.read(messagingProvider).chatHistory;
     if (history.isNotEmpty) {
       _lastSeenMessageId = history.last.id;
@@ -991,6 +994,10 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen>
             widget.senderId,
             refreshConversations: false,
           );
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       _updateLastSeenMessageId();
     });
   }

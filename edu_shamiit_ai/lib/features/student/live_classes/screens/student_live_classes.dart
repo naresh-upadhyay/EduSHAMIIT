@@ -2,9 +2,7 @@ import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui_web' as ui_web;
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:edu_shamiit_ai/core/utils/live_class_player_helper.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -1254,70 +1252,15 @@ class _StudentLiveClassPlayerScreenState
         resolvedUrl.contains('/storage/v1/object/public/') ||
         resolvedUrl.contains(':9000/live-classes/');
 
-    // ignore: undefined_prefixed_name
-    ui_web.platformViewRegistry.registerViewFactory(
+    final videoUrl = _getEmbedUrl(resolvedUrl);
+
+    registerVideoPlayerView(
       viewKey,
-      (int viewId) {
-        if (resolvedUrl.isEmpty) {
-          final div = html.DivElement()
-            ..style.display = 'flex'
-            ..style.flexDirection = 'column'
-            ..style.alignItems = 'center'
-            ..style.justifyContent = 'center'
-            ..style.width = '100%'
-            ..style.height = '100%'
-            ..style.background = '#0F172A'
-            ..style.color = 'rgba(255,255,255,0.6)'
-            ..style.fontSize = '16px'
-            ..style.fontFamily = 'sans-serif';
-
-          final textSpan = html.SpanElement()
-            ..text = '🎥 Recording not generated yet';
-          div.append(textSpan);
-          return div;
-        } else if (isDirectVideo) {
-          final video = html.VideoElement()
-            ..id = 'live-class-video-player'
-            ..width = 1280
-            ..height = 720
-            ..src = resolvedUrl
-            ..controls = true
-            ..autoplay = true
-            ..muted = true
-            ..style.border = 'none'
-            ..style.width = '100%'
-            ..style.height = '100%'
-            ..style.background = '#000';
-          video.setAttribute('playsinline', '');
-          video.setAttribute('webkit-playsinline', '');
-
-          // Listen for metadata load to capture actual duration
-          video.onLoadedMetadata.listen((event) {
-            try {
-              final num actualDur = video.duration;
-              if (actualDur > 0 && actualDur.isFinite) {
-                final int actualDurSec = actualDur.round();
-                debugPrint('[Player] Video duration loaded: $actualDurSec seconds');
-                _updateRecordingDurationOnServer(actualDurSec);
-              }
-            } catch (e) {
-              debugPrint('[Player] Error reading video duration: $e');
-            }
-          });
-
-          return video;
-        } else {
-          final videoUrl = _getEmbedUrl(resolvedUrl);
-          return html.IFrameElement()
-            ..id = 'live-class-iframe-player'
-            ..width = '100%'
-            ..height = '100%'
-            ..src = videoUrl
-            ..style.border = 'none'
-            ..allow =
-                'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen'
-            ..attributes['allowfullscreen'] = 'true';
-        }
+      resolvedUrl,
+      isDirectVideo,
+      videoUrl,
+      (actualDurSec) {
+        _updateRecordingDurationOnServer(actualDurSec);
       },
     );
   }
@@ -1325,11 +1268,8 @@ class _StudentLiveClassPlayerScreenState
   void _seekVideo(int seconds) {
     if (kIsWeb) {
       try {
-        final video = html.document.getElementById('live-class-video-player')
-            as html.VideoElement?;
-        if (video != null) {
-          video.currentTime = seconds;
-          video.play();
+        final success = seekWebVideo(seconds);
+        if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -1353,10 +1293,8 @@ class _StudentLiveClassPlayerScreenState
   void _unmuteVideo() {
     if (kIsWeb) {
       try {
-        final video = html.document.getElementById('live-class-video-player')
-            as html.VideoElement?;
-        if (video != null) {
-          video.muted = false;
+        final success = unmuteWebVideo();
+        if (success) {
           setState(() {
             _showAudioWarning = false;
           });
@@ -1374,18 +1312,7 @@ class _StudentLiveClassPlayerScreenState
 
   void _setPointerEvents(bool enabled) {
     if (kIsWeb) {
-      try {
-        final video = html.document.getElementById('live-class-video-player');
-        if (video != null) {
-          video.style.pointerEvents = enabled ? 'auto' : 'none';
-        }
-        final iframe = html.document.getElementById('live-class-iframe-player');
-        if (iframe != null) {
-          iframe.style.pointerEvents = enabled ? 'auto' : 'none';
-        }
-      } catch (e) {
-        debugPrint('Error setting pointer events: $e');
-      }
+      setWebPointerEvents(enabled);
     }
   }
 
@@ -3170,7 +3097,7 @@ class _StudentLiveClassPlayerScreenState
                 // Copy Link
                 InkWell(
                   onTap: () {
-                    final String path = html.window.location.href;
+                    final String path = getWebWindowUrl();
                     Clipboard.setData(ClipboardData(text: path));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
