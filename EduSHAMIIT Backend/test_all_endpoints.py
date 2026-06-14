@@ -598,6 +598,20 @@ check("GET /api/users/search?q=Neha", requests.get(f"{BASE_URL}/api/users/search
 if TEACHER_TOKEN:
     check("GET /api/users/search?q=Naresh", requests.get(f"{BASE_URL}/api/users/search?q=Naresh", headers=T))
 
+# Subjects shared & teacher endpoints
+student_subs_resp = check("GET /api/subjects (student)", requests.get(f"{BASE_URL}/api/subjects", headers=S))
+student_subs = (student_subs_resp.get("data") or {}).get("subjects", [])
+for sub in student_subs:
+    assert sub.get("class") == "10A", f"Student should only see subjects for class 10A, got {sub.get('class')}"
+
+if TEACHER_TOKEN:
+    teacher_subs_resp = check("GET /api/subjects (teacher)", requests.get(f"{BASE_URL}/api/subjects", headers=T))
+    teacher_subs = (teacher_subs_resp.get("data") or {}).get("subjects", [])
+    for sub in teacher_subs:
+        assert sub.get("class") in ["10A", "10B", "11A"], f"Teacher should only see subjects for classes 10A, 10B, 11A, got {sub.get('class')}"
+    
+    check("GET /api/teacher/subjects?all_subjects=true", requests.get(f"{BASE_URL}/api/teacher/subjects?all_subjects=true", headers=T))
+
 shared_group_id = None
 if TEACHER_TOKEN:
     check("GET /api/groups (teacher)",       requests.get(f"{BASE_URL}/api/groups", headers=T))

@@ -10,6 +10,7 @@ from app.middleware.auth import get_current_user, require_school_id
 from app.services.supabase_client import get_supabase
 from app.services.upi_service import generate_upi_link
 from app.models import PaymentRequest, PaymentVerifyRequest, PaymentResponse
+from app.config import settings
 
 class DirectPaymentRequest(BaseModel):
     fee_id: str
@@ -201,6 +202,12 @@ async def verify_payment(
             }
         )
 
+    if request.status == "success" and user.get("role") == "student" and settings.ENVIRONMENT == "production":
+        raise HTTPException(
+            status_code=403,
+            detail="Students cannot manually mark payments as successful in production. Payments must be verified via gateway webhook."
+        )
+
     now = datetime.utcnow().isoformat()
     update_data = {
         "status":              request.status,
@@ -333,10 +340,16 @@ async def payment_webhook(request: Request):
         body_raw  = await request.body()
         body      = await request.json()
 
-        # Verify signature if present
+        # Verify signature
         sig = request.headers.get("X-Webhook-Signature", "")
-        if sig and not _verify_webhook_sig(body_raw.decode(), sig):
-            return {"status": "error", "message": "Invalid signature"}
+        if not sig:
+            if settings.ENVIRONMENT == "production":
+                raise HTTPException(status_code=401, detail="Missing webhook signature")
+            else:
+                import logging
+                logging.warning("Missing webhook signature (allowed in development environment)")
+        elif not _verify_webhook_sig(body_raw.decode(), sig):
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
         tx   = body.get("transaction_id") or body.get("tr") or body.get("orderId")
         utx  = body.get("upi_transaction_id") or body.get("txnId") or body.get("upiTxnId")

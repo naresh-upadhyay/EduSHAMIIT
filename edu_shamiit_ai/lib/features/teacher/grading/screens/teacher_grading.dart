@@ -6,6 +6,7 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class TeacherGrading extends ConsumerStatefulWidget {
   const TeacherGrading({super.key});
@@ -20,7 +21,7 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
   String _selectedClass = 'X-A';
   String _selectedSubject = 'Mathematics';
   final List<String> _classes = ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B'];
-  final List<String> _subjects = [
+  List<String> _subjects = [
     'Mathematics',
     'Physics',
     'Chemistry',
@@ -34,7 +35,25 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
   @override
   void initState() {
     super.initState();
-    _loadAssignments();
+    _loadSubjects().then((_) {
+      if (mounted) _loadAssignments();
+    });
+  }
+
+  Future<void> _loadSubjects() async {
+    try {
+      final subjects = await _apiService.getSubjects(allSubjects: true);
+      if (subjects.isNotEmpty) {
+        setState(() {
+          _subjects = subjects.map((s) => s.name).toList();
+          if (!_subjects.contains(_selectedSubject)) {
+            _selectedSubject = _subjects.first;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading subjects in grading: $e');
+    }
   }
 
   Future<void> _loadAssignments() async {
@@ -69,6 +88,74 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
     if (diff.inDays == 0) return 'Today';
     if (diff.inDays == 1) return 'Yesterday';
     return '${diff.inDays} days ago';
+  }
+
+  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildGridColumns() {
+    return [
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Assignment Title',
+        width: 180.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (a) => Text(a.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Subject',
+        width: 110.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (a) => Text(a.subject),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Class',
+        width: 80.0,
+        compare: (a, b) => a.class_.compareTo(b.class_),
+        cellBuilder: (a) => Text(a.class_),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Graded',
+        width: 100.0,
+        compare: (a, b) => a.submittedCount.compareTo(b.submittedCount),
+        cellBuilder: (a) => Text('${a.submittedCount} / ${a.totalCount}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Pending',
+        width: 90.0,
+        compare: (a, b) => (a.totalCount - a.submittedCount).compareTo(b.totalCount - b.submittedCount),
+        cellBuilder: (a) => Text('${a.totalCount - a.submittedCount}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Due Date',
+        width: 120.0,
+        compare: (a, b) => a.dueDate.compareTo(b.dueDate),
+        cellBuilder: (a) => Text('${a.dueDate.day}/${a.dueDate.month}/${a.dueDate.year}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Max Marks',
+        width: 90.0,
+        compare: (a, b) => (a.maxMarks ?? 0).compareTo(b.maxMarks ?? 0),
+        cellBuilder: (a) => Text('${a.maxMarks ?? 25}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Actions',
+        width: 130.0,
+        cellBuilder: (a) => SizedBox(
+          height: 24,
+          child: ElevatedButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Opening grading interface...'.tr(ref))),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0EA5E9),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              elevation: 0,
+            ),
+            child: const Text('Grade', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ),
+    ];
   }
 
   @override
@@ -183,14 +270,26 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
                           ],
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _pendingSubmissions.length,
-                        itemBuilder: (context, index) {
-                          return _buildAssignmentCard(
-                              _pendingSubmissions[index]);
-                        },
-                      ),
+                    : Responsive.isWide(context)
+                        ? Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: AzureGrid<TeacherHomeworkAssignment>(
+                              title: 'Assignments Needing Grading',
+                              items: _pendingSubmissions,
+                              columns: _buildGridColumns(),
+                              searchMatcher: (a) => '${a.title} ${a.subject} ${a.class_}',
+                              onRefresh: _loadAssignments,
+                              mobileCardBuilder: (context, a) => _buildAssignmentCard(a),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _pendingSubmissions.length,
+                            itemBuilder: (context, index) {
+                              return _buildAssignmentCard(
+                                  _pendingSubmissions[index]);
+                            },
+                          ),
           ),
         ],
       ),
@@ -239,9 +338,9 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -273,7 +372,6 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
     final progress = total > 0 ? submitted.toDouble() / total : 0.0;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -281,7 +379,7 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
           ),
         ],
@@ -289,7 +387,6 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title and class
           Row(
             children: [
               Expanded(
@@ -306,7 +403,7 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                  color: const Color(0xFF0EA5E9).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -321,7 +418,6 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
             ],
           ),
           const SizedBox(height: 12),
-          // Stats row
           Row(
             children: [
               _buildMiniStat('$submitted', 'Graded', Colors.green),
@@ -340,7 +436,6 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
             ],
           ),
           const SizedBox(height: 12),
-          // Progress bar
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
@@ -360,12 +455,10 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
             ),
           ),
           const SizedBox(height: 12),
-          // Action button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // Navigate to grading interface
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Opening grading interface...'.tr(ref))),
                 );

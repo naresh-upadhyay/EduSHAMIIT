@@ -34,6 +34,13 @@ import 'package:edu_shamiit_ai/features/teacher/messaging/screens/teacher_messag
 import 'package:edu_shamiit_ai/features/student/settings/screens/student_settings.dart';
 import 'package:edu_shamiit_ai/features/student/exams/screens/student_exams.dart';
 import 'package:edu_shamiit_ai/features/student/exams/screens/online_exam_screen.dart';
+import 'package:edu_shamiit_ai/features/student/exams/screens/exam_details_screen.dart';
+import 'package:edu_shamiit_ai/features/student/exams/screens/identity_verification_screen.dart';
+import 'package:edu_shamiit_ai/features/student/exams/screens/exam_instructions_screen.dart';
+import 'package:edu_shamiit_ai/features/student/exams/screens/live_exam_taking_screen.dart';
+import 'package:edu_shamiit_ai/features/student/exams/screens/exam_submission_screen.dart';
+import 'package:edu_shamiit_ai/features/student/exams/screens/exam_result_screen.dart';
+
 import 'package:edu_shamiit_ai/features/teacher/dashboard/screens/teacher_dashboard.dart';
 import 'package:edu_shamiit_ai/features/teacher/timetable/screens/teacher_timetable.dart';
 import 'package:edu_shamiit_ai/features/teacher/attendance/screens/teacher_attendance.dart';
@@ -44,7 +51,14 @@ import 'package:edu_shamiit_ai/features/teacher/notices/screens/teacher_notices.
 import 'package:edu_shamiit_ai/features/teacher/profile/screens/teacher_profile.dart';
 import 'package:edu_shamiit_ai/features/teacher/grading/screens/teacher_grading.dart';
 import 'package:edu_shamiit_ai/features/teacher/exams/screens/teacher_exams.dart';
-import 'package:edu_shamiit_ai/features/teacher/paper_builder/screens/teacher_paper_builder.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/create_exam_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/question_bank_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/exam_paper_builder_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/assign_exam_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/live_monitoring_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/manual_evaluation_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/publish_result_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/exams/screens/teacher_exam_analytics.dart';
 // teacher_leave.dart replaced by shared leave_screen.dart
 import 'package:edu_shamiit_ai/features/teacher/salary/screens/teacher_salary.dart';
 import 'package:edu_shamiit_ai/features/teacher/submissions/screens/teacher_submissions.dart';
@@ -281,6 +295,55 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: StudentExamsScreen()),
         ),
         GoRoute(
+          path: '/student/exams/details/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: ExamDetailsScreen(examId: id));
+          },
+        ),
+        GoRoute(
+          path: '/student/exams/verify/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            final passcode = state.uri.queryParameters['passcode'];
+            return NoTransitionPage(child: IdentityVerificationScreen(examId: id, passcode: passcode));
+          },
+        ),
+        GoRoute(
+          path: '/student/exams/instructions/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            final passcode = state.uri.queryParameters['passcode'];
+            return NoTransitionPage(child: ExamInstructionsScreen(examId: id, passcode: passcode));
+          },
+        ),
+        GoRoute(
+          path: '/student/exams/live/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            final passcode = state.uri.queryParameters['passcode'];
+            return NoTransitionPage(child: LiveExamTakingScreen(examId: id, passcode: passcode));
+          },
+        ),
+        GoRoute(
+          path: '/student/exams/submit/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            final autoStr = state.uri.queryParameters['auto'];
+            final autoSubmitted = autoStr == 'true';
+            return NoTransitionPage(
+              child: ExamSubmissionScreen(examId: id, autoSubmitted: autoSubmitted),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/student/exams/result/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: ExamResultScreen(examId: id));
+          },
+        ),
+        GoRoute(
           path: '/student/online-exam',
           pageBuilder: (_, __) => const NoTransitionPage(child: OnlineExamScreen()),
         ),
@@ -353,8 +416,61 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherExams()),
         ),
         GoRoute(
-          path: '/teacher/paper-builder',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherPaperBuilder()),
+          path: '/teacher/exams/create',
+          pageBuilder: (_, __) => const NoTransitionPage(child: CreateExamScreen()),
+        ),
+        GoRoute(
+          path: '/teacher/exams/edit/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: CreateExamScreen(examId: id));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/question-bank',
+          pageBuilder: (_, __) => const NoTransitionPage(child: QuestionBankScreen()),
+        ),
+        GoRoute(
+          path: '/teacher/exams/paper-builder',
+          pageBuilder: (context, state) {
+            final examId = state.uri.queryParameters['examId'] ?? state.uri.queryParameters['exam_id'];
+            return NoTransitionPage(child: ExamPaperBuilderScreen(examId: examId));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/assign/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: AssignExamScreen(examId: id));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/monitor/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: LiveMonitoringScreen(examId: id));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/evaluate/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: ManualEvaluationScreen(examId: id));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/publish/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: PublishResultScreen(examId: id));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/exams/analytics/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: TeacherExamAnalyticsScreen(examId: id));
+          },
         ),
         GoRoute(
           path: '/teacher/leave',

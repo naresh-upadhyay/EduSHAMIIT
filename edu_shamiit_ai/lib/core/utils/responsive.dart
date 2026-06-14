@@ -83,9 +83,12 @@ class Responsive {
 
   /// Top padding for non-sliver headers (replaces hardcoded 50).
   static double headerTopPadding(BuildContext context) {
+    if (isWide(context)) {
+      return 6.0; // Compact padding on tablet/desktop to optimize screen height usage
+    }
     final top = MediaQuery.paddingOf(context).top;
     // On web/desktop the safe-area top is 0, so add a sensible minimum
-    return top > 0 ? top + 8 : 24;
+    return top > 0 ? top + 8 : 16;
   }
 
   // ─── Font scaling ──────────────────────────────────────────

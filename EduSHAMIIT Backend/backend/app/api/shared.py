@@ -1034,3 +1034,39 @@ async def upload_leave_document(
             "file_name": file.filename
         }
     }
+
+
+@router.get("/subjects")
+async def get_all_subjects(class_name: Optional[str] = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    query = sb.table("subjects").select("*").eq("school_id", school_id)
+    
+    role = user.get("role")
+    if role == "student":
+        student_class = user.get("class")
+        if not student_class:
+            res_p = await sb.table("profiles").select("class").eq("id", user["id"]).aexecute()
+            if res_p.data:
+                student_class = res_p.data[0].get("class")
+        if student_class:
+            query = query.eq("class", student_class)
+        else:
+            return {"success": True, "school_id": school_id, "data": {"subjects": []}}
+            
+    elif role == "teacher":
+        if class_name:
+            query = query.eq("class", class_name)
+        else:
+            classes_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
+            teacher_classes = list({row["class"] for row in classes_res.data if row.get("class")})
+            if teacher_classes:
+                query = query.in_("class", teacher_classes)
+            else:
+                query = query.eq("teacher_id", user["id"])
+                
+    else: # admin / student_admin / teacher_admin
+        if class_name:
+            query = query.eq("class", class_name)
+            
+    subjects = (await query.order("name").aexecute()).data or []
+    return {"success": True, "school_id": school_id, "data": {"subjects": subjects}}

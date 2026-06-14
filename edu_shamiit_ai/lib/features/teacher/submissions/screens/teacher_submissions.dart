@@ -6,6 +6,7 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const _kRed = Color(0xFFE11D48);
@@ -45,13 +46,12 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
   Future<void> _loadSubmissions() async {
     setState(() { _isLoading = true; _error = null; });
     try {
-      final status = _selectedStatus == 'All' || _selectedStatus == 'Flagged' ? null : _selectedStatus.toLowerCase();
       try {
         final state = GoRouterState.of(context);
         _homeworkId = state.uri.queryParameters['homework_id'] ?? '';
       } catch (_) {}
 
-      final submissions = await _apiService.getHomeworkSubmissions(homeworkId: _homeworkId, status: status);
+      final submissions = await _apiService.getHomeworkSubmissions(homeworkId: _homeworkId, status: null);
       setState(() {
         _submissions = submissions;
         _isLoading = false;
@@ -108,9 +108,186 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
       body: Column(
         children: [
           _buildHeader(submitted, graded),
-          _buildStatusFilter(),
           _buildAiGradingCard(),
-          Expanded(child: _buildContent()),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: _kRed))
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('⚠️', style: TextStyle(fontSize: 40)),
+                            const SizedBox(height: 12),
+                            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
+                            const SizedBox(height: 12),
+                            ElevatedButton(onPressed: _loadSubmissions, style: ElevatedButton.styleFrom(backgroundColor: _kRed, foregroundColor: Colors.white), child: const Text('Retry')),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: AzureGrid<HomeworkSubmission>(
+                          title: 'Homework Submissions',
+                          items: _submissions,
+                          onRefresh: _loadSubmissions,
+                          searchMatcher: (item) =>
+                              '${item.studentName} ${item.status} ${item.feedback ?? ""} ${item.submissionText ?? ""}',
+                          filters: [
+                            AzureGridFilter<HomeworkSubmission>(
+                              label: 'Status',
+                              options: const ['Pending', 'Graded', 'Returned'],
+                              filterFn: (item, option) {
+                                final st = item.status.toLowerCase();
+                                if (option == 'Pending') return st == 'pending' || st == 'submitted';
+                                if (option == 'Graded') return st == 'graded';
+                                if (option == 'Returned') return st == 'returned';
+                                return true;
+                              },
+                            ),
+                          ],
+                          columns: [
+                            AzureGridColumn<HomeworkSubmission>(
+                              label: 'Student Name',
+                              width: 200,
+                              compare: (a, b) => a.studentName.compareTo(b.studentName),
+                              cellBuilder: (item) {
+                                final initials = item.studentName.trim().isEmpty
+                                    ? '?'
+                                    : item.studentName.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase();
+                                return Row(
+                                  children: [
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        color: _avatarColor(item.studentName).withOpacity(0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          initials,
+                                          style: TextStyle(
+                                            color: _avatarColor(item.studentName),
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        item.studentName.isEmpty ? 'Student' : item.studentName,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            AzureGridColumn<HomeworkSubmission>(
+                              label: 'Submitted At',
+                              width: 140,
+                              compare: (a, b) => a.submittedAt.compareTo(b.submittedAt),
+                              cellBuilder: (item) => Text(_timeAgo(item.submittedAt)),
+                            ),
+                            AzureGridColumn<HomeworkSubmission>(
+                              label: 'Notes / Text',
+                              width: 220,
+                              compare: (a, b) => (a.submissionText ?? '').compareTo(b.submissionText ?? ''),
+                              cellBuilder: (item) => Text(
+                                item.submissionText != null && item.submissionText!.isNotEmpty
+                                    ? item.submissionText!
+                                    : 'No notes',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: item.submissionText != null && item.submissionText!.isNotEmpty
+                                      ? _kText2
+                                      : _kText3,
+                                  fontStyle: item.submissionText != null && item.submissionText!.isNotEmpty
+                                      ? FontStyle.normal
+                                      : FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                            AzureGridColumn<HomeworkSubmission>(
+                              label: 'Status',
+                              width: 110,
+                              compare: (a, b) => a.status.compareTo(b.status),
+                              cellBuilder: (item) {
+                                final color = _statusColor(item.status);
+                                final label = _statusLabel(item.status);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: color,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            AzureGridColumn<HomeworkSubmission>(
+                              label: 'Score',
+                              width: 90,
+                              compare: (a, b) => (a.marksObtained ?? 0.0).compareTo(b.marksObtained ?? 0.0),
+                              cellBuilder: (item) => Text(
+                                item.marksObtained != null
+                                    ? item.marksObtained!.toString()
+                                    : '-',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: item.marksObtained != null ? _kSuccess : _kText3,
+                                ),
+                              ),
+                            ),
+                            AzureGridColumn<HomeworkSubmission>(
+                              label: 'Feedback',
+                              width: 200,
+                              compare: (a, b) => (a.feedback ?? '').compareTo(b.feedback ?? ''),
+                              cellBuilder: (item) => Text(
+                                item.feedback ?? '-',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            AzureGridColumn<HomeworkSubmission>(
+                              label: 'Action',
+                              width: 120,
+                              cellBuilder: (item) {
+                                final isGraded = item.status.toLowerCase() == 'graded';
+                                return ElevatedButton(
+                                  onPressed: () => _showGradingSheet(item),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isGraded ? const Color(0xFF64748B) : _kRed,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    minimumSize: const Size(60, 26),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    elevation: 0,
+                                  ),
+                                  child: Text(
+                                    isGraded ? 'Review' : 'Grade',
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                          mobileCardBuilder: (context, item) => _buildSubmissionCard(item, 0),
+                        ),
+                      ),
+          ),
         ],
       ),
     );

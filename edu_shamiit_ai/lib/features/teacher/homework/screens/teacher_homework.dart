@@ -6,8 +6,9 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
-// ─── Color tokens (teacher palette) ─────────────────────────────────────────
+// ─── Color tokens (teacher homework palette) ───────────────────────────────
 const _kPink = Color(0xFFBE185D);
 const _kPinkLight = Color(0xFFFDF2F8);
 const _kPinkBg = Color(0xFFFFF0F8);
@@ -44,6 +45,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   final _marksCtrl = TextEditingController(text: '25');
   String _selectedClass = 'X-A';
   String _selectedSubject = 'Mathematics';
+  List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Computer Science'];
   DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
 
   @override
@@ -72,11 +74,19 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         _apiService.getHomeworkAssignments(status: 'active'),
         _apiService.getHomeworkAssignments(status: 'pending'),
         _apiService.getHomeworkAssignments(status: 'completed'),
+        _apiService.getSubjects(allSubjects: true),
       ]);
       setState(() {
-        _active = results[0];
-        _submissions = results[1];
-        _graded = results[2];
+        _active = results[0] as List<TeacherHomeworkAssignment>;
+        _submissions = results[1] as List<TeacherHomeworkAssignment>;
+        _graded = results[2] as List<TeacherHomeworkAssignment>;
+        final subjectsRes = results[3] as List<TeacherSubject>;
+        if (subjectsRes.isNotEmpty) {
+          _subjects = subjectsRes.map((s) => s.name).toList();
+          if (!_subjects.contains(_selectedSubject)) {
+            _selectedSubject = _subjects.first;
+          }
+        }
         _isLoading = false;
       });
     } catch (e) {
@@ -84,7 +94,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     }
   }
 
-  // ─── Subject icon helper ──────────────────────────────────────────────────
   String _subjectIcon(String subject) {
     final s = subject.toLowerCase();
     if (s.contains('math')) return '📐';
@@ -99,13 +108,204 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     return '📚';
   }
 
-  // ─── Due colour ───────────────────────────────────────────────────────────
   Color _dueColor(TeacherHomeworkAssignment hw) {
     if (hw.isOverdue) return _kError;
     final diff = hw.dueDate.difference(DateTime.now()).inDays;
     if (diff == 0) return _kError;
     if (diff <= 2) return _kWarning;
     return _kSuccess;
+  }
+
+  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildActiveColumns() {
+    return [
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Assignment Title',
+        width: 170.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (hw) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(hw.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            if (hw.description.isNotEmpty)
+              Text(
+                hw.description,
+                style: const TextStyle(fontSize: 10, color: _kText3),
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Class',
+        width: 80.0,
+        compare: (a, b) => a.class_.compareTo(b.class_),
+        cellBuilder: (hw) => Text(hw.class_),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Subject',
+        width: 110.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (hw) => Text('${_subjectIcon(hw.subject)} ${hw.subject}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Submissions',
+        width: 110.0,
+        compare: (a, b) => a.submissionRate.compareTo(b.submissionRate),
+        cellBuilder: (hw) => Text('${hw.submittedCount}/${hw.totalCount} (${hw.submissionRate.toInt()}%)'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Due Date',
+        width: 120.0,
+        compare: (a, b) => a.dueDate.compareTo(b.dueDate),
+        cellBuilder: (hw) {
+          final color = _dueColor(hw);
+          final daysStr = hw.isOverdue ? 'Overdue' : 'Due in ${hw.dueDate.difference(DateTime.now()).inDays}d';
+          return Text(
+            '${hw.dueDate.day}/${hw.dueDate.month}/${hw.dueDate.year} ($daysStr)',
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+          );
+        },
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Max Marks',
+        width: 80.0,
+        compare: (a, b) => (a.maxMarks ?? 0).compareTo(b.maxMarks ?? 0),
+        cellBuilder: (hw) => Text('${hw.maxMarks ?? 25}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Actions',
+        width: 160.0,
+        cellBuilder: (hw) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 24,
+              child: ElevatedButton(
+                onPressed: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _dueColor(hw),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  elevation: 0,
+                ),
+                child: Text('Review (${hw.submittedCount})', style: const TextStyle(fontSize: 10, color: Colors.white)),
+              ),
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              icon: const Icon(Icons.alarm_rounded, size: 14, color: _kWarning),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _showReminderDialog(hw),
+              tooltip: 'Send Reminder',
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              icon: const Icon(Icons.more_vert_rounded, size: 14, color: Colors.grey),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _showEditSheet(hw),
+              tooltip: 'More Actions',
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildSubmissionColumns() {
+    return [
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Assignment Title',
+        width: 200.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (hw) => Text(hw.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Class',
+        width: 90.0,
+        compare: (a, b) => a.class_.compareTo(b.class_),
+        cellBuilder: (hw) => Text(hw.class_),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Subject',
+        width: 120.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (hw) => Text('${_subjectIcon(hw.subject)} ${hw.subject}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Submissions',
+        width: 130.0,
+        compare: (a, b) => a.submittedCount.compareTo(b.submittedCount),
+        cellBuilder: (hw) => Text('${hw.submittedCount} submissions pending'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Actions',
+        width: 100.0,
+        cellBuilder: (hw) => SizedBox(
+          height: 24,
+          child: ElevatedButton(
+            onPressed: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kPink,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              elevation: 0,
+            ),
+            child: const Text('View All', style: TextStyle(fontSize: 10, color: Colors.white)),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildGradedColumns() {
+    return [
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Assignment Title',
+        width: 220.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (hw) => Text(hw.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Class',
+        width: 90.0,
+        compare: (a, b) => a.class_.compareTo(b.class_),
+        cellBuilder: (hw) => Text(hw.class_),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Subject',
+        width: 130.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (hw) => Text('${_subjectIcon(hw.subject)} ${hw.subject}'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Graded Ratio',
+        width: 140.0,
+        cellBuilder: (hw) => Text('${hw.submittedCount}/${hw.totalCount} Graded'),
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Status',
+        width: 100.0,
+        cellBuilder: (hw) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECFDF5),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: _kSuccess.withOpacity(0.3)),
+          ),
+          child: const Text(
+            'COMPLETED',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: _kSuccess,
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   @override
@@ -144,7 +344,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Header ───────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.fromLTRB(8, Responsive.headerTopPadding(context), 16, 12),
@@ -181,7 +380,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Tab bar ──────────────────────────────────────────────────────────────
   Widget _buildTabBar() {
     final tabs = [
       'Active (${_active.length})',
@@ -224,9 +422,21 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Active Tab ───────────────────────────────────────────────────────────
   Widget _buildActiveTab() {
     if (_active.isEmpty) return _buildEmpty('No active homework', '📝');
+    if (Responsive.isWide(context)) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: AzureGrid<TeacherHomeworkAssignment>(
+          title: 'Active Homework',
+          items: _active,
+          columns: _buildActiveColumns(),
+          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
+          onRefresh: _loadAll,
+          mobileCardBuilder: (context, hw) => const SizedBox(),
+        ),
+      );
+    }
     return RefreshIndicator(
       onRefresh: _loadAll,
       color: _kPink,
@@ -234,6 +444,98 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 100),
         itemCount: _active.length,
         itemBuilder: (_, i) => _buildActiveCard(_active[i]),
+      ),
+    );
+  }
+
+  Widget _buildSubmissionsTab() {
+    final all = [..._active, ..._submissions];
+    if (all.isEmpty) return _buildEmpty('No submissions yet', '📋');
+    if (Responsive.isWide(context)) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: AzureGrid<TeacherHomeworkAssignment>(
+          title: 'Submissions Overview',
+          items: all,
+          columns: _buildSubmissionColumns(),
+          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
+          onRefresh: _loadAll,
+          mobileCardBuilder: (context, hw) => const SizedBox(),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      color: _kPink,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _kPink.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              '📊 Overview of recent submissions across all classes.',
+              style: TextStyle(fontSize: 11, color: _kPink, fontWeight: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+              itemCount: all.length,
+              itemBuilder: (_, i) => _buildSubmissionRow(all[i]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradedTab() {
+    if (_graded.isEmpty) return _buildEmpty('No graded homework yet', '✅');
+    if (Responsive.isWide(context)) {
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: AzureGrid<TeacherHomeworkAssignment>(
+          title: 'Graded History',
+          items: _graded,
+          columns: _buildGradedColumns(),
+          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
+          onRefresh: _loadAll,
+          mobileCardBuilder: (context, hw) => const SizedBox(),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadAll,
+      color: _kPink,
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              const Text('✅ ', style: TextStyle(fontSize: 14)),
+              Expanded(
+                child: Text(
+                  'Great job! ${_graded.length} homework tasks were graded this week.',
+                  style: const TextStyle(fontSize: 11, color: _kSuccess, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ]),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+              itemCount: _graded.length,
+              itemBuilder: (_, i) => _buildGradedRow(_graded[i]),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -249,21 +551,20 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         color: _kSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border(left: BorderSide(color: color, width: 4)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Class + submission count row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -287,7 +588,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 8),
-            // Progress bar
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
@@ -298,7 +598,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
               ),
             ),
             const SizedBox(height: 10),
-            // Action buttons
             Row(
               children: [
                 Expanded(
@@ -321,40 +620,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Submissions Tab ──────────────────────────────────────────────────────
-  Widget _buildSubmissionsTab() {
-    final all = [..._active, ..._submissions];
-    if (all.isEmpty) return _buildEmpty('No submissions yet', '📋');
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      color: _kPink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _kPink.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              '📊 Overview of recent submissions across all classes.',
-              style: TextStyle(fontSize: 11, color: _kPink, fontWeight: FontWeight.w600),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
-              itemCount: all.length,
-              itemBuilder: (_, i) => _buildSubmissionRow(all[i]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSubmissionRow(TeacherHomeworkAssignment hw) {
     final icon = _subjectIcon(hw.subject);
     return Container(
@@ -363,7 +628,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
       decoration: BoxDecoration(
         color: _kSurface,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
       ),
       child: Row(
         children: [
@@ -398,40 +663,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Graded Tab ───────────────────────────────────────────────────────────
-  Widget _buildGradedTab() {
-    if (_graded.isEmpty) return _buildEmpty('No graded homework yet', '✅');
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      color: _kPink,
-      child: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(12)),
-            child: Row(children: [
-              const Text('✅ ', style: TextStyle(fontSize: 14)),
-              Expanded(
-                child: Text(
-                  'Great job! ${_graded.length} homework tasks were graded this week.',
-                  style: const TextStyle(fontSize: 11, color: _kSuccess, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ]),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
-              itemCount: _graded.length,
-              itemBuilder: (_, i) => _buildGradedRow(_graded[i]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildGradedRow(TeacherHomeworkAssignment hw) {
     final icon = _subjectIcon(hw.subject);
     return Container(
@@ -440,7 +671,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
       decoration: BoxDecoration(
         color: _kSurface,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
       ),
       child: Row(
         children: [
@@ -465,7 +696,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Edit bottom sheet ────────────────────────────────────────────────────
   void _showEditSheet(TeacherHomeworkAssignment hw) {
     showModalBottomSheet(
       context: context,
@@ -504,15 +734,15 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.05),
+          color: color.withOpacity(0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.15)),
+          border: Border.all(color: color.withOpacity(0.15)),
         ),
         child: Row(
           children: [
             Container(
               width: 40, height: 40,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
               child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
             ),
             const SizedBox(width: 12),
@@ -525,20 +755,19 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.5), size: 18),
+            Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.5), size: 18),
           ],
         ),
       ),
     );
   }
 
-  // ─── Create Assignment Modal ───────────────────────────────────────────────
   void _showCreateModal() {
     _titleCtrl.clear();
     _descCtrl.clear();
     _marksCtrl.text = '25';
     _selectedClass = 'X-A';
-    _selectedSubject = 'Mathematics';
+    _selectedSubject = _subjects.isNotEmpty ? _subjects.first : 'Mathematics';
     _dueDate = DateTime.now().add(const Duration(days: 3));
 
     showModalBottomSheet(
@@ -573,7 +802,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                 _buildLabel('Subject'),
                 _buildDropdown(
                   value: _selectedSubject,
-                  items: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Computer Science'],
+                  items: _subjects,
                   onChanged: (v) => setS(() => _selectedSubject = v!),
                 ),
                 _buildLabel('Due Date'),
@@ -609,7 +838,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                 _buildLabel('Instructions'),
                 _buildInput(_descCtrl, 'Write instructions for students...', maxLines: 3),
                 const SizedBox(height: 8),
-                // Attach section (visual only)
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -691,7 +919,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     }
   }
 
-  // ─── Edit assignment modal ─────────────────────────────────────────────────
   void _showEditAssignmentModal(TeacherHomeworkAssignment hw) {
     _titleCtrl.text = hw.title;
     _descCtrl.text = hw.description;
@@ -765,7 +992,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Reminder dialog ──────────────────────────────────────────────────────
   void _showReminderDialog(TeacherHomeworkAssignment hw) {
     final pending = hw.totalCount - hw.submittedCount;
     showDialog(
@@ -789,7 +1015,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Analytics dialog ─────────────────────────────────────────────────────
   void _showAnalytics(TeacherHomeworkAssignment hw) {
     showModalBottomSheet(
       context: context,
@@ -831,7 +1056,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   Widget _buildStatBox(String value, String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
           Text(value, style: TextStyle(fontFamily: AppFonts.heading, fontSize: 20, fontWeight: FontWeight.w900, color: color)),
@@ -842,7 +1067,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Delete confirm ───────────────────────────────────────────────────────
   void _confirmDelete(TeacherHomeworkAssignment hw) {
     showDialog(
       context: context,
@@ -871,7 +1095,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Success dialog ───────────────────────────────────────────────────────
   void _showSuccessDialog(String title, String message) {
     showDialog(
       context: context,
@@ -896,7 +1119,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Empty state ──────────────────────────────────────────────────────────
   Widget _buildEmpty(String text, String emoji) {
     return Center(
       child: Column(
@@ -932,7 +1154,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
   Widget _buildLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Text(text, style: const TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),

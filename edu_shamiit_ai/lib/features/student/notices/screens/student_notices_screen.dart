@@ -7,6 +7,7 @@ import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
     if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
     if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
@@ -132,14 +133,13 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filteredNotices;
     return Scaffold(
       backgroundColor: const Color(0xFFFFFBEB),
       body: Column(
         children: [
-          // Header with search
+          // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context) + 8, 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF92400E), Color(0xFFD97706)],
@@ -147,170 +147,226 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/student/dashboard'),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Notices & Circulars',
-                      style: TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, color: Colors.white),
-                      tooltip: 'Refresh',
-                      onPressed: _loadNotices,
-                    ),
-                    if (_urgentCount > 0) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: StudentColors.error,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '$_urgentCount urgent',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
-                const SizedBox(height: 12),
-                // Search Bar
-                TextField(
-                  controller: _searchController,
-                  onChanged: (_) => setState(() {}),
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: '🔍 Search notices...',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white70, size: 18),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() {});
-                            },
-                            child: const Icon(Icons.close, color: Colors.white70, size: 18),
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                const SizedBox(width: 8),
+                const Text(
+                  'Notices & Circulars',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
                 ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  tooltip: 'Refresh',
+                  onPressed: _loadNotices,
+                ),
+                if (_urgentCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: StudentColors.error,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$_urgentCount urgent',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
 
-          // Category Chips
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: SizedBox(
-              height: 36,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _categories.length,
-                itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  final isSelected = _selectedCategory == category;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedCategory = category);
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFD97706) : const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : const Color(0xFFD97706),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // Notices List
+          // Notices List / Grid
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadNotices,
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                                const SizedBox(height: 12),
-                                const Text('Failed to load notices', style: TextStyle(color: Colors.red)),
-                                const SizedBox(height: 12),
-                                ElevatedButton(
-                                  onPressed: _loadNotices,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const SizedBox(height: 12),
+                              const Text('Failed to load notices', style: TextStyle(color: Colors.red)),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _loadNotices,
+                                child: const Text('Retry'),
+                              ),
+                            ],
                           ),
-                        )
-                      : filtered.isEmpty
-                          ? Center(
-                              child: Column(
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: AzureGrid<Notice>(
+                          title: 'Notice Board',
+                          items: _allNotices,
+                          onRefresh: _loadNotices,
+                          searchMatcher: (item) =>
+                              '${item.title} ${item.content} ${item.category} ${item.authorName ?? ""}',
+                          filters: [
+                            AzureGridFilter<Notice>(
+                              label: 'Category',
+                              options: const ['Urgent', 'General', 'Event', 'Academic'],
+                              filterFn: (item, option) {
+                                final catKey = option.toLowerCase();
+                                final nCat = item.category.toLowerCase();
+                                if (catKey == 'event') return nCat == 'event' || nCat == 'events';
+                                return nCat == catKey;
+                              },
+                            ),
+                          ],
+                          columns: [
+                            AzureGridColumn<Notice>(
+                              label: 'Title & Content',
+                              width: 300,
+                              compare: (a, b) => a.title.compareTo(b.title),
+                              cellBuilder: (item) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Text('📭', style: TextStyle(fontSize: 48)),
-                                  const SizedBox(height: 12),
                                   Text(
-                                    _searchController.text.isNotEmpty
-                                        ? 'No notices match your search'
-                                        : 'No notices in this category',
-                                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                    item.title,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.content,
+                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: filtered.length,
-                              itemBuilder: (context, index) {
-                                return _buildNoticeCard(filtered[index]);
+                            ),
+                            AzureGridColumn<Notice>(
+                              label: 'Category',
+                              width: 130,
+                              compare: (a, b) => a.category.compareTo(b.category),
+                              cellBuilder: (item) {
+                                final color = _getColorForCategory(item.category);
+                                final label = _getCategoryLabel(item.category);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                      color: color,
+                                    ),
+                                  ),
+                                );
                               },
                             ),
-            ),
+                            AzureGridColumn<Notice>(
+                              label: 'Published At',
+                              width: 140,
+                              compare: (a, b) => a.createdAt.compareTo(b.createdAt),
+                              cellBuilder: (item) => Text(_formatDate(item.createdAt)),
+                            ),
+                            AzureGridColumn<Notice>(
+                              label: 'Author',
+                              width: 130,
+                              compare: (a, b) => (a.authorName ?? '').compareTo(b.authorName ?? ''),
+                              cellBuilder: (item) => Text(item.authorName ?? 'School'),
+                            ),
+                            AzureGridColumn<Notice>(
+                              label: 'Attachment',
+                              width: 110,
+                              cellBuilder: (item) {
+                                if (item.attachmentUrl == null || item.attachmentUrl!.isEmpty) {
+                                  return const Text('-');
+                                }
+                                return IconButton(
+                                  icon: const Icon(Icons.attachment, size: 16, color: Color(0xFFD97706)),
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Downloading ${item.attachmentUrl!.split('/').last} ...')),
+                                    );
+                                    getDownloadHelper().downloadFile(
+                                      item.attachmentUrl!,
+                                      item.attachmentUrl!.split('/').last,
+                                    );
+                                  },
+                                  tooltip: 'Download attachment',
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                );
+                              },
+                            ),
+                            AzureGridColumn<Notice>(
+                              label: 'Actions',
+                              width: 160,
+                              cellBuilder: (item) {
+                                final isEvent = item.category.toLowerCase() == 'event' || item.category.toLowerCase() == 'events';
+                                final isRegistered = item.registered;
+
+                                return Row(
+                                  children: [
+                                    TextButton(
+                                      onPressed: () => _showNoticeDetail(item),
+                                      child: const Text('View', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                    if (isEvent) ...[
+                                      const SizedBox(width: 4),
+                                      isRegistered
+                                          ? const Text('✓ Registered', style: TextStyle(fontSize: 10, color: Color(0xFF065F46), fontWeight: FontWeight.bold))
+                                          : TextButton(
+                                              onPressed: () async {
+                                                try {
+                                                  final ok = await _apiService.registerForNotice(item.id);
+                                                  if (ok) {
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        const SnackBar(content: Text('Registered for Event Successfully! 🎉')),
+                                                      );
+                                                      _loadNotices();
+                                                    }
+                                                  }
+                                                } catch (e) {
+                                                  if (mounted) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(content: Text('Error: $e')),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              child: const Text('Register', style: TextStyle(fontSize: 10, color: Color(0xFFD97706), fontWeight: FontWeight.bold)),
+                                            ),
+                                    ],
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                          mobileCardBuilder: (context, item) => _buildNoticeCard(item),
+                        ),
+                      ),
           ),
         ],
       ),

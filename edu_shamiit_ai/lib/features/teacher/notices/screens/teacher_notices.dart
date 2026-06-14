@@ -9,6 +9,7 @@ import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/services/api_service.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
     if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
     if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
@@ -48,10 +49,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
     });
 
     try {
-      final search = _searchController.text.trim();
       final notices = await _apiService.getNotices(
         tab: _selectedTab,
-        search: search.isNotEmpty ? search : null,
       );
       setState(() {
         _notices = notices;
@@ -116,77 +115,54 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: Column(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => safeGoBack(context, '/teacher/dashboard'),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Notices & Circulars',
-                          style: TextStyle(
-                            fontFamily: AppFonts.heading,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.refresh, color: Colors.white),
-                          tooltip: 'Refresh',
-                          onPressed: _loadNotices,
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => _openNoticeEditor(context, currentUserId),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              '+ Create',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Notices & Circulars',
+                      style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                // Search field styled like mockup
-                TextField(
-                  controller: _searchController,
-                  onChanged: (_) => _loadNotices(),
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: '🔍 Search notices...',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white70, size: 18),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.refresh, color: Colors.white),
+                      tooltip: 'Refresh',
+                      onPressed: _loadNotices,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => _openNoticeEditor(context, currentUserId),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          '+ Create',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -211,44 +187,195 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
 
           // Notices List
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadNotices,
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                                const SizedBox(height: 12),
-                                Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-                                const SizedBox(height: 12),
-                                ElevatedButton(
-                                  onPressed: _loadNotices,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : _notices.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'No notices found in this category.',
-                                style: TextStyle(color: Colors.grey, fontSize: 13),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const SizedBox(height: 12),
+                              Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _loadNotices,
+                                child: const Text('Retry'),
                               ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              itemCount: _notices.length,
-                              itemBuilder: (context, index) {
-                                return _buildNoticeCard(_notices[index], currentUserId);
+                            ],
+                          ),
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: AzureGrid<TeacherNotice>(
+                          title: 'Notice Board',
+                          items: _notices,
+                          onRefresh: _loadNotices,
+                          searchMatcher: (item) =>
+                              '${item.title} ${item.content} ${item.noticeType} ${item.createdByName ?? ""}',
+                          filters: [
+                            AzureGridFilter<TeacherNotice>(
+                              label: 'Urgency',
+                              options: const ['Urgent', 'Normal'],
+                              filterFn: (item, option) {
+                                if (option == 'Urgent') return item.isUrgent;
+                                if (option == 'Normal') return !item.isUrgent;
+                                return true;
                               },
                             ),
-            ),
+                            AzureGridFilter<TeacherNotice>(
+                              label: 'Type',
+                              options: const ['Event', 'Announcement', 'Holiday', 'General'],
+                              filterFn: (item, option) =>
+                                  item.noticeType.toLowerCase() == option.toLowerCase(),
+                            ),
+                          ],
+                          columns: [
+                            AzureGridColumn<TeacherNotice>(
+                              label: 'Title & Content',
+                              width: 300,
+                              compare: (a, b) => a.title.compareTo(b.title),
+                              cellBuilder: (item) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    item.title,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.content,
+                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            AzureGridColumn<TeacherNotice>(
+                              label: 'Type & Urgency',
+                              width: 140,
+                              compare: (a, b) => a.noticeType.compareTo(b.noticeType),
+                              cellBuilder: (item) {
+                                final borderCol = _getNoticeColor(item, currentUserId);
+                                final bgCol = _getNoticeBgColor(item, currentUserId);
+                                return Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: bgCol,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        item.isUrgent ? '🚨 URGENT' : item.noticeType.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: borderCol,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            AzureGridColumn<TeacherNotice>(
+                              label: 'Created By',
+                              width: 120,
+                              compare: (a, b) => (a.createdByName ?? '').compareTo(b.createdByName ?? ''),
+                              cellBuilder: (item) => Text(item.createdByName ?? 'Teacher'),
+                            ),
+                            AzureGridColumn<TeacherNotice>(
+                              label: 'Publish Date / Status',
+                              width: 180,
+                              compare: (a, b) => a.publishDate.compareTo(b.publishDate),
+                              cellBuilder: (item) => Text(_formatNoticeDate(item)),
+                            ),
+                            AzureGridColumn<TeacherNotice>(
+                              label: 'Attachment',
+                              width: 110,
+                              cellBuilder: (item) {
+                                if (item.attachmentUrl == null || item.attachmentUrl!.isEmpty) {
+                                  return const Text('-');
+                                }
+                                return IconButton(
+                                  icon: const Icon(Icons.attachment, size: 16, color: Color(0xFFD97706)),
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Downloading ${item.attachmentUrl!.split('/').last} ...')),
+                                    );
+                                    getDownloadHelper().downloadFile(
+                                      item.attachmentUrl!,
+                                      item.attachmentUrl!.split('/').last,
+                                    );
+                                  },
+                                  tooltip: 'Download attachment',
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                );
+                              },
+                            ),
+                            AzureGridColumn<TeacherNotice>(
+                              label: 'Actions',
+                              width: 130,
+                              cellBuilder: (item) {
+                                final isMyNotice = item.createdBy == currentUserId;
+                                return Row(
+                                  children: [
+                                    TextButton(
+                                      onPressed: () => _viewNoticeDetails(item),
+                                      child: const Text('View', style: TextStyle(fontSize: 11, color: Color(0xFFD97706))),
+                                    ),
+                                    if (isMyNotice || item.status == 'draft')
+                                      PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert, size: 16, color: Color(0xFF64748B)),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onSelected: (value) {
+                                          if (value == 'edit') {
+                                            _openNoticeEditor(context, currentUserId, notice: item);
+                                          } else if (value == 'delete') {
+                                            _confirmDeleteNotice(item);
+                                          }
+                                        },
+                                        itemBuilder: (context) => const [
+                                          PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.edit, size: 14),
+                                                SizedBox(width: 6),
+                                                Text('Edit Notice', style: TextStyle(fontSize: 11)),
+                                              ],
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete, size: 14, color: Colors.red),
+                                                SizedBox(width: 6),
+                                                Text('Delete Notice', style: TextStyle(color: Colors.red, fontSize: 11)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                          mobileCardBuilder: (context, item) => _buildNoticeCard(item, currentUserId),
+                        ),
+                      ),
           ),
         ],
       ),

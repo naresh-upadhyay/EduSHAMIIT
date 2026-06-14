@@ -1104,32 +1104,71 @@ class TransportStop {
   }
 }
 
-/// Exam schedule model
 class ExamSchedule {
   final String id;
   final String subject;
   final String examType;
+  final String examCategory;
   final DateTime dateTime;
   final String duration;
   final String venue;
+  final String title;
+  final DateTime endTime;
+  final int totalMarks;
+  final String? syllabus;
+  final String? instructions;
+  final String? submissionStatus;
+  final double? obtainedScore;
+  final bool hasPasscode;
+  final DateTime? releaseTime;
 
   ExamSchedule({
     required this.id,
     required this.subject,
     required this.examType,
+    required this.examCategory,
     required this.dateTime,
     required this.duration,
     required this.venue,
+    required this.title,
+    required this.endTime,
+    required this.totalMarks,
+    this.syllabus,
+    this.instructions,
+    this.submissionStatus,
+    this.obtainedScore,
+    this.hasPasscode = false,
+    this.releaseTime,
   });
 
   factory ExamSchedule.fromJson(Map<String, dynamic> json) {
+    String subName = json['subject'] ?? '';
+    if (subName.isEmpty && json['subjects'] != null) {
+      subName = (json['subjects'] as Map)['name'] ?? '';
+    }
+    final start = DateTime.tryParse(json['start_time']?.toString() ?? json['date_time']?.toString() ?? json['datetime']?.toString() ?? '') ?? DateTime.now();
+    final durationMins = int.tryParse(json['duration_minutes']?.toString() ?? '') ?? 90;
+    final end = json['end_time'] != null 
+        ? (DateTime.tryParse(json['end_time'].toString()) ?? start.add(Duration(minutes: durationMins)))
+        : start.add(Duration(minutes: durationMins));
+        
     return ExamSchedule(
       id: json['id'] ?? '',
-      subject: json['subject'] ?? '',
-      examType: json['exam_type'] ?? '',
-      dateTime: DateTime.tryParse(json['date_time'] ?? json['datetime'] ?? '') ?? DateTime.now(),
-      duration: json['duration'] ?? '',
+      subject: subName,
+      examType: json['exam_type'] ?? 'offline',
+      examCategory: (json['exam_category'] ?? json['exam_type'] ?? 'Unit Test').toString(),
+      dateTime: start,
+      duration: json['duration']?.toString() ?? '${json['duration_minutes'] ?? 90} mins',
       venue: json['venue'] ?? '',
+      title: json['title'] ?? '',
+      endTime: end,
+      totalMarks: json['total_marks'] as int? ?? 100,
+      syllabus: json['syllabus'] as String?,
+      instructions: json['instructions'] as String?,
+      submissionStatus: json['submission_status'] as String?,
+      obtainedScore: json['obtained_score'] != null ? double.tryParse(json['obtained_score'].toString()) : null,
+      hasPasscode: json['has_passcode'] as bool? ?? false,
+      releaseTime: json['release_time'] != null ? DateTime.tryParse(json['release_time'].toString()) : null,
     );
   }
 
@@ -1138,9 +1177,19 @@ class ExamSchedule {
       'id': id,
       'subject': subject,
       'exam_type': examType,
+      'exam_category': examCategory,
       'date_time': dateTime.toIso8601String(),
       'duration': duration,
       'venue': venue,
+      'title': title,
+      'end_time': endTime.toIso8601String(),
+      'total_marks': totalMarks,
+      'syllabus': syllabus,
+      'instructions': instructions,
+      'submission_status': submissionStatus,
+      'obtained_score': obtainedScore,
+      'has_passcode': hasPasscode,
+      'release_time': releaseTime?.toIso8601String(),
     };
   }
 }
@@ -1192,5 +1241,41 @@ class MonthlyPerformance {
       month: json['month'] ?? '',
       score: double.tryParse(json['score']?.toString() ?? '0') ?? 0,
     );
+  }
+}
+
+class StudentSubject {
+  final String id;
+  final String name;
+  final String? icon;
+  final String? color;
+  final String? className;
+
+  StudentSubject({
+    required this.id,
+    required this.name,
+    this.icon,
+    this.color,
+    this.className,
+  });
+
+  factory StudentSubject.fromJson(Map<String, dynamic> json) {
+    return StudentSubject(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unknown',
+      icon: json['icon']?.toString(),
+      color: json['color']?.toString(),
+      className: json['class']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'icon': icon,
+      'color': color,
+      'class': className,
+    };
   }
 }

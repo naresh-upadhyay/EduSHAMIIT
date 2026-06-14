@@ -924,9 +924,28 @@ class TeacherExam {
   final String duration;
   final int totalMarks;
   final String? syllabus;
-  final String examType; // term, unit, quiz, final
+  final String examType; // online, offline
+  final String examCategory; // Practice Test, Weekly Test, Unit Test, Mock Test, Mid Term, Final Exam
   final String? roomNumber;
   final DateTime? createdAt;
+  final String? instructions;
+  final bool negativeMarking;
+  final bool shuffleQuestions;
+  final bool shuffleOptions;
+  final bool allowCalculator;
+  final bool cameraRequired;
+  final bool micRequired;
+  final bool autoSubmitOnTimer;
+  final String? passcode;
+  final List<dynamic>? targetStudents;
+  final String? scope;
+  final DateTime? startTime;
+  final DateTime? endTime;
+  final String status;
+  final DateTime? releaseTime;
+  final int questionCount;
+  final int joinedCount;
+  final int completedCount;
 
   const TeacherExam({
     required this.id,
@@ -938,8 +957,27 @@ class TeacherExam {
     required this.totalMarks,
     this.syllabus,
     required this.examType,
+    required this.examCategory,
     this.roomNumber,
     this.createdAt,
+    this.instructions,
+    this.negativeMarking = false,
+    this.shuffleQuestions = true,
+    this.shuffleOptions = true,
+    this.allowCalculator = false,
+    this.cameraRequired = true,
+    this.micRequired = true,
+    this.autoSubmitOnTimer = true,
+    this.passcode,
+    this.targetStudents,
+    this.scope,
+    this.startTime,
+    this.endTime,
+    required this.status,
+    this.releaseTime,
+    this.questionCount = 0,
+    this.joinedCount = 0,
+    this.completedCount = 0,
   });
 
   factory TeacherExam.fromJson(Map<String, dynamic> json) {
@@ -954,12 +992,30 @@ class TeacherExam {
       duration: json['duration'] as String? ?? '',
       totalMarks: json['total_marks'] as int? ?? 0,
       syllabus: json['syllabus'] as String?,
-      examType:
-          (json['exam_type'] ?? json['exam_category'] ?? 'term').toString(),
-      roomNumber: json['room_number'] as String?,
+      examType: (json['exam_type'] ?? 'offline').toString(),
+      examCategory: (json['exam_category'] ?? json['exam_type'] ?? 'Unit Test').toString(),
+      roomNumber: (json['room_number'] ?? json['venue'] ?? '').toString(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
+      instructions: json['instructions'] as String?,
+      negativeMarking: _toBool(json['negative_marking'], fallback: false),
+      shuffleQuestions: _toBool(json['shuffle_questions'], fallback: true),
+      shuffleOptions: _toBool(json['shuffle_options'], fallback: true),
+      allowCalculator: _toBool(json['allow_calculator'], fallback: false),
+      cameraRequired: _toBool(json['camera_required'], fallback: true),
+      micRequired: _toBool(json['mic_required'], fallback: true),
+      autoSubmitOnTimer: _toBool(json['auto_submit_on_timer'], fallback: true),
+      passcode: json['passcode'] as String?,
+      targetStudents: json['target_students'] as List?,
+      scope: json['scope'] as String?,
+      startTime: _toDateTime(json['start_time']),
+      endTime: _toDateTime(json['end_time']),
+      status: (json['status'] ?? 'new').toString(),
+      releaseTime: _toDateTime(json['release_time']),
+      questionCount: json['question_count'] as int? ?? 0,
+      joinedCount: json['joined_count'] as int? ?? 0,
+      completedCount: json['completed_count'] as int? ?? 0,
     );
   }
 
@@ -974,8 +1030,103 @@ class TeacherExam {
       'total_marks': totalMarks,
       'syllabus': syllabus,
       'exam_type': examType,
+      'exam_category': examCategory,
       'room_number': roomNumber,
       'created_at': createdAt?.toIso8601String(),
+      'instructions': instructions,
+      'negative_marking': negativeMarking,
+      'shuffle_questions': shuffleQuestions,
+      'shuffle_options': shuffleOptions,
+      'allow_calculator': allowCalculator,
+      'camera_required': cameraRequired,
+      'mic_required': micRequired,
+      'auto_submit_on_timer': autoSubmitOnTimer,
+      'passcode': passcode,
+      'target_students': targetStudents,
+      'scope': scope,
+      'start_time': startTime?.toIso8601String(),
+      'end_time': endTime?.toIso8601String(),
+      'status': status,
+      'release_time': releaseTime?.toIso8601String(),
+      'question_count': questionCount,
+      'joined_count': joinedCount,
+      'completed_count': completedCount,
+    };
+  }
+}
+
+/// Question Bank Item model
+@immutable
+class QuestionBankItem {
+  final String id;
+  final String? schoolId;
+  final String? teacherId;
+  final String subjectId;
+  final String subjectName;
+  final String? chapter;
+  final String questionText;
+  final String questionType; // mcq, true_false, short_answer, long_answer
+  final List<String> options;
+  final String correctAnswer;
+  final String difficulty; // Easy, Medium, Hard
+  final int marks;
+
+  const QuestionBankItem({
+    required this.id,
+    this.schoolId,
+    this.teacherId,
+    required this.subjectId,
+    required this.subjectName,
+    this.chapter,
+    required this.questionText,
+    required this.questionType,
+    required this.options,
+    required this.correctAnswer,
+    required this.difficulty,
+    required this.marks,
+  });
+
+  factory QuestionBankItem.fromJson(Map<String, dynamic> json) {
+    var optsRaw = json['options'];
+    List<String> opts = [];
+    if (optsRaw is List) {
+      opts = optsRaw.map((e) => e.toString()).toList();
+    }
+    
+    String subName = '';
+    if (json['subjects'] != null && json['subjects'] is Map) {
+      subName = json['subjects']['name'] ?? '';
+    }
+
+    return QuestionBankItem(
+      id: (json['id'] ?? '').toString(),
+      schoolId: json['school_id']?.toString(),
+      teacherId: json['teacher_id']?.toString(),
+      subjectId: (json['subject_id'] ?? '').toString(),
+      subjectName: subName,
+      chapter: json['chapter']?.toString(),
+      questionText: (json['question_text'] ?? '').toString(),
+      questionType: (json['question_type'] ?? 'mcq').toString(),
+      options: opts,
+      correctAnswer: (json['correct_answer'] ?? '').toString(),
+      difficulty: (json['difficulty'] ?? 'Medium').toString(),
+      marks: _toInt(json['marks'], fallback: 1),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'school_id': schoolId,
+      'teacher_id': teacherId,
+      'subject_id': subjectId,
+      'chapter': chapter,
+      'question_text': questionText,
+      'question_type': questionType,
+      'options': options,
+      'correct_answer': correctAnswer,
+      'difficulty': difficulty,
+      'marks': marks,
     };
   }
 }

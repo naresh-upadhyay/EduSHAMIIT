@@ -7,6 +7,7 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:intl/intl.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class TeacherAttendance extends ConsumerStatefulWidget {
   const TeacherAttendance({super.key});
@@ -714,87 +715,18 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
           ),
         ),
 
-        // Right Panel - Student Grid & Search Bar
+        // Right Panel - AzureGrid Table
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search and Filter Header
-              Container(
-                padding: const EdgeInsets.all(24),
-                color: Colors.white,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        onChanged: (val) {
-                          setState(() {
-                            _studentSearchQuery = val;
-                          });
-                        },
-                        decoration: InputDecoration(
-                          hintText: 'Search student by name or roll number...',
-                          prefixIcon: const Icon(Icons.search,
-                              color: Color(0xFF64748B)),
-                          filled: true,
-                          fillColor: const Color(0xFFF8FAFC),
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 16),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE2E8F0)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE2E8F0)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xFF0EA5E9)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, color: Color(0xFF0EA5E9)),
-                      tooltip: 'Refresh list',
-                      onPressed: _fetchStudentsAndAttendance,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Students GridView
-              Expanded(
-                child: filteredStudents.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No students found',
-                          style:
-                              TextStyle(color: Color(0xFF64748B), fontSize: 16),
-                        ),
-                      )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(24),
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 400,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: 4.6,
-                        ),
-                        itemCount: filteredStudents.length,
-                        itemBuilder: (context, index) {
-                          return _buildStudentCard(filteredStudents[index],
-                              compact: true);
-                        },
-                      ),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: AzureGrid<Map<String, dynamic>>(
+              title: 'Student Roster',
+              items: _studentsData,
+              columns: _buildGridColumns(),
+              searchMatcher: (s) => '${s['name']} ${s['roll_no']}',
+              onRefresh: _fetchStudentsAndAttendance,
+              mobileCardBuilder: (context, s) => _buildStudentCard(s, compact: false),
+            ),
           ),
         ),
       ],
@@ -1269,6 +1201,75 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
         ),
       ],
     );
+  }
+
+  List<AzureGridColumn<Map<String, dynamic>>> _buildGridColumns() {
+    return [
+      AzureGridColumn<Map<String, dynamic>>(
+        label: 'Roll No',
+        width: 80.0,
+        compare: (a, b) => (a['roll_no'] ?? '').toString().compareTo((b['roll_no'] ?? '').toString()),
+        cellBuilder: (s) => Text(s['roll_no'] ?? ''),
+      ),
+      AzureGridColumn<Map<String, dynamic>>(
+        label: 'Student Name',
+        width: 200.0,
+        compare: (a, b) => (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()),
+        cellBuilder: (s) {
+          final isUnmarked = s['status'] == 'unmarked';
+          return Text(
+            s['name'] ?? '',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isUnmarked ? Colors.orange.shade700 : const Color(0xFF0F172A),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<Map<String, dynamic>>(
+        label: 'Attendance Status',
+        width: 180.0,
+        compare: (a, b) => (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString()),
+        cellBuilder: (s) => Row(
+          children: [
+            _buildStatusButton('present', 'P', Colors.green, s['status'] == 'present', s, true),
+            const SizedBox(width: 4),
+            _buildStatusButton('absent', 'A', Colors.red, s['status'] == 'absent', s, true),
+            const SizedBox(width: 4),
+            _buildStatusButton('late', 'L', Colors.orange, s['status'] == 'late', s, true),
+            const SizedBox(width: 4),
+            _buildStatusButton('void', 'V', Colors.grey, s['status'] == 'void', s, true),
+          ],
+        ),
+      ),
+      AzureGridColumn<Map<String, dynamic>>(
+        label: 'Remarks',
+        width: 220.0,
+        cellBuilder: (s) => Row(
+          children: [
+            IconButton(
+              icon: Icon(
+                Icons.chat_bubble_outline,
+                size: 14,
+                color: s['remarks'].toString().isNotEmpty ? const Color(0xFF0EA5E9) : Colors.grey,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _showRemarksDialog(s),
+              tooltip: 'Edit Remarks',
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                s['remarks'] ?? '',
+                style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontStyle: FontStyle.italic),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _buildStudentCard(Map<String, dynamic> student,

@@ -13,6 +13,7 @@ class TeacherApiService {
   final http.Client _client = http.Client();
 
   String get _baseUrl => AppConfig.apiBaseUrl;
+  String get baseUrl => _baseUrl;
 
   final Map<String, dynamic> _cache = {};
 
@@ -248,9 +249,14 @@ class TeacherApiService {
   }
 
   /// Get subjects for class or teacher
-  Future<List<TeacherSubject>> getSubjects({String? classId}) async {
+  Future<List<TeacherSubject>> getSubjects({String? classId, bool allSubjects = false}) async {
     try {
-      final path = classId != null ? '/teacher/subjects?class_name=$classId' : '/teacher/subjects';
+      String path = '/teacher/subjects';
+      if (allSubjects) {
+        path = '/teacher/subjects?all_subjects=true';
+      } else if (classId != null) {
+        path = '/teacher/subjects?class_name=$classId';
+      }
       final response = await _client.get(
         Uri.parse('$_baseUrl$path'),
         headers: await _getHeaders(),
@@ -263,11 +269,21 @@ class TeacherApiService {
         );
         return data.map((item) => TeacherSubject.fromJson(item)).toList();
       } else {
-        throw Exception('Failed to load subjects: ${response.statusCode}');
+        return _fallbackSubjects();
       }
     } catch (e) {
-      throw Exception('Error fetching subjects: $e');
+      return _fallbackSubjects();
     }
+  }
+
+  List<TeacherSubject> _fallbackSubjects() {
+    return [
+      const TeacherSubject(id: 'sub_math', name: 'Mathematics', icon: '📐', color: '#4F46E5'),
+      const TeacherSubject(id: 'sub_phys', name: 'Physics', icon: '⚛️', color: '#0EA5E9'),
+      const TeacherSubject(id: 'sub_chem', name: 'Chemistry', icon: '⚗️', color: '#10B981'),
+      const TeacherSubject(id: 'sub_bio', name: 'Biology', icon: '🧬', color: '#EF4444'),
+      const TeacherSubject(id: 'sub_eng', name: 'English', icon: '📖', color: '#F59E0B'),
+    ];
   }
 
   /// Fetch existing attendance details for class, date and subject
@@ -653,17 +669,28 @@ class TeacherApiService {
     }
   }
 
-  /// Create exam
   Future<TeacherExam> createExam({
     required String title,
     required String subject,
-    required String classId,
-    required DateTime examDate,
+    required List<String> targetClasses,
+    DateTime? examDate,
     required String duration,
     required int totalMarks,
     required String examType,
+    required String examCategory,
+    String? subjectId,
     String? syllabus,
     String? roomNumber,
+    DateTime? startTime,
+    String? status,
+    String? instructions,
+    bool negativeMarking = false,
+    bool shuffleQuestions = true,
+    bool shuffleOptions = true,
+    bool allowCalculator = false,
+    bool cameraRequired = true,
+    bool micRequired = true,
+    bool autoSubmitOnTimer = true,
   }) async {
     try {
       final response = await _postWithFallback(
@@ -671,25 +698,81 @@ class TeacherApiService {
         body: {
           'title': title,
           'subject': subject,
-          'class': classId,
-          'class_id': classId,
-          'exam_date': examDate.toIso8601String().split('T')[0],
+          if (subjectId != null) 'subject_id': subjectId,
+          'target_classes': targetClasses,
+          'class': targetClasses.isNotEmpty ? targetClasses.first : '',
+          'class_id': targetClasses.isNotEmpty ? targetClasses.first : '',
+          if (examDate != null) 'exam_date': examDate.toIso8601String().split('T')[0],
           'duration': duration,
           'total_marks': totalMarks,
           'exam_type': examType,
+          'exam_category': examCategory,
           'syllabus': syllabus,
           'room_number': roomNumber,
+          'venue': roomNumber,
+          if (startTime != null) 'start_time': startTime.toUtc().toIso8601String(),
+          if (status != null) 'status': status,
+          if (instructions != null) 'instructions': instructions,
+          'negative_marking': negativeMarking,
+          'shuffle_questions': shuffleQuestions,
+          'shuffle_options': shuffleOptions,
+          'allow_calculator': allowCalculator,
+          'camera_required': cameraRequired,
+          'mic_required': micRequired,
+          'auto_submit_on_timer': autoSubmitOnTimer,
         },
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final data = _toMap(json.decode(response.body));
-        return TeacherExam.fromJson(data);
+        final decoded = json.decode(response.body);
+        final data = _toMap(decoded is Map ? decoded : (decoded as Map<String, dynamic>));
+        // backend returns nested "data" or direct object
+        final examData = data['data'] ?? data;
+        return TeacherExam.fromJson(Map<String, dynamic>.from(examData as Map));
       } else {
         throw Exception('Failed to create exam: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error creating exam: $e');
+    }
+  }
+  /// Update exam details
+  Future<void> updateExam(String examId, Map<String, dynamic> updates) async {
+    try {
+      final response = await _client.put(
+        Uri.parse('$_baseUrl/teacher/exams/$examId'),
+        headers: await _getHeaders(),
+        body: json.encode(updates),
+      );
+
+      if (response.statusCode != 200) {
+        String msg = 'Failed to update exam: ${response.statusCode}';
+        try {
+          final body = json.decode(response.body);
+          if (body is Map && body.containsKey('detail')) {
+            msg = body['detail'].toString();
+          }
+        } catch (_) {}
+        throw Exception(msg);
+      }
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
+  /// Delete an exam
+  Future<void> deleteExam(String examId) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/exams/$examId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete exam: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting exam: $e');
     }
   }
 
@@ -1487,7 +1570,7 @@ class TeacherApiService {
   // ========== Paper Builder API ==========
 
   /// Get question bank
-  Future<List<PaperQuestion>> getQuestionBank({
+  Future<List<QuestionBankItem>> getQuestionBank({
     String? subject,
     String? classId,
     String? questionType,
@@ -1508,19 +1591,18 @@ class TeacherApiService {
       params['page'] = page.toString();
       params['limit'] = limit.toString();
 
-      final queryString =
-          params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final uri = Uri.parse('$_baseUrl/teacher/question-bank').replace(queryParameters: params);
+      
       final response = await _client.get(
-        Uri.parse('$_baseUrl/teacher/question-bank?$queryString'),
+        uri,
         headers: await _getHeaders(),
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = _toList(
-          json.decode(response.body),
-          candidateKeys: ['questions', 'items', 'results'],
-        );
-        return data.map((item) => PaperQuestion.fromJson(item)).toList();
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        final list = (data['questions'] ?? data['data']?['questions']) as List? ?? [];
+        return list.map((e) => QuestionBankItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
       } else {
         throw Exception('Failed to load questions: ${response.statusCode}');
       }
@@ -1604,6 +1686,290 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error generating paper: $e');
+    }
+  }
+
+  /// Get all live student sessions for an exam
+  Future<List<Map<String, dynamic>>> getExamSessions(String examId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/sessions'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        final sessions = (data['sessions'] ?? data['data']?['sessions']) as List? ?? [];
+        return sessions.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } else {
+        throw Exception('Failed to load exam sessions: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching exam sessions: $e');
+    }
+  }
+
+  /// Send a proctor action command to a student session
+  Future<Map<String, dynamic>> sendProctorAction(
+    String examId,
+    String sessionId, {
+    required String action,
+    int? extraMinutes,
+    String? message,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/sessions/$sessionId/action'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'action': action,
+          'extra_minutes': extraMinutes,
+          'message': message,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to send proctor action: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error sending proctor action: $e');
+    }
+  }
+
+  /// Get LiveKit room join token
+  Future<Map<String, dynamic>> getLiveKitToken({required String room, String? identity, String? name}) async {
+    try {
+      final queryParams = {
+        'room': room,
+        if (identity != null) 'identity': identity,
+        if (name != null) 'name': name,
+      };
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/livekit/token').replace(queryParameters: queryParams),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to load LiveKit token: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Get LiveKit token failed: $e');
+    }
+  }
+
+  /// Get student submissions for manual evaluation
+  Future<List<Map<String, dynamic>>> getExamSubmissions(String examId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/submissions'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        final submissions = (data['submissions'] ?? data['data']?['submissions']) as List? ?? [];
+        return submissions.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } else {
+        throw Exception('Failed to load exam submissions: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching exam submissions: $e');
+    }
+  }
+
+  /// Grade a student subjective/overall submission score
+  Future<Map<String, dynamic>> gradeExamSubmission(
+    String examId,
+    String submissionId, {
+    required double score,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/submissions/$submissionId/grade'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'score': score,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to grade submission: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error grading submission: $e');
+    }
+  }
+
+  /// Get all questions for a specific exam
+  Future<List<Map<String, dynamic>>> getExamQuestions(String examId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/questions'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        final questions = (data['questions'] ?? data['data']?['questions']) as List? ?? [];
+        return questions.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      } else {
+        throw Exception('Failed to load exam questions: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching exam questions: $e');
+    }
+  }
+
+  /// Add question to exam questions directly
+  Future<Map<String, dynamic>> addExamQuestion(String examId, Map<String, dynamic> question) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/questions'),
+        headers: await _getHeaders(),
+        body: json.encode(question),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        return data;
+      } else {
+        throw Exception('Failed to add exam question: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error adding exam question: $e');
+    }
+  }
+
+  /// Update exam question
+  Future<Map<String, dynamic>> updateExamQuestion(String examId, String questionId, Map<String, dynamic> updates) async {
+    try {
+      final response = await _client.put(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/questions/$questionId'),
+        headers: await _getHeaders(),
+        body: json.encode(updates),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        return data;
+      } else {
+        throw Exception('Failed to update exam question: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error updating exam question: $e');
+    }
+  }
+
+  /// Delete exam question
+  Future<void> deleteExamQuestion(String examId, String questionId) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/questions/$questionId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete exam question: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting exam question: $e');
+    }
+  }
+
+
+  /// Add question to bank
+  Future<QuestionBankItem> addQuestionToBank(Map<String, dynamic> question) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/question-bank'),
+        headers: await _getHeaders(),
+        body: json.encode(question),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        final item = data['data'] ?? data;
+        return QuestionBankItem.fromJson(Map<String, dynamic>.from(item as Map));
+      } else {
+        throw Exception('Failed to add question to bank: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error adding question to bank: $e');
+    }
+  }
+
+  /// Update question in bank
+  Future<QuestionBankItem> updateQuestionInBank(String id, Map<String, dynamic> updates) async {
+    try {
+      final response = await _client.put(
+        Uri.parse('$_baseUrl/teacher/question-bank/$id'),
+        headers: await _getHeaders(),
+        body: json.encode(updates),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        final item = data['data'] ?? data;
+        return QuestionBankItem.fromJson(Map<String, dynamic>.from(item as Map));
+      } else {
+        throw Exception('Failed to update question in bank: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error updating question in bank: $e');
+    }
+  }
+
+  /// Delete question from bank
+  Future<void> deleteQuestionFromBank(String id) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/question-bank/$id'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete question from bank: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting question from bank: $e');
+    }
+  }
+
+  /// Bulk upload questions
+  Future<int> bulkUploadQuestions(String csvContent, String subject, String questionType) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/question-bank/bulk-upload'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'csv_content': csvContent,
+          'subject': subject,
+          'question_type': questionType,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        return data['count'] as int? ?? 0;
+      } else {
+        throw Exception('Failed to bulk upload questions: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error bulk uploading questions: $e');
     }
   }
 }

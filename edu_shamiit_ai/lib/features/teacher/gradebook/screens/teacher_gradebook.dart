@@ -6,6 +6,7 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class TeacherGradebook extends ConsumerStatefulWidget {
   const TeacherGradebook({super.key});
@@ -107,6 +108,93 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
     if (grade.startsWith('B')) return const Color(0xFF3B82F6);
     if (grade.startsWith('C')) return const Color(0xFFF59E0B);
     return Colors.red;
+  }
+
+  List<AzureGridColumn<GradeRecord>> _buildGridColumns() {
+    return [
+      AzureGridColumn<GradeRecord>(
+        label: 'Roll No',
+        width: 80.0,
+        compare: (a, b) => a.rollNo.compareTo(b.rollNo),
+        cellBuilder: (g) => Text(g.rollNo),
+      ),
+      AzureGridColumn<GradeRecord>(
+        label: 'Student Name',
+        width: 180.0,
+        compare: (a, b) => a.studentName.compareTo(b.studentName),
+        cellBuilder: (g) => Text(g.studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<GradeRecord>(
+        label: 'Subject',
+        width: 120.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (g) => Text(g.subject),
+      ),
+      AzureGridColumn<GradeRecord>(
+        label: 'Class',
+        width: 80.0,
+        compare: (a, b) => a.class_.compareTo(b.class_),
+        cellBuilder: (g) => Text(g.class_),
+      ),
+      AzureGridColumn<GradeRecord>(
+        label: 'Assessment',
+        width: 130.0,
+        compare: (a, b) => a.assessmentName.compareTo(b.assessmentName),
+        cellBuilder: (g) => Text(g.assessmentName),
+      ),
+      AzureGridColumn<GradeRecord>(
+        label: 'Marks Obtained',
+        width: 120.0,
+        compare: (a, b) => a.marksObtained.compareTo(b.marksObtained),
+        cellBuilder: (g) => Text('${g.marksObtained.toInt()} / ${g.totalMarks}'),
+      ),
+      AzureGridColumn<GradeRecord>(
+        label: 'Grade',
+        width: 80.0,
+        compare: (a, b) => a.grade.compareTo(b.grade),
+        cellBuilder: (g) {
+          final color = _getGradeColor(g.grade);
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              g.grade,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<GradeRecord>(
+        label: 'Trend',
+        width: 100.0,
+        compare: (a, b) => a.trend.compareTo(b.trend),
+        cellBuilder: (g) {
+          final t = g.trend;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                t == 'up' ? Icons.trending_up : t == 'down' ? Icons.trending_down : Icons.remove,
+                size: 14,
+                color: t == 'up' ? Colors.green : t == 'down' ? Colors.red : Colors.grey,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                t == 'up' ? 'Improving' : t == 'down' ? 'Declining' : 'Stable',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: t == 'up' ? Colors.green : t == 'down' ? Colors.red : Colors.grey,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ];
   }
 
   @override
@@ -218,13 +306,25 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
 
               // Student grades list
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _grades.length,
-                  itemBuilder: (context, index) {
-                    return _buildStudentGradeTile(_grades[index]);
-                  },
-                ),
+                child: Responsive.isWide(context)
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: AzureGrid<GradeRecord>(
+                          title: 'Gradebook Roster',
+                          items: _grades,
+                          columns: _buildGridColumns(),
+                          searchMatcher: (grade) => '${grade.studentName} ${grade.rollNo} ${grade.grade} ${grade.subject}',
+                          onRefresh: _loadGrades,
+                          mobileCardBuilder: (context, grade) => _buildStudentGradeTile(grade),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _grades.length,
+                        itemBuilder: (context, index) {
+                          return _buildStudentGradeTile(_grades[index]);
+                        },
+                      ),
               ),
             ],
 
@@ -279,9 +379,9 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -325,7 +425,7 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+              color: const Color(0xFF4F46E5).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
@@ -388,7 +488,7 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: gradeColor.withValues(alpha: 0.1),
+                  color: gradeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

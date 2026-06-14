@@ -52,10 +52,6 @@ class TeacherShellScaffold extends ConsumerWidget {
         route: '/teacher/grading'),
     _NavItem(icon: Icons.quiz_rounded, label: 'Exams', route: '/teacher/exams'),
     _NavItem(
-        icon: Icons.description_rounded,
-        label: 'Paper Builder',
-        route: '/teacher/paper-builder'),
-    _NavItem(
         icon: Icons.upload_file_rounded,
         label: 'Submissions',
         route: '/teacher/submissions'),

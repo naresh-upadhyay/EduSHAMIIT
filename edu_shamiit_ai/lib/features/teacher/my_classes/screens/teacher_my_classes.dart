@@ -6,6 +6,7 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class TeacherMyClasses extends ConsumerStatefulWidget {
   const TeacherMyClasses({super.key});
@@ -49,13 +50,59 @@ class _TeacherMyClassesState extends ConsumerState<TeacherMyClasses> {
 
   @override
   Widget build(BuildContext context) {
+    final columns = [
+      AzureGridColumn<TeacherMyClass>(
+        label: 'Class Name',
+        width: 180,
+        compare: (a, b) => a.name.compareTo(b.name),
+        cellBuilder: (item) => Text(
+          '${item.name} - ${item.section}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      AzureGridColumn<TeacherMyClass>(
+        label: 'Student Count',
+        width: 140,
+        compare: (a, b) => a.studentCount.compareTo(b.studentCount),
+        cellBuilder: (item) => Row(
+          children: [
+            const Icon(Icons.people, size: 14, color: Color(0xFF06B6D4)),
+            const SizedBox(width: 4),
+            Text('${item.studentCount} students'),
+          ],
+        ),
+      ),
+      AzureGridColumn<TeacherMyClass>(
+        label: 'Room Number',
+        width: 120,
+        compare: (a, b) => (a.roomNumber ?? '').compareTo(b.roomNumber ?? ''),
+        cellBuilder: (item) => Text(item.roomNumber ?? 'N/A'),
+      ),
+      AzureGridColumn<TeacherMyClass>(
+        label: 'Class Teacher',
+        width: 160,
+        compare: (a, b) => (a.classTeacher ?? '').compareTo(b.classTeacher ?? ''),
+        cellBuilder: (item) => Text(item.classTeacher ?? 'N/A'),
+      ),
+      AzureGridColumn<TeacherMyClass>(
+        label: 'Actions',
+        width: 120,
+        cellBuilder: (item) => TextButton(
+          onPressed: () {
+            // Navigate to class details
+          },
+          child: Text('View Details'.tr(ref)),
+        ),
+      ),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F9FF),
       body: Column(
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, Responsive.isWide(context) ? 8 : 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF06B6D4), Color(0xFF0891B2)],
@@ -81,51 +128,64 @@ class _TeacherMyClassesState extends ConsumerState<TeacherMyClasses> {
             ),
           ),
 
-          // Loading state
-          if (_isLoading)
-            const Expanded(
-              child: Center(child: CircularProgressIndicator()),
-            ),
-
-          // Error state
-          if (_error != null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadClasses,
-                      child: Text('Retry'.tr(ref)),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Loading state
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40.0),
+                      child: Center(child: CircularProgressIndicator()),
                     ),
-                  ],
-                ),
+
+                  // Error state
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40.0),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadClasses,
+                              child: Text('Retry'.tr(ref)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Classes list
+                  if (!_isLoading && _error == null)
+                    _classes.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 40.0),
+                            child: Center(child: Text('No classes assigned'.tr(ref))),
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                            child: AzureGrid<TeacherMyClass>(
+                              title: 'Assigned Classes',
+                              items: _classes,
+                              columns: columns,
+                              onRefresh: _loadClasses,
+                              disableVerticalScroll: true,
+                              searchMatcher: (c) => '${c.name} ${c.section} ${c.roomNumber ?? ''} ${c.classTeacher ?? ''}',
+                              mobileCardBuilder: (context, class_) => SizedBox(
+                                height: 200,
+                                child: _buildClassCard(class_),
+                              ),
+                            ),
+                          ),
+                ],
               ),
             ),
-
-          // Classes list
-          if (!_isLoading && _error == null)
-            Expanded(
-              child: _classes.isEmpty
-                  ? Center(child: Text('No classes assigned'.tr(ref)))
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 0.85,
-                      ),
-                      itemCount: _classes.length,
-                      itemBuilder: (context, index) {
-                        return _buildClassCard(_classes[index]);
-                      },
-                    ),
-            ),
+          ),
         ],
       ),
     );

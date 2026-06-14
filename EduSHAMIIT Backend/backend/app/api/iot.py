@@ -5,11 +5,14 @@ from app.middleware.auth import get_current_user
 from app.services.supabase_client import get_supabase
 from app.services.iot_controller import iot
 from app.models import IoTControlRequest, IoTScheduleRequest, GenericResponse
+from app.config import settings
 
 router = APIRouter()
 
 @router.post("/control", response_model=GenericResponse)
 async def control_device(body: IoTControlRequest, user: dict = Depends(get_current_user)):
+    if settings.ENVIRONMENT == "production" and user.get("role") not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied: Only teachers and admins can control IoT devices in production")
     result = iot.control_device(body.room, body.device, body.action)
     return GenericResponse(success=result.get("ok", False), school_id=user.get("school_id"), data=result)
 
@@ -20,6 +23,8 @@ async def get_device_status(room: str, user: dict = Depends(get_current_user)):
 
 @router.post("/schedule", response_model=GenericResponse)
 async def schedule_device(body: IoTScheduleRequest, user: dict = Depends(get_current_user)):
+    if settings.ENVIRONMENT == "production" and user.get("role") not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied: Only teachers and admins can schedule IoT devices in production")
     sb = get_supabase()
     schedule = {
         "room_id": body.room, "device": body.device, "action": body.action,

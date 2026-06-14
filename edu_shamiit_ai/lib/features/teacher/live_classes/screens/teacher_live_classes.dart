@@ -9,6 +9,7 @@ import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class TeacherLiveClasses extends ConsumerStatefulWidget {
   const TeacherLiveClasses({super.key});
@@ -39,9 +40,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
     });
 
     try {
-      final status =
-          _selectedStatus == 'All' ? null : _selectedStatus.toLowerCase();
-      final liveClasses = await _apiService.getLiveClasses(status: status);
+      final liveClasses = await _apiService.getLiveClasses(status: null);
       setState(() {
         _liveClasses = liveClasses;
         _isLoading = false;
@@ -103,111 +102,388 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
             ),
           ),
 
-          // Status filter
-          SizedBox(
-            height: 64,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: _statuses.length,
-              itemBuilder: (context, index) {
-                final status = _statuses[index];
-                final isSelected = _selectedStatus == status;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedStatus = status);
-                    _loadLiveClasses();
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    decoration: BoxDecoration(
-                      color:
-                          isSelected ? const Color(0xFFEF4444) : Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: isSelected
-                            ? Colors.transparent
-                            : const Color(0xFFE2E8F0),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        if (isSelected)
-                          BoxShadow(
-                            color:
-                                const Color(0xFFEF4444).withValues(alpha: 0.25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          )
-                        else
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        status,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF475569),
+          // Loading state / Error / Grid
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFEF4444)),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text('Error: $_error',
+                                style: const TextStyle(color: Colors.red)),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadLiveClasses,
+                              child: Text('Retry'.tr(ref)),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: AzureGrid<TeacherLiveClass>(
+                          title: 'All Live Classes',
+                          items: _liveClasses,
+                          onRefresh: _loadLiveClasses,
+                          extraCommandActions: [
+                            IconButton(
+                              icon: const Icon(Icons.video_call,
+                                  color: Color(0xFFEF4444)),
+                              tooltip: 'Schedule Class',
+                              onPressed: _showScheduleDialog,
+                            ),
+                          ],
+                          searchMatcher: (item) =>
+                              '${item.title} ${item.subject} ${item.class_} ${item.platform} ${item.status}',
+                          filters: [
+                            AzureGridFilter<TeacherLiveClass>(
+                              label: 'Status',
+                              options: const [
+                                'Scheduled',
+                                'Ongoing/Live',
+                                'Completed',
+                                'Recorded'
+                              ],
+                              filterFn: (item, option) {
+                                final status = item.status.toLowerCase();
+                                if (option == 'Scheduled') {
+                                  return status == 'scheduled';
+                                }
+                                if (option == 'Ongoing/Live') {
+                                  return status == 'ongoing' ||
+                                      status == 'live';
+                                }
+                                if (option == 'Completed') {
+                                  return status == 'completed';
+                                }
+                                if (option == 'Recorded') {
+                                  return status == 'recorded';
+                                }
+                                return true;
+                              },
+                            ),
+                            AzureGridFilter<TeacherLiveClass>(
+                              label: 'Class',
+                              options: _liveClasses
+                                  .map((e) => e.class_)
+                                  .where((c) => c.isNotEmpty)
+                                  .toSet()
+                                  .toList(),
+                              filterFn: (item, option) =>
+                                  item.class_ == option,
+                            ),
+                            AzureGridFilter<TeacherLiveClass>(
+                              label: 'Subject',
+                              options: _liveClasses
+                                  .map((e) => e.subject)
+                                  .where((s) => s.isNotEmpty)
+                                  .toSet()
+                                  .toList(),
+                              filterFn: (item, option) =>
+                                  item.subject == option,
+                            ),
+                          ],
+                          columns: [
+                            AzureGridColumn<TeacherLiveClass>(
+                              label: 'Title & Subject',
+                              width: 250,
+                              compare: (a, b) =>
+                                  a.title.compareTo(b.title),
+                              cellBuilder: (item) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    item.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.subject,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 10,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            AzureGridColumn<TeacherLiveClass>(
+                              label: 'Class',
+                              width: 100,
+                              compare: (a, b) =>
+                                  a.class_.compareTo(b.class_),
+                              cellBuilder: (item) => Text(item.class_),
+                            ),
+                            AzureGridColumn<TeacherLiveClass>(
+                              label: 'Scheduled Time',
+                              width: 160,
+                              compare: (a, b) =>
+                                  a.scheduledAt.compareTo(b.scheduledAt),
+                              cellBuilder: (item) => Text(
+                                item.scheduledAt
+                                    .toString()
+                                    .split('.')[0]
+                                    .substring(0, 16),
+                              ),
+                            ),
+                            AzureGridColumn<TeacherLiveClass>(
+                              label: 'Duration',
+                              width: 90,
+                              compare: (a, b) => (a.durationMinutes ?? 0)
+                                  .compareTo(b.durationMinutes ?? 0),
+                              cellBuilder: (item) => Text(
+                                  '${item.durationMinutes ?? 60} mins'),
+                            ),
+                            AzureGridColumn<TeacherLiveClass>(
+                              label: 'Platform',
+                              width: 110,
+                              compare: (a, b) =>
+                                  a.platform.compareTo(b.platform),
+                              cellBuilder: (item) =>
+                                  _buildPlatformBadge(item.platform),
+                            ),
+                            AzureGridColumn<TeacherLiveClass>(
+                              label: 'Status',
+                              width: 120,
+                              compare: (a, b) =>
+                                  a.status.compareTo(b.status),
+                              cellBuilder: (item) {
+                                final statusLower = item.status.toLowerCase();
+                                final isLive = statusLower == 'ongoing' ||
+                                    statusLower == 'live';
+                                final isScheduled = statusLower == 'scheduled';
+
+                                if (isLive) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEE2E2),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                          color: const Color(0xFFEF4444)
+                                              .withOpacity(0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFEF4444),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Text(
+                                          'LIVE NOW',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFFEF4444),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                } else if (isScheduled) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'SCHEDULED',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF1D4ED8),
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'COMPLETED',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                            AzureGridColumn<TeacherLiveClass>(
+                              label: 'Actions',
+                              width: 180,
+                              cellBuilder: (item) {
+                                final statusLower = item.status.toLowerCase();
+                                final isLive = statusLower == 'ongoing' ||
+                                    statusLower == 'live';
+                                final isScheduled = statusLower == 'scheduled';
+
+                                Widget actionBtn;
+                                if (isLive) {
+                                  actionBtn = ElevatedButton.icon(
+                                    onPressed: () => _joinBroadcasting(item),
+                                    icon: const Icon(Icons.video_call,
+                                        color: Colors.white, size: 12),
+                                    label: const Text(
+                                      'Studio',
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 10),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF10B981),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      minimumSize: const Size(60, 28),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(6)),
+                                    ),
+                                  );
+                                } else if (isScheduled) {
+                                  actionBtn = ElevatedButton.icon(
+                                    onPressed: () => _startBroadcasting(item),
+                                    icon: const Icon(Icons.play_arrow_rounded,
+                                        color: Colors.white, size: 12),
+                                    label: const Text(
+                                      'Start',
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 10),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFEF4444),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      minimumSize: const Size(60, 28),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(6)),
+                                    ),
+                                  );
+                                } else {
+                                  actionBtn = ElevatedButton.icon(
+                                    onPressed: () => _watchRecording(item),
+                                    icon: const Icon(Icons.play_circle_outline,
+                                        color: Colors.white, size: 12),
+                                    label: const Text(
+                                      'Playback',
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 10),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF475569),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      minimumSize: const Size(60, 28),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(6)),
+                                    ),
+                                  );
+                                }
+
+                                return Row(
+                                  children: [
+                                    actionBtn,
+                                    const SizedBox(width: 4),
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(Icons.more_vert,
+                                          size: 16, color: Color(0xFF64748B)),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onSelected: (value) {
+                                        if (value == 'watch') {
+                                          _watchRecording(item);
+                                        } else if (value == 'edit') {
+                                          _showEditDialog(item);
+                                        } else if (value == 'delete') {
+                                          _confirmDelete(item);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        if (statusLower == 'recorded' ||
+                                            statusLower == 'completed')
+                                          const PopupMenuItem(
+                                            value: 'watch',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                    Icons.play_circle_outline,
+                                                    size: 14),
+                                                SizedBox(width: 6),
+                                                Text('Watch Recording',
+                                                    style: TextStyle(
+                                                        fontSize: 11)),
+                                              ],
+                                            ),
+                                          ),
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.edit, size: 14),
+                                              SizedBox(width: 6),
+                                              Text('Edit Class',
+                                                  style:
+                                                      TextStyle(fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.delete,
+                                                  size: 14, color: Colors.red),
+                                              SizedBox(width: 6),
+                                              Text('Delete Class',
+                                                  style: TextStyle(
+                                                      color: Colors.red,
+                                                      fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                          mobileCardBuilder: (context, item) =>
+                              _buildLiveClassCard(item),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
-            ),
           ),
-
-          // Loading state
-          if (_isLoading)
-            const Expanded(
-              child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFFEF4444))),
-            ),
-
-          // Error state
-          if (_error != null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error: $_error',
-                        style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadLiveClasses,
-                      child: Text('Retry'.tr(ref)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // Live classes list
-          if (!_isLoading && _error == null)
-            Expanded(
-              child: _liveClasses.isEmpty
-                  ? Center(child: Text('No live classes found'.tr(ref)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _liveClasses.length,
-                      itemBuilder: (context, index) {
-                        return _buildLiveClassCard(_liveClasses[index]);
-                      },
-                    ),
-            ),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,

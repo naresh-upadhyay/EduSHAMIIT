@@ -7,6 +7,7 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 // ─── Leave type definitions ──────────────────────────────────────────────────
 
@@ -78,10 +79,15 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  bool _isStatsCollapsed = true;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     Future.microtask(
         () => ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true));
   }
@@ -111,118 +117,123 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
     return Scaffold(
       backgroundColor: _bgColor,
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      body: Column(
-        children: [
-          // ── Header ──────────────────────────────────────────────────────
-          Container(
-            padding: EdgeInsets.fromLTRB(
-                16, Responsive.headerTopPadding(context), 16, 0),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  primary,
-                  isTeacher ? const Color(0xFFA78BFA) : _accentColor,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ── Header ──────────────────────────────────────────────────────
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                  16, Responsive.headerTopPadding(context), 16, 0),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    primary,
+                    isTeacher ? const Color(0xFFA78BFA) : _accentColor,
+                  ],
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Top row
+                  Row(
+                    children: [
+                      _GlassBtn(
+                        icon: Icons.arrow_back_ios_new_rounded,
+                        onTap: () => safeGoBack(context, _dashboardRoute),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Leave Management',
+                              style: TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              isTeacher ? 'Teacher Portal' : 'Student Portal',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _GlassBtn(
+                        icon: _isStatsCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                        onTap: () => setState(() => _isStatsCollapsed = !_isStatsCollapsed),
+                      ),
+                      const SizedBox(width: 8),
+                      _GlassBtn(
+                        icon: Icons.refresh_rounded,
+                        onTap: () => ref
+                            .read(leaveProvider.notifier)
+                            .fetchLeaves(forceRefresh: true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Stats row
+                  if (!_isStatsCollapsed) ...[
+                    _StatsBar(state: state, primary: primary),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Tab bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicator: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      labelColor: primary,
+                      unselectedLabelColor: Colors.white,
+                      labelStyle: const TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      tabs: const [
+                        Tab(text: 'Upcoming'),
+                        Tab(text: 'Past Leaves'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
-            child: Column(
-              children: [
-                // Top row
-                Row(
-                  children: [
-                    _GlassBtn(
-                      icon: Icons.arrow_back_ios_new_rounded,
-                      onTap: () => safeGoBack(context, _dashboardRoute),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Leave Management',
-                          style: TextStyle(
-                            fontFamily: AppFonts.heading,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          isTeacher ? 'Teacher Portal' : 'Student Portal',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    _GlassBtn(
-                      icon: Icons.refresh_rounded,
-                      onTap: () => ref
-                          .read(leaveProvider.notifier)
-                          .fetchLeaves(forceRefresh: true),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
 
-                // Stats row
-                _StatsBar(state: state, primary: primary),
-                const SizedBox(height: 12),
-
-                // Tab bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+            // ── Body ────────────────────────────────────────────────────────
+            _tabController.index == 0
+                ? _UpcomingTab(
+                    state: state,
+                    primary: primary,
+                    leaveTypes: _leaveTypes,
+                    isTeacher: isTeacher,
+                  )
+                : _PastTab(
+                    state: state,
+                    primary: primary,
                   ),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: primary,
-                    unselectedLabelColor: Colors.white,
-                    labelStyle: const TextStyle(
-                      fontFamily: AppFonts.heading,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    tabs: const [
-                      Tab(text: 'Upcoming'),
-                      Tab(text: 'Past Leaves'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-
-          // ── Body ────────────────────────────────────────────────────────
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _UpcomingTab(
-                  state: state,
-                  primary: primary,
-                  leaveTypes: _leaveTypes,
-                  isTeacher: isTeacher,
-                ),
-                _PastTab(
-                  state: state,
-                  primary: primary,
-                ),
-              ],
-            ),
-          ),
-        ],
+            const SizedBox(height: 80), // FAB clearance
+          ],
+        ),
       ),
 
       // ── FAB ─────────────────────────────────────────────────────────────
@@ -359,6 +370,169 @@ class _StatCell extends StatelessWidget {
   }
 }
 
+// ─── Global helpers ───────────────────────────────────────────────────────────
+
+void _cancelOrDeleteLeaveHelper(
+    BuildContext context, WidgetRef ref, LeaveApplication leave, bool isPending) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        isPending ? '⚠️ Cancel Leave?' : '🗑️ Delete Record?',
+        style: const TextStyle(
+            fontFamily: AppFonts.heading, fontWeight: FontWeight.w800),
+      ),
+      content: Text(
+        isPending
+            ? 'Are you sure you want to cancel this leave application?'
+            : 'This will permanently delete this leave record.',
+        style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Keep'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(ctx);
+            final success = await ref
+                .read(leaveProvider.notifier)
+                .cancelOrDeleteLeave(leave.id);
+            if (success) {
+              ref
+                  .read(leaveProvider.notifier)
+                  .fetchLeaves(forceRefresh: true);
+            }
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(success
+                    ? (isPending
+                        ? '✅ Leave cancelled successfully'
+                        : '🗑️ Record deleted')
+                    : '❌ Failed. Please try again.'),
+                backgroundColor: success
+                    ? const Color(0xFF059669)
+                    : const Color(0xFFDC2626),
+              ));
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFDC2626),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text(isPending ? 'Cancel Leave' : 'Delete'),
+        ),
+      ],
+    ),
+  );
+}
+
+List<AzureGridColumn<LeaveApplication>> _buildLeaveGridColumns(BuildContext context, WidgetRef ref) {
+  return [
+    AzureGridColumn<LeaveApplication>(
+      label: 'Leave Type',
+      width: 140.0,
+      compare: (a, b) => a.leaveType.compareTo(b.leaveType),
+      cellBuilder: (leave) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(_leaveIcon(leave.leaveType), style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Text(leave.leaveType, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    ),
+    AzureGridColumn<LeaveApplication>(
+      label: 'Duration',
+      width: 200.0,
+      compare: (a, b) {
+        final da = a.durationDays ?? _calcDays(a.startDate, a.endDate);
+        final db = b.durationDays ?? _calcDays(b.startDate, b.endDate);
+        return da.compareTo(db);
+      },
+      cellBuilder: (leave) {
+        final days = leave.durationDays ?? _calcDays(leave.startDate, leave.endDate);
+        return Text('$days days (${_fmtDate(leave.startDate)} → ${_fmtDate(leave.endDate)})');
+      },
+    ),
+    AzureGridColumn<LeaveApplication>(
+      label: 'Reason',
+      width: 220.0,
+      cellBuilder: (leave) => Text(leave.reason, overflow: TextOverflow.ellipsis),
+    ),
+    AzureGridColumn<LeaveApplication>(
+      label: 'Status',
+      width: 110.0,
+      compare: (a, b) => a.status.compareTo(b.status),
+      cellBuilder: (leave) {
+        final isPending = leave.status == 'pending';
+        final isApproved = leave.status == 'approved';
+        final isRejected = leave.status == 'rejected';
+
+        Color statusColor;
+        Color statusBg;
+        String statusLabel;
+        if (isPending) {
+          statusColor = const Color(0xFFD97706);
+          statusBg = const Color(0xFFFFF7ED);
+          statusLabel = '⏳ Pending';
+        } else if (isApproved) {
+          statusColor = const Color(0xFF059669);
+          statusBg = const Color(0xFFECFDF5);
+          statusLabel = '✅ Approved';
+        } else if (isRejected) {
+          statusColor = const Color(0xFFDC2626);
+          statusBg = const Color(0xFFFEF2F2);
+          statusLabel = '❌ Rejected';
+        } else {
+          statusColor = const Color(0xFF64748B);
+          statusBg = const Color(0xFFF1F5F9);
+          statusLabel = '🚫 Cancelled';
+        }
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusBg,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: statusColor.withOpacity(0.3)),
+          ),
+          child: Text(
+            statusLabel,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+          ),
+        );
+      },
+    ),
+    AzureGridColumn<LeaveApplication>(
+      label: 'Action',
+      width: 110.0,
+      cellBuilder: (leave) {
+        final isPending = leave.status == 'pending';
+        final isCancelable = isPending;
+        final isDeletable = leave.status == 'rejected' || leave.status == 'cancelled';
+        if (!isCancelable && !isDeletable) return const SizedBox();
+        return SizedBox(
+          height: 26,
+          child: ElevatedButton(
+            onPressed: () => _cancelOrDeleteLeaveHelper(context, ref, leave, isPending),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            ),
+            child: Text(isPending ? 'Cancel' : 'Delete', style: const TextStyle(fontSize: 10, color: Colors.white)),
+          ),
+        );
+      },
+    ),
+  ];
+}
+
 // ─── Upcoming tab ─────────────────────────────────────────────────────────────
 
 class _UpcomingTab extends ConsumerWidget {
@@ -388,6 +562,21 @@ class _UpcomingTab extends ConsumerWidget {
     }
 
     final upcoming = state.upcomingLeaves;
+
+    if (Responsive.isWide(context)) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: AzureGrid<LeaveApplication>(
+          title: 'Upcoming Applications',
+          items: upcoming,
+          columns: _buildLeaveGridColumns(context, ref),
+          searchMatcher: (leave) => '${leave.leaveType} ${leave.reason} ${leave.status}',
+          onRefresh: () => ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
+          mobileCardBuilder: (context, leave) => const SizedBox(),
+          disableVerticalScroll: true,
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: () =>
@@ -437,6 +626,21 @@ class _PastTab extends ConsumerWidget {
     }
 
     final past = state.pastLeaves;
+
+    if (Responsive.isWide(context)) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: AzureGrid<LeaveApplication>(
+          title: 'Past Applications History',
+          items: past,
+          columns: _buildLeaveGridColumns(context, ref),
+          searchMatcher: (leave) => '${leave.leaveType} ${leave.reason} ${leave.status}',
+          onRefresh: () => ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
+          mobileCardBuilder: (context, leave) => const SizedBox(),
+          disableVerticalScroll: true,
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: () =>

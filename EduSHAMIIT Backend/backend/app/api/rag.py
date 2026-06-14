@@ -4,6 +4,7 @@ from app.middleware.auth import get_current_user
 from app.services.supabase_client import get_supabase
 from app.services.rag_service import ingest_document
 from app.models import GenericResponse
+from app.config import settings
 
 router = APIRouter()
 
@@ -17,6 +18,9 @@ async def ingest(
     user: dict = Depends(get_current_user),
 ):
     """Upload a PDF document and ingest it into the knowledge base."""
+    if settings.ENVIRONMENT == "production" and user.get("role") not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied: Only teachers and admins can ingest documents in production")
+
     if not file.filename or not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
@@ -74,6 +78,9 @@ async def list_documents(user: dict = Depends(get_current_user)):
 @router.delete("/documents/{source}", response_model=GenericResponse)
 async def delete_document(source: str, user: dict = Depends(get_current_user)):
     """Delete all chunks of a document by source name."""
+    if settings.ENVIRONMENT == "production" and user.get("role") not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied: Only teachers and admins can delete documents in production")
+
     sb = get_supabase()
     school_id = user.get("school_id", "")
     try:

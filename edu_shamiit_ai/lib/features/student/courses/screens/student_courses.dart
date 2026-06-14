@@ -7,7 +7,7 @@ import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/courses_provider.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
-import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class StudentCourses extends ConsumerStatefulWidget {
   const StudentCourses({super.key});
@@ -20,6 +20,120 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
   @override
   Widget build(BuildContext context) {
     final coursesState = ref.watch(coursesProvider);
+
+    final columns = [
+      AzureGridColumn<CourseModel>(
+        label: 'Course Name',
+        width: 180.0,
+        compare: (a, b) => a.name.compareTo(b.name),
+        cellBuilder: (course) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                gradient: course.color,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Center(child: Text(course.icon, style: const TextStyle(fontSize: 12))),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                course.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+      AzureGridColumn<CourseModel>(
+        label: 'Teacher',
+        width: 140.0,
+        compare: (a, b) => a.teacher.compareTo(b.teacher),
+        cellBuilder: (course) => Text(course.teacher),
+      ),
+      AzureGridColumn<CourseModel>(
+        label: 'Chapters',
+        width: 120.0,
+        cellBuilder: (course) => Text(course.chapters),
+      ),
+      AzureGridColumn<CourseModel>(
+        label: 'Progress',
+        width: 180.0,
+        compare: (a, b) => a.progress.compareTo(b.progress),
+        cellBuilder: (course) => Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 120,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: course.progress,
+                  backgroundColor: StudentColors.border,
+                  valueColor: AlwaysStoppedAnimation(course.accentColor),
+                  minHeight: 4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${(course.progress * 100).toInt()}% completed',
+              style: const TextStyle(fontSize: 10, color: StudentColors.text3),
+            ),
+          ],
+        ),
+      ),
+      AzureGridColumn<CourseModel>(
+        label: 'Score',
+        width: 80.0,
+        cellBuilder: (course) => Text(
+          course.score,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: course.accentColor,
+          ),
+        ),
+      ),
+      AzureGridColumn<CourseModel>(
+        label: 'Action',
+        width: 180.0,
+        cellBuilder: (course) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 26,
+              child: ElevatedButton(
+                onPressed: () => _playRecording(course),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: course.accentColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
+                child: const Text('🎥 Play', style: TextStyle(fontSize: 10, color: Colors.white)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 26,
+              child: OutlinedButton(
+                onPressed: () => _showCourseDetail(course),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+                child: const Text('Details', style: TextStyle(fontSize: 10, color: Colors.black87)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4FF),
@@ -68,24 +182,29 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
           ),
 
           Expanded(
-            child: ResponsiveContent(
+            child: SingleChildScrollView(
               child: coursesState.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
                   : coursesState.error != null
-                      ? Center(child: Text('Error: ${coursesState.error}'))
-                      : coursesState.courses.isEmpty
-                          ? Center(child: Text('No courses available'.tr(ref)))
-                          : GridView.builder(
-                              padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: Responsive.isDesktop(context) ? 3 : Responsive.isTablet(context) ? 2 : 1,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                mainAxisExtent: 160,
-                              ),
-                              itemCount: coursesState.courses.length,
-                              itemBuilder: (context, index) => _buildCourseCard(coursesState.courses[index]),
-                            ),
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40.0),
+                          child: Center(child: Text('Error: ${coursesState.error}')),
+                        )
+                      : Padding(
+                          padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
+                          child: AzureGrid<CourseModel>(
+                            title: 'Subject Courses',
+                            items: coursesState.courses,
+                            columns: columns,
+                            onRefresh: () => ref.read(coursesProvider.notifier).loadCourses(),
+                            searchMatcher: (course) => '${course.name} ${course.teacher} ${course.chapters}',
+                            mobileCardBuilder: (context, course) => _buildCourseCard(course),
+                            disableVerticalScroll: true,
+                          ),
+                        ),
             ),
           ),
         ],

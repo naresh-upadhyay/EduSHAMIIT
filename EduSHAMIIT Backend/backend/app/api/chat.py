@@ -94,9 +94,13 @@ async def download_file(file_name: str):
     import os
     from fastapi.responses import FileResponse
     
-    assets_dir = os.path.join(os.getcwd(), "assets")
-    file_path = os.path.join(assets_dir, file_name)
+    assets_dir = os.path.abspath(os.path.join(os.getcwd(), "assets"))
+    file_path = os.path.abspath(os.path.join(assets_dir, file_name))
     
+    # Check for path traversal vulnerability
+    if not file_path.startswith(assets_dir):
+        raise HTTPException(status_code=403, detail="Access denied: Invalid file path")
+        
     if not os.path.exists(file_path):
         # Case-insensitive fallback lookup
         lower_name = file_name.lower()

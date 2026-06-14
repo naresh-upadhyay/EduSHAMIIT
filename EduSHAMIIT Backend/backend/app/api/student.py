@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 import base64
 import os
@@ -243,10 +243,114 @@ async def student_results(category: str = "All", user=Depends(require_student), 
 @router.get("/exams")
 async def student_exams(user=Depends(require_student), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    # Table 'exams' doesn't have 'target_classes' or 'exam_date' columns. 
-    # Using 'start_time' for date filtering.
-    exams = (await sb.table("exams").select("*, subjects(name, icon)").eq("school_id", school_id).gte("start_time", datetime.now().isoformat()).order("start_time").aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"exams": exams}}
+    
+    # 1. Fetch student's class from database
+    profile_res = await sb.table("profiles").select("class").eq("id", user["id"]).maybe_single().aexecute()
+    student_class = profile_res.data.get("class") if profile_res.data else None
+    
+    # 2. Fetch all exams for this school (excluding drafts)
+    exams_res = await sb.table("exams")\
+        .select("*, subjects(name, icon)")\
+        .eq("school_id", school_id)\
+        .neq("status", "draft")\
+        .order("start_time", ascending=False)\
+        .aexecute()
+    all_exams = exams_res.data or []
+    
+    # 3. Fetch submissions by this student
+    sub_res = await sb.table("exam_submissions").select("*").eq("student_id", user["id"]).aexecute()
+    submissions = sub_res.data or []
+    sub_map = {s["exam_id"]: s for s in submissions}
+    
+    filtered_exams = []
+    for exam in all_exams:
+        target_classes = exam.get("target_classes")
+        
+        # Check class filtering
+        is_targeted = False
+        if not target_classes:
+            is_targeted = True
+        else:
+            if isinstance(target_classes, str):
+                try:
+                    import json
+                    target_classes = json.loads(target_classes)
+                except Exception:
+                    pass
+            
+            if isinstance(target_classes, list):
+                cleaned_student_class = str(student_class).strip().upper() if student_class else ""
+                target_classes_upper = [str(tc).strip().upper() for tc in target_classes]
+                if cleaned_student_class in target_classes_upper:
+                    is_targeted = True
+            else:
+                is_targeted = True
+                
+        if is_targeted:
+            # Check target students/scope filtering
+            scope = exam.get("scope") or "All Students"
+            if scope != "All Students":
+                target_students = exam.get("target_students")
+                if isinstance(target_students, str):
+                    try:
+                        import json
+                        target_students = json.loads(target_students)
+                    except Exception:
+                        pass
+                
+                if isinstance(target_students, list):
+                    if user["id"] not in target_students and str(user["id"]) not in target_students:
+                        is_targeted = False
+                else:
+                    is_targeted = False
+
+        if not is_targeted:
+            continue
+            
+        # Check scheduled release and status process
+        status = exam.get("status") or "draft"
+        if status not in ("published", "scheduled", "ready", "completed"):
+            continue
+            
+        if status in ("scheduled", "ready"):
+            release_time_str = exam.get("release_time")
+            if release_time_str:
+                try:
+                    from dateutil.parser import parse
+                    from datetime import datetime, timezone
+                    release_time = parse(release_time_str)
+                    now = datetime.now(timezone.utc)
+                    if release_time > now:
+                        continue
+                except Exception:
+                    pass
+            else:
+                continue
+
+        # Attach submission details
+        submission = sub_map.get(exam["id"])
+        if submission:
+            exam["submission_status"] = submission.get("status")
+            exam["obtained_score"] = submission.get("score")
+            exam["graded_at"] = submission.get("graded_at")
+        else:
+            exam["submission_status"] = None
+            exam["obtained_score"] = None
+            exam["graded_at"] = None
+            
+        # Format the subject name and icon
+        subj = exam.get("subjects") or {}
+        exam["subject"] = subj.get("name", "Unknown")
+        exam["subject_icon"] = subj.get("icon", "📚")
+        
+        # Strip raw passcode and set boolean flag for client security
+        passcode_val = exam.get("passcode")
+        exam["has_passcode"] = bool(passcode_val and passcode_val.strip())
+        exam.pop("passcode", None)
+            
+        filtered_exams.append(exam)
+        
+    return {"success": True, "school_id": school_id, "data": {"exams": filtered_exams}}
 
 
 @router.get("/homework")
@@ -1941,4 +2045,313 @@ async def cancel_acquisition_request(
         "message": "Acquisition request cancelled successfully",
         "data": update_res.data[0] if update_res.data else {}
     }
+
+
+# ─── ONLINE EXAMS STUDENT ENDPOINTS ───
+
+@router.get("/exams/{exam_id}/online")
+async def student_get_online_exam(exam_id: str, user=Depends(require_student), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Fetch exam details
+    exam_res = await sb.table("exams").select("*, subjects(name, icon), profiles!teacher_id(full_name)").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
+    exam = exam_res.data
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    status = exam.get("status") or "draft"
+    if status not in ("published", "scheduled", "ready", "completed"):
+        raise HTTPException(status_code=403, detail="Exam is not published yet.")
+        
+    if status in ("scheduled", "ready"):
+        release_time_str = exam.get("release_time")
+        if release_time_str:
+            try:
+                from dateutil.parser import parse
+                from datetime import datetime, timezone
+                release_time = parse(release_time_str)
+                now = datetime.now(timezone.utc)
+                if release_time > now:
+                    raise HTTPException(status_code=403, detail="Exam is not published yet.")
+            except Exception:
+                raise HTTPException(status_code=403, detail="Exam is not published yet.")
+        else:
+            raise HTTPException(status_code=403, detail="Exam is not published yet.")
+        
+    # Fetch questions
+    q_res = await sb.table("exam_questions").select("*").eq("exam_id", exam_id).order("order_number").aexecute()
+    questions = q_res.data
+    
+    # Fetch student's submission if any
+    sub_res = await sb.table("exam_submissions").select("*").eq("exam_id", exam_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    submission = sub_res.data
+
+    # Fetch student's session if any
+    sess_res = await sb.table("exam_sessions").select("*").eq("exam_id", exam_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    session = sess_res.data
+    
+    # Strip passcode from exam details payload to prevent network logs leakage
+    passcode_val = exam.get("passcode")
+    exam["has_passcode"] = bool(passcode_val and passcode_val.strip())
+    exam.pop("passcode", None)
+
+    # If student has submitted, or the exam is graded, we can show answers.
+    # Otherwise, strip correct answers to prevent cheating!
+    if not submission or submission.get("status") == "active":
+        for q in questions:
+            q.pop("correct_answer", None)
+            
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": {
+            "exam": exam,
+            "questions": questions,
+            "submission": submission,
+            "session": session
+        }
+    }
+
+
+@router.post("/exams/{exam_id}/verify-passcode")
+async def student_verify_exam_passcode(exam_id: str, request: dict, user=Depends(require_student), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Check if passcode matches
+    exam_res = await sb.table("exams").select("passcode").eq("id", exam_id).maybe_single().aexecute()
+    if not exam_res.data:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    exam_passcode = exam_res.data.get("passcode")
+    if exam_passcode and exam_passcode.strip():
+        provided = request.get("passcode")
+        if not provided or provided.strip() != exam_passcode.strip():
+            return {"success": False, "message": "Invalid passcode. Please enter the correct exam passcode."}
+            
+    return {"success": True, "message": "Passcode verified successfully"}
+
+
+@router.post("/exams/{exam_id}/session/start")
+async def student_start_exam_session(exam_id: str, request: Optional[dict] = None, user=Depends(require_student), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    
+    # Check if passcode is required
+    exam_res = await sb.table("exams").select("passcode").eq("id", exam_id).maybe_single().aexecute()
+    if not exam_res.data:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    exam_passcode = exam_res.data.get("passcode")
+    if exam_passcode and exam_passcode.strip():
+        provided = (request or {}).get("passcode")
+        if not provided or provided.strip() != exam_passcode.strip():
+            raise HTTPException(status_code=401, detail="Invalid passcode. Please enter the correct exam passcode.")
+
+    # Check if session already exists
+    existing = await sb.table("exam_sessions").select("*").eq("exam_id", exam_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    if existing.data:
+        sess_status = existing.data.get("status")
+        if sess_status == "active":
+            return {"success": True, "data": existing.data}
+        elif sess_status == "completed":
+            raise HTTPException(status_code=403, detail="Exam session has already been completed.")
+        elif sess_status == "suspended":
+            raise HTTPException(status_code=403, detail="You have been suspended from this exam.")
+        
+    now_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    initial_logs = [
+        {"time": now_time, "event": "Camera & Mic initialization successful", "severity": "info"},
+        {"time": now_time, "event": "Student entered live exam workspace", "severity": "info"}
+    ]
+    new_session = {
+        "exam_id": exam_id,
+        "student_id": user["id"],
+        "school_id": school_id,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "status": "active",
+        "proctor_logs": initial_logs
+    }
+    try:
+        with open("/tmp/debug.log", "a") as f:
+            f.write(f"NEW SESSION PAYLOAD: {new_session}\n")
+    except Exception as ex:
+        pass
+    res = await sb.table("exam_sessions").insert(new_session).aexecute()
+    try:
+        with open("/tmp/debug.log", "a") as f:
+            f.write(f"DB INSERT RESPONSE DATA: {res.data}\n")
+    except Exception as ex:
+        pass
+    return {"success": True, "data": res.data[0] if res.data else {}}
+
+
+@router.post("/exams/{exam_id}/session/ping")
+async def student_ping_exam_session(
+    exam_id: str,
+    request: dict,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    warnings_count = request.get("warnings_count", 0)
+    active_question = request.get("active_question")
+    is_online = request.get("is_online", True)
+    log_event = request.get("log_event")
+    
+    update_data = {
+        "warnings_count": warnings_count,
+        "is_online": is_online,
+        "last_ping": datetime.now(timezone.utc).isoformat()
+    }
+    if active_question:
+        update_data["active_question"] = active_question
+        
+    sess_res = await sb.table("exam_sessions").select("*")\
+        .eq("exam_id", exam_id)\
+        .eq("student_id", user["id"])\
+        .eq("status", "active")\
+        .maybe_single().aexecute()
+        
+    sess = sess_res.data
+    if not sess:
+        raise HTTPException(status_code=404, detail="Active exam session not found")
+        
+    db_warnings = sess.get("warnings_count", 0) or 0
+    update_data["warnings_count"] = max(warnings_count, db_warnings)
+    
+    current_logs = sess.get("proctor_logs") or []
+    if not isinstance(current_logs, list):
+        current_logs = []
+        
+    now_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    if warnings_count > db_warnings:
+        if not log_event:
+            log_event = f"Warning issued: focus loss detected (Count: {warnings_count})"
+            
+    if log_event:
+        current_logs.append({
+            "time": now_time,
+            "event": log_event,
+            "severity": "warning" if "warning" in log_event.lower() else "info"
+        })
+        update_data["proctor_logs"] = current_logs
+        
+    res = await sb.table("exam_sessions").update(update_data).eq("id", sess["id"]).aexecute()
+    
+    updated_sess = res.data[0] if res.data else sess
+    return {
+        "success": True,
+        "data": {
+            "id": updated_sess["id"],
+            "warnings_count": updated_sess.get("warnings_count", 0),
+            "is_paused": updated_sess.get("is_paused", False),
+            "extra_minutes": updated_sess.get("extra_minutes", 0),
+            "teacher_message": updated_sess.get("teacher_message"),
+            "status": updated_sess.get("status", "active"),
+            "started_at": updated_sess.get("started_at"),
+            "proctor_logs": updated_sess.get("proctor_logs", [])
+        }
+    }
+
+
+@router.post("/exams/upload")
+async def student_upload_exam_file(
+    file: UploadFile = File(...),
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    """Upload a subjective answer sheet to Supabase storage and return its public URL."""
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty file")
+        
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    public_url_base = os.environ.get("PUBLIC_URL", supabase_url)
+    
+    content_type = file.content_type or "application/octet-stream"
+    filename = file.filename or "file.bin"
+    
+    ext = "bin"
+    if "." in filename:
+        ext = filename.split(".")[-1]
+        
+    import uuid
+    unique_id = uuid.uuid4().hex
+    storage_path = f"avatars/exam_{user['id']}_{unique_id}.{ext}"
+    storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
+    
+    headers = {
+        "Authorization": f"Bearer {os.environ.get('SUPABASE_SERVICE_ROLE_KEY')}",
+        "Content-Type": content_type
+    }
+    
+    async with httpx.AsyncClient() as client:
+        upload_response = await client.post(storage_url, headers=headers, content=file_bytes)
+        if upload_response.status_code not in (200, 201):
+            put_response = await client.put(storage_url, headers=headers, content=file_bytes)
+            if put_response.status_code not in (200, 201):
+                raise HTTPException(status_code=500, detail=f"Upload failed: {put_response.text}")
+                
+    public_url_base_replaced = public_url_base.replace("http://kong:8000", "http://127.0.0.1:8000")
+    public_url = f"{public_url_base_replaced}/storage/v1/object/public/{storage_path}"
+    return {
+        "success": True, 
+        "data": {
+            "url": public_url, 
+            "filename": filename, 
+            "content_type": content_type
+        }
+    }
+
+
+@router.post("/exams/{exam_id}/submit")
+async def student_submit_exam(exam_id: str, request: dict, user=Depends(require_student), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    answers = request.get("answers", {}) # {"q_id": "answer"}
+    
+    # Fetch all questions to check correct answers
+    q_res = await sb.table("exam_questions").select("*").eq("exam_id", exam_id).aexecute()
+    questions = q_res.data
+    
+    total_score = 0
+    has_subjective = False
+    
+    for q in questions:
+        q_id = q["id"]
+        q_type = q["question_type"]
+        correct = q.get("correct_answer")
+        student_ans = answers.get(q_id)
+        
+        if q_type == "subjective":
+            has_subjective = True
+        elif correct is not None and student_ans is not None:
+            # Compare answers (case insensitive, trimmed)
+            if str(student_ans).strip().lower() == str(correct).strip().lower():
+                total_score += q.get("marks", 0)
+                
+    status = "submitted" if has_subjective else "graded"
+    
+    # Update active session to ended
+    await sb.table("exam_sessions").update({
+        "status": "completed",
+        "ended_at": datetime.now(timezone.utc).isoformat()
+    }).eq("exam_id", exam_id).eq("student_id", user["id"]).eq("status", "active").aexecute()
+    
+    # Check if there is an existing submission (e.g. from auto-save / updates)
+    existing = await sb.table("exam_submissions").select("*").eq("exam_id", exam_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    
+    submission_data = {
+        "exam_id": exam_id,
+        "student_id": user["id"],
+        "answers": answers,
+        "score": total_score if not has_subjective else None,
+        "status": status,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "graded_at": datetime.now(timezone.utc).isoformat() if not has_subjective else None
+    }
+    
+    if existing.data:
+        res = await sb.table("exam_submissions").update(submission_data).eq("id", existing.data["id"]).aexecute()
+    else:
+        res = await sb.table("exam_submissions").insert(submission_data).aexecute()
+        
+    return {"success": True, "status": status, "score": total_score if not has_subjective else None, "data": res.data[0] if res.data else {}}
+
 

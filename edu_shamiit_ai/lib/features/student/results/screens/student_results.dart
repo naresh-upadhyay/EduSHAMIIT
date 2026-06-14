@@ -2,12 +2,12 @@ import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
-import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class StudentResults extends ConsumerStatefulWidget {
   const StudentResults({super.key});
@@ -25,6 +25,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   List<ExamResult> _examResults = [];
   bool _isLoading = true;
   String? _error;
+  bool _isStatsCollapsed = false;
 
   @override
   void initState() {
@@ -225,7 +226,6 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
     }
 
     final overall = _calculateOverallStats();
-    final subjects = _getSubjectWiseResults();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -233,306 +233,305 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 20),
+            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context) + (Responsive.isWide(context) ? 0 : 8), 16, Responsive.isWide(context) ? 8 : 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/student/dashboard'),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Results',
-                        style: TextStyle(
-                          fontFamily: AppFonts.heading,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => _showYearPicker(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Year 2026',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10),
-                            ),
-                            SizedBox(width: 4),
-                            Icon(Icons.expand_more, color: Colors.white, size: 16),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
-                // Category chips
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 34,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 6),
-                    itemBuilder: (context, index) {
-                      final cat = _categories[index];
-                      final isSelected = cat == _selectedCategory;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() => _selectedCategory = cat);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            cat,
-                            style: TextStyle(
-                              color: isSelected ? StudentColors.primary : Colors.white,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                              fontSize: 10,
-                            ),
-                          ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Academic Results',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  tooltip: 'Refresh',
+                  onPressed: _loadResults,
+                ),
+                GestureDetector(
+                  onTap: () => _showYearPicker(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Year 2026',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10),
                         ),
-                      );
-                    },
+                        SizedBox(width: 4),
+                        Icon(Icons.expand_more, color: Colors.white, size: 16),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Main content
-          Expanded(
-            child: ResponsiveContent(
-              child: SingleChildScrollView(
-                padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
-                child: Column(
-                children: [
-                  // Overall performance card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        if (!isDark)
-                          BoxShadow(
-                            color: StudentColors.primary.withValues(alpha: 0.1),
-                            blurRadius: 20,
-                            offset: const Offset(0, 4),
-                          ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Academic Performance',
-                          style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 11),
-                        ),
-                        const SizedBox(height: 4),
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
-                          ).createShader(bounds),
-                          child: Text(
-                            '${overall['avg_score']}%',
-                            style: const TextStyle(
-                              fontFamily: AppFonts.heading,
-                              fontSize: 52,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          margin: const EdgeInsets.only(top: 4, bottom: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF065F46).withValues(alpha: 0.3) : const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: isDark ? Border.all(color: const Color(0xFF059669).withValues(alpha: 0.5)) : null,
-                          ),
-                          child: Text(
-                            '${overall['grade']} Grade 🏅',
-                            style: TextStyle(
-                              fontFamily: AppFonts.heading,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
-                            ),
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildStatItem('${overall['class_rank']}', 'Class Rank'),
-                            _buildStatItem('${overall['total_marks']}', 'Total Marks'),
-                            _buildStatItem('${overall['improvement']}', 'vs Last Year'),
-                          ],
-                        ),
-                      ],
-                    ),
+          // Collapsible Toggle Button for Performance Stats
+          Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: () => setState(() => _isStatsCollapsed = !_isStatsCollapsed),
+                  icon: Icon(_isStatsCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 16),
+                  label: Text(_isStatsCollapsed ? 'Show Stats Details' : 'Hide Stats Details', style: const TextStyle(fontSize: 11)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF4F46E5),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
+                ),
+              ],
+            ),
+          ),
 
-                  const SizedBox(height: 16),
-
-                  // Subject-wise section
-                  Row(
+          // Overall Performance Quick Cards Row
+          if (!_isStatsCollapsed)
+            Container(
+              constraints: const BoxConstraints(maxWidth: 800),
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? const Color(0xFF2E2E38) : Colors.grey.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Column(
                     children: [
-                      Text(
-                        'Subject-wise Analytics',
-                        style: TextStyle(
-                          fontFamily: AppFonts.heading,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : StudentColors.text,
-                        ),
-                      ),
+                      const Text('Overall Score', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('${overall['avg_score']}%', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF4F46E5))),
                     ],
                   ),
+                  Column(
+                    children: [
+                      const Text('Grade', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('${overall['grade']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.green)),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      const Text('Class Rank', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('${overall['class_rank']}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87)),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      const Text('Total Marks', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('${overall['total_marks']}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
 
-                  const SizedBox(height: 8),
-
-                  // Subjects list
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        if (!isDark)
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
+          // Exam Results Table Grid
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: AzureGrid<ExamResult>(
+                title: 'Exam Results Ledger',
+                items: _examResults,
+                onRefresh: _loadResults,
+                enableSelection: true,
+                extraCommandActions: [
+                  TextButton.icon(
+                    onPressed: () => _showDownloadDialog(context),
+                    icon: const Icon(Icons.picture_as_pdf, size: 14, color: Color(0xFF4F46E5)),
+                    label: const Text('Consolidated Report', style: TextStyle(fontSize: 11, color: Color(0xFF4F46E5))),
+                  ),
+                ],
+                bulkActions: (context, selected) {
+                  return [
+                    ElevatedButton.icon(
+                      onPressed: () => _showDownloadDialog(context),
+                      icon: const Icon(Icons.download, size: 14, color: Colors.white),
+                      label: const Text('Download Selected Report', style: TextStyle(fontSize: 11, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      ),
+                    )
+                  ];
+                },
+                searchMatcher: (item) =>
+                    '${item.examTitle} ${item.subject} ${item.grade} ${item.remarks ?? ""}',
+                filters: [
+                  AzureGridFilter<ExamResult>(
+                    label: 'Exam Type',
+                    options: const ['Mid-Term', 'End-Term', 'Class Test'],
+                    filterFn: (item, option) =>
+                        item.examTitle.toLowerCase().contains(option.toLowerCase()),
+                  ),
+                  AzureGridFilter<ExamResult>(
+                    label: 'Subject',
+                    options: _examResults.map((e) => e.subject).toSet().toList(),
+                    filterFn: (item, option) => item.subject == option,
+                  ),
+                ],
+                columns: [
+                  AzureGridColumn<ExamResult>(
+                    label: 'Exam Title',
+                    width: 220,
+                    compare: (a, b) => a.examTitle.compareTo(b.examTitle),
+                    cellBuilder: (item) => Text(item.examTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  AzureGridColumn<ExamResult>(
+                    label: 'Subject',
+                    width: 140,
+                    compare: (a, b) => a.subject.compareTo(b.subject),
+                    cellBuilder: (item) => Row(
+                      children: [
+                        Text(_getSubjectIcon(item.subject)),
+                        const SizedBox(width: 6),
+                        Text(item.subject),
                       ],
                     ),
-                    child: Column(
-                      children: subjects.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final subject = entry.value;
-                        return Column(
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    color: isDark ? _getSubjectBg(subject['name']).withValues(alpha: 0.1) : _getSubjectBg(subject['name']),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Text('${subject['icon']}', style: const TextStyle(fontSize: 18)),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        subject['name'],
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                          color: isDark ? Colors.white : Colors.black,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Score: ${subject['score']}/${subject['max']}',
-                                        style: TextStyle(color: isDark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      '${subject['score']}',
-                                      style: TextStyle(
-                                        fontFamily: AppFonts.heading,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w900,
-                                        color: subject['color'],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? _getGradeColor(subject['grade']).withValues(alpha: 0.15) : _getGradeBg(subject['grade']),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: isDark ? Border.all(color: _getGradeColor(subject['grade']).withValues(alpha: 0.3)) : null,
-                                        ),
-                                        child: Text(
-                                          subject['grade'],
-                                          style: TextStyle(
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.w700,
-                                            color: isDark ? _getGradeColor(subject['grade']).withValues(alpha: 0.9) : _getGradeColor(subject['grade']),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            if (index < subjects.length - 1)
-                              Divider(height: 16, thickness: 0.5, color: isDark ? StudentColors.darkBorder : Colors.grey.withValues(alpha: 0.1)),
-                          ],
-                        );
-                      }).toList(),
+                  ),
+                  AzureGridColumn<ExamResult>(
+                    label: 'Exam Date',
+                    width: 120,
+                    compare: (a, b) => a.examDate.compareTo(b.examDate),
+                    cellBuilder: (item) => Text(
+                      '${item.examDate.day}/${item.examDate.month}/${item.examDate.year}',
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // Download button
-                  ElevatedButton.icon(
-                    onPressed: () => _showDownloadDialog(context),
-                    icon: const Text('📥', style: TextStyle(fontSize: 16)),
-                    label: Text('Download Report Card'.tr(ref)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: StudentColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  AzureGridColumn<ExamResult>(
+                    label: 'Marks',
+                    width: 100,
+                    compare: (a, b) => a.marksObtained.compareTo(b.marksObtained),
+                    cellBuilder: (item) => Text('${item.marksObtained.toInt()} / ${item.maxMarks.toInt()}'),
+                  ),
+                  AzureGridColumn<ExamResult>(
+                    label: 'Percentage',
+                    width: 110,
+                    compare: (a, b) =>
+                        (a.marksObtained / a.maxMarks).compareTo(b.marksObtained / b.maxMarks),
+                    cellBuilder: (item) {
+                      final pct = item.maxMarks > 0 ? (item.marksObtained / item.maxMarks) * 100 : 0.0;
+                      return Text('${pct.toStringAsFixed(1)}%');
+                    },
+                  ),
+                  AzureGridColumn<ExamResult>(
+                    label: 'Grade',
+                    width: 90,
+                    compare: (a, b) => a.grade.compareTo(b.grade),
+                    cellBuilder: (item) {
+                      final gradeColor = _getGradeColor(item.grade);
+                      final gradeBg = _getGradeBg(item.grade);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: gradeBg,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: gradeColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          item.grade,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: gradeColor,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  AzureGridColumn<ExamResult>(
+                    label: 'Remarks',
+                    width: 200,
+                    compare: (a, b) => (a.remarks ?? '').compareTo(b.remarks ?? ''),
+                    cellBuilder: (item) => Text(
+                      item.remarks ?? '-',
+                      style: TextStyle(
+                        color: item.remarks != null ? Colors.black87 : Colors.grey,
+                        fontStyle: item.remarks != null ? FontStyle.normal : FontStyle.italic,
                       ),
-                      minimumSize: const Size(double.infinity, 48),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  ],
-                ),
+                ],
+                mobileCardBuilder: (context, item) {
+                  final gradeColor = _getGradeColor(item.grade);
+                  return Card(
+                    color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: isDark ? const Color(0xFF2E2E38) : Colors.grey.shade200),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(item.examTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _getGradeBg(item.grade),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(item.grade, style: TextStyle(color: gradeColor, fontWeight: FontWeight.bold, fontSize: 9)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text('${_getSubjectIcon(item.subject)} ${item.subject}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Marks: ${item.marksObtained.toInt()} / ${item.maxMarks.toInt()}', style: const TextStyle(fontSize: 11)),
+                              Text('Date: ${item.examDate.day}/${item.examDate.month}/${item.examDate.year}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                          if (item.remarks != null) ...[
+                            const SizedBox(height: 6),
+                            Text('Remarks: ${item.remarks}', style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.grey)),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
         ],
       ),
-      
-
     );
   }
 

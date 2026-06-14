@@ -7,6 +7,7 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
+import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 
 class StudentOnlineExam extends ConsumerStatefulWidget {
   const StudentOnlineExam({super.key});
@@ -16,12 +17,29 @@ class StudentOnlineExam extends ConsumerStatefulWidget {
 }
 
 class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
+  final StudentApiService _studentApi = StudentApiService();
+  List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'English'];
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
       ref.read(onlineExamProvider.notifier).fetchExams();
     });
+    _loadSubjects();
+  }
+
+  Future<void> _loadSubjects() async {
+    try {
+      final list = await _studentApi.getSubjects();
+      if (list.isNotEmpty) {
+        setState(() {
+          _subjects = list.map((s) => s.name).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading subjects for student: $e');
+    }
   }
 
 String _getMonthAbbr(String dateStr) {
@@ -479,8 +497,8 @@ String _getMonthAbbr(String dateStr) {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: 'Mathematics',
-              items: ['Mathematics', 'Physics', 'Chemistry', 'English'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              initialValue: _subjects.isNotEmpty ? _subjects.first : 'Mathematics',
+              items: _subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
               onChanged: (v) {},
             ),
             const SizedBox(height: 16),

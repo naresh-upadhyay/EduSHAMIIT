@@ -8,6 +8,7 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class TeacherStudentDirectory extends ConsumerStatefulWidget {
   const TeacherStudentDirectory({super.key});
@@ -21,14 +22,10 @@ class _TeacherStudentDirectoryState
     extends ConsumerState<TeacherStudentDirectory> {
   final TeacherApiService _apiService = TeacherApiService();
 
-  String _selectedClass = 'All';
-  List<String> _classes = ['All'];
-  Map<String, int> _classCounts = {};
+  List<String> _classes = [];
   List<StudentDirectoryEntry> _allStudents = [];
-  List<StudentDirectoryEntry> _students = [];
   bool _isLoading = true;
   String? _error;
-  final TextEditingController _searchController = TextEditingController();
 
   String _classLabel(TeacherMyClass c) {
     final section = c.section.trim();
@@ -42,12 +39,6 @@ class _TeacherStudentDirectoryState
     _loadData();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -57,18 +48,10 @@ class _TeacherStudentDirectoryState
     try {
       // Load classes
       final classes = await _apiService.getMyClasses();
-      final Map<String, int> counts = {};
-      int total = 0;
-      for (final c in classes) {
-        final label = _classLabel(c);
-        counts[label] = (counts[label] ?? 0) + c.studentCount;
-        total += c.studentCount;
-      }
-      counts['All'] = total;
+      final loadedClasses = classes.map((c) => _classLabel(c)).toSet().toList();
 
       setState(() {
-        _classes = ['All', ...counts.keys.where((k) => k != 'All')];
-        _classCounts = counts;
+        _classes = loadedClasses;
       });
 
       // Load students
@@ -87,52 +70,14 @@ class _TeacherStudentDirectoryState
       _error = null;
     });
     try {
-      final search =
-          _searchController.text.isEmpty ? null : _searchController.text;
       final students = await _apiService.getStudentDirectory(
         classId: null,
-        search: search,
+        search: null,
+        limit: 500,
       );
-
-      final Map<String, int> counts = {for (final c in _classes) c: 0};
-      for (final s in students) {
-        final classLabel = s.class_;
-        if (counts.containsKey(classLabel)) {
-          counts[classLabel] = counts[classLabel]! + 1;
-        } else {
-          final normalizedLabel =
-              classLabel.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
-          String? matchedKey;
-          for (final key in counts.keys) {
-            final normalizedKey =
-                key.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
-            if (normalizedKey == normalizedLabel) {
-              matchedKey = key;
-              break;
-            }
-          }
-          if (matchedKey != null) {
-            counts[matchedKey] = counts[matchedKey]! + 1;
-          }
-        }
-      }
-      counts['All'] = students.length;
 
       setState(() {
         _allStudents = students;
-        _classCounts = counts;
-        if (_selectedClass == 'All') {
-          _students = students;
-        } else {
-          _students = students.where((s) {
-            if (s.class_ == _selectedClass) return true;
-            final normalizedS =
-                s.class_.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
-            final normalizedSel =
-                _selectedClass.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
-            return normalizedS == normalizedSel;
-          }).toList();
-        }
         _isLoading = false;
       });
     } catch (e) {
@@ -245,7 +190,6 @@ class _TeacherStudentDirectoryState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Handle
               Center(
                 child: Container(
                   width: 40,
@@ -257,8 +201,6 @@ class _TeacherStudentDirectoryState
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Avatar & Name Info
               Row(
                 children: [
                   Container(
@@ -307,8 +249,6 @@ class _TeacherStudentDirectoryState
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Call & Message buttons
               Row(
                 children: [
                   Expanded(
@@ -364,8 +304,6 @@ class _TeacherStudentDirectoryState
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Performance Card
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
@@ -408,8 +346,6 @@ class _TeacherStudentDirectoryState
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Close button
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: TextButton.styleFrom(
@@ -459,6 +395,142 @@ class _TeacherStudentDirectoryState
     );
   }
 
+  List<AzureGridColumn<StudentDirectoryEntry>> _buildGridColumns() {
+    return [
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Roll No',
+        width: 80.0,
+        compare: (a, b) => a.rollNo.compareTo(b.rollNo),
+        cellBuilder: (s) => Text(s.rollNo),
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Student Name',
+        width: 180.0,
+        compare: (a, b) => a.name.compareTo(b.name),
+        cellBuilder: (s) {
+          final isWarning = (s.avgMarks != null && s.avgMarks! > 0.0 && s.avgMarks! < 50.0) ||
+              (s.attendancePct != null && s.attendancePct! > 0.0 && s.attendancePct! < 75.0);
+          return Row(
+            children: [
+              CircleAvatar(
+                radius: 10,
+                backgroundColor: const Color(0xFFFEF3C7),
+                child: Text(
+                  s.name.isNotEmpty ? s.name[0].toUpperCase() : '',
+                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  s.name + (isWarning ? ' ⚠️' : ''),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Class',
+        width: 90.0,
+        compare: (a, b) => a.class_.compareTo(b.class_),
+        cellBuilder: (s) => Text(s.class_),
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Email',
+        width: 160.0,
+        cellBuilder: (s) => Text(s.email ?? 'N/A'),
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Phone',
+        width: 110.0,
+        cellBuilder: (s) => Text(s.phone ?? s.parentPhone ?? 'N/A'),
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Parent Name',
+        width: 120.0,
+        cellBuilder: (s) => Text(s.parentName ?? 'N/A'),
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Avg Marks',
+        width: 90.0,
+        compare: (a, b) => (a.avgMarks ?? 0.0).compareTo(b.avgMarks ?? 0.0),
+        cellBuilder: (s) {
+          final grade = _getGradeString(s.avgMarks);
+          final isWarning = s.avgMarks != null && s.avgMarks! > 0.0 && s.avgMarks! < 50.0;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isWarning ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              grade,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isWarning ? const Color(0xFFEF4444) : const Color(0xFF059669),
+              ),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Attendance',
+        width: 90.0,
+        compare: (a, b) => (a.attendancePct ?? 0.0).compareTo(b.attendancePct ?? 0.0),
+        cellBuilder: (s) {
+          final pct = s.attendancePct != null ? '${s.attendancePct!.toStringAsFixed(0)}%' : '0%';
+          final isWarning = s.attendancePct != null && s.attendancePct! > 0.0 && s.attendancePct! < 75.0;
+          return Text(
+            pct,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isWarning ? const Color(0xFFEF4444) : const Color(0xFF059669),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<StudentDirectoryEntry>(
+        label: 'Actions',
+        width: 110.0,
+        cellBuilder: (s) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.phone, size: 14, color: Colors.blue),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _makePhoneCall(s),
+              tooltip: 'Call Student/Parent',
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.message, size: 14, color: Colors.green),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => context.push('/teacher/messaging?chat_id=${s.id}'),
+              tooltip: 'Message Student',
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.account_circle, size: 14, color: Colors.orange),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () {
+                final idx = _allStudents.indexOf(s);
+                _showStudentProfile(s, idx >= 0 ? idx : 0);
+              },
+              tooltip: 'View Profile',
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -476,198 +548,92 @@ class _TeacherStudentDirectoryState
                 end: Alignment.bottomRight,
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () =>
-                          safeGoBack(context, '/teacher/dashboard'),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Student Directory',
-                      style: TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${_students.length} Students',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Student Directory',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
           ),
 
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  hintText: '🔍 Search students by name, roll no...',
-                  hintStyle: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF94A3B8),
-                  ),
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-                onChanged: (_) => _loadStudents(),
-              ),
-            ),
-          ),
-
-          // Class filter chips
-          if (_classes.length > 1)
-            SizedBox(
-              height: 52,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                itemCount: _classes.length,
-                itemBuilder: (context, index) {
-                  final class_ = _classes[index];
-                  final isSelected = _selectedClass == class_;
-                  final count = _classCounts[class_] ?? 0;
-                  final displayLabel = "$class_ ($count)";
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedClass = class_;
-                        if (_selectedClass == 'All') {
-                          _students = _allStudents;
-                        } else {
-                          _students = _allStudents.where((s) {
-                            if (s.class_ == _selectedClass) return true;
-                            final normalizedS = s.class_
-                                .replaceAll(RegExp(r'[\s-]'), '')
-                                .toLowerCase();
-                            final normalizedSel = _selectedClass
-                                .replaceAll(RegExp(r'[\s-]'), '')
-                                .toLowerCase();
-                            return normalizedS == normalizedSel;
-                          }).toList();
-                        }
-                      });
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFD97706)
-                            : const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: const Color(0xFFFDE68A), width: 1),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        displayLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFFD97706),
+          // Main content using AzureGrid
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD97706)),
+                    ),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadData,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD97706),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text('Retry'.tr(ref)),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: AzureGrid<StudentDirectoryEntry>(
+                          title: 'Directory Records',
+                          items: _allStudents,
+                          columns: _buildGridColumns(),
+                          searchMatcher: (s) => '${s.name} ${s.rollNo} ${s.email ?? ""} ${s.phone ?? ""} ${s.parentName ?? ""}',
+                          filters: [
+                            if (_classes.isNotEmpty)
+                              AzureGridFilter<StudentDirectoryEntry>(
+                                label: 'Class',
+                                options: _classes,
+                                filterFn: (s, option) {
+                                  if (s.class_ == option) return true;
+                                  final normalizedS = s.class_.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
+                                  final normalizedSel = option.replaceAll(RegExp(r'[\s-]'), '').toLowerCase();
+                                  return normalizedS == normalizedSel;
+                                },
+                              ),
+                            AzureGridFilter<StudentDirectoryEntry>(
+                              label: 'Performance',
+                              options: ['Good Standing', 'Warning Status'],
+                              filterFn: (s, option) {
+                                final isWarning = (s.avgMarks != null && s.avgMarks! > 0.0 && s.avgMarks! < 50.0) ||
+                                    (s.attendancePct != null && s.attendancePct! > 0.0 && s.attendancePct! < 75.0);
+                                if (option == 'Warning Status') return isWarning;
+                                return !isWarning;
+                              },
+                            ),
+                          ],
+                          onRefresh: _loadStudents,
+                          mobileCardBuilder: (context, student) {
+                            final index = _allStudents.indexOf(student);
+                            return _buildStudentTile(student, index >= 0 ? index : 0);
+                          },
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          // Loading state
-          if (_isLoading)
-            const Expanded(
-              child: Center(
-                  child: CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFFD97706)))),
-            ),
-
-          // Error state
-          if (_error != null)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Colors.red),
-                    const SizedBox(height: 16),
-                    Text('Error: $_error',
-                        style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadData,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD97706),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: Text('Retry'.tr(ref)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // Students list
-          if (!_isLoading && _error == null)
-            Expanded(
-              child: _students.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No students found'.tr(ref),
-                        style: const TextStyle(color: Color(0xFF94A3B8)),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      itemCount: _students.length,
-                      itemBuilder: (context, index) {
-                        return _buildStudentTile(_students[index], index);
-                      },
-                    ),
-            ),
+          ),
         ],
       ),
     );
@@ -681,9 +647,6 @@ class _TeacherStudentDirectoryState
         .take(2)
         .join();
 
-    // Warning state: average score < 50% or attendance < 75%
-    // If the stats are 0, they might not be set or loaded yet, let's treat average marks > 0 and < 50 or attendance > 0 and < 75
-    // But wait, the mockup has Sanjay Mehta with 42% avg. Let's make the warning trigger whenever they are strictly below 50 / 75
     final isWarning = (student.avgMarks != null &&
             student.avgMarks! > 0.0 &&
             student.avgMarks! < 50.0) ||
@@ -694,14 +657,12 @@ class _TeacherStudentDirectoryState
     return GestureDetector(
       onTap: () => _showStudentProfile(student, index),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isWarning ? const Color(0xFFFEF2F2) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color:
-                isWarning ? const Color(0xFFFECACA) : const Color(0xFFF1F5F9),
+            color: isWarning ? const Color(0xFFFECACA) : const Color(0xFFF1F5F9),
             width: 1,
           ),
           boxShadow: [
@@ -714,7 +675,6 @@ class _TeacherStudentDirectoryState
         ),
         child: Row(
           children: [
-            // Avatar
             Container(
               width: 42,
               height: 42,
@@ -734,8 +694,6 @@ class _TeacherStudentDirectoryState
               ),
             ),
             const SizedBox(width: 12),
-
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -764,16 +722,11 @@ class _TeacherStudentDirectoryState
                 ],
               ),
             ),
-
-            // Buttons
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Call
                 GestureDetector(
-                  onTap: () {
-                    _makePhoneCall(student);
-                  },
+                  onTap: () => _makePhoneCall(student),
                   child: Container(
                     width: 34,
                     height: 34,
@@ -796,12 +749,8 @@ class _TeacherStudentDirectoryState
                   ),
                 ),
                 const SizedBox(width: 8),
-
-                // Message
                 GestureDetector(
-                  onTap: () {
-                    context.push('/teacher/messaging?chat_id=${student.id}');
-                  },
+                  onTap: () => context.push('/teacher/messaging?chat_id=${student.id}'),
                   child: Container(
                     width: 34,
                     height: 34,

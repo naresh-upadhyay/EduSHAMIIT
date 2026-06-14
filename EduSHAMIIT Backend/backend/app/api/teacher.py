@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, Request
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncio
 import httpx
 import uuid
@@ -62,14 +62,24 @@ async def teacher_classes(user=Depends(require_teacher), school_id=Depends(requi
 
 
 @router.get("/subjects")
-async def teacher_subjects(class_name: Optional[str] = None, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+async def teacher_subjects(
+    class_name: Optional[str] = None,
+    all_subjects: Optional[bool] = False,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
     sb = get_supabase()
     query = sb.table("subjects").select("*").eq("school_id", school_id)
     if class_name:
         query = query.eq("class", class_name)
-    else:
-        query = query.eq("teacher_id", user["id"])
-    subjects = (await query.aexecute()).data or []
+    elif not all_subjects:
+        classes_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
+        teacher_classes = list({row["class"] for row in classes_res.data if row.get("class")})
+        if teacher_classes:
+            query = query.in_("class", teacher_classes)
+        else:
+            query = query.eq("teacher_id", user["id"])
+    subjects = (await query.order("name").aexecute()).data or []
     return {"success": True, "school_id": school_id, "data": {"subjects": subjects}}
 
 
@@ -386,6 +396,15 @@ async def schedule_timetable_slot(request: dict, user=Depends(require_teacher), 
     
     if not date_str or not slot_type or not custom_subject or not class_name or not start_time or not end_time:
         raise HTTPException(status_code=400, detail="Missing required fields")
+
+    # Verify teacher is assigned to the class they are scheduling
+    tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
+    assigned_classes = {row["class"].strip().upper() for row in (tt_res.data or []) if row.get("class")}
+    if class_name.strip().upper() not in assigned_classes:
+        raise HTTPException(
+            status_code=403,
+            detail=f"You are not authorized to schedule slots for class '{class_name}'. You are only assigned to: {', '.join(assigned_classes)}"
+        )
         
     try:
         target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -445,16 +464,119 @@ async def schedule_timetable_slot(request: dict, user=Depends(require_teacher), 
 
 @router.post("/exams/create")
 async def create_exam(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    print("Incoming create_exam payload:", request)
     sb = get_supabase()
+    
+    # 1. Map subject name to subject_id if needed
+    subject_id = request.get("subject_id")
+    subject_name = request.get("subject")
+    if not subject_id and subject_name:
+        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            subject_id = subj_res.data["id"]
+            
+    # 2. Map class / class_id to target_classes
+    target_classes = request.get("target_classes")
+    if not target_classes:
+        class_val = request.get("class") or request.get("class_id")
+        if class_val:
+            target_classes = [class_val]
+
+    # Verify teacher is assigned to these target classes
+    if target_classes:
+        tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
+        assigned_classes = {row["class"].strip().upper() for row in (tt_res.data or []) if row.get("class")}
+        for tc in target_classes:
+            if tc.strip().upper() not in assigned_classes:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"You are not authorized to create exams for class '{tc}'. You are only assigned to: {', '.join(assigned_classes)}"
+                )
+            
+    # 3. Ensure start_time and end_time are set
+    exam_date = request.get("exam_date")
+    start_time = request.get("start_time")
+    
+    # extract duration digits from string if it comes as "90 mins"
+    dur_val = request.get("duration_minutes") or request.get("duration") or 90
+    if isinstance(dur_val, str):
+        # find digits in string
+        digits = "".join([c for c in dur_val if c.isdigit()])
+        duration_minutes = int(digits) if digits else 90
+    else:
+        duration_minutes = int(dur_val)
+    
+    if not start_time and exam_date:
+        start_time = f"{exam_date}T09:00:00"
+        
+    if start_time:
+        try:
+            from datetime import timedelta, timezone
+            def parse_to_utc_dt(s: str) -> datetime:
+                if not s:
+                    return None
+                if s.endswith("Z"):
+                    s = s[:-1] + "+00:00"
+                try:
+                    dt = datetime.fromisoformat(s)
+                except ValueError:
+                    from dateutil.parser import parse
+                    dt = parse(s)
+                if dt.tzinfo is None:
+                    # Naive datetime. Assume Indian Standard Time (+5:30)
+                    dt = dt.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+                return dt.astimezone(timezone.utc)
+
+            start_dt = parse_to_utc_dt(start_time)
+            start_time = start_dt.isoformat()
+            end_time = (start_dt + timedelta(minutes=duration_minutes)).isoformat()
+        except Exception as e:
+            print("Error parsing start_time in backend:", e)
+            end_time = None
+    else:
+        end_time = None
+        
+    venue = request.get("venue")
+    if not venue:
+        venue = "Online Portal" if request.get("exam_type") == "online" else "Classroom"
+        
+    status_val = request.get("status") or "new"
+    if status_val in ("published", "scheduled", "ready"):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot schedule or publish an exam with 0 questions. Please add questions using the Paper Builder first."
+        )
+
     exam = await sb.table("exams").insert({
-        "school_id": school_id, "subject_id": request.get("subject_id"), "teacher_id": user["id"],
-        "title": request.get("title"), "exam_type": request.get("exam_type", "offline"),
-        "exam_category": request.get("exam_category"), "exam_date": request.get("exam_date"),
-        "start_time": request.get("start_time"), "duration_minutes": request.get("duration_minutes", 90),
-        "total_marks": request.get("total_marks", 100), "venue": request.get("venue"),
-        "target_classes": request.get("target_classes"), "status": "upcoming",
+        "school_id": school_id,
+        "subject_id": subject_id,
+        "teacher_id": user["id"],
+        "title": request.get("title"),
+        "exam_type": request.get("exam_type", "offline"),
+        "exam_category": request.get("exam_category") or request.get("exam_type", "Unit Test"),
+        "exam_date": exam_date,
+        "start_time": start_time,
+        "end_time": end_time,
+        "duration_minutes": duration_minutes,
+        "total_marks": int(request.get("total_marks") or 100),
+        "venue": venue,
+        "target_classes": target_classes,
+        "status": status_val,
+        "instructions": request.get("instructions"),
+        "syllabus": request.get("syllabus"),
+        "negative_marking": request.get("negative_marking", False),
+        "shuffle_questions": request.get("shuffle_questions", True),
+        "shuffle_options": request.get("shuffle_options", True),
+        "allow_calculator": request.get("allow_calculator", False),
+        "camera_required": request.get("camera_required", True),
+        "mic_required": request.get("mic_required", True),
+        "auto_submit_on_timer": request.get("auto_submit_on_timer", True),
+        "passcode": request.get("passcode"),
+        "target_students": request.get("target_students"),
+        "scope": request.get("scope", "All Students")
     }).aexecute()
-    return {"success": True, "school_id": school_id, "data": {"exam_id": exam.data[0]["id"]}}
+    
+    return {"success": True, "school_id": school_id, "data": {"exam_id": exam.data[0]["id"] if exam.data else None}}
 
 
 @router.post("/exams/generate-questions")
@@ -1276,20 +1398,81 @@ async def teacher_get_homework(status: str = None, user=Depends(get_current_user
 @router.get("/exams")
 async def teacher_get_exams(type: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    query = sb.table("exams").select("*, subjects(name, class)").eq("school_id", school_id)
-    exams_data = (await query.order("start_time", ascending=False).aexecute()).data
+    query = sb.table("exams").select("*, subjects(name, class)").eq("school_id", school_id).eq("teacher_id", user["id"])
+    exams_data = (await query.order("created_at", ascending=False).aexecute()).data
     
+    exam_ids = [e["id"] for e in exams_data]
+    question_counts = {}
+    joined_counts = {}
+    completed_counts = {}
+    
+    if exam_ids:
+        # Get count of questions grouped by exam_id
+        q_count_res = await sb.table("exam_questions").select("exam_id").in_("exam_id", exam_ids).aexecute()
+        for row in (q_count_res.data or []):
+            eid = row.get("exam_id")
+            if eid:
+                question_counts[eid] = question_counts.get(eid, 0) + 1
+                
+        # Get count of sessions (joined) grouped by exam_id
+        sessions_res = await sb.table("exam_sessions").select("exam_id, student_id").in_("exam_id", exam_ids).aexecute()
+        joined_sets = {}
+        for row in (sessions_res.data or []):
+            eid = row.get("exam_id")
+            sid = row.get("student_id")
+            if eid and sid:
+                joined_sets.setdefault(eid, set()).add(sid)
+        for eid, sids in joined_sets.items():
+            joined_counts[eid] = len(sids)
+            
+        # Get count of submissions (completed) grouped by exam_id
+        submissions_res = await sb.table("exam_submissions").select("exam_id, student_id").in_("exam_id", exam_ids).aexecute()
+        completed_sets = {}
+        for row in (submissions_res.data or []):
+            eid = row.get("exam_id")
+            sid = row.get("student_id")
+            if eid and sid:
+                completed_sets.setdefault(eid, set()).add(sid)
+        for eid, sids in completed_sets.items():
+            completed_counts[eid] = len(sids)
+
     for e in exams_data:
         subj = e.get("subjects") or {}
         e["subject"] = subj.get("name", "Unknown")
-        if not e.get("class"):
+        
+        tc = e.get("target_classes")
+        if tc:
+            if isinstance(tc, str):
+                try:
+                    import json
+                    tc = json.loads(tc)
+                except Exception:
+                    pass
+            if isinstance(tc, list):
+                e["class"] = ", ".join(tc)
+            else:
+                e["class"] = str(tc)
+        else:
             e["class"] = subj.get("class", "Unknown")
+            
         if not e.get("exam_date"):
-            e["exam_date"] = e.get("start_time")
+            e["exam_date"] = e.get("start_time")[:10] if e.get("start_time") else None
+            
         e["duration"] = str(e.get("duration_minutes", 0)) + " mins"
+        e["question_count"] = question_counts.get(e["id"], 0)
+        e["joined_count"] = joined_counts.get(e["id"], 0)
+        e["completed_count"] = completed_counts.get(e["id"], 0)
         
     if type and type.lower() != 'all':
-        exams_data = [e for e in exams_data if (e.get("exam_type") or "").lower() == type.lower()]
+        exams_data = [
+            e for e in exams_data 
+            if (e.get("exam_type") or "").lower() == type.lower() 
+            or (e.get("exam_category") or "").lower() == type.lower()
+            or (type.lower() == 'term' and (e.get("exam_category") or "").lower() == 'mid term')
+            or (type.lower() == 'unit' and (e.get("exam_category") or "").lower() == 'unit test')
+            or (type.lower() == 'quiz' and (e.get("exam_category") or "").lower() == 'practice test')
+            or (type.lower() == 'final' and (e.get("exam_category") or "").lower() == 'final exam')
+        ]
 
     return {"success": True, "school_id": school_id, "data": {"exams": exams_data}}
 
@@ -1905,4 +2088,592 @@ async def cancel_salary_advance(
     # Delete from database
     await sb.table("salary_advances").delete().eq("id", advance_id).aexecute()
     return {"success": True, "message": "Salary advance request cancelled successfully"}
+
+
+# ─── ONLINE EXAMS CRUD ENDPOINTS FOR TEACHERS ───
+
+async def _update_exam_questions_status(sb, exam_id: str):
+    # Count the questions
+    q_res = await sb.table("exam_questions").select("id").eq("exam_id", exam_id).aexecute()
+    q_count = len(q_res.data) if q_res.data else 0
+    
+    # Get current exam status
+    exam_res = await sb.table("exams").select("status").eq("id", exam_id).maybe_single().aexecute()
+    if exam_res.data:
+        current_status = exam_res.data.get("status")
+        # Only transition between 'new', 'draft' and 'in_progress'
+        if q_count > 0 and current_status in ('new', 'draft'):
+            await sb.table("exams").update({"status": "in_progress"}).eq("id", exam_id).aexecute()
+        elif q_count == 0 and current_status == 'in_progress':
+            await sb.table("exams").update({"status": "new"}).eq("id", exam_id).aexecute()
+
+@router.get("/exams/{exam_id}/questions")
+async def teacher_get_exam_questions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    res = await sb.table("exam_questions").select("*").eq("exam_id", exam_id).order("order_number").aexecute()
+    return {"success": True, "school_id": school_id, "data": {"questions": res.data}}
+
+
+@router.post("/exams/{exam_id}/questions")
+async def teacher_add_exam_question(exam_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Fetch current max order_number
+    questions = (await sb.table("exam_questions").select("order_number").eq("exam_id", exam_id).aexecute()).data
+    next_order = max([q.get("order_number", 0) for q in questions] + [0]) + 1
+    
+    new_q = {
+        "exam_id": exam_id,
+        "question_text": request.get("question_text"),
+        "question_type": request.get("question_type", "mcq"),
+        "options": request.get("options"),
+        "correct_answer": request.get("correct_answer"),
+        "marks": request.get("marks", 1),
+        "order_number": request.get("order_number", next_order),
+    }
+    res = await sb.table("exam_questions").insert(new_q).aexecute()
+    await _update_exam_questions_status(sb, exam_id)
+    return {"success": True, "school_id": school_id, "data": res.data[0]}
+
+
+@router.put("/exams/{exam_id}/questions/{question_id}")
+async def teacher_update_exam_question(exam_id: str, question_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    allowed = {"question_text", "question_type", "options", "correct_answer", "marks", "order_number"}
+    updates = {k: v for k, v in request.items() if k in allowed}
+    res = await sb.table("exam_questions").update(updates).eq("id", question_id).eq("exam_id", exam_id).aexecute()
+    return {"success": True, "school_id": school_id, "data": res.data[0]}
+
+
+@router.delete("/exams/{exam_id}/questions/{question_id}")
+async def teacher_delete_exam_question(exam_id: str, question_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    await sb.table("exam_questions").delete().eq("id", question_id).eq("exam_id", exam_id).aexecute()
+    await _update_exam_questions_status(sb, exam_id)
+    return {"success": True, "school_id": school_id, "message": "Question deleted"}
+
+
+@router.get("/exams/{exam_id}/submissions")
+async def teacher_get_exam_submissions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    res = await sb.table("exam_submissions").select("*, profiles!student_id(full_name, roll_number)").eq("exam_id", exam_id).aexecute()
+    return {"success": True, "school_id": school_id, "data": {"submissions": res.data}}
+
+
+@router.post("/exams/{exam_id}/submissions/{submission_id}/grade")
+async def teacher_grade_exam_submission(exam_id: str, submission_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    update_data = {
+        "score": request.get("score"),
+        "status": "graded",
+        "graded_at": datetime.utcnow().isoformat(),
+    }
+    res = await sb.table("exam_submissions").update(update_data).eq("id", submission_id).eq("exam_id", exam_id).aexecute()
+    return {"success": True, "school_id": school_id, "data": res.data[0]}
+
+
+@router.get("/exams/{exam_id}/sessions")
+async def teacher_get_exam_sessions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    res = await sb.table("exam_sessions").select("*, profiles!student_id(full_name, roll_number)").eq("exam_id", exam_id).aexecute()
+    return {"success": True, "school_id": school_id, "data": {"sessions": res.data}}
+
+
+@router.post("/exams/{exam_id}/sessions/{session_id}/action")
+async def teacher_proctor_action(
+    exam_id: str,
+    session_id: str,
+    request: dict,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    action = request.get("action") # warn, pause, resume, extend, submit, suspend
+    extra_minutes = request.get("extra_minutes", 0)
+    message = request.get("message", "")
+    
+    sess_res = await sb.table("exam_sessions").select("*").eq("id", session_id).eq("exam_id", exam_id).maybe_single().aexecute()
+    sess = sess_res.data
+    if not sess:
+        raise HTTPException(status_code=404, detail="Proctor session not found")
+        
+    update_data = {}
+    current_logs = sess.get("proctor_logs") or []
+    if not isinstance(current_logs, list):
+        current_logs = []
+    
+    now_time = datetime.now(timezone.utc).strftime("%H:%M:%S")
+
+    if action == "warn":
+        current_warnings = sess.get("warnings_count", 0) or 0
+        update_data["warnings_count"] = current_warnings + 1
+        msg = message or f"Warning issued by proctor (Count: {current_warnings + 1})"
+        update_data["teacher_message"] = msg
+        current_logs.append({"time": now_time, "event": f"Teacher Warning: {msg}", "severity": "warning"})
+    elif action == "pause":
+        update_data["is_paused"] = True
+        msg = message or "Your exam has been paused by the proctor."
+        update_data["teacher_message"] = msg
+        current_logs.append({
+            "time": now_time,
+            "event": "Exam session paused by proctor",
+            "severity": "info",
+            "paused_at_iso": datetime.now(timezone.utc).isoformat()
+        })
+    elif action == "resume":
+        update_data["is_paused"] = False
+        update_data["teacher_message"] = None
+        
+        # Shift started_at forward by pause duration
+        paused_at_iso = None
+        for log in reversed(current_logs):
+            if log.get("event") == "Exam session paused by proctor" and "paused_at_iso" in log:
+                paused_at_iso = log["paused_at_iso"]
+                break
+        if paused_at_iso:
+            try:
+                from dateutil.parser import parse
+                paused_at = parse(paused_at_iso)
+                pause_duration = datetime.now(timezone.utc) - paused_at
+                started_at_str = sess.get("started_at")
+                if started_at_str:
+                    started_at = parse(started_at_str)
+                    new_started_at = started_at + pause_duration
+                    update_data["started_at"] = new_started_at.isoformat()
+            except Exception:
+                pass
+                
+        current_logs.append({
+            "time": now_time,
+            "event": "Exam session resumed by proctor",
+            "severity": "info",
+            "resumed_at_iso": datetime.now(timezone.utc).isoformat()
+        })
+    elif action == "extend":
+        current_extra = sess.get("extra_minutes", 0) or 0
+        update_data["extra_minutes"] = current_extra + extra_minutes
+        current_logs.append({"time": now_time, "event": f"Extra {extra_minutes} minutes added by proctor", "severity": "info"})
+    elif action == "submit":
+        update_data["status"] = "completed"
+        update_data["ended_at"] = datetime.now(timezone.utc).isoformat()
+        current_logs.append({"time": now_time, "event": "Exam force-submitted by proctor", "severity": "info"})
+    elif action == "suspend":
+        update_data["status"] = "suspended"
+        update_data["ended_at"] = datetime.now(timezone.utc).isoformat()
+        current_logs.append({"time": now_time, "event": "Student suspended from exam by proctor", "severity": "error"})
+    elif action == "reopen":
+        update_data["status"] = "active"
+        update_data["ended_at"] = None
+        update_data["teacher_message"] = None
+        
+        # Adjust started_at to preserve the student's active exam duration spent so far
+        started_at_str = sess.get("started_at")
+        ended_at_str = sess.get("ended_at")
+        if started_at_str and ended_at_str:
+            try:
+                from dateutil.parser import parse
+                started_at = parse(started_at_str)
+                ended_at = parse(ended_at_str)
+                duration_spent = ended_at - started_at
+                new_started_at = datetime.now(timezone.utc) - duration_spent
+                update_data["started_at"] = new_started_at.isoformat()
+            except Exception:
+                update_data["started_at"] = datetime.now(timezone.utc).isoformat()
+        else:
+            update_data["started_at"] = datetime.now(timezone.utc).isoformat()
+
+        current_logs.append({"time": now_time, "event": "Exam session reopened by proctor", "severity": "info"})
+        # Update submission status to active so student can rejoin and resume saving answers
+        await sb.table("exam_submissions").update({"status": "active"}).eq("exam_id", exam_id).eq("student_id", sess["student_id"]).aexecute()
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported action: {action}")
+        
+    update_data["proctor_logs"] = current_logs
+    
+    res = await sb.table("exam_sessions").update(update_data).eq("id", session_id).aexecute()
+    return {"success": True, "data": res.data[0] if res.data else {}}
+
+
+@router.put("/exams/{exam_id}")
+async def teacher_update_exam(
+    exam_id: str,
+    request: dict,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id),
+):
+    print("Incoming update_exam payload:", request)
+    sb = get_supabase()
+    # verify teacher owns this exam or it is in the same school
+    check_exam = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not check_exam.data:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    if check_exam.data.get("teacher_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to modify this exam")
+
+    allowed = {
+        "title", "exam_type", "exam_category", "exam_date", "start_time", "end_time", 
+        "duration_minutes", "total_marks", "venue", "target_classes", "status", 
+        "instructions", "syllabus", "subject_id",
+        "negative_marking", "shuffle_questions", "shuffle_options", "allow_calculator", 
+        "camera_required", "mic_required", "auto_submit_on_timer",
+        "passcode", "target_students", "scope", "release_time"
+    }
+    update_data = {k: v for k, v in request.items() if k in allowed}
+
+    status_val = update_data.get("status")
+    if status_val in ("published", "scheduled", "ready"):
+        q_res = await sb.table("exam_questions").select("id").eq("exam_id", exam_id).aexecute()
+        if not q_res.data or len(q_res.data) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot schedule or publish an exam with 0 questions. Please add questions using the Paper Builder first."
+            )
+    
+    # translate subject name to subject_id
+    subject_name = request.get("subject")
+    if subject_name and not update_data.get("subject_id"):
+        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            update_data["subject_id"] = subj_res.data["id"]
+            
+    # translate class to target_classes
+    class_val = request.get("class") or request.get("class_id")
+    if class_val and not update_data.get("target_classes"):
+        update_data["target_classes"] = [class_val]
+
+    # Verify teacher is assigned to these target classes on update
+    if "target_classes" in update_data and update_data["target_classes"]:
+        tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
+        assigned_classes = {row["class"].strip().upper() for row in (tt_res.data or []) if row.get("class")}
+        for tc in update_data["target_classes"]:
+            if tc.strip().upper() not in assigned_classes:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"You are not authorized to assign exams to class '{tc}'. You are only assigned to: {', '.join(assigned_classes)}"
+                )
+        
+    # extract duration digits from string if it comes as "90 mins"
+    dur_val = request.get("duration_minutes") or request.get("duration")
+    if dur_val is not None:
+        if isinstance(dur_val, str):
+            digits = "".join([c for c in dur_val if c.isdigit()])
+            duration_minutes = int(digits) if digits else 90
+        else:
+            duration_minutes = int(dur_val)
+        update_data["duration_minutes"] = duration_minutes
+        
+    # ensure start_time is translated or formatted
+    from datetime import timezone, timedelta
+    def parse_to_utc_dt(s: str) -> datetime:
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(s)
+        except ValueError:
+            from dateutil.parser import parse
+            dt = parse(s)
+        if dt.tzinfo is None:
+            # Naive datetime. Assume Indian Standard Time (+5:30)
+            dt = dt.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        return dt.astimezone(timezone.utc)
+
+    start_time_raw = request.get("start_time")
+    if not start_time_raw and not check_exam.data.get("start_time"):
+        exam_date = request.get("exam_date") or check_exam.data.get("exam_date")
+        if exam_date:
+            start_time_raw = f"{exam_date}T09:00:00"
+            
+    if start_time_raw:
+        try:
+            start_dt = parse_to_utc_dt(start_time_raw)
+            update_data["start_time"] = start_dt.isoformat()
+            
+            # Recalculate end_time if start_time or duration_minutes is changed
+            dur_val = update_data.get("duration_minutes") or check_exam.data.get("duration_minutes") or 90
+            update_data["end_time"] = (start_dt + timedelta(minutes=dur_val)).isoformat()
+        except Exception as e:
+            print("Error parsing start_time on update in backend:", e)
+    elif "duration_minutes" in update_data:
+        existing_start = check_exam.data.get("start_time")
+        if existing_start:
+            try:
+                start_dt = parse_to_utc_dt(existing_start)
+                dur_val = update_data["duration_minutes"]
+                update_data["end_time"] = (start_dt + timedelta(minutes=dur_val)).isoformat()
+            except Exception as e:
+                print("Error recalculating end_time on duration update:", e)
+
+    # Normalize release_time to UTC if provided
+    release_time_raw = update_data.get("release_time")
+    if release_time_raw:
+        try:
+            release_dt = parse_to_utc_dt(release_time_raw)
+            update_data["release_time"] = release_dt.isoformat()
+        except Exception as e:
+            print("Error parsing release_time in backend:", e)
+
+    # Validate release_time is before start_time
+    final_start_time = update_data.get("start_time") or check_exam.data.get("start_time")
+    final_release_time = update_data.get("release_time") or check_exam.data.get("release_time")
+    if final_release_time and final_start_time:
+        try:
+            start_dt = parse_to_utc_dt(final_start_time)
+            release_dt = parse_to_utc_dt(final_release_time)
+            if release_dt >= start_dt:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Publish (release) date/time must be earlier than the exam start date/time."
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            print("Error validating release_time:", e)
+        
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields provided")
+        
+    res = await sb.table("exams").update(update_data).eq("id", exam_id).aexecute()
+    return {"success": True, "message": "Exam updated", "data": res.data[0] if res.data else {}}
+
+
+@router.delete("/exams/{exam_id}")
+async def teacher_delete_exam(
+    exam_id: str,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id),
+):
+    sb = get_supabase()
+    # verify teacher owns this exam
+    check_exam = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not check_exam.data:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    if check_exam.data.get("teacher_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this exam")
+        
+    # delete associated sessions, submissions, questions to prevent foreign key errors
+    await sb.table("exam_sessions").delete().eq("exam_id", exam_id).aexecute()
+    await sb.table("exam_submissions").delete().eq("exam_id", exam_id).aexecute()
+    await sb.table("exam_questions").delete().eq("exam_id", exam_id).aexecute()
+    
+    await sb.table("exams").delete().eq("id", exam_id).aexecute()
+    return {"success": True, "message": "Exam deleted"}
+
+
+@router.get("/question-bank")
+async def teacher_get_question_bank(
+    subject: str = None, 
+    difficulty: str = None, 
+    user=Depends(require_teacher), 
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    query = sb.table("question_bank").select("*, subjects(name)").eq("school_id", school_id)
+    if subject and subject != "All":
+        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject).limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            query = query.eq("subject_id", subj_res.data["id"])
+    if difficulty and difficulty != "All":
+        query = query.eq("difficulty", difficulty)
+    
+    res = await query.order("created_at", ascending=False).aexecute()
+    return {"success": True, "school_id": school_id, "data": {"questions": res.data or []}}
+
+
+@router.post("/question-bank")
+async def teacher_add_question_bank(
+    request: dict, 
+    user=Depends(require_teacher), 
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    subject_name = request.get("subject")
+    subject_id = request.get("subject_id")
+    if not subject_id and subject_name:
+        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            subject_id = subj_res.data["id"]
+            
+    if not subject_id:
+        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            subject_id = subj_res.data["id"]
+            
+    new_q = {
+        "school_id": school_id,
+        "teacher_id": user["id"],
+        "subject_id": subject_id,
+        "chapter": request.get("chapter", ""),
+        "question_text": request.get("question_text"),
+        "question_type": request.get("question_type", "mcq"),
+        "options": request.get("options"),
+        "correct_answer": request.get("correct_answer"),
+        "difficulty": request.get("difficulty", "Medium"),
+        "marks": int(request.get("marks", 1) or 1)
+    }
+    res = await sb.table("question_bank").insert(new_q).aexecute()
+    return {"success": True, "school_id": school_id, "data": res.data[0]}
+
+
+@router.put("/question-bank/{question_id}")
+async def teacher_update_question_bank(
+    question_id: str, 
+    request: dict, 
+    user=Depends(require_teacher), 
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    check_q = await sb.table("question_bank").select("*").eq("id", question_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not check_q.data:
+        raise HTTPException(status_code=404, detail="Question not found")
+        
+    allowed = {"question_text", "question_type", "options", "correct_answer", "difficulty", "marks", "chapter"}
+    updates = {k: v for k, v in request.items() if k in allowed}
+    
+    subject_name = request.get("subject")
+    if subject_name:
+        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            updates["subject_id"] = subj_res.data["id"]
+            
+    res = await sb.table("question_bank").update(updates).eq("id", question_id).aexecute()
+    return {"success": True, "school_id": school_id, "data": res.data[0]}
+
+
+@router.delete("/question-bank/{question_id}")
+async def teacher_delete_question_bank(
+    question_id: str, 
+    user=Depends(require_teacher), 
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    await sb.table("question_bank").delete().eq("id", question_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "school_id": school_id, "message": "Question deleted"}
+
+
+@router.get("/question-bank/export-template")
+async def export_question_template(type: str = "mcq", subject: str = None):
+    subj_name = subject.strip() if (subject and subject.strip()) else None
+    
+    # Select appropriate default fallback subject based on type
+    if type.lower() == "mcq":
+        active_sub = subj_name or "Physics"
+    elif type.lower() == "true_false":
+        active_sub = subj_name or "Chemistry"
+    elif type.lower() == "short_answer":
+        active_sub = subj_name or "Biology"
+    else:
+        active_sub = subj_name or "History"
+        
+    # Escape quotes cleanly without using backslashes inside f-strings
+    active_sub_escaped = '"' + active_sub.replace('"', '""') + '"'
+    
+    if type.lower() == "mcq":
+        content = f"subject,question_text,options,correct_answer,difficulty,marks,chapter\n{active_sub_escaped},What is the SI unit of force?,Newton|Joule|Pascal|Watt,Newton,Easy,1,Mechanics\n"
+    elif type.lower() == "true_false":
+        content = f"subject,question_text,correct_answer,difficulty,marks,chapter\n{active_sub_escaped},Water has a neutral pH of 7.,True,Easy,1,Acids and Bases\n"
+    elif type.lower() == "short_answer":
+        content = f"subject,question_text,model_answer,difficulty,marks,chapter\n{active_sub_escaped},Explain the function of mitochondria.,Mitochondria generate chemical energy in the form of ATP to power cell activities.,Medium,3,Cell Biology\n"
+    else:
+        content = f"subject,question_text,model_answer,difficulty,marks,chapter\n{active_sub_escaped},Describe the primary causes of World War I.,Militarism alliances imperialism and nationalism (MAIN causes) combined to spark the war.,Hard,5,Modern History\n"
+    
+    from fastapi.responses import StreamingResponse
+    import io
+    return StreamingResponse(
+        io.BytesIO(content.encode("utf-8")), 
+        media_type="text/csv", 
+        headers={"Content-Disposition": f"attachment; filename=template_{type}.csv"}
+    )
+
+
+@router.post("/question-bank/bulk-upload")
+async def bulk_upload_questions(
+    request: dict,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    csv_content = request.get("csv_content", "")
+    subject_name = request.get("subject", "Physics")
+    question_type = request.get("question_type", "mcq")
+    
+    # Retrieve all subjects for the school to resolve names dynamically
+    subj_res_all = await sb.table("subjects").select("id, name").eq("school_id", school_id).aexecute()
+    subjects_map = {s["name"].lower().strip(): s["id"] for s in subj_res_all.data} if subj_res_all.data else {}
+    
+    # Get a fallback subject ID matching subject_name from payload or fallback to first subject
+    default_subject_id = None
+    if subjects_map:
+        default_subject_id = subjects_map.get(subject_name.lower().strip())
+        if not default_subject_id:
+            default_subject_id = list(subjects_map.values())[0]
+            
+    if not default_subject_id:
+        raise HTTPException(status_code=400, detail="No subjects configured in the database. Please create a subject first.")
+
+    import csv
+    import io
+    
+    # Strip UTF-8 BOM if present
+    cleaned_csv = csv_content.strip().lstrip("\ufeff")
+    f = io.StringIO(cleaned_csv)
+    reader = csv.DictReader(f)
+    inserted = []
+    
+    for row in reader:
+        # Normalize keys: lowercase, stripped of spaces, check for None key/values
+        cleaned_row = {
+            (k.lower().strip() if k is not None else ""): (v.strip() if v is not None else "")
+            for k, v in row.items()
+        }
+        
+        q_text = cleaned_row.get("question_text")
+        if not q_text:
+            continue
+        
+        # Resolve subject name per row if available, else use default_subject_id
+        row_subject_name = cleaned_row.get("subject") or ""
+        row_subject_id = default_subject_id
+        if row_subject_name:
+            matched_id = subjects_map.get(row_subject_name.lower())
+            if matched_id:
+                row_subject_id = matched_id
+        
+        options = None
+        if question_type == "mcq":
+            opts_str = cleaned_row.get("options", "")
+            if opts_str:
+                options = [o.strip() for o in opts_str.split("|") if o.strip()]
+            else:
+                options = []
+                
+        correct = cleaned_row.get("correct_answer") or cleaned_row.get("model_answer") or ""
+        diff = cleaned_row.get("difficulty", "Medium")
+        
+        try:
+            marks = int(cleaned_row.get("marks", "1") or "1")
+        except ValueError:
+            marks = 1
+            
+        chap = cleaned_row.get("chapter", "")
+        
+        new_q = {
+            "school_id": school_id,
+            "teacher_id": user["id"],
+            "subject_id": row_subject_id,
+            "question_text": q_text,
+            "question_type": question_type,
+            "options": options,
+            "correct_answer": correct,
+            "difficulty": diff,
+            "marks": marks,
+            "chapter": chap
+        }
+        res = await sb.table("question_bank").insert(new_q).aexecute()
+        if res.data:
+            inserted.append(res.data[0])
+            
+    return {"success": True, "count": len(inserted), "questions": inserted}
+
+
 

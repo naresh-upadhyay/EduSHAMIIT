@@ -360,28 +360,28 @@ class TableQuery:
             url = f"{self.client.rest_url}/{self.table_name}"
 
         headers = self.client.headers.copy()
-        params = {}
+        params = []
 
         if self._operation == "select":
-            params["select"] = self._select
+            params.append(("select", self._select))
         
         if self._filters:
             for f in self._filters:
                 key, val = f.split("=", 1)
-                params[key] = val
+                params.append((key, val))
 
         if self._order:
-            params["order"] = self._order
+            params.append(("order", self._order))
         if self._limit:
-            params["limit"] = self._limit
+            params.append(("limit", self._limit))
         if self._offset:
-            params["offset"] = self._offset
+            params.append(("offset", self._offset))
 
         if self._single:
             headers["Prefer"] = "return=representation,resolution=merge-duplicates"
             headers["Accept"] = "application/vnd.pgrst.object+json"
         elif self._maybe_single:
-            params["limit"] = 1
+            params.append(("limit", 1))
 
         if self._count:
             prefer = headers.get("Prefer", "")
@@ -393,7 +393,7 @@ class TableQuery:
         if self._operation == "upsert":
             headers["Prefer"] = "return=representation,resolution=merge-duplicates"
             if hasattr(self, "_on_conflict") and self._on_conflict:
-                params["on_conflict"] = self._on_conflict
+                params.append(("on_conflict", self._on_conflict))
 
         return url, headers, params
 

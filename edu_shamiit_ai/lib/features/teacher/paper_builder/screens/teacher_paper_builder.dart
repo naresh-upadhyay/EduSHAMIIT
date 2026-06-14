@@ -18,16 +18,31 @@ class _TeacherPaperBuilderState extends ConsumerState<TeacherPaperBuilder> {
   final TeacherApiService _apiService = TeacherApiService();
   
   String _selectedSubject = 'All';
-  final List<String> _subjects = ['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
-  List<PaperQuestion> _questions = [];
+  List<String> _subjects = ['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
+  List<QuestionBankItem> _questions = [];
   bool _isLoading = true;
   String? _error;
-  final List<PaperQuestion> _selectedQuestions = [];
+  final List<QuestionBankItem> _selectedQuestions = [];
 
   @override
   void initState() {
     super.initState();
-    _loadQuestions();
+    _loadSubjects().then((_) {
+      if (mounted) _loadQuestions();
+    });
+  }
+
+  Future<void> _loadSubjects() async {
+    try {
+      final subjects = await _apiService.getSubjects(allSubjects: true);
+      if (mounted && subjects.isNotEmpty) {
+        setState(() {
+          _subjects = ['All', ...subjects.map((s) => s.name)];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading subjects in paper builder: $e');
+    }
   }
 
   Future<void> _loadQuestions() async {
@@ -200,10 +215,10 @@ class _TeacherPaperBuilderState extends ConsumerState<TeacherPaperBuilder> {
     );
   }
 
-  Widget _buildQuestionCard(PaperQuestion question) {
+  Widget _buildQuestionCard(QuestionBankItem question) {
     final isSelected = _selectedQuestions.contains(question);
     final typeIcon = _getTypeIcon(question.questionType);
-    final difficultyColor = _getDifficultyColor(question.difficulty ?? 'medium');
+    final difficultyColor = _getDifficultyColor(question.difficulty);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -285,7 +300,7 @@ class _TeacherPaperBuilderState extends ConsumerState<TeacherPaperBuilder> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        question.difficulty ?? 'Medium',
+                        question.difficulty,
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w600,

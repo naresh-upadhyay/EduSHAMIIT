@@ -7,6 +7,7 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/student_providers.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class StudentLibrary extends ConsumerStatefulWidget {
   const StudentLibrary({super.key});
@@ -43,6 +44,102 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     super.dispose();
   }
 
+  Widget _buildRequestForm() {
+    return Form(
+      key: _formKey,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE9D5FF)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6D28D9).withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Text('📋', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 6),
+                Text(
+                  'Request a New Acquisition',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF3B0764),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _buildRequestInputField(_titleController, 'Book Title',
+                'e.g. Introduction to Algorithms', true),
+            const SizedBox(height: 10),
+            _buildRequestInputField(_authorController, 'Author Name',
+                'e.g. Thomas H. Cormen', true),
+            const SizedBox(height: 10),
+            _buildRequestInputField(_isbnController, 'ISBN (Optional)',
+                'e.g. 978-0262033848', false),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _reasonController,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'Why do you need this book?',
+                labelStyle:
+                    const TextStyle(color: Color(0xFF6D28D9), fontSize: 13),
+                hintText: 'e.g. Required reference for CSE-301 curriculum',
+                hintStyle:
+                    const TextStyle(color: Colors.black38, fontSize: 12),
+                filled: true,
+                fillColor: const Color(0xFFFAF5FF),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE9D5FF)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: _submitRequest,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text(
+                  'Submit Request',
+                  style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final libraryState = ref.watch(libraryProvider);
@@ -52,6 +149,321 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
     final activeCount = borrows
         .where((b) => b.status == 'borrowed' || b.status.startsWith('pending'))
         .length;
+
+    // AzureGrid columns definitions
+    final myBooksColumns = [
+      AzureGridColumn<LibraryBorrow>(
+        label: 'Book Title',
+        width: 180.0,
+        compare: (a, b) => a.bookTitle.compareTo(b.bookTitle),
+        cellBuilder: (b) => Text(b.bookTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<LibraryBorrow>(
+        label: 'Author',
+        width: 130.0,
+        compare: (a, b) => a.bookAuthor.compareTo(b.bookAuthor),
+        cellBuilder: (b) => Text(b.bookAuthor),
+      ),
+      AzureGridColumn<LibraryBorrow>(
+        label: 'Borrow Date',
+        width: 110.0,
+        compare: (a, b) => a.borrowedAt.compareTo(b.borrowedAt),
+        cellBuilder: (b) => Text('${b.borrowedAt.day}/${b.borrowedAt.month}/${b.borrowedAt.year}'),
+      ),
+      AzureGridColumn<LibraryBorrow>(
+        label: 'Due Date',
+        width: 110.0,
+        compare: (a, b) {
+          if (a.dueDate == null && b.dueDate == null) return 0;
+          if (a.dueDate == null) return -1;
+          if (b.dueDate == null) return 1;
+          return a.dueDate!.compareTo(b.dueDate!);
+        },
+        cellBuilder: (b) => Text(b.dueDate != null ? '${b.dueDate!.day}/${b.dueDate!.month}/${b.dueDate!.year}' : 'N/A'),
+      ),
+      AzureGridColumn<LibraryBorrow>(
+        label: 'Status',
+        width: 110.0,
+        compare: (a, b) => a.status.compareTo(b.status),
+        cellBuilder: (b) {
+          final isOverdue = b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && !b.isReturned;
+          String statusLabel = 'Borrowed';
+          Color badgeBg = const Color(0xFFF5F3FF);
+          Color badgeText = const Color(0xFF6D28D9);
+
+          if (b.status == 'requested') {
+            statusLabel = 'Awaiting Issue';
+            badgeBg = const Color(0xFFFEF3C7);
+            badgeText = const Color(0xFFD97706);
+          } else if (b.status == 'pending_renew') {
+            statusLabel = 'Awaiting Renewal';
+            badgeBg = const Color(0xFFDBEAFE);
+            badgeText = const Color(0xFF1D4ED8);
+          } else if (b.status == 'pending_return') {
+            statusLabel = 'Awaiting Return';
+            badgeBg = const Color(0xFFE0F2FE);
+            badgeText = const Color(0xFF0369A1);
+          } else if (b.status == 'returned') {
+            statusLabel = 'Returned';
+            badgeBg = const Color(0xFFD1FAE5);
+            badgeText = const Color(0xFF065F46);
+          } else if (isOverdue) {
+            statusLabel = 'Overdue';
+            badgeBg = const Color(0xFFFEE2E2);
+            badgeText = const Color(0xFF991B1B);
+          }
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(4)),
+            child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeText)),
+          );
+        },
+      ),
+      AzureGridColumn<LibraryBorrow>(
+        label: 'Action',
+        width: 130.0,
+        cellBuilder: (b) {
+          final canRenew = b.status == 'borrowed';
+          final canReturn = b.status == 'borrowed';
+          if (!canRenew && !canReturn) return const Text('No Action');
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (canRenew)
+                SizedBox(
+                  height: 24,
+                  child: ElevatedButton(
+                    onPressed: () => _confirmRenew(b),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      backgroundColor: const Color(0xFF6D28D9),
+                    ),
+                    child: const Text('Renew', style: TextStyle(fontSize: 9, color: Colors.white)),
+                  ),
+                ),
+              if (canRenew && canReturn) const SizedBox(width: 4),
+              if (canReturn)
+                SizedBox(
+                  height: 24,
+                  child: OutlinedButton(
+                    onPressed: () => _confirmReturn(b),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      side: const BorderSide(color: Color(0xFF6D28D9)),
+                    ),
+                    child: const Text('Return', style: TextStyle(fontSize: 9, color: Color(0xFF6D28D9))),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    ];
+
+    final browseColumns = [
+      AzureGridColumn<LibraryBook>(
+        label: 'Title',
+        width: 180.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (bk) => Text(bk.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Author',
+        width: 130.0,
+        compare: (a, b) => a.author.compareTo(b.author),
+        cellBuilder: (bk) => Text(bk.author),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Category',
+        width: 120.0,
+        compare: (a, b) => a.category.compareTo(b.category),
+        cellBuilder: (bk) => Text(bk.category),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'ISBN',
+        width: 110.0,
+        cellBuilder: (bk) => Text(bk.isbn),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Available Copies',
+        width: 120.0,
+        compare: (a, b) => a.availableCopies.compareTo(b.availableCopies),
+        cellBuilder: (bk) => Text('${bk.availableCopies} / ${bk.totalCopies}'),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Action',
+        width: 110.0,
+        cellBuilder: (bk) {
+          final isAvailable = bk.availableCopies > 0;
+          return SizedBox(
+            height: 26,
+            child: ElevatedButton(
+              onPressed: () => _showBookDetailsDialog(bk),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                backgroundColor: isAvailable ? const Color(0xFF6D28D9) : Colors.grey,
+              ),
+              child: Text(isAvailable ? 'Request Borrow' : 'Details', style: const TextStyle(fontSize: 10, color: Colors.white)),
+            ),
+          );
+        },
+      ),
+    ];
+
+    final digitalColumns = [
+      AzureGridColumn<LibraryBook>(
+        label: 'Title',
+        width: 200.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (bk) => Text(bk.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Author',
+        width: 140.0,
+        compare: (a, b) => a.author.compareTo(b.author),
+        cellBuilder: (bk) => Text(bk.author),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Category',
+        width: 130.0,
+        compare: (a, b) => a.category.compareTo(b.category),
+        cellBuilder: (bk) => Text(bk.category),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Format',
+        width: 100.0,
+        cellBuilder: (bk) => Text(bk.isDigital ? 'PDF' : 'Physical'),
+      ),
+      AzureGridColumn<LibraryBook>(
+        label: 'Action',
+        width: 110.0,
+        cellBuilder: (bk) {
+          return SizedBox(
+            height: 26,
+            child: ElevatedButton(
+              onPressed: () => _showBookDetailsDialog(bk),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                backgroundColor: const Color(0xFF3B82F6),
+              ),
+              child: const Text('Read / Download', style: TextStyle(fontSize: 10, color: Colors.white)),
+            ),
+          );
+        },
+      ),
+    ];
+
+    final requestColumns = [
+      AzureGridColumn<LibraryBookRequest>(
+        label: 'Book Title',
+        width: 180.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (req) => Text(req.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      AzureGridColumn<LibraryBookRequest>(
+        label: 'Author',
+        width: 130.0,
+        compare: (a, b) => a.author.compareTo(b.author),
+        cellBuilder: (req) => Text(req.author),
+      ),
+      AzureGridColumn<LibraryBookRequest>(
+        label: 'Reason',
+        width: 150.0,
+        cellBuilder: (req) => Text(req.reason ?? 'N/A', overflow: TextOverflow.ellipsis),
+      ),
+      AzureGridColumn<LibraryBookRequest>(
+        label: 'Status',
+        width: 100.0,
+        compare: (a, b) => a.status.compareTo(b.status),
+        cellBuilder: (req) {
+          Color badgeBg = const Color(0xFFFEF3C7);
+          Color badgeText = const Color(0xFFD97706);
+          if (req.status == 'approved') {
+            badgeBg = const Color(0xFFD1FAE5);
+            badgeText = const Color(0xFF065F46);
+          } else if (req.status == 'rejected') {
+            badgeBg = const Color(0xFFFEE2E2);
+            badgeText = const Color(0xFF991B1B);
+          }
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(4)),
+            child: Text(req.status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeText)),
+          );
+        },
+      ),
+    ];
+
+    Widget tabContent;
+    if (libraryState.isLoading) {
+      tabContent = const Center(child: CircularProgressIndicator(color: Color(0xFF6D28D9)));
+    } else {
+      if (Responsive.isWide(context)) {
+        if (_selectedTab == 0) {
+          tabContent = AzureGrid<LibraryBorrow>(
+            title: 'My Borrowed Books',
+            items: borrows.where((b) => b.status != 'cancelled').toList(),
+            columns: myBooksColumns,
+            searchMatcher: (b) => '${b.bookTitle} ${b.bookAuthor} ${b.status}',
+            onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+            mobileCardBuilder: (context, b) => const SizedBox(),
+          );
+        } else if (_selectedTab == 1) {
+          tabContent = AzureGrid<LibraryBook>(
+            title: 'Browse Library Books',
+            items: libraryState.books.where((b) => !b.isDigital).toList(),
+            columns: browseColumns,
+            searchMatcher: (bk) => '${bk.title} ${bk.author} ${bk.isbn} ${bk.category}',
+            onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+            mobileCardBuilder: (context, bk) => const SizedBox(),
+          );
+        } else if (_selectedTab == 2) {
+          tabContent = AzureGrid<LibraryBook>(
+            title: 'Digital Library',
+            items: libraryState.books.where((b) => b.isDigital).toList(),
+            columns: digitalColumns,
+            searchMatcher: (bk) => '${bk.title} ${bk.author} ${bk.category}',
+            onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+            mobileCardBuilder: (context, bk) => const SizedBox(),
+          );
+        } else {
+          tabContent = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 4,
+                child: SingleChildScrollView(
+                  child: _buildRequestForm(),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 6,
+                child: AzureGrid<LibraryBookRequest>(
+                  title: 'My Book Requests',
+                  items: libraryState.requests.where((r) => r.status != 'cancelled').toList(),
+                  columns: requestColumns,
+                  searchMatcher: (r) => '${r.title} ${r.author} ${r.status}',
+                  onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+                  mobileCardBuilder: (context, r) => const SizedBox(),
+                ),
+              ),
+            ],
+          );
+        }
+      } else {
+        tabContent = ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          children: [
+            if (_selectedTab == 0) ..._buildMyBooksTab(borrows, libraryState),
+            if (_selectedTab == 1) ..._buildBrowseTab(libraryState),
+            if (_selectedTab == 2) ..._buildDigitalTab(libraryState),
+            if (_selectedTab == 3) ..._buildRequestTab(libraryState),
+            const SizedBox(height: 50),
+          ],
+        );
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF5FF),
@@ -66,90 +478,37 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 colors: [Color(0xFF3B0764), Color(0xFF6D28D9)],
               ),
             ),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () =>
-                          safeGoBack(context, '/student/dashboard'),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Library Portal',
-                      style: TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '📚 $activeCount Active',
-                        style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () =>
+                      safeGoBack(context, '/student/dashboard'),
                 ),
-                const SizedBox(height: 12),
-                // Search Bar
-                Container(
-                  decoration: BoxDecoration(
+                const SizedBox(width: 12),
+                const Text(
+                  'Library Portal',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(color: Colors.black87, fontSize: 14),
-                    onChanged: (val) {
-                      ref.read(libraryProvider.notifier).searchBooks(val);
-                      setState(() {});
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Search books, authors, isbn...',
-                      hintStyle:
-                          const TextStyle(color: Colors.black38, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search,
-                          color: Color(0xFF6D28D9), size: 20),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear,
-                                  color: Colors.black45, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                ref
-                                    .read(libraryProvider.notifier)
-                                    .searchBooks('');
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '📚 $activeCount Active',
+                    style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -173,25 +532,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           ),
 
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              children: [
-                if (libraryState.isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 100),
-                    child: Center(
-                        child: CircularProgressIndicator(
-                            color: Color(0xFF6D28D9))),
-                  )
-                else ...[
-                  if (_selectedTab == 0)
-                    ..._buildMyBooksTab(borrows, libraryState),
-                  if (_selectedTab == 1) ..._buildBrowseTab(libraryState),
-                  if (_selectedTab == 2) ..._buildDigitalTab(libraryState),
-                  if (_selectedTab == 3) ..._buildRequestTab(libraryState),
-                ],
-                const SizedBox(height: 50),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              child: tabContent,
             ),
           ),
         ],

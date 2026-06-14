@@ -8,6 +8,7 @@ import 'package:edu_shamiit_ai/core/providers/documents_provider.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
     if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
     if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
@@ -45,7 +46,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _searchController = TextEditingController();
-  String _searchQuery = '';
 
   static const _tabs = [null, ...DocumentCategory.values];
 
@@ -54,7 +54,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _searchController.addListener(_onSearchChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(documentsProvider.notifier).loadDocuments();
@@ -67,19 +66,35 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     ref.read(documentsProvider.notifier).setCategory(cat);
   }
 
-  void _onSearchChanged() {
-    setState(() {
-      _searchQuery = _searchController.text;
-    });
-  }
-
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  IconData _fileIcon(DocumentModel doc) {
+    final ext = doc.extension.toLowerCase();
+    if (['pdf'].contains(ext)) return Icons.picture_as_pdf_rounded;
+    if (['doc', 'docx'].contains(ext)) return Icons.description_rounded;
+    if (['xls', 'xlsx', 'csv'].contains(ext)) return Icons.table_chart_rounded;
+    if (['ppt', 'pptx'].contains(ext)) return Icons.slideshow_rounded;
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext)) {
+      return Icons.image_rounded;
+    }
+    if (['mp4', 'mov', 'avi'].contains(ext)) return Icons.video_file_rounded;
+    if (doc.isAiTextDoc) return Icons.smart_toy_rounded;
+    return Icons.insert_drive_file_rounded;
+  }
+
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
 
   @override
@@ -109,21 +124,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
       }
     });
 
-    final filtered = state.documents.where((d) {
-      if (_searchQuery.isEmpty) return true;
-      final q = _searchQuery.toLowerCase();
-      return d.title.toLowerCase().contains(q) ||
-          (d.description?.toLowerCase().contains(q) ?? false) ||
-          (d.fileName?.toLowerCase().contains(q) ?? false);
-    }).toList();
-
     return Scaffold(
       backgroundColor: _kSurface,
       body: Column(
         children: [
           _Header(
-            onUpload: _showUploadSheet,
-            searchController: _searchController,
             onBack: () {
               final auth = ref.read(authProvider);
               final isTeacher = auth.role.value == 'teacher';
@@ -143,16 +148,136 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                 ? const Center(
                     child: CircularProgressIndicator(color: _kPrimary),
                   )
-                : filtered.isEmpty
-                    ? _EmptyState(
-                        category: _tabs[_tabController.index],
-                        onUpload: _showUploadSheet,
-                      )
-                    : _DocumentGrid(
-                        documents: filtered,
+                : Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: AzureGrid<DocumentModel>(
+                      title: 'Documents Ledger',
+                      items: state.documents,
+                      onRefresh: () => ref.read(documentsProvider.notifier).loadDocuments(),
+                      extraCommandActions: [
+                        IconButton(
+                          icon: const Icon(Icons.upload_rounded, color: _kPrimary),
+                          tooltip: 'Upload Document',
+                          onPressed: _showUploadSheet,
+                        ),
+                      ],
+                      searchMatcher: (item) =>
+                          '${item.title} ${item.fileName ?? ""} ${item.description ?? ""} ${item.category.label}',
+                      filters: [
+                        AzureGridFilter<DocumentModel>(
+                          label: 'Category',
+                          options: DocumentCategory.values.map((e) => e.label).toList(),
+                          filterFn: (item, option) => item.category.label == option,
+                        ),
+                      ],
+                      columns: [
+                        AzureGridColumn<DocumentModel>(
+                          label: 'Title & Description',
+                          width: 250,
+                          compare: (a, b) => a.title.compareTo(b.title),
+                          cellBuilder: (item) => Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                item.title,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (item.description != null && item.description!.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.description!,
+                                  style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        AzureGridColumn<DocumentModel>(
+                          label: 'File Name',
+                          width: 180,
+                          compare: (a, b) => (a.fileName ?? '').compareTo(b.fileName ?? ''),
+                          cellBuilder: (item) => Row(
+                            children: [
+                              Icon(_fileIcon(item), size: 14, color: _catColor(item.category)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  item.fileName ?? '-',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AzureGridColumn<DocumentModel>(
+                          label: 'Category',
+                          width: 130,
+                          compare: (a, b) => a.category.label.compareTo(b.category.label),
+                          cellBuilder: (item) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _catColor(item.category).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              item.category.shortLabel,
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                                color: _catColor(item.category),
+                              ),
+                            ),
+                          ),
+                        ),
+                        AzureGridColumn<DocumentModel>(
+                          label: 'Size',
+                          width: 90,
+                          compare: (a, b) => a.fileSizeLabel.compareTo(b.fileSizeLabel),
+                          cellBuilder: (item) => Text(item.fileSizeLabel.isEmpty ? '-' : item.fileSizeLabel),
+                        ),
+                        AzureGridColumn<DocumentModel>(
+                          label: 'Created At',
+                          width: 120,
+                          compare: (a, b) => a.createdAt.compareTo(b.createdAt),
+                          cellBuilder: (item) => Text(_formatDate(item.createdAt)),
+                        ),
+                        AzureGridColumn<DocumentModel>(
+                          label: 'Actions',
+                          width: 120,
+                          cellBuilder: (item) => Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.download_rounded, size: 16, color: _kPrimary),
+                                onPressed: () => _downloadDocument(item),
+                                tooltip: 'Download',
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(4),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                                onPressed: () => _deleteDocument(item),
+                                tooltip: 'Delete',
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      mobileCardBuilder: (context, item) => _DocumentCard(
+                        doc: item,
                         onDownload: _downloadDocument,
                         onDelete: _deleteDocument,
                       ),
+                    ),
+                  ),
           ),
           if (state.isUploading)
             Container(
@@ -272,13 +397,9 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
 // ─── Header ──────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  final VoidCallback onUpload;
-  final TextEditingController searchController;
   final VoidCallback onBack;
 
   const _Header({
-    required this.onUpload,
-    required this.searchController,
     required this.onBack,
   });
 
@@ -294,105 +415,48 @@ class _Header extends StatelessWidget {
       ),
       padding: EdgeInsets.fromLTRB(
           12, MediaQuery.of(context).padding.top + 16, 20, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: onBack,
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.folder_rounded,
-                    color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'My Documents',
-                      style: TextStyle(
-                        fontFamily: AppFonts.heading,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'All your documents in one place',
-                      style: TextStyle(
-                        fontFamily: AppFonts.body,
-                        fontSize: 12,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: onBack,
           ),
-          const SizedBox(height: 16),
-          // Search bar
+          const SizedBox(width: 8),
           Container(
+            width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white, // Solid high-contrast white background
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.folder_rounded,
+                color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'My Documents',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'All your documents in one place',
+                  style: TextStyle(
+                    fontFamily: AppFonts.body,
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
                 ),
               ],
-            ),
-            child: TextField(
-              controller: searchController,
-              style: const TextStyle(
-                color: Color(0xFF0F172A), // Dark text to be highly visible
-                fontFamily: AppFonts.body,
-                fontSize: 14,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search documents…',
-                hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8), // High contrast slate hint text
-                  fontFamily: AppFonts.body,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: Color(0xFF64748B), // Slate icon color
-                  size: 20,
-                ),
-                suffixIcon: searchController.text.isNotEmpty
-                    ? IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: const Icon(
-                          Icons.clear_rounded,
-                          color: Color(0xFF94A3B8),
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          searchController.clear();
-                        },
-                      )
-                    : null,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
             ),
           ),
         ],

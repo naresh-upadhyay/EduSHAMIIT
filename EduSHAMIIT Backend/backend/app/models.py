@@ -367,7 +367,7 @@ class CreateExamRequest(BaseModel):
     title: str
     exam_type: Optional[str] = "offline"
     exam_category: Optional[str] = None
-    exam_date: str
+    exam_date: Optional[str] = None
     start_time: Optional[str] = None
     duration_minutes: Optional[int] = 90
     total_marks: Optional[int] = 100

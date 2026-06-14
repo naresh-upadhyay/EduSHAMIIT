@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -14,6 +15,8 @@ class WebSocketService {
   bool _isConnected = false;
   String? _serverUrl;
   String? _authToken;
+  int _reconnectAttempts = 0;
+  bool _isReconnecting = false;
   
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
@@ -39,6 +42,11 @@ class WebSocketService {
     Duration reconnectInterval = const Duration(seconds: 5),
   }) async {
     try {
+      // Prevent connection leak
+      if (_channel != null || _isConnected) {
+        await disconnect();
+      }
+
       _serverUrl = serverUrl;
       _authToken = authToken;
 
@@ -69,7 +77,7 @@ class WebSocketService {
           debugPrint('WebSocket connection closed');
           
           if (autoReconnect) {
-            _reconnect(reconnectInterval);
+            _reconnect();
           }
         },
         onError: (error) {
@@ -82,6 +90,7 @@ class WebSocketService {
       );
 
       _isConnected = true;
+      _reconnectAttempts = 0; // Reset on success
       _connectionController.add(true);
       debugPrint('WebSocket connected to $serverUrl');
 
@@ -92,7 +101,7 @@ class WebSocketService {
       debugPrint('WebSocket connection error: $e');
       
       if (autoReconnect) {
-        _reconnect(reconnectInterval);
+        _reconnect();
       }
     }
   }
@@ -159,16 +168,35 @@ class WebSocketService {
     });
   }
 
-  /// Reconnect to WebSocket server
-  Future<void> _reconnect(Duration interval) async {
-    debugPrint('Attempting to reconnect in ${interval.inSeconds} seconds...');
-    await Future.delayed(interval);
-    
-    if (_serverUrl != null && _authToken != null) {
-      await connect(
-        serverUrl: _serverUrl!,
-        authToken: _authToken!,
-      );
+  /// Reconnect to WebSocket server with exponential backoff and random jitter
+  Future<void> _reconnect() async {
+    if (_isReconnecting) return;
+    _isReconnecting = true;
+
+    try {
+      _reconnectAttempts++;
+      int backoffSeconds = 1 << _reconnectAttempts; // 2, 4, 8, 16, 32...
+      if (backoffSeconds > 60 || backoffSeconds <= 0) {
+        backoffSeconds = 60;
+      }
+      
+      final jitterPercent = (Random().nextDouble() * 0.4) - 0.2; // -20% to +20%
+      final jitterSeconds = backoffSeconds * jitterPercent;
+      final totalSeconds = (backoffSeconds + jitterSeconds).clamp(1.0, 60.0);
+      final delay = Duration(milliseconds: (totalSeconds * 1000).round());
+      
+      debugPrint('Attempting to reconnect (attempt $_reconnectAttempts) in ${totalSeconds.toStringAsFixed(2)} seconds...');
+      await Future.delayed(delay);
+      
+      if (_serverUrl != null && _authToken != null && !_isConnected) {
+        await connect(
+          serverUrl: _serverUrl!,
+          authToken: _authToken!,
+          autoReconnect: true,
+        );
+      }
+    } finally {
+      _isReconnecting = false;
     }
   }
 

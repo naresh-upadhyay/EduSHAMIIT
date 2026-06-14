@@ -10,6 +10,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
     if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
     if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
@@ -32,6 +33,8 @@ class _StudentFeesState extends ConsumerState<StudentFees>
   double _totalOutstanding = 0;
   bool _isLoading = true;
   String? _error;
+  bool _isOutstandingCollapsed = false;
+  DateTime _selectedAcademicYearDate = DateTime(2025, 6, 1);
 
   @override
   void initState() {
@@ -112,6 +115,15 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     return _formatDate(DateTime.now());
   }
 
+  String get _academicYearString {
+    final year = _selectedAcademicYearDate.year;
+    if (_selectedAcademicYearDate.month >= 6) {
+      return '$year-${(year + 1) % 100}';
+    } else {
+      return '${year - 1}-${year % 100}';
+    }
+  }
+
   String _formatAmount(double value) {
     return value.toStringAsFixed(0).replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -158,45 +170,23 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF0FDF9),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
-              ),
-              SizedBox(height: 16),
-              Text('Loading your fees...',
-                  style: TextStyle(color: Color(0xFF64748B))),
-            ],
-          ),
-        ),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF059669))),
       );
     }
 
     if (_error != null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF0FDF9),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline,
-                  size: 64, color: StudentColors.error),
-              const SizedBox(height: 16),
-              const Text(
-                'Failed to load fees',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              const Text('⚠️', style: TextStyle(fontSize: 40)),
               const SizedBox(height: 8),
               Text(
                 _error!,
@@ -219,84 +209,287 @@ class _StudentFeesState extends ConsumerState<StudentFees>
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0FDF9),
-      body: Column(
-        children: [
-          // Header with gradient
-          Container(
-            padding: EdgeInsets.fromLTRB(
-                0, Responsive.headerTopPadding(context), 0, 24),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF064E3B), Color(0xFF059669)],
+    // Grid Columns
+    final columns = [
+      AzureGridColumn<FeeRecord>(
+        label: 'Fee Description',
+        width: 180.0,
+        compare: (a, b) => a.month.compareTo(b.month),
+        cellBuilder: (fee) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_getFeeIcon(fee.month), style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                fee.month,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => safeGoBack(context, '/student/dashboard'),
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Fees & Payments',
-                          style: TextStyle(
-                            fontFamily: AppFonts.heading,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          'Academic Year 2025-26',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
+          ],
+        ),
+      ),
+      AzureGridColumn<FeeRecord>(
+        label: 'Due Date',
+        width: 120.0,
+        compare: (a, b) => a.dueDate.compareTo(b.dueDate),
+        cellBuilder: (fee) => Text(_formatDate(fee.dueDate)),
+      ),
+      AzureGridColumn<FeeRecord>(
+        label: 'Amount',
+        width: 100.0,
+        compare: (a, b) => a.amount.compareTo(b.amount),
+        cellBuilder: (fee) => Text('₹ ${_formatAmount(fee.amount)}'),
+      ),
+      AzureGridColumn<FeeRecord>(
+        label: 'Paid Amount',
+        width: 100.0,
+        compare: (a, b) => a.paidAmount.compareTo(b.paidAmount),
+        cellBuilder: (fee) => Text('₹ ${_formatAmount(fee.paidAmount)}'),
+      ),
+      AzureGridColumn<FeeRecord>(
+        label: 'Outstanding',
+        width: 100.0,
+        cellBuilder: (fee) {
+          final outstanding = fee.amount - fee.paidAmount;
+          final isZero = outstanding <= 0;
+          return Text(
+            '₹ ${_formatAmount(outstanding)}',
+            style: TextStyle(
+              fontWeight: isZero ? FontWeight.normal : FontWeight.bold,
+              color: isZero ? Colors.black87 : const Color(0xFFDC2626),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<FeeRecord>(
+        label: 'Status',
+        width: 90.0,
+        compare: (a, b) => a.status.compareTo(b.status),
+        cellBuilder: (fee) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: _getStatusBgColor(fee.status),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              _getStatusLabel(fee.status),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: _getStatusColor(fee.status),
+              ),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<FeeRecord>(
+        label: 'Action',
+        width: 120.0,
+        cellBuilder: (fee) {
+          final isPaid = fee.status == 'paid';
+          if (isPaid) {
+            return SizedBox(
+              height: 26,
+              child: OutlinedButton.icon(
+                onPressed: () => _downloadReceiptPdf([fee]),
+                icon: const Icon(Icons.receipt_long, size: 12),
+                label: const Text('Receipt', style: TextStyle(fontSize: 10)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  side: const BorderSide(color: Color(0xFF059669)),
+                  foregroundColor: const Color(0xFF059669),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
+              ),
+            );
+          } else {
+            return SizedBox(
+              height: 26,
+              child: ElevatedButton.icon(
+                onPressed: () => _showPaymentModal(context),
+                icon: const Icon(Icons.payment, size: 12, color: Colors.white),
+                label: const Text('Pay', style: TextStyle(fontSize: 10, color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  backgroundColor: const Color(0xFFEF4444),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
+              ),
+            );
+          }
+        },
+      ),
+    ];
+
+    // Grid Filters
+    final filters = [
+      AzureGridFilter<FeeRecord>(
+        label: 'Status',
+        options: ['Paid', 'Partial', 'Overdue', 'Pending'],
+        filterFn: (fee, selected) => fee.status.toLowerCase() == selected.toLowerCase(),
+      ),
+    ];
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0FDF9),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header with gradient
+            Container(
+              padding: EdgeInsets.fromLTRB(0, Responsive.headerTopPadding(context), 0, Responsive.isWide(context) ? 8 : 24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF064E3B), Color(0xFF059669)],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => safeGoBack(context, '/student/dashboard'),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: Colors.white70),
-                    onPressed: _loadFees,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Fees & Payments',
+                                style: TextStyle(
+                                  fontFamily: AppFonts.heading,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Academic Year Picker
+                          InkWell(
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedAcademicYearDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _selectedAcademicYearDate = picked;
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withAlpha(30),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.calendar_month, color: Colors.white, size: 14),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'AY $_academicYearString',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Collapsible Toggle Button for Outstanding Card
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => setState(() => _isOutstandingCollapsed = !_isOutstandingCollapsed),
+                    icon: Icon(_isOutstandingCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 16),
+                    label: Text(_isOutstandingCollapsed ? 'Show Balance Details' : 'Hide Balance Details', style: const TextStyle(fontSize: 11)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF059669),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
 
-          // Outstanding Balance Card (positioned overlapping header slightly)
-          Transform.translate(
-            offset: const Offset(0, -14),
-            child: _buildOutstandingCard(),
-          ),
+            // Outstanding Balance Card (overlapping slightly)
+            if (!_isOutstandingCollapsed)
+              Transform.translate(
+                offset: const Offset(0, -14),
+                child: Responsive.isWide(context)
+                    ? Center(
+                        child: SizedBox(
+                          width: 500, // Limit width on wide screens
+                          child: _buildOutstandingCard(),
+                        ),
+                      )
+                    : _buildOutstandingCard(),
+              ),
 
-          // Filter Chips (Pending, Paid, All, Receipts)
-          _buildFilterChips(),
-
-          // Content TabBarView
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildFeeList('Pending'),
-                _buildFeeList('Paid'),
-                _buildFeeList('All'),
-                _buildReceiptsList(),
-              ],
+            // Content Grid Table
+            Padding(
+              padding: Responsive.contentPadding(context).copyWith(bottom: 16),
+              child: AzureGrid<FeeRecord>(
+                title: 'All Invoices',
+                items: _feeRecords,
+                columns: columns,
+                filters: filters,
+                enableSelection: true,
+                disableVerticalScroll: true,
+                bulkActions: (context, selected) {
+                  final onlyPaid = selected.where((f) => f.status == 'paid').toList();
+                  if (onlyPaid.isEmpty) return [];
+                  return [
+                    ElevatedButton.icon(
+                      onPressed: () => _downloadReceiptPdf(onlyPaid),
+                      icon: const Icon(Icons.receipt_long, size: 14, color: Colors.white),
+                      label: const Text('Download Receipts', style: TextStyle(fontSize: 11, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                      ),
+                    )
+                  ];
+                },
+                searchMatcher: (fee) => '${fee.month} ${fee.status} ${fee.transactionId ?? ''}',
+                onRefresh: _loadFees,
+                mobileCardBuilder: (context, fee) {
+                  // Reuses list card builders if defined, otherwise falls back to a card widget.
+                  return _buildFeeCard(fee);
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -413,102 +606,6 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     );
   }
 
-  Widget _buildFilterChips() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: _filters.map((filter) {
-          final isSelected = _selectedFilter == filter;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedFilter = filter;
-                });
-                _tabController.animateTo(_filters.indexOf(filter));
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF059669)
-                      : const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  filter,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF059669),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildFeeList(String filter) {
-    final fees = filter == 'All'
-        ? _feeRecords
-        : filter == 'Paid'
-            ? _feeRecords.where((f) => f.status == 'paid').toList()
-            : _feeRecords
-                .where((f) =>
-                    f.status == 'pending' ||
-                    f.status == 'partial' ||
-                    f.status == 'overdue')
-                .toList();
-
-    if (fees.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              filter == 'Paid' ? Icons.check_circle : Icons.receipt,
-              size: 64,
-              color: const Color(0xFFCBD5E1),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              filter == 'Paid'
-                  ? 'No paid fees yet'
-                  : filter == 'Pending'
-                      ? 'No pending fees! 🎉'
-                      : 'No fee records',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            if (filter == 'Pending') ...[
-              const SizedBox(height: 8),
-              const Text(
-                'All fees have been cleared',
-                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: fees.length,
-      itemBuilder: (context, index) {
-        final fee = fees[index];
-        return _buildFeeCard(fee, showReceipt: false);
-      },
-    );
-  }
 
   Widget _buildFeeCard(FeeRecord fee, {bool showReceipt = false}) {
     final statusColor = _getStatusColor(fee.status);
@@ -782,275 +879,9 @@ class _StudentFeesState extends ConsumerState<StudentFees>
     );
   }
 
-  Widget _buildReceiptsList() {
-    final paidFees = _feeRecords.where((f) => f.status == 'paid').toList();
 
-    if (paidFees.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long, size: 64, color: Color(0xFFCBD5E1)),
-            SizedBox(height: 16),
-            Text(
-              'No receipts available',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Receipts will appear here once fees are paid',
-              style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-            ),
-          ],
-        ),
-      );
-    }
 
-    // Group paid fees by transaction ID
-    final Map<String, List<FeeRecord>> groupedReceipts = {};
-    for (var fee in paidFees) {
-      final txId = fee.transactionId ??
-          'TXN-LEGACY-${fee.id.substring(0, 8).toUpperCase()}';
-      groupedReceipts.putIfAbsent(txId, () => []).add(fee);
-    }
 
-    final uniqueTxIds = groupedReceipts.keys.toList();
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Summary header
-        Container(
-          padding: const EdgeInsets.all(14),
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFECFDF5), Color(0xFFF0FFF4)],
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFA7F3D0)),
-          ),
-          child: Row(
-            children: [
-              const Text('🧾', style: TextStyle(fontSize: 24)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Payment Receipts',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF065F46),
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      '${uniqueTxIds.length} receipt${uniqueTxIds.length != 1 ? 's' : ''} available for download',
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF059669)),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        ...uniqueTxIds.map((txId) => _buildReceiptCard(groupedReceipts[txId]!)),
-        const SizedBox(height: 50),
-      ],
-    );
-  }
-
-  Widget _buildReceiptCard(List<FeeRecord> items) {
-    final firstFee = items.first;
-    final txId = firstFee.transactionId ??
-        'TXN-${firstFee.id.substring(0, 8).toUpperCase()}';
-    final receiptNo =
-        'REC/${firstFee.paidDate?.year ?? 2026}/${firstFee.id.substring(0, 6).toUpperCase()}';
-
-    // Calculate total amount
-    final double totalAmount = items.fold(0.0, (sum, f) => sum + f.paidAmount);
-
-    // Format title
-    String cardTitle;
-    if (items.length == 1) {
-      cardTitle = firstFee.month;
-    } else {
-      cardTitle = items.length > 2
-          ? '${items.take(2).map((e) => e.month).join(', ')} & ${items.length - 2} more'
-          : items.map((e) => e.month).join(', ');
-    }
-
-    final icon = _getFeeIcon(firstFee.month);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Receipt header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              children: [
-                Text(icon, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        cardTitle,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: StudentColors.text,
-                        ),
-                      ),
-                      Text(
-                        receiptNo,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: StudentColors.text3,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFECFDF5),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'PAID',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF059669),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Receipt details
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                _buildReceiptDetailRow(
-                    'Amount', '₹${totalAmount.toStringAsFixed(0)}',
-                    isAmount: true),
-                const SizedBox(height: 6),
-                _buildReceiptDetailRow(
-                  'Date',
-                  firstFee.paidDate != null
-                      ? _formatDate(firstFee.paidDate!)
-                      : 'N/A',
-                ),
-                const SizedBox(height: 6),
-                _buildReceiptDetailRow(
-                    'Mode', _getPayMethodLabel(firstFee.paymentMethod)),
-                const SizedBox(height: 6),
-                _buildReceiptDetailRow('Transaction', txId),
-                if (items.length > 1) ...[
-                  const Divider(height: 16),
-                  ...items.map((item) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(item.month,
-                                style: const TextStyle(
-                                    fontSize: 11, color: StudentColors.text2)),
-                            Text('₹${item.paidAmount.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                    fontSize: 11, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      )),
-                ],
-                const SizedBox(height: 12),
-
-                // Download button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _downloadReceiptPdf(items),
-                    icon: const Icon(Icons.download, size: 16),
-                    label: const Text(
-                      'Download Receipt PDF',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReceiptDetailRow(String label, String value,
-      {bool isAmount = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF64748B),
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isAmount ? FontWeight.w800 : FontWeight.w600,
-            color: isAmount ? const Color(0xFF059669) : const Color(0xFF1E293B),
-            fontFamily: value.startsWith('EDU-') || value.startsWith('TXN-')
-                ? 'monospace'
-                : null,
-          ),
-        ),
-      ],
-    );
-  }
 
   String _getPayMethodIcon(String method) {
     switch (method.toLowerCase()) {

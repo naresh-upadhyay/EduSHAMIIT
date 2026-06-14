@@ -7,19 +7,20 @@ from functools import wraps
 
 security = HTTPBearer()
 
-# Global context for current user (used by tools)
-_current_user_context: Dict[str, Any] = {}
+import contextvars
+
+# ContextVar for current user context (thread/async-safe context for tools)
+_current_user_context = contextvars.ContextVar("current_user_context", default={})
 
 
 def set_current_user_context(user: dict):
     """Set the current user context for tool access."""
-    global _current_user_context
-    _current_user_context = user
+    _current_user_context.set(user)
 
 
 def get_current_user_id() -> str:
     """Get the current user ID from context (used by AI tools)."""
-    return _current_user_context.get("id", "")
+    return _current_user_context.get().get("id", "")
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:

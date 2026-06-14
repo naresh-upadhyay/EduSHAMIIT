@@ -65,6 +65,9 @@ class ApiService {
           .timeout(AppConfig.apiTimeout);
       final data = _handleResponse(response);
       _cache[cacheKey] = data;
+      if (_cache.length > 50) {
+        _cache.remove(_cache.keys.first);
+      }
       return data;
     } catch (e) {
       if (_cache.containsKey(cacheKey)) return _cache[cacheKey];

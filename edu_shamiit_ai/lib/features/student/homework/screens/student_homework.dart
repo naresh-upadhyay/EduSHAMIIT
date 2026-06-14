@@ -9,6 +9,7 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class StudentHomework extends ConsumerStatefulWidget {
   const StudentHomework({super.key});
@@ -25,6 +26,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   List<HomeworkAssignment> _allHomework = [];
   bool _isLoading = true;
   String? _error;
+  bool _isAiBannerCollapsed = false;
 
   @override
   void initState() {
@@ -146,188 +148,350 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          // Header
-          Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFBE185D), Color(0xFFDB2777)],
-              ),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => safeGoBack(context, '/student/dashboard'),
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Column(
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFBE185D), Color(0xFFDB2777)],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Homework'.tr(ref),
-                    style: const TextStyle(
-                      fontFamily: AppFonts.heading,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => safeGoBack(context, '/student/dashboard'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Homework'.tr(ref),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            const Expanded(child: Center(child: CircularProgressIndicator(color: Color(0xFFBE185D)))),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFBE185D), Color(0xFFDB2777)],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => safeGoBack(context, '/student/dashboard'),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('🤖', style: TextStyle(fontSize: 10)),
-                      const SizedBox(width: 4),
-                      Text(
-                        'AI Help'.tr(ref),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 9),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Homework'.tr(ref),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('⚠️', style: TextStyle(fontSize: 40)),
+                    const SizedBox(height: 12),
+                    Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _loadHomework,
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFBE185D), foregroundColor: Colors.white),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Grid Columns
+    final columns = [
+      AzureGridColumn<HomeworkAssignment>(
+        label: 'Subject',
+        width: 130.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (hw) {
+          final dueColor = _getDueColor(hw);
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_getSubjectIcon(hw.subject)),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: dueColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  hw.subject,
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: dueColor),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+      AzureGridColumn<HomeworkAssignment>(
+        label: 'Title',
+        width: 180.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (hw) => Text(
+          hw.title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      AzureGridColumn<HomeworkAssignment>(
+        label: 'Due Date',
+        width: 110.0,
+        compare: (a, b) => a.dueDate.compareTo(b.dueDate),
+        cellBuilder: (hw) {
+          final dueText = _getStatusText(hw);
+          final dueColor = _getDueColor(hw);
+          return Text(
+            dueText,
+            style: TextStyle(fontSize: 11, color: dueColor, fontWeight: FontWeight.w600),
+          );
+        },
+      ),
+      AzureGridColumn<HomeworkAssignment>(
+        label: 'Status',
+        width: 100.0,
+        compare: (a, b) => a.status.compareTo(b.status),
+        cellBuilder: (hw) {
+          final s = hw.status.toLowerCase();
+          Color bg = Colors.grey.shade100;
+          Color fg = Colors.grey.shade700;
+          if (s == 'graded') {
+            bg = const Color(0xFFF0FDF4);
+            fg = const Color(0xFF16A34A);
+          } else if (s == 'submitted') {
+            bg = const Color(0xFFEFF6FF);
+            fg = const Color(0xFF2563EB);
+          } else if (s == 'late') {
+            bg = const Color(0xFFFEF2F2);
+            fg = const Color(0xFFDC2626);
+          } else {
+            bg = const Color(0xFFFFFBEB);
+            fg = const Color(0xFFD97706);
+          }
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              hw.status.toUpperCase(),
+              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<HomeworkAssignment>(
+        label: 'Marks / Score',
+        width: 120.0,
+        cellBuilder: (hw) {
+          if (hw.status == 'graded' && hw.marksObtained != null) {
+            return Text('Score: ${hw.marksObtained}/${hw.maxMarks ?? 100}');
+          }
+          return Text(hw.maxMarks != null ? '${hw.maxMarks} Marks' : 'N/A');
+        },
+      ),
+      AzureGridColumn<HomeworkAssignment>(
+        label: 'Description',
+        width: 200.0,
+        cellBuilder: (hw) => Text(
+          hw.description,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      AzureGridColumn<HomeworkAssignment>(
+        label: 'Action',
+        width: 110.0,
+        cellBuilder: (hw) {
+          final s = hw.status.toLowerCase();
+          if (s == 'pending' || s == 'late') {
+            return SizedBox(
+              height: 26,
+              child: ElevatedButton(
+                onPressed: () => _showSubmitModal(context, hw),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: StudentColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
+                child: const Text('Submit', style: TextStyle(fontSize: 10, color: Colors.white)),
+              ),
+            );
+          }
+          return SizedBox(
+            height: 26,
+            child: OutlinedButton(
+              onPressed: () => _showDetailSheet(context, hw),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                side: const BorderSide(color: Colors.grey),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              ),
+              child: const Text('Details', style: TextStyle(fontSize: 10, color: Colors.black54)),
+            ),
+          );
+        },
+      ),
+    ];
+
+    // Grid Filters
+    final uniqueSubjects = _allHomework.map((h) => h.subject).toSet().toList()..sort();
+    final filters = [
+      AzureGridFilter<HomeworkAssignment>(
+        label: 'Subject',
+        options: uniqueSubjects,
+        filterFn: (hw, selected) => hw.subject == selected,
+      ),
+      AzureGridFilter<HomeworkAssignment>(
+        label: 'Status',
+        options: ['Pending', 'Submitted', 'Graded', 'Late'],
+        filterFn: (hw, selected) {
+          final s = hw.status.toLowerCase();
+          final sel = selected.toLowerCase();
+          return s == sel || (sel == 'pending' && s == 'late');
+        },
+      ),
+    ];
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFBE185D), Color(0xFFDB2777)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => safeGoBack(context, '/student/dashboard'),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Homework'.tr(ref),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Collapsible Toggle Button
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => setState(() => _isAiBannerCollapsed = !_isAiBannerCollapsed),
+                    icon: Icon(_isAiBannerCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 16),
+                    label: Text(_isAiBannerCollapsed ? 'Show AI Assistant' : 'Hide AI Assistant', style: const TextStyle(fontSize: 11)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFBE185D),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            if (!_isAiBannerCollapsed) ...[
+              if (Responsive.isWide(context)) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildAiHomeworkHelperCard()),
+                      const SizedBox(width: 16),
+                      const Expanded(child: SizedBox()),
                     ],
                   ),
                 ),
+              ] else ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: _buildAiHomeworkHelperCard(),
+                ),
               ],
+            ],
+            Padding(
+              padding: Responsive.contentPadding(context).copyWith(bottom: 16),
+              child: AzureGrid<HomeworkAssignment>(
+                title: 'All Assignments',
+                items: _allHomework,
+                columns: columns,
+                filters: filters,
+                searchMatcher: (hw) => '${hw.subject} ${hw.title} ${hw.description} ${hw.status}',
+                onRefresh: _loadHomework,
+                disableVerticalScroll: true,
+                mobileCardBuilder: (context, hw) => _buildHomeworkCard(hw),
+              ),
             ),
-          ),
-
-          // Tabs
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: List.generate(_tabs.length, (index) {
-                final isSelected = index == _selectedTab;
-                final count = index == 0
-                  ? _allHomework.where((h) { final s = h.status.toLowerCase(); return s == 'pending' || s == 'late'; }).length
-                  : index == 1
-                    ? _allHomework.where((h) => h.status.toLowerCase() == 'submitted').length
-                    : _allHomework.where((h) => h.status.toLowerCase() == 'graded').length;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() { _selectedTab = index; });
-                      // No extra API call - already have all data
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      margin: EdgeInsets.only(right: index < _tabs.length - 1 ? 6 : 0),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                          ? (isDark ? const Color(0xFFBE185D).withValues(alpha: 0.15) : const Color(0xFFFDF2F8))
-                          : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                        border: isSelected
-                          ? Border.all(color: isDark ? const Color(0xFFF472B6).withValues(alpha: 0.3) : const Color(0xFFBE185D).withValues(alpha: 0.2))
-                          : null,
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            _tabs[index],
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: isSelected
-                                ? (isDark ? const Color(0xFFF472B6) : const Color(0xFFBE185D))
-                                : (isDark ? StudentColors.darkText3 : StudentColors.text3),
-                            ),
-                          ),
-                          if (count > 0) ...[
-                            const SizedBox(height: 2),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFBE185D) : (isDark ? StudentColors.darkText3 : StudentColors.text3),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '$count',
-                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-
-          // Content
-          Expanded(
-            child: ResponsiveContent(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFFBE185D)))
-                  : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('⚠️', style: TextStyle(fontSize: 40)),
-                            const SizedBox(height: 12),
-                            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
-                            const SizedBox(height: 12),
-                            ElevatedButton(
-                              onPressed: _loadHomework,
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFBE185D), foregroundColor: Colors.white),
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      )
-                  : _filteredHomework.isEmpty
-                      ? SingleChildScrollView(
-                          padding: Responsive.contentPadding(context),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 48),
-                              Text(
-                                _selectedTab == 0 ? '🎉' : _selectedTab == 1 ? '📤' : '📊',
-                                style: const TextStyle(fontSize: 48),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                _selectedTab == 0
-                                    ? 'No pending homework!'
-                                    : _selectedTab == 1
-                                        ? 'No submitted homework yet'
-                                        : 'No graded homework yet',
-                                style: TextStyle(
-                                  color: isDark ? StudentColors.darkText3 : StudentColors.text3,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              _buildAiHomeworkHelperCard(),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: Responsive.contentPadding(context),
-                          itemCount: _filteredHomework.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == _filteredHomework.length) {
-                              return _buildAiHomeworkHelperCard();
-                            }
-                            return _buildHomeworkCard(_filteredHomework[index]);
-                          },
-                        ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -370,6 +370,176 @@ class StudentApiService {
     }
   }
 
+  /// Submit online exam with dynamic answers map (questionId -> studentAnswer)
+  Future<Map<String, dynamic>> submitOnlineExamDynamic({
+    required String examId,
+    required Map<String, dynamic> answers,
+  }) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/submit'),
+            headers: await _headers,
+            body: jsonEncode({
+              'answers': answers,
+            }),
+          )
+          .timeout(const Duration(minutes: 5));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw ApiException('Failed to submit exam: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw ApiException('Submit online exam failed: $e');
+    }
+  }
+
+  /// Start online exam session
+  Future<void> startOnlineExamSession(String examId, {String? passcode}) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/session/start'),
+            headers: await _headers,
+            body: passcode != null ? jsonEncode({'passcode': passcode}) : null,
+          )
+          .timeout(AppConfig.apiTimeout);
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        String msg = 'Failed to start session';
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map && body.containsKey('detail')) {
+            msg = body['detail'].toString();
+          }
+        } catch (_) {}
+        throw ApiException(msg);
+      }
+    } catch (e) {
+      throw ApiException(e.toString().replaceAll('ApiException: ', ''));
+    }
+  }
+
+  /// Verify exam passcode early without starting session
+  Future<Map<String, dynamic>> verifyExamPasscode(String examId, String passcode) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/verify-passcode'),
+            headers: await _headers,
+            body: jsonEncode({'passcode': passcode}),
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        String msg = 'Invalid passcode';
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map && body.containsKey('detail')) {
+            msg = body['detail'].toString();
+          }
+        } catch (_) {}
+        return {'success': false, 'message': msg};
+      }
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Get LiveKit room join token
+  Future<Map<String, dynamic>> getLiveKitToken({required String room, String? identity, String? name}) async {
+    try {
+      final queryParams = {
+        'room': room,
+        if (identity != null) 'identity': identity,
+        if (name != null) 'name': name,
+      };
+      final response = await _client.get(
+        Uri.parse('${AppConfig.apiBaseUrl}/livekit/token').replace(queryParameters: queryParams),
+        headers: await _headers,
+      ).timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw ApiException('Failed to load LiveKit token: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw ApiException('Get LiveKit token failed: $e');
+    }
+  }
+
+  /// Ping online exam session to update status and fetch proctor instructions
+  Future<Map<String, dynamic>> pingOnlineExamSession(
+    String examId, {
+    required int warningsCount,
+    String? activeQuestionId,
+    bool isOnline = true,
+    String? logEvent,
+  }) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/session/ping'),
+            headers: await _headers,
+            body: jsonEncode({
+              'warnings_count': warningsCount,
+              'active_question': activeQuestionId,
+              'is_online': isOnline,
+              'log_event': logEvent,
+            }),
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw ApiException('Ping failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw ApiException('Ping online exam session failed: $e');
+    }
+  }
+
+  /// Upload subjective answer sheets to storage
+  Future<Map<String, dynamic>> uploadExamAttachment({
+    required List<int> fileBytes,
+    required String filename,
+    required String contentType,
+  }) async {
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/student/exams/upload');
+      final request = http.MultipartRequest('POST', uri);
+      
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      final multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        fileBytes,
+        filename: filename,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send().timeout(const Duration(minutes: 2));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw ApiException('Upload failed: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw ApiException('Upload exam attachment failed: $e');
+    }
+  }
+
   // ============================================
   // FEES
   // ============================================
@@ -1306,6 +1476,40 @@ class StudentApiService {
               (e) => PerformanceAnalytics.fromJson(e as Map<String, dynamic>))
           .toList();
     }
+  }
+
+  /// Get all subjects dynamically
+  Future<List<StudentSubject>> getSubjects() async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/subjects'),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final List<dynamic> data = decoded.containsKey('data')
+            ? (decoded['data'] is Map ? (decoded['data']['subjects'] ?? []) : decoded['data'])
+            : [];
+        return data.map((item) => StudentSubject.fromJson(item)).toList();
+      } else {
+        return _fallbackSubjects();
+      }
+    } catch (e) {
+      return _fallbackSubjects();
+    }
+  }
+
+  List<StudentSubject> _fallbackSubjects() {
+    return [
+      StudentSubject(id: 'sub_math', name: 'Mathematics', icon: '📐', color: '#4F46E5'),
+      StudentSubject(id: 'sub_phys', name: 'Physics', icon: '⚛️', color: '#0EA5E9'),
+      StudentSubject(id: 'sub_chem', name: 'Chemistry', icon: '⚗️', color: '#10B981'),
+      StudentSubject(id: 'sub_bio', name: 'Biology', icon: '🧬', color: '#EF4444'),
+      StudentSubject(id: 'sub_eng', name: 'English', icon: '📖', color: '#F59E0B'),
+    ];
   }
 }
 

@@ -6,7 +6,6 @@ import 'package:edu_shamiit_ai/core/utils/live_class_player_helper.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
-import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/providers/live_classes_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +15,7 @@ import 'package:edu_shamiit_ai/core/providers/api_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class StudentLiveClasses extends ConsumerStatefulWidget {
   const StudentLiveClasses({super.key});
@@ -84,156 +84,221 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
       } catch (_) {}
     }
 
+    final List<LiveClassModel> allClasses = [
+      ...liveClassesState.liveNow,
+      ...liveClassesState.upcoming,
+      ...liveClassesState.recorded,
+    ];
+
+    final columns = [
+      AzureGridColumn<LiveClassModel>(
+        label: 'Subject',
+        width: 160.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (cls) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(cls.icon.isNotEmpty ? cls.icon : '📚', style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 8),
+            Text(cls.subject, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      AzureGridColumn<LiveClassModel>(
+        label: 'Title',
+        width: 200.0,
+        compare: (a, b) => (a.title ?? '').compareTo(b.title ?? ''),
+        cellBuilder: (cls) => Text(cls.title ?? 'Class Session', overflow: TextOverflow.ellipsis),
+      ),
+      AzureGridColumn<LiveClassModel>(
+        label: 'Teacher',
+        width: 140.0,
+        compare: (a, b) => a.teacher.compareTo(b.teacher),
+        cellBuilder: (cls) => Text(cls.teacher),
+      ),
+      AzureGridColumn<LiveClassModel>(
+        label: 'Schedule / Date',
+        width: 160.0,
+        compare: (a, b) => (a.time ?? a.date ?? '').compareTo(b.time ?? b.date ?? ''),
+        cellBuilder: (cls) => Text(cls.time ?? cls.date ?? 'N/A'),
+      ),
+      AzureGridColumn<LiveClassModel>(
+        label: 'Type',
+        width: 120.0,
+        compare: (a, b) => a.type.compareTo(b.type),
+        cellBuilder: (cls) {
+          final isLive = cls.type == 'live';
+          final isUpcoming = cls.type == 'upcoming';
+          final bg = isLive
+              ? const Color(0xFFFEE2E2)
+              : isUpcoming
+                  ? const Color(0xFFEFF6FF)
+                  : const Color(0xFFF1F5F9);
+          final fg = isLive
+              ? const Color(0xFFEF4444)
+              : isUpcoming
+                  ? const Color(0xFF3B82F6)
+                  : const Color(0xFF64748B);
+          final label = isLive
+              ? '🔴 Live'
+              : isUpcoming
+                  ? '📅 Upcoming'
+                  : '📋 Recorded';
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<LiveClassModel>(
+        label: 'Platform',
+        width: 120.0,
+        compare: (a, b) => a.platform.compareTo(b.platform),
+        cellBuilder: (cls) => _buildPlatformBadge(cls.platform),
+      ),
+      AzureGridColumn<LiveClassModel>(
+        label: 'Action',
+        width: 140.0,
+        cellBuilder: (cls) {
+          if (cls.type == 'live') {
+            return SizedBox(
+              height: 26,
+              child: ElevatedButton(
+                onPressed: () => _joinClass(cls),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
+                child: const Text('Join Room', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            );
+          } else if (cls.type == 'recorded') {
+            return SizedBox(
+              height: 26,
+              child: ElevatedButton(
+                onPressed: () => _playRecording(cls),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF334155),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
+                child: const Text('Play', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            );
+          } else {
+            return Text(cls.timeUntil ?? 'Scheduled', style: const TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic));
+          }
+        },
+      ),
+    ];
+
+    final filters = [
+      AzureGridFilter<LiveClassModel>(
+        label: 'Type',
+        options: const ['Live', 'Upcoming', 'Recorded'],
+        filterFn: (cls, option) => cls.type.toLowerCase() == option.toLowerCase(),
+      ),
+      AzureGridFilter<LiveClassModel>(
+        label: 'Subject',
+        options: allClasses.map((e) => e.subject).toSet().toList(),
+        filterFn: (cls, option) => cls.subject == option,
+      ),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Column(
-        children: [
-          // Header
-          Container(
-            padding: EdgeInsets.fromLTRB(
-                16, Responsive.headerTopPadding(context), 16, 16),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                  16, Responsive.headerTopPadding(context), 16, 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => safeGoBack(context, '/student/dashboard'),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Live Classes',
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    tooltip: 'Refresh classes',
+                    onPressed: () =>
+                        ref.read(liveClassesProvider.notifier).loadLiveClasses(),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '🔴 ${liveClassesState.liveNow.length} Live Now',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => safeGoBack(context, '/student/dashboard'),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Live Classes',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh, color: Colors.white),
-                  tooltip: 'Refresh classes',
-                  onPressed: () =>
-                      ref.read(liveClassesProvider.notifier).loadLiveClasses(),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '🔴 ${liveClassesState.liveNow.length} Live Now',
-                    style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ),
 
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(liveClassesProvider.notifier).loadLiveClasses(),
-              color: StudentColors.primary,
-              child: liveClassesState.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : liveClassesState.error != null
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.6,
-                              child: Center(
-                                  child:
-                                      Text('Error: ${liveClassesState.error}')),
-                            ),
-                          ],
-                        )
-                      : ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            // Live Now Section
-                            const Text(
-                              '🔴 LIVE NOW',
-                              style: TextStyle(
-                                fontFamily: AppFonts.heading,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: StudentColors.error,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ...liveClassesState.liveNow
-                                .map((cls) => _buildLiveCard(cls)),
-
-                            const SizedBox(height: 20),
-
-                            // Upcoming Section
-                            const Text(
-                              '📅 UPCOMING TODAY',
-                              style: TextStyle(
-                                fontFamily: AppFonts.heading,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: StudentColors.text3,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (liveClassesState.upcoming.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text('No upcoming classes today',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: StudentColors.text3)),
-                              ),
-                            ...liveClassesState.upcoming
-                                .map((cls) => _buildUpcomingCard(cls)),
-
-                            const SizedBox(height: 20),
-
-                            // Recorded Section
-                            const Text(
-                              '📋 RECORDED CLASSES',
-                              style: TextStyle(
-                                fontFamily: AppFonts.heading,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: StudentColors.text3,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (liveClassesState.recorded.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Text('No recorded classes',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: StudentColors.text3)),
-                              ),
-                            ...liveClassesState.recorded
-                                .map((cls) => _buildRecordedCard(cls)),
-
-                            const SizedBox(height: 50),
-                          ],
+            liveClassesState.isLoading
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : liveClassesState.error != null
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40.0),
+                        child: Center(child: Text('Error: ${liveClassesState.error}')),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: AzureGrid<LiveClassModel>(
+                          title: 'Live & Recorded Sessions',
+                          items: allClasses,
+                          columns: columns,
+                          filters: filters,
+                          onRefresh: () => ref.read(liveClassesProvider.notifier).loadLiveClasses(),
+                          searchMatcher: (cls) => '${cls.subject} ${cls.teacher} ${cls.title ?? ""}',
+                          mobileCardBuilder: (context, cls) {
+                            if (cls.type == 'live') return _buildLiveCard(cls);
+                            if (cls.type == 'upcoming') return _buildUpcomingCard(cls);
+                            return _buildRecordedCard(cls);
+                          },
+                          disableVerticalScroll: true,
                         ),
-            ),
-          ),
-        ],
+                      ),
+          ],
+        ),
       ),
     );
   }
