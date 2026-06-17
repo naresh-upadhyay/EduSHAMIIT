@@ -325,7 +325,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   }
 
   // ── Send text message via SSE stream ──────────────────────
-  Future<void> sendMessage(String text, {bool appendUserBubble = true}) async {
+  Future<void> sendMessage(String text, {bool appendUserBubble = true, String? launchedFrom}) async {
     if (text.trim().isEmpty) return;
 
     if (appendUserBubble) {
@@ -366,6 +366,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
         body: {
           'message': text.trim(),
           'session_id': state.sessionId,
+          if (launchedFrom != null) 'context': launchedFrom,
         },
         onChunk: (chunk) {
           if (!chunk.startsWith('data:')) return;
@@ -497,7 +498,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   }
 
   // ── Send text and image together via SSE stream ───────────
-  Future<void> sendMessageWithImage(String text, XFile imageFile) async {
+  Future<void> sendMessageWithImage(String text, XFile imageFile, {String? launchedFrom}) async {
     final displayUserText = text.trim().isNotEmpty ? text.trim() : '📷 Image sent';
     final userMsg = ChatMessage(
       isUser: true,
@@ -532,6 +533,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
           'message': text.trim().isNotEmpty ? text.trim() : 'Describe this image',
           'session_id': state.sessionId,
           'image_b64': imageB64,
+          if (launchedFrom != null) 'context': launchedFrom,
         },
         onChunk: (chunk) {
           if (!chunk.startsWith('data:')) return;
@@ -602,7 +604,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   // ── Send voice recording ──────────────────────────────────
   // Flow: record audio → POST /chat/voice/transcribe → get text
   //       → sendMessage(text) [exact same flow as typing]
-  Future<void> sendVoice(XFile audioFile, {String? locale}) async {
+  Future<void> sendVoice(XFile audioFile, {String? locale, String? launchedFrom}) async {
     // Show a "transcribing..." placeholder in the user bubble
     final placeholderMsg = ChatMessage(
       isUser: true,
@@ -708,7 +710,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
 
       // ── Step 5: Send transcript as normal text message ─────
       // This reuses the exact same SSE flow as typing
-      await sendMessage(transcript, appendUserBubble: false);
+      await sendMessage(transcript, appendUserBubble: false, launchedFrom: launchedFrom);
 
     } catch (e) {
       _replaceLastUserVoiceBubble('🎤 Voice error');
@@ -738,7 +740,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   }
 
   // ── Regenerate AI message ───────────────────────────────
-  Future<void> regenerateMessage(ChatMessage aiMsg) async {
+  Future<void> regenerateMessage(ChatMessage aiMsg, {String? launchedFrom}) async {
     final aiIndex = state.messages.indexOf(aiMsg);
     if (aiIndex == -1) return;
     
@@ -774,9 +776,9 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
     if (userMsg.imagePath != null) {
       final imageFile = XFile(userMsg.imagePath!);
       final cleanPrompt = userPrompt == '📷 Image sent' ? 'Describe this image' : userPrompt;
-      await sendMessageWithImage(cleanPrompt, imageFile);
+      await sendMessageWithImage(cleanPrompt, imageFile, launchedFrom: launchedFrom);
     } else {
-      await sendMessage(userPrompt, appendUserBubble: false);
+      await sendMessage(userPrompt, appendUserBubble: false, launchedFrom: launchedFrom);
     }
   }
 
@@ -795,7 +797,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
   }
 
   // ── Send text and document together via SSE stream ────────
-  Future<void> sendMessageWithDocument(String text, PlatformFile docFile) async {
+  Future<void> sendMessageWithDocument(String text, PlatformFile docFile, {String? launchedFrom}) async {
     final displayUserText = '📄 [Document: ${docFile.name}]${text.trim().isNotEmpty ? '\n\n${text.trim()}' : ''}';
     final userMsg = ChatMessage(
       isUser: true,
@@ -835,6 +837,7 @@ class AiChatNotifier extends StateNotifier<AiChatState> {
           'session_id': state.sessionId,
           'doc_b64': docB64,
           'doc_name': docFile.name,
+          if (launchedFrom != null) 'context': launchedFrom,
         },
         onChunk: (chunk) {
           if (!chunk.startsWith('data:')) return;

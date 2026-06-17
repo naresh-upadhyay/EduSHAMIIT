@@ -96,11 +96,17 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         width: 160.0,
         compare: (a, b) => a.subject.compareTo(b.subject),
         cellBuilder: (cls) => Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Text(cls.icon.isNotEmpty ? cls.icon : '📚', style: const TextStyle(fontSize: 14)),
             const SizedBox(width: 8),
-            Text(cls.subject, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Expanded(
+              child: Text(
+                cls.subject,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
           ],
         ),
       ),
@@ -108,19 +114,19 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         label: 'Title',
         width: 200.0,
         compare: (a, b) => (a.title ?? '').compareTo(b.title ?? ''),
-        cellBuilder: (cls) => Text(cls.title ?? 'Class Session', overflow: TextOverflow.ellipsis),
+        cellBuilder: (cls) => Text(cls.title ?? 'Class Session', overflow: TextOverflow.ellipsis, maxLines: 1),
       ),
       AzureGridColumn<LiveClassModel>(
         label: 'Teacher',
         width: 140.0,
         compare: (a, b) => a.teacher.compareTo(b.teacher),
-        cellBuilder: (cls) => Text(cls.teacher),
+        cellBuilder: (cls) => Text(cls.teacher, overflow: TextOverflow.ellipsis, maxLines: 1),
       ),
       AzureGridColumn<LiveClassModel>(
         label: 'Schedule / Date',
         width: 160.0,
         compare: (a, b) => (a.time ?? a.date ?? '').compareTo(b.time ?? b.date ?? ''),
-        cellBuilder: (cls) => Text(cls.time ?? cls.date ?? 'N/A'),
+        cellBuilder: (cls) => Text(cls.time ?? cls.date ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 1),
       ),
       AzureGridColumn<LiveClassModel>(
         label: 'Type',
@@ -790,10 +796,14 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         children: [
           Icon(icon, size: 10, color: fg),
           const SizedBox(width: 4),
-          Text(
-            platform,
-            style:
-                TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+          Flexible(
+            child: Text(
+              platform,
+              style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
         ],
       ),

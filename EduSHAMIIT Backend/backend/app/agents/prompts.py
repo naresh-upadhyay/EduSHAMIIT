@@ -70,8 +70,8 @@ Do not share private student data. Encourage them to apply.""",
 }
 
 
-def get_system_prompt(role: str, school_id: str, user_id: str = None) -> str:
-    """Get the complete system prompt for a given role, school, and user profile."""
+def get_system_prompt(role: str, school_id: str, user_id: str = None, launched_from: str = None) -> str:
+    """Get the complete system prompt for a given role, school, and user profile, aware of launching context."""
     from datetime import datetime
     from app.services.supabase_client import get_supabase
     
@@ -111,5 +111,26 @@ def get_system_prompt(role: str, school_id: str, user_id: str = None) -> str:
         except Exception as e:
             print(f"Error fetching profile for system prompt: {e}")
 
+    # Add active user interface context based on launching screen
+    active_screen_context = ""
+    if launched_from:
+        active_screen_context = f"\nACTIVE USER INTERFACE CONTEXT:\n- The user opened this chat from screen: {launched_from}\n"
+        norm_from = launched_from.lower()
+        if "courses" in norm_from or "subjects" in norm_from:
+            active_screen_context += "- Instructions: The user is currently browsing academic courses/subjects. If they ask about concepts, notes, syllabus, or learning progression, tailor your explanations specifically to their active curriculum.\n"
+        elif "homework" in norm_from:
+            active_screen_context += "- Instructions: The user is currently viewing homework. If they ask questions like 'what is my homework?' or 'pending homework?', execute the 'get_homework' tool to search for homework updates.\n"
+        elif "timetable" in norm_from or "schedule" in norm_from:
+            active_screen_context += "- Instructions: The user is browsing their timetable/schedule. If they ask about classes or timings, execute the 'get_timetable' tool.\n"
+        elif "results" in norm_from or "gradebook" in norm_from or "grading" in norm_from:
+            active_screen_context += "- Instructions: The user is browsing exams or performance reports. If they ask about grades, marks, or evaluation, execute the relevant result tool.\n"
+        elif "fees" in norm_from:
+            active_screen_context += "- Instructions: The user is browsing fee structures or payments. If they ask about pending fees or want a payment link, execute the fee/payment tools.\n"
+        elif "live-classes" in norm_from or "live_classes" in norm_from:
+            active_screen_context += "- Instructions: The user is browsing live classes/session listings. If they ask about live room availability or schedule, execute the live class tool.\n"
+        elif "transport" in norm_from:
+            active_screen_context += "- Instructions: The user is browsing school transport / bus tracking. If they ask where the bus is or schedule, execute the transport tools.\n"
+        active_screen_context += "IMPORTANT: Use this active UI context to intelligently assist the user with relevant tool calling or contextual research based on what they are currently viewing.\n\n"
+
     context = ROLE_CONTEXT.get(role, "You are a helpful school assistant.")
-    return BASE_PROMPT.format(school_id=school_id) + time_context + user_context_str + context
+    return BASE_PROMPT.format(school_id=school_id) + time_context + user_context_str + active_screen_context + context

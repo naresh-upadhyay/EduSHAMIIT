@@ -3332,4 +3332,191 @@ async def bulk_upload_questions(
     return {"success": True, "count": len(inserted), "questions": inserted}
 
 
+@router.get("/courses/{course_id}/details")
+async def teacher_course_details(course_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Fetch course first
+    course_res = await sb.table("courses").select("*, subjects(*)").eq("id", course_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not course_res.data:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Fetch chapters
+    chapters_res = await sb.table("course_chapters").select("*").eq("course_id", course_id).eq("school_id", school_id).order("chapter_order", ascending=True).aexecute()
+    chapters = chapters_res.data or []
+    
+    # Fetch topics
+    if chapters:
+        chapter_ids = [c["id"] for c in chapters]
+        topics_res = await sb.table("course_topics").select("*").in_("chapter_id", chapter_ids).order("topic_order", ascending=True).aexecute()
+        topics = topics_res.data or []
+    else:
+        topics = []
+        
+    # Map topics to chapters
+    for c in chapters:
+        c["topics"] = [t for t in topics if t["chapter_id"] == c["id"]]
+        
+    return {
+        "success": True,
+        "data": {
+            "course": course_res.data,
+            "chapters": chapters
+        }
+    }
+
+
+@router.post("/courses/{course_id}/chapters")
+async def teacher_create_chapter(course_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    title = request.get("title")
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+        
+    chapter_order = request.get("chapter_order")
+    if chapter_order is None:
+        chapters = (await sb.table("course_chapters").select("chapter_order").eq("course_id", course_id).aexecute()).data or []
+        chapter_order = max([c.get("chapter_order", 0) for c in chapters] + [0]) + 1
+        
+    new_chapter = {
+        "school_id": school_id,
+        "course_id": course_id,
+        "title": title,
+        "description": request.get("description", ""),
+        "chapter_order": chapter_order
+    }
+    
+    res = await sb.table("course_chapters").insert(new_chapter).aexecute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to create chapter")
+    return {"success": True, "data": res.data[0]}
+
+
+@router.put("/courses/chapters/{chapter_id}")
+async def teacher_update_chapter(chapter_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    allowed = {"title", "description", "chapter_order"}
+    updates = {k: v for k, v in request.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No updates provided")
+        
+    res = await sb.table("course_chapters").update(updates).eq("id", chapter_id).eq("school_id", school_id).aexecute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    return {"success": True, "data": res.data[0]}
+
+
+@router.delete("/courses/chapters/{chapter_id}")
+async def teacher_delete_chapter(chapter_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    res = await sb.table("course_chapters").delete().eq("id", chapter_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "message": "Chapter deleted"}
+
+
+@router.post("/courses/chapters/{chapter_id}/topics")
+async def teacher_create_topic(chapter_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    title = request.get("title")
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+        
+    topic_order = request.get("topic_order")
+    if topic_order is None:
+        topics = (await sb.table("course_topics").select("topic_order").eq("chapter_id", chapter_id).aexecute()).data or []
+        topic_order = max([t.get("topic_order", 0) for t in topics] + [0]) + 1
+        
+    new_topic = {
+        "school_id": school_id,
+        "chapter_id": chapter_id,
+        "title": title,
+        "content": request.get("content", ""),
+        "topic_order": topic_order
+    }
+    
+    res = await sb.table("course_topics").insert(new_topic).aexecute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to create topic")
+    return {"success": True, "data": res.data[0]}
+
+
+@router.put("/courses/topics/{topic_id}")
+async def teacher_update_topic(topic_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    allowed = {"title", "content", "topic_order"}
+    updates = {k: v for k, v in request.items() if k in allowed}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No updates provided")
+        
+    res = await sb.table("course_topics").update(updates).eq("id", topic_id).eq("school_id", school_id).aexecute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return {"success": True, "data": res.data[0]}
+
+
+@router.delete("/courses/topics/{topic_id}")
+async def teacher_delete_topic(topic_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    res = await sb.table("course_topics").delete().eq("id", topic_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "message": "Topic deleted"}
+
+
+@router.get("/classes/{class_name}/courses")
+async def teacher_class_courses(class_name: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # 1. Fetch all subjects for this class
+    subjects_res = await sb.table("subjects").select("*").eq("school_id", school_id).eq("class", class_name).aexecute()
+    db_subjects = subjects_res.data or []
+    
+    if not db_subjects:
+        return {"success": True, "data": []}
+        
+    # Deduplicate subjects by name
+    unique_subjects = {}
+    for s in db_subjects:
+        name_lower = s["name"].strip().lower()
+        if name_lower not in unique_subjects:
+            unique_subjects[name_lower] = s
+            
+    subjects = list(unique_subjects.values())
+    subject_ids = [s["id"] for s in subjects]
+    
+    # 2. Fetch existing courses for these subjects
+    courses_res = await sb.table("courses").select("*").eq("school_id", school_id).in_("subject_id", subject_ids).aexecute()
+    courses = courses_res.data or []
+    
+    # Map subject_id to course
+    course_by_subject = {c["subject_id"]: c for c in courses}
+    
+    # 3. For any subject that doesn't have a course, create one dynamically!
+    result_courses = []
+    seen_subject_names = set()
+    for s in subjects:
+        subj_name_lower = s["name"].strip().lower()
+        if subj_name_lower in seen_subject_names:
+            continue
+        seen_subject_names.add(subj_name_lower)
+        
+        course = course_by_subject.get(s["id"])
+        if not course:
+            # Create a course row dynamically!
+            new_c = {
+                "school_id": school_id,
+                "subject_id": s["id"],
+                "teacher_id": user["id"],
+                "title": f"{s['name']} - {class_name}",
+                "description": f"Course material for {s['name']} class {class_name}",
+                "status": "active"
+            }
+            ins_res = await sb.table("courses").insert(new_c).aexecute()
+            if ins_res.data:
+                course = ins_res.data[0]
+                
+        if course:
+            course["subject"] = s
+            result_courses.append(course)
+            
+    return {"success": True, "data": result_courses}
+
+
+
+
 

@@ -2,6 +2,7 @@ import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
@@ -89,7 +90,7 @@ class _TeacherMyClassesState extends ConsumerState<TeacherMyClasses> {
         width: 120,
         cellBuilder: (item) => TextButton(
           onPressed: () {
-            // Navigate to class details
+            context.go('/teacher/my-classes/${item.id}/subjects');
           },
           child: Text('View Details'.tr(ref)),
         ),

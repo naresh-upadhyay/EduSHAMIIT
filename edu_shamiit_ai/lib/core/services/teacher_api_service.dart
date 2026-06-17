@@ -2061,4 +2061,122 @@ class TeacherApiService {
       throw Exception('Error bulk uploading questions: $e');
     }
   }
+
+  /// Get course details (chapters & topics) for teacher
+  Future<Map<String, dynamic>> getCourseDetails(String courseId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/courses/$courseId/details'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['data'] ?? decoded;
+      } else {
+        return {'course': {}, 'chapters': []};
+      }
+    } catch (e) {
+      return {'course': {}, 'chapters': []};
+    }
+  }
+
+  /// Create a new course chapter
+  Future<Map<String, dynamic>> createChapter(String courseId, Map<String, dynamic> data) async {
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/teacher/courses/$courseId/chapters'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final decoded = json.decode(response.body) as Map<String, dynamic>;
+      return decoded['data'] ?? decoded;
+    } else {
+      throw Exception('Failed to create chapter: ${response.statusCode}');
+    }
+  }
+
+  /// Update an existing chapter
+  Future<Map<String, dynamic>> updateChapter(String chapterId, Map<String, dynamic> data) async {
+    final response = await _client.put(
+      Uri.parse('$_baseUrl/teacher/courses/chapters/$chapterId'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200) {
+      final decoded = json.decode(response.body) as Map<String, dynamic>;
+      return decoded['data'] ?? decoded;
+    } else {
+      throw Exception('Failed to update chapter: ${response.statusCode}');
+    }
+  }
+
+  /// Delete a chapter
+  Future<void> deleteChapter(String chapterId) async {
+    final response = await _client.delete(
+      Uri.parse('$_baseUrl/teacher/courses/chapters/$chapterId'),
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete chapter: ${response.statusCode}');
+    }
+  }
+
+  /// Create a new topic under a chapter
+  Future<Map<String, dynamic>> createTopic(String chapterId, Map<String, dynamic> data) async {
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/teacher/courses/chapters/$chapterId/topics'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final decoded = json.decode(response.body) as Map<String, dynamic>;
+      return decoded['data'] ?? decoded;
+    } else {
+      throw Exception('Failed to create topic: ${response.statusCode}');
+    }
+  }
+
+  /// Update an existing topic
+  Future<Map<String, dynamic>> updateTopic(String topicId, Map<String, dynamic> data) async {
+    final response = await _client.put(
+      Uri.parse('$_baseUrl/teacher/courses/topics/$topicId'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200) {
+      final decoded = json.decode(response.body) as Map<String, dynamic>;
+      return decoded['data'] ?? decoded;
+    } else {
+      throw Exception('Failed to update topic: ${response.statusCode}');
+    }
+  }
+
+  /// Delete a topic
+  Future<void> deleteTopic(String topicId) async {
+    final response = await _client.delete(
+      Uri.parse('$_baseUrl/teacher/courses/topics/$topicId'),
+      headers: await _getHeaders(),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete topic: ${response.statusCode}');
+    }
+  }
+
+  /// Get courses for a class
+  Future<List<dynamic>> getClassCourses(String classId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/classes/$classId/courses'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['data'] ?? [];
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
+    }
+  }
 }

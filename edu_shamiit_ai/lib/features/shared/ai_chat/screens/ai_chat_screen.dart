@@ -30,7 +30,8 @@ import 'package:edu_shamiit_ai/core/services/tts_service.dart';
 // ─────────────────────────────────────────────────────────────
 
 class AiChatScreen extends ConsumerStatefulWidget {
-  const AiChatScreen({super.key});
+  final String? launchedFrom;
+  const AiChatScreen({super.key, this.launchedFrom});
 
   @override
   ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
@@ -59,6 +60,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   XFile? _selectedImage;
   PlatformFile? _selectedDocument;
   String? _currentlySpeakingMsgId;
+  String? _activeContext;
 
   // ── Palette ──────────────────────────────────────────────
   static const _darkBg      = Color(0xFF0A0C1B);
@@ -84,6 +86,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
   @override
   void initState() {
     super.initState();
+    _activeContext = widget.launchedFrom;
 
     _pulseController = AnimationController(
       vsync: this,
@@ -643,7 +646,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                                 _currentlySpeakingMsgId = null;
                               });
                             }
-                            ref.read(aiChatProvider.notifier).regenerateMessage(msg);
+                            ref.read(aiChatProvider.notifier).regenerateMessage(msg, launchedFrom: _activeContext);
                           },
                         ),
                         const SizedBox(width: 6),
@@ -1066,28 +1069,75 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
                     border:
                         Border.all(color: Colors.white.withValues(alpha: 0.08)),
                   ),
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _inputFocus,
-                    style: const TextStyle(fontSize: 14, color: _textPrimary),
-                    minLines: 1,
-                    maxLines: 5,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: (_) => _sendTextOrImageOrDocument(),
-                    decoration: InputDecoration(
-                      hintText: 'Ask Shami anything...',
-                      hintStyle: TextStyle(
-                          fontSize: 14,
-                          color: _textMuted.withValues(alpha: 0.7)),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      fillColor: Colors.transparent,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                    ),
+                  child: Row(
+                    children: [
+                      if (_activeContext != null && _activeContext!.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(left: 10),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              canvasColor: Colors.transparent,
+                            ),
+                            child: InputChip(
+                              label: Text(
+                                _getScreenFriendlyName(_activeContext!),
+                                style: const TextStyle(
+                                  color: _textPrimary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              backgroundColor: _gradStart.withValues(alpha: 0.3),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: _gradStart.withValues(alpha: 0.6),
+                                  width: 1,
+                                ),
+                              ),
+                              deleteIcon: const Icon(
+                                Icons.close_rounded,
+                                size: 13,
+                                color: Colors.redAccent,
+                              ),
+                              onDeleted: () {
+                                setState(() {
+                                  _activeContext = null;
+                                });
+                              },
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            ),
+                          ),
+                        ),
+                      ],
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _inputFocus,
+                          style: const TextStyle(fontSize: 14, color: _textPrimary),
+                          minLines: 1,
+                          maxLines: 5,
+                          textCapitalization: TextCapitalization.sentences,
+                          onChanged: (_) => setState(() {}),
+                          onSubmitted: (_) => _sendTextOrImageOrDocument(),
+                          decoration: InputDecoration(
+                            hintText: 'Ask Shami anything...',
+                            hintStyle: TextStyle(
+                                fontSize: 14,
+                                color: _textMuted.withValues(alpha: 0.7)),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            fillColor: Colors.transparent,
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: (_activeContext != null && _activeContext!.isNotEmpty) ? 8 : 16, 
+                                vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1315,7 +1365,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       final file = await voice.stopRecording();
       if (file != null) {
         setState(() => _showSuggestions = false);
-        ref.read(aiChatProvider.notifier).sendVoice(file, locale: _sttLocale);
+        ref.read(aiChatProvider.notifier).sendVoice(file, locale: _sttLocale, launchedFrom: _activeContext);
         _scrollToBottom();
       }
       return;
@@ -1337,7 +1387,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
 
     // Send as normal text message — no upload needed!
     setState(() => _showSuggestions = false);
-    ref.read(aiChatProvider.notifier).sendMessage(text);
+    ref.read(aiChatProvider.notifier).sendMessage(text, launchedFrom: _activeContext);
     _scrollToBottom();
   }
 
@@ -1397,11 +1447,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
     _inputFocus.unfocus();
 
     if (doc != null) {
-      ref.read(aiChatProvider.notifier).sendMessageWithDocument(text, doc);
+      ref.read(aiChatProvider.notifier).sendMessageWithDocument(text, doc, launchedFrom: _activeContext);
     } else if (image != null) {
-      ref.read(aiChatProvider.notifier).sendMessageWithImage(text, image);
+      ref.read(aiChatProvider.notifier).sendMessageWithImage(text, image, launchedFrom: _activeContext);
     } else {
-      ref.read(aiChatProvider.notifier).sendMessage(text);
+      ref.read(aiChatProvider.notifier).sendMessage(text, launchedFrom: _activeContext);
     }
     _scrollToBottom();
   }
@@ -1445,6 +1495,36 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen>
       shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
+  }
+
+  String _getScreenFriendlyName(String path) {
+    final uri = Uri.tryParse(path);
+    if (uri == null) return 'App Context';
+    final segments = uri.pathSegments;
+    if (segments.isEmpty) return 'Dashboard';
+    
+    if (path.contains('/courses') || path.contains('/subjects')) {
+      if (path.contains('/details')) return 'Course Details';
+      return 'Courses';
+    }
+    if (path.contains('/homework')) return 'Homework';
+    if (path.contains('/timetable')) return 'Timetable';
+    if (path.contains('/results')) return 'Results';
+    if (path.contains('/fees')) return 'Fees';
+    if (path.contains('/live-classes') || path.contains('/live_classes')) return 'Live Classes';
+    if (path.contains('/transport')) return 'Transport';
+    if (path.contains('/attendance')) return 'Attendance';
+    if (path.contains('/exams')) return 'Exams';
+    if (path.contains('/profile')) return 'Profile';
+    if (path.contains('/settings')) return 'Settings';
+    if (path.contains('/notices')) return 'Notices';
+    if (path.contains('/dashboard')) return 'Dashboard';
+    
+    final lastSegment = segments.last.toLowerCase();
+    if (lastSegment.isNotEmpty) {
+      return lastSegment[0].toUpperCase() + lastSegment.substring(1).replaceAll('-', ' ').replaceAll('_', ' ');
+    }
+    return 'App Context';
   }
 
   // ─── Unicode conversion helpers ───────────────────────────────────────────

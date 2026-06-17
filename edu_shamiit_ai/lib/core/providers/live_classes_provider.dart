@@ -50,6 +50,18 @@ class LiveClassModel {
   });
 
   factory LiveClassModel.fromJson(Map<String, dynamic> json) {
+    final rawType = (json['type'] ?? 'recorded').toString().toLowerCase();
+    String normalizedType = 'recorded';
+    if (rawType == 'live' || rawType == 'ongoing') {
+      normalizedType = 'live';
+    } else if (rawType == 'upcoming' || rawType == 'scheduled') {
+      normalizedType = 'upcoming';
+    } else if (rawType == 'recorded' || rawType == 'completed') {
+      normalizedType = 'recorded';
+    } else {
+      normalizedType = rawType;
+    }
+
     return LiveClassModel(
       id: json['id'] ?? '',
       subject: json['subject'] ?? '',
@@ -65,7 +77,7 @@ class LiveClassModel {
       icon: json['icon'] ?? '',
       color: json['color'] as Gradient?,
       isLive: json['isLive'] ?? false,
-      type: json['type'] ?? 'recorded',
+      type: normalizedType,
       streamUrl: json['stream_url'],
       recordingUrl: json['recording_url'],
       platform: json['platform'] ?? 'In-App',

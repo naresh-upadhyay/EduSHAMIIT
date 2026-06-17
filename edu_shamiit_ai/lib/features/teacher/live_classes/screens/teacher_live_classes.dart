@@ -524,10 +524,14 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
         children: [
           Icon(icon, size: 10, color: fg),
           const SizedBox(width: 4),
-          Text(
-            platform,
-            style:
-                TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+          Flexible(
+            child: Text(
+              platform,
+              style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.bold, color: fg),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
         ],
       ),

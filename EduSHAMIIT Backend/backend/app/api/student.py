@@ -1036,8 +1036,16 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
             
     # 2. Fetch courses for class
     if student_class:
-        subjects_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("class", student_class).aexecute()
-        subject_ids = [s["id"] for s in (subjects_res.data or [])]
+        subjects_res = await sb.table("subjects").select("*").eq("school_id", school_id).eq("class", student_class).aexecute()
+        
+        # Deduplicate subjects by name
+        unique_subjects = {}
+        for s in (subjects_res.data or []):
+            name_lower = s["name"].strip().lower()
+            if name_lower not in unique_subjects:
+                unique_subjects[name_lower] = s
+                
+        subject_ids = [s["id"] for s in unique_subjects.values()]
         if subject_ids:
             courses_res = await sb.table("courses").select("*, subjects(*), profiles!teacher_id(full_name)").eq("school_id", school_id).in_("subject_id", subject_ids).aexecute()
             db_courses = courses_res.data or []
@@ -1049,9 +1057,17 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
 
     # 3. Enhance course data with scores, progress, syllabus coverage, and upcoming topics matching the mockup!
     enhanced_courses = []
+    seen_subject_names = set()
     for c in db_courses:
         subj = c.get("subjects") or {}
-        subj_name = subj.get("name", "Subject")
+        subj_name = subj.get("name", "Subject").strip()
+        if not subj_name:
+            continue
+        subj_name_lower = subj_name.lower()
+        if subj_name_lower in seen_subject_names:
+            continue
+        seen_subject_names.add(subj_name_lower)
+        
         teacher_name = c.get("profiles", {}).get("full_name") if c.get("profiles") else "Teacher"
         
         # Default mock metrics from the mockup
@@ -1070,6 +1086,37 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
         except Exception:
             pass
 
+        # Calculate real chapters and progress from database
+        real_chapters_count = 0
+        try:
+            chapters_res = await sb.table("course_chapters").select("id").eq("course_id", c["id"]).aexecute()
+            db_chapters = chapters_res.data or []
+            real_chapters_count = len(db_chapters)
+            
+            if real_chapters_count > 0:
+                chapters_count = f"{real_chapters_count} chapters"
+                
+                # Fetch topics
+                chapter_ids = [chap["id"] for chap in db_chapters]
+                topics_res = await sb.table("course_topics").select("id").in_("chapter_id", chapter_ids).aexecute()
+                db_topics = topics_res.data or []
+                real_topics_count = len(db_topics)
+                
+                if real_topics_count > 0:
+                    topic_ids = [t["id"] for t in db_topics]
+                    progress_res = await sb.table("student_topic_progress")\
+                        .select("topic_id")\
+                        .eq("student_id", user["id"])\
+                        .in_("topic_id", topic_ids)\
+                        .eq("completed", True)\
+                        .aexecute()
+                    real_completed_count = len(progress_res.data or [])
+                    progress = real_completed_count / real_topics_count
+                else:
+                    progress = 0.0
+        except Exception as e:
+            print(f"Error calculating dynamic progress: {str(e)}")
+
         # Check if high-fidelity mockup columns exist in database record
         db_syllabus_coverage = c.get("syllabus_coverage")
         db_upcoming_topics = c.get("upcoming_topics")
@@ -1085,12 +1132,13 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
             syllabus_coverage = db_syllabus_coverage if db_syllabus_coverage else []
             upcoming_topics = db_upcoming_topics if db_upcoming_topics else []
             resources_text = db_resources_text if db_resources_text else ""
-            if db_chapters_count:
+            if db_chapters_count and real_chapters_count == 0:
                 chapters_count = db_chapters_count
         elif "math" in subj_name.lower():
             score = "95%"
-            progress = 0.78
-            chapters_count = "42 chapters"
+            if real_chapters_count == 0:
+                progress = 0.78
+                chapters_count = "42 chapters"
             syllabus_coverage = [
                 {"topic": "Algebra", "progress": 1.0, "status": "success"},
                 {"topic": "Trigonometry", "progress": 1.0, "status": "success"},
@@ -1107,8 +1155,9 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
             resources_text = "12 video lectures, 8 practice sets"
         elif "phys" in subj_name.lower():
             score = "89%"
-            progress = 0.72
-            chapters_count = "38 chapters"
+            if real_chapters_count == 0:
+                progress = 0.72
+                chapters_count = "38 chapters"
             syllabus_coverage = [
                 {"topic": "Mechanics", "progress": 1.0, "status": "success"},
                 {"topic": "Thermodynamics", "progress": 1.0, "status": "success"},
@@ -1125,8 +1174,9 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
             resources_text = "10 video lectures, 6 practice sets"
         elif "chem" in subj_name.lower():
             score = "91%"
-            progress = 0.80
-            chapters_count = "35 chapters"
+            if real_chapters_count == 0:
+                progress = 0.80
+                chapters_count = "35 chapters"
             syllabus_coverage = [
                 {"topic": "Organic Chemistry", "progress": 1.0, "status": "success"},
                 {"topic": "Periodic Table", "progress": 1.0, "status": "success"},
@@ -1142,8 +1192,9 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
             resources_text = "8 video lectures, 5 practice sets, 8/10 practicals"
         elif "eng" in subj_name.lower():
             score = "92%"
-            progress = 0.85
-            chapters_count = "28 chapters"
+            if real_chapters_count == 0:
+                progress = 0.85
+                chapters_count = "28 chapters"
             syllabus_coverage = [
                 {"topic": "Prose — First Flight", "progress": 1.0, "status": "success"},
                 {"topic": "Poetry", "progress": 1.0, "status": "success"},
@@ -1188,6 +1239,99 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
         })
         
     return {"success": True, "school_id": school_id, "data": {"courses": enhanced_courses}}
+
+
+@router.get("/courses/{course_id}/details")
+async def student_course_details(course_id: str, user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Fetch course first to verify
+    course_res = await sb.table("courses").select("*, subjects(*)").eq("id", course_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not course_res.data:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Fetch chapters
+    chapters_res = await sb.table("course_chapters").select("*").eq("course_id", course_id).eq("school_id", school_id).order("chapter_order", ascending=True).aexecute()
+    chapters = chapters_res.data or []
+    
+    # Fetch topics
+    if chapters:
+        chapter_ids = [c["id"] for c in chapters]
+        topics_res = await sb.table("course_topics").select("*").in_("chapter_id", chapter_ids).order("topic_order", ascending=True).aexecute()
+        topics = topics_res.data or []
+    else:
+        topics = []
+        
+    # Fetch student's progress for these topics
+    completed_topics = set()
+    if topics:
+        topic_ids = [t["id"] for t in topics]
+        try:
+            progress_res = await sb.table("student_topic_progress")\
+                .select("topic_id")\
+                .eq("student_id", user["id"])\
+                .in_("topic_id", topic_ids)\
+                .eq("completed", True)\
+                .aexecute()
+            if progress_res.data:
+                completed_topics = {p["topic_id"] for p in progress_res.data}
+        except Exception as e:
+            print(f"Error fetching topic progress details: {str(e)}")
+
+    # Map topics to chapters with completed status
+    for c in chapters:
+        c["topics"] = []
+        for t in topics:
+            if t["chapter_id"] == c["id"]:
+                t_copy = dict(t)
+                t_copy["completed"] = t["id"] in completed_topics
+                c["topics"].append(t_copy)
+        
+    return {
+        "success": True,
+        "data": {
+            "course": course_res.data,
+            "chapters": chapters
+        }
+    }
+
+
+@router.post("/courses/topics/{topic_id}/progress")
+async def update_topic_progress(
+    topic_id: str,
+    request: dict,
+    user=Depends(get_current_user),
+    school_id=Depends(require_school_id)
+):
+    completed = request.get("completed", True)
+    sb = get_supabase()
+    
+    # Verify the topic exists
+    topic_res = await sb.table("course_topics").select("id").eq("id", topic_id).maybe_single().aexecute()
+    if not topic_res.data:
+        raise HTTPException(status_code=404, detail="Topic not found")
+        
+    if completed:
+        # Insert or upsert progress record
+        progress_data = {
+            "school_id": school_id,
+            "student_id": user["id"],
+            "topic_id": topic_id,
+            "completed": True,
+            "updated_at": "now()"
+        }
+        res = await sb.table("student_topic_progress").upsert(
+            progress_data,
+            on_conflict="student_id,topic_id"
+        ).aexecute()
+    else:
+        # Delete progress record
+        res = await sb.table("student_topic_progress")\
+            .delete()\
+            .eq("student_id", user["id"])\
+            .eq("topic_id", topic_id)\
+            .aexecute()
+            
+    return {"success": True, "completed": completed}
 
 
 @router.get("/notifications")

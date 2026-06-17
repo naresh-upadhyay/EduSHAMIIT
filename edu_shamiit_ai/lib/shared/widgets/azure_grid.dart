@@ -418,52 +418,55 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
           child: SingleChildScrollView(
             controller: _horizontalController,
             scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: max(viewportWidth, totalMinWidth),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Table Header
-                  _buildTableHeader(pagedItems, finalSelectionWidth, scale, isDark),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: SizedBox(
+                width: max(viewportWidth, totalMinWidth),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Table Header
+                    _buildTableHeader(pagedItems, finalSelectionWidth, scale, isDark),
 
-                  const Divider(height: 1, thickness: 1),
+                    const Divider(height: 1, thickness: 1),
 
-                  // Table Body
-                  widget.disableVerticalScroll
-                      ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: List.generate(pagedItems.length, (index) {
-                            final item = pagedItems[index];
-                            return _buildTableRow(
-                              item: item,
-                              index: index,
-                              selectionWidth: finalSelectionWidth,
-                              scale: scale,
-                              isDark: isDark,
-                            );
-                          }),
-                        )
-                      : Expanded(
-                          child: Scrollbar(
-                            controller: _verticalController,
-                            thumbVisibility: true,
-                            child: ListView.builder(
+                    // Table Body
+                    widget.disableVerticalScroll
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(pagedItems.length, (index) {
+                              final item = pagedItems[index];
+                              return _buildTableRow(
+                                item: item,
+                                index: index,
+                                selectionWidth: finalSelectionWidth,
+                                scale: scale,
+                                isDark: isDark,
+                              );
+                            }),
+                          )
+                        : Expanded(
+                            child: Scrollbar(
                               controller: _verticalController,
-                              itemCount: pagedItems.length,
-                              itemBuilder: (context, index) {
-                                final item = pagedItems[index];
-                                return _buildTableRow(
-                                  item: item,
-                                  index: index,
-                                  selectionWidth: finalSelectionWidth,
-                                  scale: scale,
-                                  isDark: isDark,
-                                );
-                              },
+                              thumbVisibility: true,
+                              child: ListView.builder(
+                                controller: _verticalController,
+                                itemCount: pagedItems.length,
+                                itemBuilder: (context, index) {
+                                  final item = pagedItems[index];
+                                  return _buildTableRow(
+                                    item: item,
+                                    index: index,
+                                    selectionWidth: finalSelectionWidth,
+                                    scale: scale,
+                                    isDark: isDark,
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

@@ -169,7 +169,7 @@ class StudentShellScaffold extends ConsumerWidget {
 
     // Don't wrap AI chat in SelectionArea — its streaming ListView
     // causes !debugNeedsLayout assertions in SelectableRegion.
-    final isAiChat = currentLoc.endsWith('/ai-chat');
+    final isAiChat = currentLoc.contains('/ai-chat');
     final isMessaging = currentLoc.contains('/messaging');
     final isExam = currentLoc.contains('/student/exams');
     final pageChild = child;
@@ -206,7 +206,7 @@ class StudentShellScaffold extends ConsumerWidget {
         ),
         floatingActionButton: (isAiChat || isMessaging || isExam) ? null : AiFab(
           gradient: AppGradients.studentPrimary,
-          onPressed: () => context.push('/student/ai-chat'),
+          onPressed: () => context.push('/student/ai-chat?from=${Uri.encodeComponent(currentLoc)}'),
         ),
       );
     } else {
@@ -216,7 +216,7 @@ class StudentShellScaffold extends ConsumerWidget {
         bottomNavigationBar: StudentBottomNav(currentLocation: currentLoc),
         floatingActionButton: (isAiChat || isMessaging || isExam) ? null : AiFab(
           gradient: AppGradients.studentPrimary,
-          onPressed: () => context.push('/student/ai-chat'),
+          onPressed: () => context.push('/student/ai-chat?from=${Uri.encodeComponent(currentLoc)}'),
         ),
       );
     }

@@ -1548,6 +1548,43 @@ class StudentApiService {
       StudentSubject(id: 'sub_eng', name: 'English', icon: '📖', color: '#F59E0B'),
     ];
   }
+
+  /// Get course details (chapters & topics)
+  Future<Map<String, dynamic>> getCourseDetails(String courseId) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/courses/$courseId/details'),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        return decoded['data'] ?? decoded;
+      } else {
+        return {'course': {}, 'chapters': []};
+      }
+    } catch (e) {
+      return {'course': {}, 'chapters': []};
+    }
+  }
+
+  /// Toggle topic completion progress
+  Future<bool> toggleTopicProgress(String topicId, bool completed) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/courses/topics/$topicId/progress'),
+            headers: await _headers,
+            body: jsonEncode({'completed': completed}),
+          )
+          .timeout(AppConfig.apiTimeout);
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 /// API Exception

@@ -22,6 +22,9 @@ import 'package:edu_shamiit_ai/features/shared/leave/screens/leave_screen.dart';
 import 'package:edu_shamiit_ai/features/student/profile/screens/student_profile.dart';
 import 'package:edu_shamiit_ai/features/student/library/screens/student_library.dart';
 import 'package:edu_shamiit_ai/features/student/courses/screens/student_courses.dart';
+import 'package:edu_shamiit_ai/features/student/courses/screens/student_course_details.dart';
+import 'package:edu_shamiit_ai/features/teacher/my_classes/screens/teacher_class_subjects.dart';
+import 'package:edu_shamiit_ai/features/teacher/courses/screens/teacher_course_details.dart';
 import 'package:edu_shamiit_ai/features/student/notifications/screens/student_notifications.dart';
 import 'package:edu_shamiit_ai/features/student/notices/screens/student_notices_screen.dart';
 import 'package:edu_shamiit_ai/features/student/transport/screens/student_transport_screen.dart';
@@ -258,6 +261,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (_, __) => const NoTransitionPage(child: StudentCourses()),
         ),
         GoRoute(
+          path: '/student/courses/:courseId/details',
+          pageBuilder: (context, state) {
+            final courseId = state.pathParameters['courseId']!;
+            return NoTransitionPage(child: StudentCourseDetailsScreen(courseId: courseId));
+          },
+        ),
+        GoRoute(
           path: '/student/notifications',
           pageBuilder: (_, __) => const NoTransitionPage(child: StudentNotifications()),
         ),
@@ -357,7 +367,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/ai-chat',
-          pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
+          pageBuilder: (context, state) {
+            final from = state.uri.queryParameters['from'];
+            return NoTransitionPage(child: AiChatScreen(launchedFrom: from));
+          },
         ),
         GoRoute(
           path: '/student/documents',
@@ -398,6 +411,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/teacher/my-classes',
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMyClasses()),
+        ),
+        GoRoute(
+          path: '/teacher/my-classes/:classId/subjects',
+          pageBuilder: (context, state) {
+            final classId = state.pathParameters['classId']!;
+            return NoTransitionPage(child: TeacherClassSubjectsScreen(classId: classId));
+          },
+        ),
+        GoRoute(
+          path: '/teacher/courses/:courseId/details',
+          pageBuilder: (context, state) {
+            final courseId = state.pathParameters['courseId']!;
+            return NoTransitionPage(child: TeacherCourseDetailsScreen(courseId: courseId));
+          },
         ),
         GoRoute(
           path: '/teacher/class-detail',
@@ -530,7 +557,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/teacher/ai-chat',
-          pageBuilder: (_, __) => const NoTransitionPage(child: AiChatScreen()),
+          pageBuilder: (context, state) {
+            final from = state.uri.queryParameters['from'];
+            return NoTransitionPage(child: AiChatScreen(launchedFrom: from));
+          },
         ),
         GoRoute(
           path: '/teacher/documents',

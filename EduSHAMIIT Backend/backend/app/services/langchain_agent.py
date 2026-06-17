@@ -48,7 +48,7 @@ def get_gemini_fallbacks(primary_model: str) -> list:
     return fallbacks[:5]
 
 
-def build_agent(role: str, school_id: str, task_type: str = "qa", user_id: str = None):
+def build_agent(role: str, school_id: str, task_type: str = "qa", user_id: str = None, launched_from: str = None):
     """Build a role-scoped, task-appropriate LangChain agent with fallback LLMs."""
     from langchain.agents import AgentExecutor
     from langchain.agents.format_scratchpad import format_to_tool_messages
@@ -62,7 +62,7 @@ def build_agent(role: str, school_id: str, task_type: str = "qa", user_id: str =
     tools = filter_tools_by_role(all_tools, role, school_id)
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", get_system_prompt(role, school_id, user_id)),
+        ("system", get_system_prompt(role, school_id, user_id, launched_from)),
         MessagesPlaceholder("chat_history"),
         ("human", "{input}\n\nCRITICAL REMINDER: If you are generating, exporting, downloading, or creating any document (PDF, Excel spreadsheet, CSV) or image, you MUST call the appropriate tool ('generate_document' or 'generate_image') first to create the file. NEVER output a download link or markdown link manually or write one you made up; you must only use the exact markdown link returned in the tool's execution result. If you output a link without executing the tool, the file will not exist on the server and the user will get a 404 error."),
         MessagesPlaceholder("agent_scratchpad"),
@@ -239,6 +239,7 @@ async def process_message(
     user: dict = None,
     session_id: str = "",
     school_id: str = "",
+    launched_from: str = None,
 ) -> AsyncGenerator[dict, None]:
     """Single entry point for all message types. Yields SSE chunks."""
 
@@ -288,7 +289,7 @@ async def process_message(
     role = user.get("role", "student") if user else "student"
 
     try:
-        agent = build_agent(role, school_id, task, user_id=user.get("id") if user else None)
+        agent = build_agent(role, school_id, task, user_id=user.get("id") if user else None, launched_from=launched_from)
         history = load_history(session_id)
 
         # Step 4: Run agent and stream final answer tokens via astream_events v2

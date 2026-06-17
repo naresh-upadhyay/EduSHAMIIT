@@ -15,7 +15,8 @@ router = APIRouter()
 
 async def _sse_generator(text: str, image_b64: Optional[str], audio_path: Optional[str],
                           doc_b64: Optional[str], doc_name: Optional[str],
-                          user: dict, session_id: str, school_id: str):
+                          user: dict, session_id: str, school_id: str,
+                          launched_from: Optional[str] = None):
     """Generate SSE events from the langchain agent process_message stream."""
     try:
         # Yield an immediate warming connection event to prevent browser/Nginx disconnects
@@ -30,6 +31,7 @@ async def _sse_generator(text: str, image_b64: Optional[str], audio_path: Option
             user=user,
             session_id=session_id,
             school_id=school_id,
+            launched_from=launched_from,
         ):
             event_type = chunk.get("type", "text")
             data = json.dumps(chunk, ensure_ascii=False)
@@ -47,23 +49,13 @@ async def chat_message(
 ):
     """
     Send message to Shami AI and stream response via SSE.
-
-    Request:
-    {
-        "message": "What classes do I have today?",
-        "session_id": "uuid-session-1"
-    }
-
-    SSE Response:
-    data: {"type":"text","content":"Your Monday Schedule:"}
-    data: {"type":"tool_result","tool":"get_timetable","data":{...}}
-    data: {"type":"done"}
     """
     message = request.get("message", "")
     session_id = request.get("session_id", str(uuid.uuid4()))
     image_b64 = request.get("image_b64", None)
     doc_b64 = request.get("doc_b64", None)
     doc_name = request.get("doc_name", None)
+    context_from = request.get("context", None)
 
     if not message and not image_b64 and not doc_b64:
         raise HTTPException(status_code=400, detail="Message, image, or document is required")
@@ -78,6 +70,7 @@ async def chat_message(
             user=user,
             session_id=session_id,
             school_id=school_id,
+            launched_from=context_from,
         ),
         media_type="text/event-stream",
         headers={
