@@ -35,7 +35,7 @@ class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
       final list = await _studentApi.getSubjects();
       if (list.isNotEmpty) {
         setState(() {
-          _subjects = list.map((s) => s.name).toList();
+          _subjects = list.map((s) => s.name).toSet().toList();
         });
       }
     } catch (e) {

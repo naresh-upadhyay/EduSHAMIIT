@@ -186,13 +186,46 @@ async def create_homework(request: dict, user=Depends(require_teacher), school_i
             if subj_res_any.data:
                 subject_id = subj_res_any.data[0]["id"]
                 
+    attachment_url = request.get("attachment_url")
+    attachments = [attachment_url] if attachment_url else None
+
     homework = await sb.table("homework").insert({
         "school_id": school_id, "subject_id": subject_id, "teacher_id": user["id"],
         "title": request.get("title"), "description": request.get("description"),
         "due_date": request.get("due_date"), "max_marks": request.get("max_marks", 25),
         "class": target_class, "status": "active",
+        "attachments": attachments,
     }).aexecute()
-    return {"success": True, "school_id": school_id, "data": {"homework_id": homework.data[0]["id"]}}
+    
+    homework_id = homework.data[0]["id"]
+    
+    # Notify all students in this class
+    if target_class:
+        students_res = await sb.table("profiles").select("id").eq("school_id", school_id).eq("class", target_class).eq("role", "student").aexecute()
+        student_ids = [s["id"] for s in (students_res.data or [])]
+        if student_ids:
+            notification_title = "📝 New Homework Assigned"
+            notification_body = f"New assignment: '{request.get('title')}' in {subject_name or 'homework'}"
+            notification_type = "homework"
+            
+            records = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "school_id": school_id,
+                    "user_id": uid,
+                    "title": notification_title,
+                    "body": notification_body,
+                    "type": notification_type,
+                    "reference_id": homework_id,
+                    "is_read": False,
+                    "created_at": datetime.utcnow().isoformat(),
+                }
+                for uid in student_ids
+            ]
+            for i in range(0, len(records), 500):
+                await sb.table("notifications").insert(records[i: i + 500]).aexecute()
+                
+    return {"success": True, "school_id": school_id, "data": {"homework_id": homework_id}}
 
 
 @router.patch("/homework/{homework_id}")
@@ -204,6 +237,7 @@ async def teacher_update_homework(homework_id: str, request: dict, user=Depends(
     if "due_date" in request: updates["due_date"] = request["due_date"]
     if "max_marks" in request: updates["max_marks"] = request["max_marks"]
     if "status" in request: updates["status"] = request["status"]
+    if "attachment_url" in request: updates["attachments"] = [request["attachment_url"]] if request["attachment_url"] else None
     
     await sb.table("homework").update(updates).eq("id", homework_id).eq("school_id", school_id).aexecute()
     return {"success": True, "message": "Homework updated successfully"}
@@ -216,16 +250,155 @@ async def teacher_delete_homework(homework_id: str, user=Depends(require_teacher
     return {"success": True, "message": "Homework deleted successfully"}
 
 
+@router.post("/homework/{homework_id}/remind")
+async def send_homework_reminder(
+    homework_id: str,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    
+    # 1. Fetch homework details
+    hw_res = await sb.table("homework").select("*").eq("id", homework_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not hw_res.data:
+        raise HTTPException(status_code=404, detail="Homework not found")
+        
+    homework = hw_res.data
+    target_class = homework.get("class")
+    title = homework.get("title")
+    
+    if not target_class:
+        raise HTTPException(status_code=400, detail="Homework does not have a target class")
+        
+    # 2. Fetch all student profiles in this class
+    students_res = await sb.table("profiles").select("id").eq("school_id", school_id).eq("class", target_class).eq("role", "student").aexecute()
+    student_ids = [s["id"] for s in (students_res.data or [])]
+    
+    if not student_ids:
+        return {"success": True, "sent_count": 0, "message": "No students in this class"}
+        
+    # 3. Fetch student_ids who have already submitted the homework
+    submitted_res = await sb.table("homework_submissions").select("student_id").eq("homework_id", homework_id).eq("school_id", school_id).aexecute()
+    submitted_ids = {sub["student_id"] for sub in (submitted_res.data or [])}
+    
+    # 4. Filter to students who haven't submitted yet
+    pending_student_ids = [uid for uid in student_ids if uid not in submitted_ids]
+    
+    if not pending_student_ids:
+        return {"success": True, "sent_count": 0, "message": "All students have already submitted"}
+        
+    # 5. Send notification to pending students
+    notification_title = "📚 Homework Reminder"
+    notification_body = f"Please submit your homework: '{title}'"
+    notification_type = "homework"
+    
+    import uuid
+    records = [
+        {
+            "id": str(uuid.uuid4()),
+            "school_id": school_id,
+            "user_id": uid,
+            "title": notification_title,
+            "body": notification_body,
+            "type": notification_type,
+            "reference_id": homework_id,
+            "is_read": False,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        for uid in pending_student_ids
+    ]
+    for i in range(0, len(records), 500):
+        await sb.table("notifications").insert(records[i: i + 500]).aexecute()
+        
+    return {"success": True, "sent_count": len(pending_student_ids), "message": f"Reminders sent to {len(pending_student_ids)} students"}
+
+
+
 
 @router.post("/submissions/grade")
 async def grade_submission(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    sub_id = request.get("submission_id")
+    if not sub_id:
+        raise HTTPException(status_code=400, detail="submission_id is required")
+        
+    # 1. Fetch submission details to get homework max marks
+    sub_res = await sb.table("homework_submissions").select("*, homework(max_marks)").eq("id", sub_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not sub_res.data:
+        raise HTTPException(status_code=404, detail="Submission not found")
+        
+    submission = sub_res.data
+    homework = submission.get("homework") or {}
+    max_marks = homework.get("max_marks") or 25
+    
+    # 2. Validate marks
+    marks = request.get("marks")
+    if marks is not None:
+        try:
+            marks_float = float(marks)
+            if marks_float > max_marks:
+                raise HTTPException(status_code=400, detail=f"Score cannot exceed maximum marks ({max_marks})")
+            if marks_float < 0:
+                raise HTTPException(status_code=400, detail="Score cannot be negative")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid marks format")
+            
+    # 3. Update submission
+    feedback = request.get("remarks") or request.get("feedback")
     await sb.table("homework_submissions").update({
-        "status": "graded", "marks": request.get("marks"), "grade": request.get("grade"),
-        "teacher_remarks": request.get("remarks"), "graded_by": user["id"],
+        "status": "graded", "marks": marks, "grade": request.get("grade"),
+        "teacher_remarks": feedback, "graded_by": user["id"],
         "graded_at": datetime.now().isoformat(),
-    }).eq("id", request.get("submission_id")).eq("school_id", school_id).aexecute()
+    }).eq("id", sub_id).eq("school_id", school_id).aexecute()
     return {"success": True, "school_id": school_id, "message": "Submission graded"}
+
+
+@router.post("/submissions/return")
+async def return_submission(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    sub_id = request.get("submission_id")
+    if not sub_id:
+        raise HTTPException(status_code=400, detail="submission_id is required")
+        
+    # 1. Fetch submission details
+    sub_res = await sb.table("homework_submissions").select("*, homework(title)").eq("id", sub_id).eq("school_id", school_id).maybe_single().aexecute()
+    if not sub_res.data:
+        raise HTTPException(status_code=404, detail="Submission not found")
+        
+    submission = sub_res.data
+    feedback = request.get("remarks") or request.get("feedback")
+    
+    # 2. Update status to "returned" and clear grade/marks
+    await sb.table("homework_submissions").update({
+        "status": "returned",
+        "marks": None,
+        "grade": None,
+        "teacher_remarks": feedback,
+        "graded_by": user["id"],
+        "graded_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("id", sub_id).eq("school_id", school_id).aexecute()
+    
+    # 3. Insert notification for student
+    try:
+        hw_title = (submission.get("homework") or {}).get("title") or "Homework"
+        await sb.table("notifications").insert({
+            "id": str(uuid.uuid4()),
+            "school_id": school_id,
+            "user_id": submission["student_id"],
+            "title": "↩️ Homework Returned",
+            "body": f"Your homework '{hw_title}' has been returned by teacher for correction.",
+            "type": "homework",
+            "reference_id": submission["homework_id"],
+            "is_read": False,
+            "created_at": datetime.utcnow().isoformat(),
+        }).aexecute()
+    except Exception as e:
+        print("Failed to send return notification:", e)
+        
+    # 4. Fetch updated submission
+    updated = await sb.table("homework_submissions").select("*, homework(max_marks)").eq("id", sub_id).maybe_single().aexecute()
+    return {"success": True, "school_id": school_id, "data": updated.data}
+
 
 
 @router.get("/class-detail")
@@ -1271,7 +1444,7 @@ async def upload_document(
 @router.get("/submissions")
 async def teacher_submissions(homework_id: str = "", user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    query = sb.table("homework_submissions").select("*, profiles!student_id(full_name, roll_number), homework(title)").eq("school_id", school_id)
+    query = sb.table("homework_submissions").select("*, profiles!student_id(full_name, roll_number), homework(title, max_marks)").eq("school_id", school_id)
     if homework_id:
         query = query.eq("homework_id", homework_id)
     submissions = (await query.order("submitted_at", ascending=False).aexecute()).data
@@ -1408,6 +1581,16 @@ async def teacher_get_homework(status: str = None, user=Depends(get_current_user
             subj = hw.get("subjects") or {}
             hw["subject"] = subj.get("name", "Unknown")
             hw["subject_icon"] = subj.get("icon", "📚")
+            attachments = hw.get("attachments")
+            if attachments:
+                if isinstance(attachments, list) and len(attachments) > 0:
+                    hw["attachment_url"] = attachments[0]
+                elif isinstance(attachments, str):
+                    hw["attachment_url"] = attachments
+                else:
+                    hw["attachment_url"] = None
+            else:
+                hw["attachment_url"] = None
             
     return {"success": True, "school_id": school_id, "data": {"homework": homework}}
 

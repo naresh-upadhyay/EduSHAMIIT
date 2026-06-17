@@ -425,7 +425,9 @@ class HomeworkAssignment {
   final String? grade;
   final String? teacherRemarks;
   final String? submissionUrl;
+  final String? submissionText;
   final DateTime? submittedAt;
+  final String? attachmentUrl;
 
   HomeworkAssignment({
     required this.id,
@@ -440,7 +442,9 @@ class HomeworkAssignment {
     this.grade,
     this.teacherRemarks,
     this.submissionUrl,
+    this.submissionText,
     this.submittedAt,
+    this.attachmentUrl,
   });
 
   factory HomeworkAssignment.fromJson(Map<String, dynamic> json) {
@@ -460,9 +464,11 @@ class HomeworkAssignment {
       grade: json['grade'],
       teacherRemarks: json['teacher_remarks'],
       submissionUrl: json['submission_url'],
+      submissionText: json['submission_text'],
       submittedAt: json['submitted_at'] != null
           ? DateTime.tryParse(json['submitted_at'])
           : null,
+      attachmentUrl: json['attachment_url'],
     );
   }
 
@@ -480,7 +486,9 @@ class HomeworkAssignment {
       'grade': grade,
       'teacher_remarks': teacherRemarks,
       'submission_url': submissionUrl,
+      'submission_text': submissionText,
       'submitted_at': submittedAt?.toIso8601String(),
+      'attachment_url': attachmentUrl,
     };
   }
 }

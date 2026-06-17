@@ -379,7 +379,7 @@ async def student_homework(status: str = "all", user=Depends(get_current_user), 
     
     # Parallelize homework and submissions
     hw_task = sb.table("homework").select("*, subjects(name, icon)").eq("school_id", school_id).eq("class", student_class).eq("status", "active").order("due_date").aexecute()
-    sub_task = sb.table("homework_submissions").select("homework_id, status, marks, grade, teacher_remarks, attachment_url, submitted_at").eq("student_id", user["id"]).aexecute()
+    sub_task = sb.table("homework_submissions").select("homework_id, status, marks, grade, teacher_remarks, attachment_url, submission_text, submitted_at").eq("student_id", user["id"]).aexecute()
     
     hw_res, sub_res = await asyncio.gather(hw_task, sub_task)
     homework = hw_res.data or []
@@ -403,10 +403,21 @@ async def student_homework(status: str = "all", user=Depends(get_current_user), 
         hw["grade"] = sub.get("grade") if sub else None
         hw["teacher_remarks"] = sub.get("teacher_remarks") if sub else None
         hw["submission_url"] = sub.get("attachment_url") if sub else None
+        hw["submission_text"] = sub.get("submission_text") if sub else None
         hw["submitted_at"] = sub.get("submitted_at") if sub else None
+        attachments = hw.get("attachments")
+        if attachments:
+            if isinstance(attachments, list) and len(attachments) > 0:
+                hw["attachment_url"] = attachments[0]
+            elif isinstance(attachments, str):
+                hw["attachment_url"] = attachments
+            else:
+                hw["attachment_url"] = None
+        else:
+            hw["attachment_url"] = None
         
         # Filter by status parameter (pending, submitted, graded)
-        if status == "all" or (status == "pending" and not sub) or (status == "submitted" and sub and sub["status"] == "submitted") or (status == "graded" and sub and sub["status"] == "graded"):
+        if status == "all" or (status == "pending" and (not sub or sub["status"] == "returned")) or (status == "submitted" and sub and sub["status"] == "submitted") or (status == "graded" and sub and sub["status"] == "graded"):
             filtered.append(hw)
             
     return {"success": True, "school_id": school_id, "data": {"homework": filtered}}
@@ -424,13 +435,53 @@ async def submit_homework(homework_id: Optional[str] = None, request: dict = {},
     if not hw_id:
         return {"success": False, "message": "Missing homework_id"}
         
-    existing = await sb.table("homework_submissions").select("id").eq("homework_id", hw_id).eq("student_id", user["id"]).maybe_single().aexecute()
-    if existing.data:
-        return {"success": False, "message": "Already submitted"}
-        
+    existing = await sb.table("homework_submissions").select("id, status, homework(due_date)").eq("homework_id", hw_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    
     attachment = request.get("attachment_url") or request.get("file_url")
     text = request.get("submission_text", "")
     
+    if existing.data:
+        sub = existing.data
+        status_val = sub.get("status") or ""
+        homework_dict = sub.get("homework") or {}
+        due_date_str = homework_dict.get("due_date")
+        
+        is_due_over = False
+        if due_date_str:
+            try:
+                due_date = datetime.strptime(due_date_str, "%Y-%m-%d").date()
+                if due_date < datetime.now(timezone.utc).date():
+                    is_due_over = True
+            except Exception:
+                pass
+        
+        can_update = False
+        if status_val == "returned":
+            can_update = True
+        elif status_val == "submitted" and not is_due_over:
+            can_update = True
+            
+        if can_update:
+            await sb.table("homework_submissions").update({
+                "submission_text": text,
+                "attachment_url": attachment,
+                "submitted_at": datetime.now(timezone.utc).isoformat(),
+                "status": "submitted",
+                "grade": None,
+                "marks": None,
+                "teacher_remarks": None,
+                "graded_by": None,
+                "graded_at": None
+            }).eq("id", sub["id"]).aexecute()
+            return {"success": True, "school_id": school_id, "message": "Homework submission updated successfully"}
+        else:
+            if status_val == "graded":
+                return {"success": False, "message": "This homework has already been graded and cannot be updated"}
+            elif is_due_over:
+                return {"success": False, "message": "Due date is over; you cannot update this submission"}
+            else:
+                return {"success": False, "message": "Already submitted"}
+        
     await sb.table("homework_submissions").insert({
         "school_id": school_id, 
         "homework_id": hw_id, 

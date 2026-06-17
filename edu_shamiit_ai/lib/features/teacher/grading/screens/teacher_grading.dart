@@ -18,9 +18,9 @@ class TeacherGrading extends ConsumerStatefulWidget {
 class _TeacherGradingState extends ConsumerState<TeacherGrading> {
   final TeacherApiService _apiService = TeacherApiService();
 
-  String _selectedClass = 'X-A';
+  String _selectedClass = '';
   String _selectedSubject = 'Mathematics';
-  final List<String> _classes = ['X-A', 'X-B', 'X-C', 'IX-A', 'IX-B'];
+  List<String> _classes = [];
   List<String> _subjects = [
     'Mathematics',
     'Physics',
@@ -35,28 +35,49 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
   @override
   void initState() {
     super.initState();
-    _loadSubjects().then((_) {
-      if (mounted) _loadAssignments();
-    });
+    _loadInitialData();
   }
 
-  Future<void> _loadSubjects() async {
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
     try {
-      final subjects = await _apiService.getSubjects(allSubjects: true);
-      if (subjects.isNotEmpty) {
-        setState(() {
-          _subjects = subjects.map((s) => s.name).toList();
+      final results = await Future.wait([
+        _apiService.getMyClasses(),
+        _apiService.getSubjects(allSubjects: true),
+      ]);
+
+      final classes = results[0] as List<TeacherMyClass>;
+      final subjects = results[1] as List<TeacherSubject>;
+
+      setState(() {
+        if (classes.isNotEmpty) {
+          _classes = classes.map((c) {
+            final section = c.section.trim();
+            if (section.isEmpty || c.name.contains('-$section')) return c.name;
+            return '${c.name}-$section';
+          }).toSet().toList();
+          _selectedClass = _classes.first;
+        }
+
+        if (subjects.isNotEmpty) {
+          _subjects = subjects.map((s) => s.name).toSet().toList();
           if (!_subjects.contains(_selectedSubject)) {
             _selectedSubject = _subjects.first;
           }
-        });
+        }
+      });
+
+      if (mounted) {
+        _loadAssignments();
       }
     } catch (e) {
-      debugPrint('Error loading subjects in grading: $e');
+      debugPrint('Error loading initial data in grading: $e');
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadAssignments() async {
+    if (_selectedClass.isEmpty) return;
     setState(() => _isLoading = true);
 
     try {
@@ -198,28 +219,29 @@ class _TeacherGradingState extends ConsumerState<TeacherGrading> {
           ),
 
           // Filters
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildDropdown('Class', _selectedClass, _classes,
-                      (value) {
-                    setState(() => _selectedClass = value!);
-                    _loadAssignments();
-                  }),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdown('Subject', _selectedSubject, _subjects,
-                      (value) {
-                    setState(() => _selectedSubject = value!);
-                    _loadAssignments();
-                  }),
-                ),
-              ],
+          if (_classes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildDropdown('Class', _selectedClass, _classes,
+                        (value) {
+                      setState(() => _selectedClass = value!);
+                      _loadAssignments();
+                    }),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildDropdown('Subject', _selectedSubject, _subjects,
+                        (value) {
+                      setState(() => _selectedSubject = value!);
+                      _loadAssignments();
+                    }),
+                  ),
+                ],
+              ),
             ),
-          ),
 
           // Stats overview
           Padding(

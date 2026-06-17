@@ -846,6 +846,7 @@ class HomeworkSubmission {
   final String status; // submitted, graded, returned
   final String? gradedBy;
   final DateTime? gradedAt;
+  final double? maxMarks;
 
   const HomeworkSubmission({
     required this.id,
@@ -861,6 +862,7 @@ class HomeworkSubmission {
     required this.status,
     this.gradedBy,
     this.gradedAt,
+    this.maxMarks,
   });
 
   factory HomeworkSubmission.fromJson(Map<String, dynamic> json) {
@@ -891,6 +893,9 @@ class HomeworkSubmission {
       gradedBy:
           _toStr(json['graded_by']).isEmpty ? null : _toStr(json['graded_by']),
       gradedAt: _toDateTime(json['graded_at']),
+      maxMarks: json['homework'] != null && (json['homework'] as Map<String, dynamic>)['max_marks'] != null
+          ? _toDouble((json['homework'] as Map<String, dynamic>)['max_marks'])
+          : null,
     );
   }
 
@@ -909,6 +914,7 @@ class HomeworkSubmission {
       'status': status,
       'graded_by': gradedBy,
       'graded_at': gradedAt?.toIso8601String(),
+      'max_marks': maxMarks,
     };
   }
 }

@@ -77,10 +77,13 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
         if (_exam!.class_.isNotEmpty) {
           _selectedClasses = _exam!.class_.split(',').map((c) => c.trim()).toList();
         } else {
-          _selectedClasses = [_classes.first.name];
+          final first = _classes.first;
+          final sec = first.section.trim();
+          final label = (sec.isEmpty || first.name.contains('-$sec')) ? first.name : '${first.name}-$sec';
+          _selectedClasses = [label];
         }
       } else {
-        _selectedClasses = ['X-A'];
+        _selectedClasses = [];
       }
 
       if (_exam != null) {
@@ -657,10 +660,11 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
   @override
   Widget build(BuildContext context) {
     // Collect unique class names from the backend class list
-    final classNames = _classes.map((c) => c.name).toSet().toList();
-    if (classNames.isEmpty) {
-      classNames.addAll(['IX-A', 'IX-B', 'X-A', 'X-B', 'XI-A', 'XII-A']);
-    }
+    final classNames = _classes.map((c) {
+      final section = c.section.trim();
+      if (section.isEmpty || c.name.contains('-$section')) return c.name;
+      return '${c.name}-$section';
+    }).toSet().toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),

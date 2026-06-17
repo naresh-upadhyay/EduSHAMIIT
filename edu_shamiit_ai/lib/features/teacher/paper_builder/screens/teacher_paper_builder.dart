@@ -20,6 +20,7 @@ class _TeacherPaperBuilderState extends ConsumerState<TeacherPaperBuilder> {
   String _selectedSubject = 'All';
   List<String> _subjects = ['All', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
   List<QuestionBankItem> _questions = [];
+  List<String> _classes = [];
   bool _isLoading = true;
   String? _error;
   final List<QuestionBankItem> _selectedQuestions = [];
@@ -34,14 +35,28 @@ class _TeacherPaperBuilderState extends ConsumerState<TeacherPaperBuilder> {
 
   Future<void> _loadSubjects() async {
     try {
-      final subjects = await _apiService.getSubjects(allSubjects: true);
-      if (mounted && subjects.isNotEmpty) {
+      final results = await Future.wait([
+        _apiService.getSubjects(allSubjects: true),
+        _apiService.getMyClasses(),
+      ]);
+      final subjects = results[0] as List<TeacherSubject>;
+      final classes = results[1] as List<TeacherMyClass>;
+      if (mounted) {
         setState(() {
-          _subjects = ['All', ...subjects.map((s) => s.name)];
+          if (subjects.isNotEmpty) {
+            _subjects = ['All', ...subjects.map((s) => s.name).toSet()];
+          }
+          if (classes.isNotEmpty) {
+            _classes = classes.map((c) {
+              final section = c.section.trim();
+              if (section.isEmpty || c.name.contains('-$section')) return c.name;
+              return '${c.name}-$section';
+            }).toSet().toList();
+          }
         });
       }
     } catch (e) {
-      debugPrint('Error loading subjects in paper builder: $e');
+      debugPrint('Error loading initial data in paper builder: $e');
     }
   }
 
@@ -345,10 +360,11 @@ class _TeacherPaperBuilderState extends ConsumerState<TeacherPaperBuilder> {
     try {
       final totalMarks = _selectedQuestions.fold<int>(0, (sum, q) => sum + q.marks);
       
+      final targetClass = _classes.isNotEmpty ? _classes.first : '';
       await _apiService.generatePaper(
         title: 'Test Paper - ${DateTime.now().toString().split(' ')[0]}',
         subject: _selectedSubject == 'All' ? 'Mathematics' : _selectedSubject.toLowerCase(),
-        classId: 'X-A',
+        classId: targetClass,
         totalMarks: totalMarks,
         duration: '1 hour',
       );

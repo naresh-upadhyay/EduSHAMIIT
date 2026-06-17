@@ -52,7 +52,11 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
       setState(() {
         _profile = profile;
         _myClasses = myClassesList
-            .map((c) => c.name)
+            .map((c) {
+              final section = c.section.trim();
+              if (section.isEmpty || c.name.contains('-$section')) return c.name;
+              return '${c.name}-$section';
+            })
             .where((name) => name.isNotEmpty)
             .toList();
         final allClasses = {...profile.classes, ..._myClasses};

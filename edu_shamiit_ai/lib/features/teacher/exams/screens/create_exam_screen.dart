@@ -73,9 +73,12 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           _selectedSubjectId = _subjects.first.id;
         }
         if (_classes.isNotEmpty) {
-          _selectedClasses = [_classes.first.name];
+          final first = _classes.first;
+          final sec = first.section.trim();
+          final label = (sec.isEmpty || first.name.contains('-$sec')) ? first.name : '${first.name}-$sec';
+          _selectedClasses = [label];
         } else {
-          _selectedClasses = ['X-A'];
+          _selectedClasses = [];
         }
       });
     } catch (e) {
@@ -108,7 +111,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
         if (exam.class_.isNotEmpty) {
           _selectedClasses = exam.class_.split(',').map((c) => c.trim()).toList();
         } else {
-          _selectedClasses = ['X-A'];
+          _selectedClasses = [];
         }
         
         String cat = exam.examCategory;
@@ -396,14 +399,15 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
       _selectedSubject = subjectNames.first;
     }
 
-    // Dynamic class lists or fallback
-    final classNames = _classes.map((c) => c.name).toSet().toList();
-    if (classNames.isEmpty) {
-      classNames.addAll(['IX-A', 'IX-B', 'X-A', 'X-B', 'XI-A', 'XII-A']);
-    }
+    // Dynamic class lists
+    final classNames = _classes.map((c) {
+      final section = c.section.trim();
+      if (section.isEmpty || c.name.contains('-$section')) return c.name;
+      return '${c.name}-$section';
+    }).toSet().toList();
     
     // Ensure at least one class is selected
-    if (_selectedClasses.isEmpty) {
+    if (_selectedClasses.isEmpty && classNames.isNotEmpty) {
       _selectedClasses = [classNames.first];
     }
 

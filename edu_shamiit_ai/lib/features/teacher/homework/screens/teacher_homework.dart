@@ -7,6 +7,8 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:edu_shamiit_ai/core/services/api_service.dart';
 
 // ─── Color tokens (teacher homework palette) ───────────────────────────────
 const _kPink = Color(0xFFBE185D);
@@ -28,14 +30,13 @@ class TeacherHomework extends ConsumerStatefulWidget {
   ConsumerState<TeacherHomework> createState() => _TeacherHomeworkState();
 }
 
-class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
-    with SingleTickerProviderStateMixin {
+class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
   final TeacherApiService _apiService = TeacherApiService();
-  late TabController _tabController;
 
   List<TeacherHomeworkAssignment> _active = [];
   List<TeacherHomeworkAssignment> _submissions = [];
   List<TeacherHomeworkAssignment> _graded = [];
+  List<TeacherHomeworkAssignment> _allHomework = [];
   bool _isLoading = true;
   String? _error;
 
@@ -43,24 +44,20 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _marksCtrl = TextEditingController(text: '25');
-  String _selectedClass = 'X-A';
+  String _selectedClass = '';
   String _selectedSubject = 'Mathematics';
+  List<String> _classes = [];
   List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Computer Science'];
   DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) setState(() {});
-    });
     _loadAll();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _marksCtrl.dispose();
@@ -75,16 +72,36 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         _apiService.getHomeworkAssignments(status: 'pending'),
         _apiService.getHomeworkAssignments(status: 'completed'),
         _apiService.getSubjects(allSubjects: true),
+        _apiService.getMyClasses(),
       ]);
       setState(() {
         _active = results[0] as List<TeacherHomeworkAssignment>;
         _submissions = results[1] as List<TeacherHomeworkAssignment>;
         _graded = results[2] as List<TeacherHomeworkAssignment>;
+
+        final allMap = <String, TeacherHomeworkAssignment>{};
+        for (var hw in _active) { allMap[hw.id] = hw; }
+        for (var hw in _submissions) { allMap[hw.id] = hw; }
+        for (var hw in _graded) { allMap[hw.id] = hw; }
+        _allHomework = allMap.values.toList();
+        _allHomework.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
         final subjectsRes = results[3] as List<TeacherSubject>;
         if (subjectsRes.isNotEmpty) {
-          _subjects = subjectsRes.map((s) => s.name).toList();
+          _subjects = subjectsRes.map((s) => s.name).toSet().toList();
           if (!_subjects.contains(_selectedSubject)) {
             _selectedSubject = _subjects.first;
+          }
+        }
+        final classesRes = results[4] as List<TeacherMyClass>;
+        if (classesRes.isNotEmpty) {
+          _classes = classesRes.map((c) {
+            final section = c.section.trim();
+            if (section.isEmpty || c.name.contains('-$section')) return c.name;
+            return '${c.name}-$section';
+          }).toSet().toList();
+          if (!_classes.contains(_selectedClass)) {
+            _selectedClass = _classes.first;
           }
         }
         _isLoading = false;
@@ -116,7 +133,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     return _kSuccess;
   }
 
-  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildActiveColumns() {
+  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildHomeworkColumns() {
     return [
       AzureGridColumn<TeacherHomeworkAssignment>(
         label: 'Assignment Title',
@@ -174,6 +191,42 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         cellBuilder: (hw) => Text('${hw.maxMarks ?? 25}'),
       ),
       AzureGridColumn<TeacherHomeworkAssignment>(
+        label: 'Status',
+        width: 110.0,
+        compare: (a, b) => a.status.compareTo(b.status),
+        cellBuilder: (hw) {
+          final st = hw.status.toLowerCase();
+          Color color;
+          String label;
+          if (st == 'active') {
+            color = _kPink;
+            label = 'ACTIVE';
+          } else if (st == 'pending') {
+            color = _kWarning;
+            label = 'SUBMISSIONS';
+          } else {
+            color = _kSuccess;
+            label = 'GRADED';
+          }
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<TeacherHomeworkAssignment>(
         label: 'Actions',
         width: 160.0,
         cellBuilder: (hw) => Row(
@@ -214,100 +267,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     ];
   }
 
-  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildSubmissionColumns() {
-    return [
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Assignment Title',
-        width: 200.0,
-        compare: (a, b) => a.title.compareTo(b.title),
-        cellBuilder: (hw) => Text(hw.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Class',
-        width: 90.0,
-        compare: (a, b) => a.class_.compareTo(b.class_),
-        cellBuilder: (hw) => Text(hw.class_),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Subject',
-        width: 120.0,
-        compare: (a, b) => a.subject.compareTo(b.subject),
-        cellBuilder: (hw) => Text('${_subjectIcon(hw.subject)} ${hw.subject}'),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Submissions',
-        width: 130.0,
-        compare: (a, b) => a.submittedCount.compareTo(b.submittedCount),
-        cellBuilder: (hw) => Text('${hw.submittedCount} submissions pending'),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Actions',
-        width: 100.0,
-        cellBuilder: (hw) => SizedBox(
-          height: 24,
-          child: ElevatedButton(
-            onPressed: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kPink,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-              elevation: 0,
-            ),
-            child: const Text('View All', style: TextStyle(fontSize: 10, color: Colors.white)),
-          ),
-        ),
-      ),
-    ];
-  }
-
-  List<AzureGridColumn<TeacherHomeworkAssignment>> _buildGradedColumns() {
-    return [
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Assignment Title',
-        width: 220.0,
-        compare: (a, b) => a.title.compareTo(b.title),
-        cellBuilder: (hw) => Text(hw.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Class',
-        width: 90.0,
-        compare: (a, b) => a.class_.compareTo(b.class_),
-        cellBuilder: (hw) => Text(hw.class_),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Subject',
-        width: 130.0,
-        compare: (a, b) => a.subject.compareTo(b.subject),
-        cellBuilder: (hw) => Text('${_subjectIcon(hw.subject)} ${hw.subject}'),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Graded Ratio',
-        width: 140.0,
-        cellBuilder: (hw) => Text('${hw.submittedCount}/${hw.totalCount} Graded'),
-      ),
-      AzureGridColumn<TeacherHomeworkAssignment>(
-        label: 'Status',
-        width: 100.0,
-        cellBuilder: (hw) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: const Color(0xFFECFDF5),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: _kSuccess.withOpacity(0.3)),
-          ),
-          child: const Text(
-            'COMPLETED',
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              color: _kSuccess,
-            ),
-          ),
-        ),
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -315,19 +274,60 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
       body: Column(
         children: [
           _buildHeader(),
-          _buildTabBar(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: _kPink))
                 : _error != null
                     ? _buildError()
-                    : TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildActiveTab(),
-                          _buildSubmissionsTab(),
-                          _buildGradedTab(),
-                        ],
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
+                        child: AzureGrid<TeacherHomeworkAssignment>(
+                          title: 'Homework List',
+                          items: _allHomework,
+                          columns: _buildHomeworkColumns(),
+                          mobileCardBuilder: (context, hw) => _buildActiveCard(hw),
+                          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_} ${hw.status}',
+                          onRefresh: _loadAll,
+                          filters: [
+                            AzureGridFilter<TeacherHomeworkAssignment>(
+                              label: 'Status',
+                              options: const ['Active', 'Submissions', 'Graded'],
+                              filterFn: (hw, option) {
+                                if (option == 'All') return true;
+                                final st = hw.status.toLowerCase();
+                                if (option == 'Active') return st == 'active';
+                                if (option == 'Submissions') return st == 'pending';
+                                if (option == 'Graded') return st == 'completed';
+                                return true;
+                              },
+                            ),
+                            if (_classes.isNotEmpty)
+                              AzureGridFilter<TeacherHomeworkAssignment>(
+                                label: 'Class',
+                                options: _classes,
+                                filterFn: (hw, option) {
+                                  if (option == 'All') return true;
+                                  return hw.class_ == option;
+                                },
+                              ),
+                            if (_subjects.isNotEmpty)
+                              AzureGridFilter<TeacherHomeworkAssignment>(
+                                label: 'Subject',
+                                options: _subjects,
+                                filterFn: (hw, option) {
+                                  if (option == 'All') return true;
+                                  return hw.subject == option;
+                                },
+                              ),
+                          ],
+                          extraCommandActions: [
+                            IconButton(
+                              icon: const Icon(Icons.add_rounded, color: _kPink),
+                              tooltip: 'Create Homework',
+                              onPressed: _showCreateModal,
+                            ),
+                          ],
+                        ),
                       ),
           ),
         ],
@@ -376,191 +376,12 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  Widget _buildTabBar() {
-    final tabs = [
-      'Active (${_active.length})',
-      'Submissions (${_submissions.length})',
-      'Graded (${_graded.length})',
-    ];
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-      child: Row(
-        children: List.generate(tabs.length, (i) {
-          final sel = _tabController.index == i;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => _tabController.animateTo(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: EdgeInsets.only(right: i < tabs.length - 1 ? 6 : 0, bottom: 10),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: sel ? _kPink : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: sel ? _kPink : _kBorder),
-                ),
-                child: Text(
-                  tabs[i],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: sel ? Colors.white : _kText3,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildActiveTab() {
-    if (_active.isEmpty) return _buildEmpty('No active homework', '📝');
-    if (Responsive.isWide(context)) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
-        child: AzureGrid<TeacherHomeworkAssignment>(
-          title: 'Active Homework',
-          items: _active,
-          columns: _buildActiveColumns(),
-          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
-          onRefresh: _loadAll,
-          extraCommandActions: [
-            IconButton(
-              icon: const Icon(Icons.add_rounded, color: _kPink),
-              tooltip: 'Create Homework',
-              onPressed: _showCreateModal,
-            ),
-          ],
-          mobileCardBuilder: (context, hw) => const SizedBox(),
-        ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      color: _kPink,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 100),
-        itemCount: _active.length,
-        itemBuilder: (_, i) => _buildActiveCard(_active[i]),
-      ),
-    );
-  }
-
-  Widget _buildSubmissionsTab() {
-    final all = [..._active, ..._submissions];
-    if (all.isEmpty) return _buildEmpty('No submissions yet', '📋');
-    if (Responsive.isWide(context)) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
-        child: AzureGrid<TeacherHomeworkAssignment>(
-          title: 'Submissions Overview',
-          items: all,
-          columns: _buildSubmissionColumns(),
-          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
-          onRefresh: _loadAll,
-          extraCommandActions: [
-            IconButton(
-              icon: const Icon(Icons.add_rounded, color: _kPink),
-              tooltip: 'Create Homework',
-              onPressed: _showCreateModal,
-            ),
-          ],
-          mobileCardBuilder: (context, hw) => const SizedBox(),
-        ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      color: _kPink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _kPink.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              '📊 Overview of recent submissions across all classes.',
-              style: TextStyle(fontSize: 11, color: _kPink, fontWeight: FontWeight.w600),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
-              itemCount: all.length,
-              itemBuilder: (_, i) => _buildSubmissionRow(all[i]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGradedTab() {
-    if (_graded.isEmpty) return _buildEmpty('No graded homework yet', '✅');
-    if (Responsive.isWide(context)) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
-        child: AzureGrid<TeacherHomeworkAssignment>(
-          title: 'Graded History',
-          items: _graded,
-          columns: _buildGradedColumns(),
-          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
-          onRefresh: _loadAll,
-          extraCommandActions: [
-            IconButton(
-              icon: const Icon(Icons.add_rounded, color: _kPink),
-              tooltip: 'Create Homework',
-              onPressed: _showCreateModal,
-            ),
-          ],
-          mobileCardBuilder: (context, hw) => const SizedBox(),
-        ),
-      );
-    }
-    return RefreshIndicator(
-      onRefresh: _loadAll,
-      color: _kPink,
-      child: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(12)),
-            child: Row(children: [
-              const Text('✅ ', style: TextStyle(fontSize: 14)),
-              Expanded(
-                child: Text(
-                  'Great job! ${_graded.length} homework tasks were graded this week.',
-                  style: const TextStyle(fontSize: 11, color: _kSuccess, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ]),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
-              itemCount: _graded.length,
-              itemBuilder: (_, i) => _buildGradedRow(_graded[i]),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildActiveCard(TeacherHomeworkAssignment hw) {
     final color = _dueColor(hw);
     final icon = _subjectIcon(hw.subject);
     final pct = hw.submissionRate;
+    final st = hw.status.toLowerCase();
+    final statusLabel = st == 'active' ? 'ACTIVE' : st == 'pending' ? 'SUBMISSIONS' : 'GRADED';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -585,7 +406,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '$icon ${hw.class_} · ${hw.subject}',
+                    '$icon ${hw.class_} · ${hw.subject} · $statusLabel',
                     style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color, fontFamily: AppFonts.heading),
                   ),
                 ),
@@ -637,107 +458,37 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  Widget _buildSubmissionRow(TeacherHomeworkAssignment hw) {
-    final icon = _subjectIcon(hw.subject);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(color: _kPinkLight, borderRadius: BorderRadius.circular(10)),
-            child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${hw.subject} — ${hw.class_}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText)),
-                Text('${hw.title} · ${hw.submittedCount} Submissions', style: const TextStyle(fontSize: 10, color: _kText3)),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kPink,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
-            ),
-            child: const Text('View All', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, fontFamily: AppFonts.heading)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGradedRow(TeacherHomeworkAssignment hw) {
-    final icon = _subjectIcon(hw.subject);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6)],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(10)),
-            child: Center(child: Text(icon, style: const TextStyle(fontSize: 18))),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${hw.subject} — ${hw.class_}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText)),
-                Text('${hw.title} · Graded: ${hw.submittedCount}/${hw.totalCount}', style: const TextStyle(fontSize: 10, color: _kText3)),
-              ],
-            ),
-          ),
-          const Text('COMPLETED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: _kSuccess, fontFamily: AppFonts.heading)),
-        ],
-      ),
-    );
-  }
-
   void _showEditSheet(TeacherHomeworkAssignment hw) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            Text(hw.title, textAlign: TextAlign.center, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 14, fontWeight: FontWeight.w800, color: _kText)),
-            const SizedBox(height: 4),
-            Text('${hw.class_} · ${hw.subject}', style: const TextStyle(fontSize: 11, color: _kText3)),
-            const SizedBox(height: 20),
-            _buildSheetOption(emoji: '📋', label: 'Review Submissions', sublabel: '${hw.submittedCount} submitted', color: _kPink, onTap: () { Navigator.pop(context); context.push('/teacher/submissions?homework_id=${hw.id}'); }),
-            _buildSheetOption(emoji: '✏️', label: 'Edit Assignment Details', sublabel: 'Change title, dates, marks', color: const Color(0xFF7C3AED), onTap: () { Navigator.pop(context); _showEditAssignmentModal(hw); }),
-            _buildSheetOption(emoji: '🔔', label: 'Send Reminder', sublabel: 'Notify students who haven\'t submitted', color: const Color(0xFFD97706), onTap: () { Navigator.pop(context); _showReminderDialog(hw); }),
-            _buildSheetOption(emoji: '📊', label: 'View Analytics', sublabel: 'Submission trends and performance', color: const Color(0xFF0EA5E9), onTap: () { Navigator.pop(context); _showAnalytics(hw); }),
-            _buildSheetOption(emoji: '🗑️', label: 'Delete Assignment', sublabel: 'This action cannot be undone', color: _kError, onTap: () { Navigator.pop(context); _confirmDelete(hw); }),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              Text(hw.title, textAlign: TextAlign.center, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 14, fontWeight: FontWeight.w800, color: _kText)),
+              const SizedBox(height: 4),
+              Text('${hw.class_} · ${hw.subject}', style: const TextStyle(fontSize: 11, color: _kText3)),
+              const SizedBox(height: 20),
+              _buildSheetOption(emoji: '📋', label: 'Review Submissions', sublabel: '${hw.submittedCount} submitted', color: _kPink, onTap: () { Navigator.pop(context); context.push('/teacher/submissions?homework_id=${hw.id}'); }),
+              _buildSheetOption(emoji: '✏️', label: 'Edit Assignment Details', sublabel: 'Change title, dates, marks', color: const Color(0xFF7C3AED), onTap: () { Navigator.pop(context); _showEditAssignmentModal(hw); }),
+              _buildSheetOption(emoji: '🔔', label: 'Send Reminder', sublabel: 'Notify students who haven\'t submitted', color: const Color(0xFFD97706), onTap: () { Navigator.pop(context); _showReminderDialog(hw); }),
+              _buildSheetOption(emoji: '📊', label: 'View Analytics', sublabel: 'Submission trends and performance', color: const Color(0xFF0EA5E9), onTap: () { Navigator.pop(context); _showAnalytics(hw); }),
+              _buildSheetOption(emoji: '🗑️', label: 'Delete Assignment', sublabel: 'This action cannot be undone', color: _kError, onTap: () { Navigator.pop(context); _confirmDelete(hw); }),
+            ],
+          ),
         ),
       ),
     );
@@ -783,9 +534,13 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     _titleCtrl.clear();
     _descCtrl.clear();
     _marksCtrl.text = '25';
-    _selectedClass = 'X-A';
+    _selectedClass = _classes.isNotEmpty ? _classes.first : '';
     _selectedSubject = _subjects.isNotEmpty ? _subjects.first : 'Mathematics';
     _dueDate = DateTime.now().add(const Duration(days: 3));
+
+    String? _attachmentUrl;
+    String? _attachmentName;
+    bool _isUploadingAttachment = false;
 
     showModalBottomSheet(
       context: context,
@@ -813,7 +568,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                 _buildLabel('Class'),
                 _buildDropdown(
                   value: _selectedClass,
-                  items: ['X-A', 'X-B', 'IX-A', 'IX-B', 'VIII-A', 'VIII-B'],
+                  items: _classes,
                   onChanged: (v) => setS(() => _selectedClass = v!),
                 ),
                 _buildLabel('Subject'),
@@ -855,27 +610,119 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
                 _buildLabel('Instructions'),
                 _buildInput(_descCtrl, 'Write instructions for students...', maxLines: 3),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: _kBorder, width: 1.5),
-                    borderRadius: BorderRadius.circular(14),
-                    color: const Color(0xFFF8FAFC),
-                  ),
-                  child: const Column(
-                    children: [
-                      Text('📎', style: TextStyle(fontSize: 24)),
-                      SizedBox(height: 4),
-                      Text('Attach Files (optional)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kText)),
-                      Text('PDF, DOC, JPG up to 10MB', style: TextStyle(fontSize: 10, color: _kText3)),
-                    ],
+                InkWell(
+                  onTap: _isUploadingAttachment
+                      ? null
+                      : () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.any,
+                            allowMultiple: false,
+                            withData: true,
+                          );
+                          if (result != null && result.files.single.bytes != null) {
+                            final file = result.files.single;
+                            setS(() {
+                              _isUploadingAttachment = true;
+                              _attachmentName = file.name;
+                            });
+                            try {
+                              final response = await ApiService().multipartPostBytes(
+                                '/documents/upload',
+                                file.bytes!,
+                                file.name,
+                                'file',
+                                fields: {
+                                  'title': file.name,
+                                  'category': 'homework_instruction',
+                                  'description': 'Homework instructions/guidelines',
+                                },
+                              );
+                              if (response['success'] == true) {
+                                final doc = response['data']['document'] as Map<String, dynamic>;
+                                setS(() {
+                                  _attachmentUrl = doc['file_url'] as String;
+                                });
+                              } else {
+                                throw Exception(response['detail'] ?? 'Upload failed');
+                              }
+                            } catch (e) {
+                              setS(() {
+                                _attachmentUrl = null;
+                                _attachmentName = null;
+                              });
+                              if (ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  SnackBar(content: Text('Failed to upload: $e'), backgroundColor: _kError),
+                                );
+                              }
+                            } finally {
+                              setS(() {
+                                _isUploadingAttachment = false;
+                              });
+                            }
+                          }
+                        },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _kBorder, width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      color: const Color(0xFFF8FAFC),
+                    ),
+                    child: _isUploadingAttachment
+                        ? const Column(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(color: _kPink, strokeWidth: 2),
+                              ),
+                              SizedBox(height: 8),
+                              Text('Uploading attachment...', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kText)),
+                            ],
+                          )
+                        : _attachmentUrl != null
+                            ? Row(
+                                children: [
+                                  const Text('📎', style: TextStyle(fontSize: 24)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(_attachmentName ?? 'File Attached', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _kText), overflow: TextOverflow.ellipsis),
+                                        const Text('Upload complete ✅', style: TextStyle(fontSize: 10, color: _kSuccess)),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.cancel, color: _kError, size: 20),
+                                    onPressed: () {
+                                      setS(() {
+                                        _attachmentUrl = null;
+                                        _attachmentName = null;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              )
+                            : const Column(
+                                children: [
+                                  Text('📎', style: TextStyle(fontSize: 24)),
+                                  SizedBox(height: 4),
+                                  Text('Attach Files (optional)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kText)),
+                                  Text('PDF, DOC, JPG up to 10MB', style: TextStyle(fontSize: 10, color: _kText3)),
+                                ],
+                              ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => _createHomework(context),
+                    onPressed: () => _createHomework(ctx, _attachmentUrl),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _kPink,
                       foregroundColor: Colors.white,
@@ -908,7 +755,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     );
   }
 
-  Future<void> _createHomework(BuildContext ctx) async {
+  Future<void> _createHomework(BuildContext ctx, String? attachmentUrl) async {
     if (_titleCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please enter a title'), backgroundColor: _kError));
       return;
@@ -924,6 +771,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         dueDate: _dueDate,
         maxMarks: int.tryParse(_marksCtrl.text) ?? 25,
         instructions: _descCtrl.text.trim(),
+        attachmentUrl: attachmentUrl,
       );
       _loadAll();
       if (mounted) {
@@ -1011,23 +859,80 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
 
   void _showReminderDialog(TeacherHomeworkAssignment hw) {
     final pending = hw.totalCount - hw.submittedCount;
+    bool isSending = false;
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(children: [Text('🔔', style: TextStyle(fontSize: 40)), SizedBox(height: 4), Text('Send Reminder?', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kPink))]),
-        content: Text('Send a push notification to $pending students who haven\'t submitted "${hw.title}".', style: const TextStyle(fontSize: 12, color: _kText2), textAlign: TextAlign.center),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _kText3))),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📤 Reminder sent to students!'), backgroundColor: _kSuccess));
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: _kPink, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('📤 Send Reminder', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Column(
+            children: [
+              Text('🔔', style: TextStyle(fontSize: 40)),
+              SizedBox(height: 4),
+              Text('Send Reminder?', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kPink)),
+            ],
           ),
-        ],
+          content: isSending
+              ? const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: _kPink),
+                    SizedBox(height: 12),
+                    Text('Sending reminders...', style: TextStyle(fontSize: 12, color: _kText2)),
+                  ],
+                )
+              : Text(
+                  'Send a push notification to $pending students who haven\'t submitted "${hw.title}".',
+                  style: const TextStyle(fontSize: 12, color: _kText2),
+                  textAlign: TextAlign.center,
+                ),
+          actions: isSending
+              ? []
+              : [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogCtx),
+                    child: const Text('Cancel', style: TextStyle(color: _kText3)),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      setS(() {
+                        isSending = true;
+                      });
+                      try {
+                        await _apiService.sendHomeworkReminder(hw.id);
+                        if (dialogCtx.mounted) {
+                          Navigator.pop(dialogCtx);
+                          ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                            const SnackBar(
+                              content: Text('📤 Reminder sent to students!'),
+                              backgroundColor: _kSuccess,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setS(() {
+                          isSending = false;
+                        });
+                        if (dialogCtx.mounted) {
+                          ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                            SnackBar(
+                              content: Text('Error sending reminder: $e'),
+                              backgroundColor: _kError,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kPink,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('📤 Send Reminder', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+        ),
       ),
     );
   }
@@ -1087,24 +992,39 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   void _confirmDelete(TeacherHomeworkAssignment hw) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Assignment?', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kError)),
         content: Text('Are you sure you want to delete "${hw.title}"? This action cannot be undone.', style: const TextStyle(fontSize: 12, color: _kText2)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _kText3))),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel', style: TextStyle(color: _kText3)),
+          ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
               try {
                 await _apiService.deleteHomework(hw.id);
                 _loadAll();
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Assignment deleted'), backgroundColor: _kSuccess));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Assignment deleted'), backgroundColor: _kSuccess),
+                  );
+                }
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _kError));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e'), backgroundColor: _kError),
+                  );
+                }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: _kError, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kError,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('🗑️ Delete', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -1115,7 +1035,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   void _showSuccessDialog(String title, String message) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Column(children: [
           const Text('✅', style: TextStyle(fontSize: 48)),
@@ -1126,30 +1046,10 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         actions: [
           Center(
             child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogCtx),
               style: ElevatedButton.styleFrom(backgroundColor: _kPink, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               child: const Text('Done', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmpty(String text, String emoji) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 48)),
-          const SizedBox(height: 12),
-          Text(text, style: const TextStyle(fontSize: 14, color: _kText3, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _showCreateModal,
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('Create Homework', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
-            style: ElevatedButton.styleFrom(backgroundColor: _kPink, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
           ),
         ],
       ),
@@ -1199,6 +1099,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
   }
 
   Widget _buildDropdown({required String value, required List<String> items, required void Function(String?) onChanged}) {
+    final effectiveItems = items.isEmpty ? [value.isEmpty ? 'N/A' : value] : items;
+    final effectiveValue = value.isEmpty ? (items.isNotEmpty ? items.first : 'N/A') : value;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1208,12 +1111,12 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
         border: Border.all(color: _kBorder),
       ),
       child: DropdownButton<String>(
-        value: value,
+        value: effectiveValue,
         isExpanded: true,
         underline: const SizedBox(),
         style: const TextStyle(fontSize: 13, color: _kText),
-        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-        onChanged: onChanged,
+        items: effectiveItems.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        onChanged: items.isEmpty ? null : onChanged,
       ),
     );
   }

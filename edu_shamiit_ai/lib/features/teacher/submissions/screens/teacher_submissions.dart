@@ -7,6 +7,9 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const _kRed = Color(0xFFE11D48);
@@ -29,8 +32,7 @@ class TeacherSubmissions extends ConsumerStatefulWidget {
 class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
   final TeacherApiService _apiService = TeacherApiService();
 
-  String _selectedStatus = 'All';
-  final List<String> _statuses = ['All', 'Pending', 'Graded', 'Flagged'];
+
   List<HomeworkSubmission> _submissions = [];
   bool _isLoading = true;
   String? _error;
@@ -62,13 +64,7 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
     }
   }
 
-  List<HomeworkSubmission> get _filteredSubmissions {
-    if (_selectedStatus == 'Flagged') {
-      // No real flag in model yet — show all as fallback
-      return _submissions;
-    }
-    return _submissions;
-  }
+
 
   // ─── Avatar gradient colors ───────────────────────────────────────────────
   Color _avatarColor(String name) {
@@ -330,45 +326,7 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
     );
   }
 
-  // ─── Status filter chips ──────────────────────────────────────────────────
-  Widget _buildStatusFilter() {
-    final counts = {
-      'All': _submissions.length,
-      'Pending': _submissions.where((s) { final st = s.status.toLowerCase(); return st == 'pending' || st == 'submitted'; }).length,
-      'Graded': _submissions.where((s) => s.status.toLowerCase() == 'graded').length,
-      'Flagged': 0,
-    };
 
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: _statuses.map((status) {
-            final isSelected = _selectedStatus == status;
-            final count = counts[status] ?? 0;
-            return GestureDetector(
-              onTap: () { setState(() => _selectedStatus = status); _loadSubmissions(); },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: isSelected ? _kRed : _kRedLight,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '$status${count > 0 ? ' ($count)' : ''}',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: isSelected ? Colors.white : _kRed, fontFamily: AppFonts.heading),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
 
   // ─── AI grading banner ────────────────────────────────────────────────────
   Widget _buildAiGradingCard() {
@@ -439,41 +397,7 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
     );
   }
 
-  // ─── Content ──────────────────────────────────────────────────────────────
-  Widget _buildContent() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator(color: _kRed));
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('⚠️', style: TextStyle(fontSize: 40)),
-            const SizedBox(height: 12),
-            Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            ElevatedButton(onPressed: _loadSubmissions, style: ElevatedButton.styleFrom(backgroundColor: _kRed, foregroundColor: Colors.white), child: const Text('Retry')),
-          ],
-        ),
-      );
-    }
-    if (_filteredSubmissions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('📭', style: TextStyle(fontSize: 48)),
-            const SizedBox(height: 12),
-            Text('No ${_selectedStatus.toLowerCase()} submissions yet', style: const TextStyle(fontSize: 14, color: _kText3, fontWeight: FontWeight.w600)),
-          ],
-        ),
-    );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
-      itemCount: _filteredSubmissions.length,
-      itemBuilder: (_, i) => _buildSubmissionCard(_filteredSubmissions[i], i),
-    );
-  }
+
 
   // ─── Submission card ──────────────────────────────────────────────────────
   Widget _buildSubmissionCard(HomeworkSubmission s, int index) {
@@ -545,167 +469,303 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
     final marksCtrl = TextEditingController(text: s.marksObtained?.toString() ?? '');
     final feedbackCtrl = TextEditingController(text: s.feedback ?? '');
     final isGraded = s.status.toLowerCase() == 'graded';
+    String? errorText;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Container(
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 16),
-                Row(
+      builder: (_) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final maxM = s.maxMarks ?? 25.0;
+
+          void validateMarks(String value) {
+            if (value.trim().isEmpty) {
+              setModalState(() {
+                errorText = null;
+              });
+              return;
+            }
+            final parsed = double.tryParse(value);
+            if (parsed == null) {
+              setModalState(() {
+                errorText = 'Please enter a valid number';
+              });
+            } else if (parsed < 0) {
+              setModalState(() {
+                errorText = 'Marks cannot be negative';
+              });
+            } else if (parsed > maxM) {
+              setModalState(() {
+                errorText = 'Warning: Marks exceed maximum marks ($maxM)';
+              });
+            } else {
+              setModalState(() {
+                errorText = null;
+              });
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(gradient: LinearGradient(colors: [_avatarColor(s.studentName), _avatarColor(s.studentName).withValues(alpha: 0.7)]), shape: BoxShape.circle),
-                      child: Center(child: Text(
-                        s.studentName.trim().isEmpty ? '?' : s.studentName.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase(),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                      )),
+                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2)))),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(gradient: LinearGradient(colors: [_avatarColor(s.studentName), _avatarColor(s.studentName).withValues(alpha: 0.7)]), shape: BoxShape.circle),
+                          child: Center(child: Text(
+                            s.studentName.trim().isEmpty ? '?' : s.studentName.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase(),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                          )),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(s.studentName.isEmpty ? 'Student' : s.studentName, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.w800, color: _kText)),
+                              Text(_timeAgo(s.submittedAt), style: const TextStyle(fontSize: 11, color: _kText3)),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
+                    const SizedBox(height: 16),
+                    // Submission content
+                    if (s.submissionText != null && s.submissionText!.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Submission Notes:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kText2)),
+                            const SizedBox(height: 4),
+                            Text(s.submissionText!, style: const TextStyle(fontSize: 12, color: _kText2, height: 1.5)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (s.attachmentUrl != null && s.attachmentUrl!.isNotEmpty) ...[
+                      InkWell(
+                        onTap: () async {
+                          final url = s.attachmentUrl!;
+                          final filename = url.split('/').last.split('?').first;
+                          try {
+                            await getDownloadHelper().downloadFile(url, filename);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error downloading file: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: _kBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.insert_drive_file_outlined, color: _kText2, size: 24),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Submitted Document',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      s.attachmentUrl!.split('/').last.split('?').first,
+                                      style: const TextStyle(fontSize: 10, color: _kText3),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.download_rounded, color: _kText2, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else if (s.submissionText == null || s.submissionText!.isEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        width: double.infinity,
+                        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
+                        child: const Center(
+                          child: Text('No submission files or notes provided', style: TextStyle(fontSize: 11, color: _kText3, fontStyle: FontStyle.italic)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    // AI feedback banner
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: const Color(0xFFFDF2F8), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFCE7F3))),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(s.studentName.isEmpty ? 'Student' : s.studentName, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.w800, color: _kText)),
-                          Text(_timeAgo(s.submittedAt), style: const TextStyle(fontSize: 11, color: _kText3)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(6)),
+                            child: const Text('🤖 AI FEEDBACK', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text('AI suggests checking key concepts and verifying calculations. Suggested score based on rubric.', style: TextStyle(fontSize: 11, color: _kRedDark, height: 1.5)),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isGraded) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFBBF7D0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_outline, color: _kSuccess, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Already Graded', style: TextStyle(fontWeight: FontWeight.w800, color: _kSuccess, fontFamily: AppFonts.heading, fontSize: 12)),
+                                  Text('Current Score: ${s.marksObtained} / ${maxM.toInt()}', style: const TextStyle(fontSize: 11, color: _kSuccess)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    Text('Assign Score (Max: ${maxM.toInt()})', style: const TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: marksCtrl,
+                      keyboardType: TextInputType.number,
+                      onChanged: validateMarks,
+                      decoration: InputDecoration(
+                        hintText: 'Enter marks...',
+                        errorText: errorText,
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.5)),
+                        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.0)),
+                        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text('Feedback (optional)', style: TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: feedbackCtrl,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Write your feedback...',
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final parsed = double.tryParse(marksCtrl.text);
+                          if (parsed == null) {
+                            setModalState(() {
+                              errorText = 'Please enter a valid number';
+                            });
+                            return;
+                          }
+                          if (parsed < 0) {
+                            setModalState(() {
+                              errorText = 'Marks cannot be negative';
+                            });
+                            return;
+                          }
+                          if (parsed > maxM) {
+                            setModalState(() {
+                              errorText = 'Warning: Marks exceed maximum marks ($maxM)';
+                            });
+                            return;
+                          }
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.pop(context);
+                          await _gradeSubmission(s, marksCtrl.text, feedbackCtrl.text, messenger);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _kRed,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          isGraded ? '🔄 Update Grade' : '✅ Submit Grade',
+                          style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.pop(context);
+                          await _returnSubmission(s, feedbackCtrl.text, messenger);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _kWarning,
+                          side: const BorderSide(color: _kWarning, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('↩️ ', style: TextStyle(fontSize: 16)),
+                            Text('Return for Correction', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 15, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                // Submission content
-                if (s.submissionText != null && s.submissionText!.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Submission Notes:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kText2)),
-                        const SizedBox(height: 4),
-                        Text(s.submissionText!, style: const TextStyle(fontSize: 12, color: _kText2, height: 1.5)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
-                    child: const Row(children: [
-                      Text('📄', style: TextStyle(fontSize: 24)),
-                      SizedBox(width: 12),
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Submission File', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kText)),
-                        Text('Tap to view submission', style: TextStyle(fontSize: 10, color: _kText3)),
-                      ]),
-                    ]),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                // AI feedback banner
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFFFDF2F8), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFCE7F3))),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(6)),
-                        child: const Text('🤖 AI FEEDBACK', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text('AI suggests checking key concepts and verifying calculations. Suggested score based on rubric.', style: TextStyle(fontSize: 11, color: _kRedDark, height: 1.5)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (!isGraded) ...[
-                  const Text('Assign Score', style: TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  TextField(
-                    controller: marksCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Enter marks...',
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.5)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text('Feedback (optional)', style: TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  TextField(
-                    controller: feedbackCtrl,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Write your feedback...',
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kRed, width: 1.5)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        Navigator.pop(context);
-                        await _gradeSubmission(s, marksCtrl.text, feedbackCtrl.text, messenger);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _kRed,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        elevation: 0,
-                      ),
-                      child: const Text('✅ Submit Grade', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 15, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFBBF7D0))),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('✅ Already Graded', style: TextStyle(fontWeight: FontWeight.w800, color: _kSuccess, fontFamily: AppFonts.heading)),
-                        if (s.marksObtained != null) ...[
-                          const SizedBox(height: 4),
-                          Text('Score: ${s.marksObtained}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kSuccess)),
-                        ],
-                        if (s.feedback != null && s.feedback!.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(s.feedback!, style: const TextStyle(fontSize: 12, color: _kText2)),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -720,6 +780,20 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
       await _apiService.gradeSubmission(submissionId: s.id, marks: marks, feedback: feedback.isEmpty ? null : feedback);
       if (mounted) {
         messenger.showSnackBar(const SnackBar(content: Text('✅ Submission graded successfully!'), backgroundColor: _kSuccess));
+        _loadSubmissions();
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _returnSubmission(HomeworkSubmission s, String remarks, ScaffoldMessengerState messenger) async {
+    try {
+      await _apiService.returnSubmission(submissionId: s.id, feedback: remarks.isEmpty ? null : remarks);
+      if (mounted) {
+        messenger.showSnackBar(const SnackBar(content: Text('↩️ Submission returned to student successfully!'), backgroundColor: _kSuccess));
         _loadSubmissions();
       }
     } catch (e) {

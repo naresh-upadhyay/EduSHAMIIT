@@ -10,6 +10,11 @@ import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/student_models.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:edu_shamiit_ai/core/services/api_service.dart';
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
 
 class StudentHomework extends ConsumerStatefulWidget {
   const StudentHomework({super.key});
@@ -66,7 +71,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
       case 0: // Pending
         return _allHomework.where((hw) {
           final s = hw.status.toLowerCase();
-          return s == 'pending' || s == 'late';
+          return s == 'pending' || s == 'late' || s == 'returned';
         }).toList()
           ..sort((a, b) => a.dueDate.compareTo(b.dueDate)); // soonest first
       case 1: // Submitted
@@ -89,6 +94,8 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
       return 'Graded'.tr(ref);
     } else if (hw.status == 'submitted') {
       return 'Submitted'.tr(ref);
+    } else if (hw.status == 'returned') {
+      return 'Returned (Needs Correction)'.tr(ref);
     } else if (hw.status == 'late') {
       return 'Late'.tr(ref);
     } else {
@@ -110,6 +117,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   Color _getDueColor(HomeworkAssignment hw) {
     if (hw.status == 'graded') return StudentColors.success;
     if (hw.status == 'submitted') return StudentColors.primary;
+    if (hw.status == 'returned') return StudentColors.warning;
     if (hw.status == 'late') return StudentColors.error;
     
     final now = DateTime.now();
@@ -350,21 +358,45 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
       ),
       AzureGridColumn<HomeworkAssignment>(
         label: 'Action',
-        width: 110.0,
+        width: 160.0,
         cellBuilder: (hw) {
           final s = hw.status.toLowerCase();
-          if (s == 'pending' || s == 'late') {
-            return SizedBox(
-              height: 26,
-              child: ElevatedButton(
-                onPressed: () => _showSubmitModal(context, hw),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: StudentColors.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          final isReturned = s == 'returned';
+          final canUpdateSubmitted = s == 'submitted' && hw.dueDate.isAfter(DateTime.now());
+
+          if (s == 'pending' || s == 'late' || isReturned || canUpdateSubmitted) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 26,
+                  child: OutlinedButton(
+                    onPressed: () => _showDetailSheet(context, hw),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      side: const BorderSide(color: Colors.grey),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    ),
+                    child: const Text('Details', style: TextStyle(fontSize: 10, color: Colors.black54)),
+                  ),
                 ),
-                child: const Text('Submit', style: TextStyle(fontSize: 10, color: Colors.white)),
-              ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  height: 26,
+                  child: ElevatedButton(
+                    onPressed: () => _showSubmitModal(context, hw),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: StudentColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    ),
+                    child: Text(
+                      (isReturned || canUpdateSubmitted) ? 'Update' : 'Submit',
+                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
             );
           }
           return SizedBox(
@@ -393,11 +425,14 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
       ),
       AzureGridFilter<HomeworkAssignment>(
         label: 'Status',
-        options: ['Pending', 'Submitted', 'Graded', 'Late'],
+        options: ['Pending', 'Submitted', 'Graded', 'Late', 'Returned'],
         filterFn: (hw, selected) {
           final s = hw.status.toLowerCase();
           final sel = selected.toLowerCase();
-          return s == sel || (sel == 'pending' && s == 'late');
+          if (sel == 'pending') {
+            return s == 'pending' || s == 'late' || s == 'returned';
+          }
+          return s == sel;
         },
       ),
     ];
@@ -579,7 +614,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                     color: dueColor,
                   ),
                 ),
-                if (hw.status == 'pending' || hw.status == 'late')
+                if (hw.status == 'pending' || hw.status == 'late' || hw.status == 'returned' || (hw.status == 'submitted' && hw.dueDate.isAfter(DateTime.now())))
                   ElevatedButton(
                     onPressed: () => _showSubmitModal(context, hw),
                     style: ElevatedButton.styleFrom(
@@ -590,9 +625,9 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text(
-                      '📤 Submit',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                    child: Text(
+                      (hw.status == 'returned' || hw.status == 'submitted') ? '📤 Update' : '📤 Submit',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
                     ),
                   )
                 else if (hw.status == 'graded' && hw.marksObtained != null)
@@ -825,62 +860,91 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
               ),
               const SizedBox(height: 16),
               // References / Rubrics section
-              Text(
-                'Reference Materials & Rubrics'.tr(ref),
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black,
+              if (hw.attachmentUrl != null && hw.attachmentUrl!.isNotEmpty) ...[
+                Text(
+                  'Reference Materials & Rubrics'.tr(ref),
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      final url = hw.attachmentUrl!;
+                      final uri = Uri.parse(url);
+                      final filename = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : 'homework_attachment';
+                      
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Downloading $filename...'.tr(ref))),
+                      );
+                      await getDownloadHelper().downloadFile(url, filename);
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Failed to download: $e'.tr(ref))),
+                      );
+                    }
+                  },
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? StudentColors.darkBorder : const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    const Text('📎', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Assignment_Guidelines.pdf'.tr(ref),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Rubrics & evaluation criteria included (1.4 MB)'.tr(ref),
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: isDark ? StudentColors.darkText3 : StudentColors.text3,
-                            ),
-                          ),
-                        ],
-                      ),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isDark ? StudentColors.darkBorder : const Color(0xFFE2E8F0)),
                     ),
-                    Icon(Icons.download, size: 16, color: isDark ? Colors.grey : Colors.grey.shade600),
-                  ],
+                    child: Row(
+                      children: [
+                        const Text('📎', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                () {
+                                  try {
+                                    final uri = Uri.parse(hw.attachmentUrl!);
+                                    return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : 'Homework_Instruction_Document';
+                                  } catch (_) {
+                                    return 'Homework_Instruction_Document';
+                                  }
+                                }().tr(ref),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Tap to download guidelines & resources'.tr(ref),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: isDark ? StudentColors.darkText3 : StudentColors.text3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.download, size: 16, color: isDark ? Colors.grey : Colors.grey.shade600),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
               
               // Submission Area / Status Detail
-              if (hw.status == 'pending' || hw.status == 'late') ...[
+              if (hw.status == 'pending' || hw.status == 'late' || hw.status == 'returned' || (hw.status == 'submitted' && hw.dueDate.isAfter(DateTime.now()))) ...[
                 const Divider(),
                 const SizedBox(height: 12),
                 Text(
-                  'Your Submission'.tr(ref),
+                  (hw.status == 'returned' || hw.status == 'submitted') ? 'Update Submission'.tr(ref) : 'Your Submission'.tr(ref),
                   style: TextStyle(
                     fontFamily: AppFonts.heading,
                     fontSize: 14,
@@ -889,6 +953,39 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                if (hw.status == 'returned' && hw.teacherRemarks != null && hw.teacherRemarks!.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.amber.withOpacity(0.05) : Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: isDark ? Colors.amber.withOpacity(0.2) : Colors.amber.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Feedback from Teacher:'.tr(ref),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: isDark ? Colors.amber[200] : Colors.amber.shade900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          hw.teacherRemarks!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.amber[100] : Colors.amber.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -905,7 +1002,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
                       ),
                     ),
                     child: Text(
-                      'Upload & Submit Now'.tr(ref),
+                      (hw.status == 'returned' || hw.status == 'submitted') ? 'Update Submission Now'.tr(ref) : 'Upload & Submit Now'.tr(ref),
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                     ),
                   ),
@@ -1003,7 +1100,19 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
 
 
   void _showSubmitModal(BuildContext context, HomeworkAssignment hw) {
-    final notesController = TextEditingController();
+    final notesController = TextEditingController(text: hw.submissionText);
+    String? _uploadedFileUrl = hw.submissionUrl;
+    String? _uploadedFileName;
+    if (_uploadedFileUrl != null && _uploadedFileUrl.isNotEmpty) {
+      try {
+        final uri = Uri.parse(_uploadedFileUrl);
+        _uploadedFileName = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : 'homework_submission';
+      } catch (_) {
+        _uploadedFileName = 'homework_submission';
+      }
+    }
+    bool _isUploadingFile = false;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1012,159 +1121,304 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[900] : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '📤 Submit Homework',
-                  style: TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.white : StudentColors.text,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  hw.title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText : Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
+        child: StatefulBuilder(
+          builder: (context, setS) => Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[900] : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
-                      border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : const Color(0xFFE2E8F0), style: BorderStyle.solid),
-                      borderRadius: BorderRadius.circular(16),
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text('📁', style: TextStyle(fontSize: 36)),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap to upload file',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'PDF, DOC, JPG up to 10MB',
-                          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),
-                        ),
-                      ],
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesController,
-                  maxLines: 3,
-                  style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Add notes for your teacher (optional)...',
-                    hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 13),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    (hw.status == 'returned' || hw.status == 'submitted') ? '📤 Update Submission' : '📤 Submit Homework',
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : StudentColors.text,
                     ),
-                    contentPadding: const EdgeInsets.all(12),
                   ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final navigator = Navigator.of(context);
-                      final messenger = ScaffoldMessenger.of(context);
-                      try {
-                        // Submit homework to API
-                        final success = await _apiService.submitHomework(
-                          homeworkId: hw.id,
-                          submissionText: notesController.text.isNotEmpty ? notesController.text : null,
-                        );
-                        if (mounted) {
-                          navigator.pop();
-                          if (success) {
-                            // Move homework to submitted tab
-                            setState(() {
-                              final idx = _allHomework.indexWhere((h) => h.id == hw.id);
-                              if (idx != -1) {
-                                final updated = HomeworkAssignment(
-                                  id: hw.id,
-                                  title: hw.title,
-                                  description: hw.description,
-                                  subject: hw.subject,
-                                  assignedDate: hw.assignedDate,
-                                  dueDate: hw.dueDate,
-                                  status: 'submitted',
-                                  maxMarks: hw.maxMarks,
-                                  submissionUrl: hw.submissionUrl,
-                                  submittedAt: DateTime.now(),
+                  const SizedBox(height: 8),
+                  Text(
+                    hw.title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText : Colors.black,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (hw.description.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      hw.description,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText2 : StudentColors.text2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (hw.attachmentUrl != null && hw.attachmentUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          final url = hw.attachmentUrl!;
+                          final uri = Uri.parse(url);
+                          final filename = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : 'homework_attachment';
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('Downloading $filename...'.tr(ref))),
+                          );
+                          await getDownloadHelper().downloadFile(url, filename);
+                        } catch (e) {
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('Failed to download: $e'.tr(ref))),
+                          );
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('📎 ', style: TextStyle(fontSize: 14)),
+                            Text(
+                              'Download Instruction Document'.tr(ref),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: _isUploadingFile
+                        ? null
+                        : () async {
+                            final result = await FilePicker.platform.pickFiles(
+                              type: FileType.any,
+                              allowMultiple: false,
+                              withData: true,
+                            );
+                            if (result != null && result.files.single.bytes != null) {
+                              final file = result.files.single;
+                              setS(() {
+                                _isUploadingFile = true;
+                                _uploadedFileName = file.name;
+                              });
+                              try {
+                                final response = await ApiService().multipartPostBytes(
+                                  '/documents/upload',
+                                  file.bytes!,
+                                  file.name,
+                                  'file',
+                                  fields: {
+                                    'title': file.name,
+                                    'category': 'homework_submission',
+                                    'description': 'Homework submission attachment',
+                                  },
                                 );
-                                _allHomework[idx] = updated;
+                                if (response['success'] == true) {
+                                  final doc = response['data']['document'] as Map<String, dynamic>;
+                                  setS(() {
+                                    _uploadedFileUrl = doc['file_url'] as String;
+                                  });
+                                } else {
+                                  throw Exception(response['detail'] ?? 'Upload failed');
+                                }
+                              } catch (e) {
+                                setS(() {
+                                  _uploadedFileUrl = null;
+                                  _uploadedFileName = null;
+                                });
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to upload: $e'.tr(ref)), backgroundColor: StudentColors.error),
+                                  );
+                                }
+                              } finally {
+                                setS(() {
+                                  _isUploadingFile = false;
+                                });
                               }
-                            });
-                            _showSuccessModal(this.context);
-                            // Also reload from server to sync with teacher
-                            _loadHomework();
-                          } else {
+                            }
+                          },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : const Color(0xFFE2E8F0), style: BorderStyle.solid),
+                        borderRadius: BorderRadius.circular(16),
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                      ),
+                      child: _isUploadingFile
+                          ? const Column(
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(color: StudentColors.primary, strokeWidth: 2),
+                                ),
+                                SizedBox(height: 8),
+                                Text('Uploading submission file...', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                              ],
+                            )
+                          : _uploadedFileUrl != null
+                              ? Row(
+                                  children: [
+                                    const Text('📁', style: TextStyle(fontSize: 24)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(_uploadedFileName ?? 'File Selected', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis),
+                                          const Text('Upload complete ✅', style: TextStyle(fontSize: 10, color: StudentColors.success)),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.cancel, color: StudentColors.error, size: 20),
+                                      onPressed: () {
+                                        setS(() {
+                                          _uploadedFileUrl = null;
+                                          _uploadedFileName = null;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  children: [
+                                    const Text('📁', style: TextStyle(fontSize: 36)),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Tap to upload file',
+                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'PDF, DOC, JPG up to 10MB',
+                                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 10),
+                                    ),
+                                  ],
+                                ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesController,
+                    maxLines: 3,
+                    style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Add notes for your teacher (optional)...',
+                      hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkText3 : StudentColors.text3, fontSize: 13),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? StudentColors.darkBorder : Colors.grey),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final navigator = Navigator.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          final success = await _apiService.submitHomework(
+                            homeworkId: hw.id,
+                            submissionText: notesController.text.isNotEmpty ? notesController.text : null,
+                            fileUrl: _uploadedFileUrl,
+                          );
+                          if (mounted) {
+                            navigator.pop();
+                            if (success) {
+                              setState(() {
+                                final idx = _allHomework.indexWhere((h) => h.id == hw.id);
+                                if (idx != -1) {
+                                  final updated = HomeworkAssignment(
+                                    id: hw.id,
+                                    title: hw.title,
+                                    description: hw.description,
+                                    subject: hw.subject,
+                                    assignedDate: hw.assignedDate,
+                                    dueDate: hw.dueDate,
+                                    status: 'submitted',
+                                    maxMarks: hw.maxMarks,
+                                    submissionUrl: _uploadedFileUrl ?? hw.submissionUrl,
+                                    submissionText: notesController.text.isNotEmpty ? notesController.text : null,
+                                    submittedAt: DateTime.now(),
+                                    attachmentUrl: hw.attachmentUrl,
+                                  );
+                                  _allHomework[idx] = updated;
+                                }
+                              });
+                              _showSuccessModal(this.context);
+                              _loadHomework();
+                            } else {
+                              messenger.showSnackBar(
+                                SnackBar(content: Text('Failed to submit homework'.tr(ref))),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            navigator.pop();
                             messenger.showSnackBar(
-                              SnackBar(content: Text('Failed to submit homework'.tr(ref))),
+                              SnackBar(content: Text('Error: $e')),
                             );
                           }
                         }
-                      } catch (e) {
-                        if (mounted) {
-                          navigator.pop();
-                          messenger.showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: StudentColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: StudentColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(
+                        (hw.status == 'returned' || hw.status == 'submitted') ? '📤 Update Submission'.tr(ref) : '📤 Submit Assignment'.tr(ref),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    child: Text(
-                      '📤 Submit Assignment'.tr(ref),
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Cancel'.tr(ref)),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel'.tr(ref)),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

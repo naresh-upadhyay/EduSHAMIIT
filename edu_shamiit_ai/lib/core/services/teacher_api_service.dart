@@ -406,6 +406,7 @@ class TeacherApiService {
     required DateTime dueDate,
     String? instructions,
     int? maxMarks,
+    String? attachmentUrl,
   }) async {
     try {
       final response = await _postWithFallback(
@@ -419,6 +420,7 @@ class TeacherApiService {
           'due_date': dueDate.toIso8601String().split('T')[0],
           'instructions': instructions,
           'max_marks': maxMarks,
+          'attachment_url': attachmentUrl,
         },
       );
 
@@ -469,6 +471,22 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error deleting homework: $e');
+    }
+  }
+
+  /// Send reminder to students for a homework assignment
+  Future<void> sendHomeworkReminder(String homeworkId) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/homework/$homeworkId/remind'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to send reminder: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error sending reminder: $e');
     }
   }
 
@@ -531,6 +549,30 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error grading submission: $e');
+    }
+  }
+
+  /// Return homework submission to student for correction
+  Future<void> returnSubmission({
+    required String submissionId,
+    String? feedback,
+  }) async {
+    try {
+      final response = await _postWithFallback(
+        paths: [
+          '/teacher/submissions/return',
+        ],
+        body: {
+          'submission_id': submissionId,
+          'feedback': feedback,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to return submission: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error returning submission: $e');
     }
   }
 
