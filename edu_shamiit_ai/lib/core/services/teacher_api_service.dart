@@ -1717,6 +1717,8 @@ class TeacherApiService {
     required String action,
     int? extraMinutes,
     String? message,
+    bool? cameraActive,
+    bool? micActive,
   }) async {
     try {
       final response = await _client.post(
@@ -1726,6 +1728,8 @@ class TeacherApiService {
           'action': action,
           'extra_minutes': extraMinutes,
           'message': message,
+          if (cameraActive != null) 'camera_active': cameraActive,
+          if (micActive != null) 'mic_active': micActive,
         }),
       );
 
@@ -1788,6 +1792,8 @@ class TeacherApiService {
     String examId,
     String submissionId, {
     required double score,
+    String? remarks,
+    Map<String, dynamic>? answers,
   }) async {
     try {
       final response = await _client.post(
@@ -1795,6 +1801,8 @@ class TeacherApiService {
         headers: await _getHeaders(),
         body: json.encode({
           'score': score,
+          if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+          if (answers != null) 'answers': answers,
         }),
       );
 
@@ -1805,6 +1813,45 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error grading submission: $e');
+    }
+  }
+
+  /// Get analytics for a specific exam (real aggregated stats)
+  Future<Map<String, dynamic>> getExamAnalytics(String examId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/analytics'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = _toMap(decoded);
+        return (data['data'] ?? data) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to load exam analytics: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching exam analytics: $e');
+    }
+  }
+
+  /// Publish exam results to students (computes ranks, updates exam status)
+  Future<Map<String, dynamic>> publishExamResults(String examId) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/results/publish'),
+        headers: await _getHeaders(),
+        body: json.encode({}),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to publish results: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error publishing exam results: $e');
     }
   }
 

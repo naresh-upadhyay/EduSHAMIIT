@@ -26,7 +26,7 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   List<HomeworkAssignment> _allHomework = [];
   bool _isLoading = true;
   String? _error;
-  bool _isAiBannerCollapsed = false;
+  bool _isAiBannerCollapsed = true;
 
   @override
   void initState() {
@@ -458,27 +458,16 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
 
             // Content
             if (!_isAiBannerCollapsed) ...[
-              if (Responsive.isWide(context)) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildAiHomeworkHelperCard()),
-                      const SizedBox(width: 16),
-                      const Expanded(child: SizedBox()),
-                    ],
-                  ),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: Responsive.isWide(context) ? 16 : 14,
+                  vertical: Responsive.isWide(context) ? 12 : 8,
                 ),
-              ] else ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: _buildAiHomeworkHelperCard(),
-                ),
-              ],
+                child: _buildAiHomeworkHelperCard(),
+              ),
             ],
             Padding(
-              padding: Responsive.contentPadding(context).copyWith(bottom: 16),
+              padding: Responsive.contentPadding(context).copyWith(bottom: 80),
               child: AzureGrid<HomeworkAssignment>(
                 title: 'All Assignments',
                 items: _allHomework,

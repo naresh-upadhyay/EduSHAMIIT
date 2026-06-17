@@ -374,6 +374,7 @@ class StudentApiService {
   Future<Map<String, dynamic>> submitOnlineExamDynamic({
     required String examId,
     required Map<String, dynamic> answers,
+    bool isAutoSave = false,
   }) async {
     try {
       final response = await _client
@@ -382,6 +383,7 @@ class StudentApiService {
             headers: await _headers,
             body: jsonEncode({
               'answers': answers,
+              'is_auto_save': isAutoSave,
             }),
           )
           .timeout(const Duration(minutes: 5));
@@ -408,6 +410,37 @@ class StudentApiService {
           .timeout(AppConfig.apiTimeout);
       if (response.statusCode != 200 && response.statusCode != 201) {
         String msg = 'Failed to start session';
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map && body.containsKey('detail')) {
+            msg = body['detail'].toString();
+          }
+        } catch (_) {}
+        throw ApiException(msg);
+      }
+    } catch (e) {
+      throw ApiException(e.toString().replaceAll('ApiException: ', ''));
+    }
+  }
+
+  /// Get online exam result details
+  Future<Map<String, dynamic>> getOnlineExamResultDetails(String examId) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/exams/$examId/result'),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (body is Map && body['success'] == true) {
+          return body['data'] as Map<String, dynamic>;
+        }
+        throw ApiException(body['message']?.toString() ?? 'Failed to load result analysis');
+      } else {
+        String msg = 'Failed to load result details';
         try {
           final body = jsonDecode(response.body);
           if (body is Map && body.containsKey('detail')) {
@@ -479,6 +512,8 @@ class StudentApiService {
     String? activeQuestionId,
     bool isOnline = true,
     String? logEvent,
+    bool? cameraActive,
+    bool? micActive,
   }) async {
     try {
       final response = await _client
@@ -490,6 +525,8 @@ class StudentApiService {
               'active_question': activeQuestionId,
               'is_online': isOnline,
               'log_event': logEvent,
+              if (cameraActive != null) 'camera_active': cameraActive,
+              if (micActive != null) 'mic_active': micActive,
             }),
           )
           .timeout(AppConfig.apiTimeout);

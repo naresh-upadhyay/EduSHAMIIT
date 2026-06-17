@@ -149,7 +149,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                     child: CircularProgressIndicator(color: _kPrimary),
                   )
                 : Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                     child: AzureGrid<DocumentModel>(
                       title: 'Documents Ledger',
                       items: state.documents,
@@ -294,21 +294,6 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'documents_screen_fab',
-        onPressed: _showUploadSheet,
-        backgroundColor: _kPrimary,
-        icon: const Icon(Icons.upload_rounded, color: Colors.white),
-        label: const Text(
-          'Upload',
-          style: TextStyle(
-            color: Colors.white,
-            fontFamily: AppFonts.heading,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 

@@ -772,39 +772,42 @@ class _OnlineExamScreenState extends ConsumerState<OnlineExamScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, size: 64, color: Colors.green),
-              const SizedBox(height: 16),
-              const Text(
-                'Exam Submitted!',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, size: 64, color: Colors.green),
+                const SizedBox(height: 16),
+                const Text(
+                  'Exam Submitted!',
+                  style: TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'You answered $_answeredCount questions correctly.',
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  context.go('/student/exams');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: StudentColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                const SizedBox(height: 8),
+                Text(
+                  'You answered $_answeredCount questions correctly.',
+                  style: const TextStyle(color: Colors.grey),
                 ),
-                child: Text('View Results'.tr(ref)),
-              ),
-            ],
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    context.go('/student/exams');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: StudentColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  ),
+                  child: Text('View Results'.tr(ref)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

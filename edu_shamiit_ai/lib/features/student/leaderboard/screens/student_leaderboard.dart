@@ -16,6 +16,7 @@ class StudentLeaderboard extends ConsumerStatefulWidget {
 
 class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
   int _selectedTab = 0; // 0=Class Rank, 1=School Rank
+  bool _isAiMotivationCollapsed = true;
 
   @override
   void initState() {
@@ -540,44 +541,30 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
   Widget _buildAIMotivation(LeaderboardEntry userEntry, int userRank, List<LeaderboardEntry> allEntries) {
     // Calculate gap to next rank
     final higherEntries = allEntries.where((e) => e.rank < userRank).toList();
+    
+    Widget content;
     if (higherEntries.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)]),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFDDD6FE)),
+      content = const Text(
+        'Great job! You\'re in the top ranks. Maintain your streak and keep climbing! 🏆',
+        style: TextStyle(
+          fontSize: 11,
+          color: Color(0xFF4338CA),
+          height: 1.6,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: StudentColors.primary,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                '🤖 AI MOTIVATION',
-                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Great job! You\'re in the top ranks. Maintain your streak and keep climbing! 🏆',
-              style: TextStyle(
-                fontSize: 11,
-                color: Color(0xFF4338CA),
-                height: 1.6,
-              ),
-            ),
-          ],
+      );
+    } else {
+      final nextRankEntry = higherEntries.reduce((a, b) => a.rank < b.rank ? a : b);
+      final gap = nextRankEntry.xpPoints - userEntry.xpPoints;
+      content = Text(
+        'You\'re just $gap XP behind ${nextRankEntry.studentName}! Focus on your studies and you can reach #${nextRankEntry.rank} by next term. Keep your ${userEntry.learningStreak} day streak going! 🔥',
+        style: const TextStyle(
+          fontSize: 11,
+          color: Color(0xFF4338CA),
+          height: 1.6,
         ),
       );
     }
-    final nextRankEntry = higherEntries.reduce((a, b) => a.rank < b.rank ? a : b);
-    final gap = nextRankEntry.xpPoints - userEntry.xpPoints;
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -588,26 +575,36 @@ class _StudentLeaderboardState extends ConsumerState<StudentLeaderboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: StudentColors.primary,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              '🤖 AI MOTIVATION',
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: StudentColors.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  '🤖 AI MOTIVATION',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ),
+              InkWell(
+                onTap: () => setState(() => _isAiMotivationCollapsed = !_isAiMotivationCollapsed),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_isAiMotivationCollapsed ? 'Show' : 'Hide', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF4338CA))),
+                    Icon(_isAiMotivationCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 14, color: const Color(0xFF4338CA)),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            'You\'re just $gap XP behind ${nextRankEntry.studentName}! Focus on your studies and you can reach #${nextRankEntry.rank} by next term. Keep your ${userEntry.learningStreak} day streak going! 🔥',
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF4338CA),
-              height: 1.6,
-            ),
-          ),
+          if (!_isAiMotivationCollapsed) ...[
+            const SizedBox(height: 8),
+            content,
+          ],
         ],
       ),
     );

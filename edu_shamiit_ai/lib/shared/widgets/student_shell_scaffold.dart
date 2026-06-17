@@ -129,7 +129,28 @@ class StudentShellScaffold extends ConsumerWidget {
     for (int i = 0; i < items.length; i++) {
       if (location == items[i].route) return i;
     }
-    return 0;
+    final locPath = Uri.parse(location).path;
+    final locSegments = Uri.parse(locPath).pathSegments;
+    int bestMatchIndex = 0;
+    int maxMatchedSegments = -1;
+    for (int i = 0; i < items.length; i++) {
+      final routePath = Uri.parse(items[i].route).path;
+      final routeSegments = Uri.parse(routePath).pathSegments;
+      if (routeSegments.length <= locSegments.length) {
+        bool match = true;
+        for (int j = 0; j < routeSegments.length; j++) {
+          if (routeSegments[j] != locSegments[j]) {
+            match = false;
+            break;
+          }
+        }
+        if (match && routeSegments.length > maxMatchedSegments) {
+          maxMatchedSegments = routeSegments.length;
+          bestMatchIndex = i;
+        }
+      }
+    }
+    return bestMatchIndex;
   }
 
   @override
@@ -150,6 +171,7 @@ class StudentShellScaffold extends ConsumerWidget {
     // causes !debugNeedsLayout assertions in SelectableRegion.
     final isAiChat = currentLoc.endsWith('/ai-chat');
     final isMessaging = currentLoc.contains('/messaging');
+    final isExam = currentLoc.contains('/student/exams');
     final pageChild = child;
 
     Widget shell;
@@ -182,7 +204,7 @@ class StudentShellScaffold extends ConsumerWidget {
             Expanded(child: pageChild),
           ],
         ),
-        floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
+        floatingActionButton: (isAiChat || isMessaging || isExam) ? null : AiFab(
           gradient: AppGradients.studentPrimary,
           onPressed: () => context.push('/student/ai-chat'),
         ),
@@ -192,7 +214,7 @@ class StudentShellScaffold extends ConsumerWidget {
       shell = Scaffold(
         body: child,
         bottomNavigationBar: StudentBottomNav(currentLocation: currentLoc),
-        floatingActionButton: (isAiChat || isMessaging) ? null : AiFab(
+        floatingActionButton: (isAiChat || isMessaging || isExam) ? null : AiFab(
           gradient: AppGradients.studentPrimary,
           onPressed: () => context.push('/student/ai-chat'),
         ),

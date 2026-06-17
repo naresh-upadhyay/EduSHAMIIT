@@ -127,7 +127,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                         ),
                       )
                     : Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                         child: AzureGrid<TeacherLiveClass>(
                           title: 'All Live Classes',
                           items: _liveClasses,
@@ -485,21 +485,6 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                       ),
           ),
         ],
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'teacher_live_classes_fab',
-        onPressed: () => _showScheduleDialog(),
-        backgroundColor: const Color(0xFFEF4444),
-        icon: const Icon(Icons.video_call, color: Colors.white),
-        label: const Text(
-          'Schedule Class',
-          style: TextStyle(
-            fontFamily: AppFonts.heading,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-          ),
-        ),
       ),
     );
   }

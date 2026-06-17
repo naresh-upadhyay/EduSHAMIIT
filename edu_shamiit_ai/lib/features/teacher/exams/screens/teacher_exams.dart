@@ -473,10 +473,17 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                         ),
                       )
                     : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                        padding: const EdgeInsets.fromLTRB(12.0, 4.0, 12.0, 80.0),
                         child: AzureGrid<TeacherExam>(
                           title: 'Scheduled Exams',
                           items: _allExams,
+                          extraCommandActions: [
+                            IconButton(
+                              icon: const Icon(Icons.add, color: Color(0xFF6366F1)),
+                              tooltip: 'Create Exam',
+                              onPressed: () => context.push('/teacher/exams/create'),
+                            ),
+                          ],
                           columns: _buildGridColumns(),
                           searchMatcher: (exam) => '${exam.title} ${exam.subject} ${exam.class_} ${exam.examCategory}',
                           filters: [
@@ -503,21 +510,6 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                       ),
           ),
         ],
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'teacher_exams_fab',
-        onPressed: () => context.push('/teacher/exams/create'),
-        backgroundColor: const Color(0xFF6366F1),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Create Exam',
-          style: TextStyle(
-            fontFamily: AppFonts.heading,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
       ),
     );
   }

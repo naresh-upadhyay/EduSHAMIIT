@@ -247,7 +247,7 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
                     _buildStepItem(
                       '3',
                       'AI Proctoring Monitoring',
-                      '${camera ? "📸 Webcam tracking" : "Camera tracking"} and ${mic ? "🎤 audio capture" : "audio capture"} are enabled. Focus loss, switching tabs, or resizing windows counts as a proctor warning (max 3 warnings).',
+                      '${camera ? "📸 Webcam tracking" : "Camera tracking"} and ${mic ? "🎤 audio capture" : "audio capture"} are enabled. Focus loss, switching tabs, or resizing windows counts as a proctor warning (max 5 warnings).',
                     ),
                     _buildStepItem(
                       '4',

@@ -18,6 +18,7 @@ class StudentLibrary extends ConsumerStatefulWidget {
 
 class _StudentLibraryState extends ConsumerState<StudentLibrary> {
   int _selectedTab = 0; // 0=My Books, 1=Browse, 2=Digital, 3=Request
+  bool _isAiRecommendationsCollapsed = true;
   final TextEditingController _searchController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -459,7 +460,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             if (_selectedTab == 1) ..._buildBrowseTab(libraryState),
             if (_selectedTab == 2) ..._buildDigitalTab(libraryState),
             if (_selectedTab == 3) ..._buildRequestTab(libraryState),
-            const SizedBox(height: 50),
+            const SizedBox(height: 80),
           ],
         );
       }
@@ -533,7 +534,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
 
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 80),
               child: tabContent,
             ),
           ),
@@ -892,101 +893,118 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('✨', style: TextStyle(fontSize: 18)),
-              SizedBox(width: 6),
-              Text(
-                'AI Librarian Recommendations',
-                style: TextStyle(
-                  fontFamily: AppFonts.heading,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+              const Row(
+                children: [
+                  Text('✨', style: TextStyle(fontSize: 18)),
+                  SizedBox(width: 6),
+                  Text(
+                    'AI Librarian Recommendations',
+                    style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () => setState(() => _isAiRecommendationsCollapsed = !_isAiRecommendationsCollapsed),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_isAiRecommendationsCollapsed ? 'Show' : 'Hide', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Icon(_isAiRecommendationsCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 14, color: Colors.white),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 90,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: recommendations.length,
-              itemBuilder: (ctx, index) {
-                final book = recommendations[index];
-                return GestureDetector(
-                  onTap: () => _showBookDetailsDialog(book),
-                  child: Container(
-                    width: 240,
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white24),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 35,
-                          height: 55,
-                          decoration: BoxDecoration(
-                            color: Colors.white30,
-                            borderRadius: BorderRadius.circular(6),
+          if (!_isAiRecommendationsCollapsed) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 90,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: recommendations.length,
+                itemBuilder: (ctx, index) {
+                  final book = recommendations[index];
+                  return GestureDetector(
+                    onTap: () => _showBookDetailsDialog(book),
+                    child: Container(
+                      width: 240,
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 35,
+                            height: 55,
+                            decoration: BoxDecoration(
+                              color: Colors.white30,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Center(
+                                child:
+                                    Text('📕', style: TextStyle(fontSize: 16))),
                           ),
-                          child: const Center(
-                              child:
-                                  Text('📕', style: TextStyle(fontSize: 16))),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                book.title,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  book.title,
+                                  style: const TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                book.author,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white70,
+                                const SizedBox(height: 2),
+                                Text(
+                                  book.author,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.white70,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                book.recommendationReason ??
-                                    'Highly recommended.',
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  fontStyle: FontStyle.italic,
-                                  color: Color(0xFFFDE047),
+                                const SizedBox(height: 4),
+                                Text(
+                                  book.recommendationReason ?? 'Recommended for you',
+                                  style: const TextStyle(
+                                    fontSize: 8,
+                                    fontStyle: FontStyle.italic,
+                                    color: Color(0xFFFDE047),
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

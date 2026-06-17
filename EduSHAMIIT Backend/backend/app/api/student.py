@@ -142,21 +142,17 @@ async def student_timetable(day: str = "monday", date: Optional[str] = None, use
         if profile_res.data:
             student_class = profile_res.data.get("class")
     
-    # Fetch timetable entries (both regular day-of-week slots and date-specific slots)
+    # Fetch timetable entries for the given day_of_week
     db_schedule = (await sb.table("timetable")
                     .select("*, subjects(name, icon, color), profiles!teacher_id(full_name)")
                     .eq("school_id", school_id)
                     .eq("class", student_class)
-                    .or_(f"day_of_week.eq.{day_num},date.eq.{target_date_str}")
+                    .eq("day_of_week", day_num)
                     .order("start_time")
                     .aexecute()).data
                     
     schedule = []
     for idx, slot in enumerate(db_schedule):
-        slot_date = slot.get("date")
-        if slot_date is not None and slot_date != target_date_str:
-            continue
-            
         sub_name = slot.get("subjects", {}).get("name") if slot.get("subjects") else "Subject"
         if slot.get("custom_subject"):
             sub_name = slot["custom_subject"]
@@ -262,6 +258,11 @@ async def student_exams(user=Depends(require_student), school_id=Depends(require
     submissions = sub_res.data or []
     sub_map = {s["exam_id"]: s for s in submissions}
     
+    # 4. Fetch proctoring sessions by this student
+    sess_res = await sb.table("exam_sessions").select("*").eq("student_id", user["id"]).aexecute()
+    sessions = sess_res.data or []
+    sess_map = {s["exam_id"]: s for s in sessions}
+    
     filtered_exams = []
     for exam in all_exams:
         target_classes = exam.get("target_classes")
@@ -330,13 +331,29 @@ async def student_exams(user=Depends(require_student), school_id=Depends(require
         # Attach submission details
         submission = sub_map.get(exam["id"])
         if submission:
-            exam["submission_status"] = submission.get("status")
-            exam["obtained_score"] = submission.get("score")
-            exam["graded_at"] = submission.get("graded_at")
+            sub_status = submission.get("status")
+            results_pub = exam.get("results_published_at") is not None
+            if sub_status == "graded" and not results_pub:
+                exam["submission_status"] = "submitted"
+                exam["obtained_score"] = None
+                exam["graded_at"] = None
+            else:
+                exam["submission_status"] = sub_status
+                exam["obtained_score"] = submission.get("score")
+                exam["graded_at"] = submission.get("graded_at")
         else:
             exam["submission_status"] = None
             exam["obtained_score"] = None
             exam["graded_at"] = None
+            
+        # Attach session details
+        session = sess_map.get(exam["id"])
+        if session:
+            exam["session_status"] = session.get("status")
+            exam["has_session"] = True
+        else:
+            exam["session_status"] = None
+            exam["has_session"] = False
             
         # Format the subject name and icon
         subj = exam.get("subjects") or {}
@@ -2195,6 +2212,9 @@ async def student_ping_exam_session(
     is_online = request.get("is_online", True)
     log_event = request.get("log_event")
     
+    camera_active = request.get("camera_active")
+    mic_active = request.get("mic_active")
+    
     update_data = {
         "warnings_count": warnings_count,
         "is_online": is_online,
@@ -2202,6 +2222,10 @@ async def student_ping_exam_session(
     }
     if active_question:
         update_data["active_question"] = active_question
+    if camera_active is not None:
+        update_data["camera_active"] = camera_active
+    if mic_active is not None:
+        update_data["mic_active"] = mic_active
         
     sess_res = await sb.table("exam_sessions").select("*")\
         .eq("exam_id", exam_id)\
@@ -2318,21 +2342,66 @@ async def student_submit_exam(exam_id: str, request: dict, user=Depends(require_
         q_type = q["question_type"]
         correct = q.get("correct_answer")
         student_ans = answers.get(q_id)
+        options = q.get("options")
         
         if q_type == "subjective":
             has_subjective = True
-        elif correct is not None and student_ans is not None:
-            # Compare answers (case insensitive, trimmed)
-            if str(student_ans).strip().lower() == str(correct).strip().lower():
-                total_score += q.get("marks", 0)
+        elif q_type == "single_select":
+            if correct is not None and student_ans is not None:
+                match = False
+                sa = str(student_ans).strip().upper()
+                co = str(correct).strip().upper()
+                if sa == co:
+                    match = True
+                elif len(co) == 1 and 'A' <= co <= 'Z' and options and isinstance(options, list):
+                    idx = ord(co) - ord('A')
+                    if 0 <= idx < len(options):
+                        opt_val = str(options[idx]).strip().upper()
+                        if sa == opt_val:
+                            match = True
+                elif len(sa) == 1 and 'A' <= sa <= 'Z' and options and isinstance(options, list):
+                    idx = ord(sa) - ord('A')
+                    if 0 <= idx < len(options):
+                        opt_val = str(options[idx]).strip().upper()
+                        if co == opt_val:
+                            match = True
+                if match:
+                    total_score += q.get("marks", 0)
+        elif q_type == "multi_select":
+            if correct is not None and student_ans is not None:
+                def normalize_to_text(val_str):
+                    vals = [v.strip().upper() for v in str(val_str).split(",") if v.strip()]
+                    normalized = set()
+                    for v in vals:
+                        if len(v) == 1 and 'A' <= v <= 'Z' and options and isinstance(options, list):
+                            idx = ord(v) - ord('A')
+                            if 0 <= idx < len(options):
+                                normalized.add(str(options[idx]).strip().upper())
+                                continue
+                        normalized.add(v)
+                    return normalized
+                norm_student = normalize_to_text(student_ans)
+                norm_correct = normalize_to_text(correct)
+                if norm_student == norm_correct and len(norm_correct) > 0:
+                    total_score += q.get("marks", 0)
+        else:
+            if correct is not None and student_ans is not None:
+                # Compare answers (case insensitive, trimmed)
+                if str(student_ans).strip().lower() == str(correct).strip().lower():
+                    total_score += q.get("marks", 0)
                 
-    status = "submitted" if has_subjective else "graded"
+    is_auto_save = request.get("is_auto_save", False)
     
-    # Update active session to ended
-    await sb.table("exam_sessions").update({
-        "status": "completed",
-        "ended_at": datetime.now(timezone.utc).isoformat()
-    }).eq("exam_id", exam_id).eq("student_id", user["id"]).eq("status", "active").aexecute()
+    if is_auto_save:
+        status = "active"
+    else:
+        status = "submitted" if has_subjective else "graded"
+        
+        # Update active session to ended
+        await sb.table("exam_sessions").update({
+            "status": "completed",
+            "ended_at": datetime.now(timezone.utc).isoformat()
+        }).eq("exam_id", exam_id).eq("student_id", user["id"]).eq("status", "active").aexecute()
     
     # Check if there is an existing submission (e.g. from auto-save / updates)
     existing = await sb.table("exam_submissions").select("*").eq("exam_id", exam_id).eq("student_id", user["id"]).maybe_single().aexecute()
@@ -2341,10 +2410,10 @@ async def student_submit_exam(exam_id: str, request: dict, user=Depends(require_
         "exam_id": exam_id,
         "student_id": user["id"],
         "answers": answers,
-        "score": total_score if not has_subjective else None,
+        "score": total_score if (not has_subjective and not is_auto_save) else None,
         "status": status,
         "submitted_at": datetime.now(timezone.utc).isoformat(),
-        "graded_at": datetime.now(timezone.utc).isoformat() if not has_subjective else None
+        "graded_at": datetime.now(timezone.utc).isoformat() if (not has_subjective and not is_auto_save) else None
     }
     
     if existing.data:
@@ -2352,6 +2421,329 @@ async def student_submit_exam(exam_id: str, request: dict, user=Depends(require_
     else:
         res = await sb.table("exam_submissions").insert(submission_data).aexecute()
         
-    return {"success": True, "status": status, "score": total_score if not has_subjective else None, "data": res.data[0] if res.data else {}}
+    return {"success": True, "status": status, "score": total_score if (not has_subjective and not is_auto_save) else None, "data": res.data[0] if res.data else {}}
+
+
+@router.get("/exams/{exam_id}/result")
+async def student_get_exam_result(
+    exam_id: str,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    
+    # 1. Fetch exam details
+    exam_res = await sb.table("exams").select("title, total_marks, passing_marks, target_classes, results_published_at").eq("id", exam_id).maybe_single().aexecute()
+    exam_data = exam_res.data
+    if not exam_data:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    # Check if results are published
+    if not exam_data.get("results_published_at"):
+        raise HTTPException(status_code=403, detail="Exam results have not been published yet.")
+        
+    # 2. Fetch student's submission
+    sub_res = await sb.table("exam_submissions").select("*").eq("exam_id", exam_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    sub = sub_res.data
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found for this student")
+        
+    # 3. Fetch questions
+    q_res = await sb.table("exam_questions").select("id, question_text, question_type, options, correct_answer, marks").eq("exam_id", exam_id).aexecute()
+    questions = q_res.data or []
+    
+    # 4. Fetch session details to get duration and warnings count
+    sess_res = await sb.table("exam_sessions").select("started_at, ended_at, warnings_count").eq("exam_id", exam_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    sess = sess_res.data or {}
+    
+    # Calculate statistics
+    total_questions = len(questions)
+    correct_answers = 0
+    incorrect_answers = 0
+    skipped_answers = 0
+    question_review = []  # per-question review list
+    
+    answers = sub.get("answers") or {}
+    
+    # Topic breakdown map
+    # We define topics based on keywords
+    topic_mapping = {
+        "Optics": ["light", "optics", "lens", "mirror", "refraction", "reflection", "prism"],
+        "Thermodynamics": ["heat", "thermo", "temperature", "entropy", "carnot", "gas", "pressure", "volume"],
+        "Electromagnetism": ["charge", "current", "magnetic", "electric", "field", "volt", "resistance", "wire", "circuit", "ohm"],
+        "Kinematics": ["speed", "velocity", "acceleration", "motion", "force", "gravity", "momentum", "mass", "newton"]
+    }
+    
+    topic_scores = {topic: {"correct": 0, "total": 0} for topic in topic_mapping}
+    topic_scores["General"] = {"correct": 0, "total": 0}
+    
+    def _resolve_option_letter_to_text(letter_or_text, options_list):
+        """If the value is a single letter A-Z and options exist, resolve to option text."""
+        if not letter_or_text:
+            return letter_or_text
+        s = str(letter_or_text).strip()
+        if len(s) == 1 and 'A' <= s.upper() <= 'Z' and options_list and isinstance(options_list, list):
+            idx = ord(s.upper()) - ord('A')
+            if 0 <= idx < len(options_list):
+                return str(options_list[idx])
+        return s
+    
+    for q_idx, q in enumerate(questions):
+        q_id = q["id"]
+        q_type = q["question_type"]
+        correct_val = q.get("correct_answer")
+        student_ans = answers.get(q_id)
+        q_marks = float(q.get("marks") or 1.0)
+        options_list = q.get("options") or []
+        
+        # Categorize question into topic
+        q_text_lower = q.get("question_text", "").lower()
+        matched_topic = "General"
+        for topic, keywords in topic_mapping.items():
+            if any(kw in q_text_lower for kw in keywords):
+                matched_topic = topic
+                break
+                
+        topic_scores[matched_topic]["total"] += 1
+        
+        # Determine per-question result
+        q_status = "skipped"  # skipped | correct | incorrect | partial
+        marks_obtained = 0.0
+        student_ans_display = None
+        correct_ans_display = None
+        teacher_feedback = None
+
+        # Build human-readable correct answer display
+        if q_type in ("single_select", "multi_select"):
+            if correct_val:
+                if isinstance(correct_val, str) and "," in correct_val:
+                    correct_ans_display = ", ".join(
+                        _resolve_option_letter_to_text(v.strip(), options_list)
+                        for v in correct_val.split(",") if v.strip()
+                    )
+                else:
+                    correct_ans_display = _resolve_option_letter_to_text(correct_val, options_list)
+        elif q_type == "subjective":
+            correct_ans_display = correct_val  # model answer / rubric
+        else:
+            correct_ans_display = str(correct_val) if correct_val is not None else None
+        
+        if student_ans is None:
+            skipped_answers += 1
+            q_status = "skipped"
+            student_ans_display = None
+        elif q_type == "subjective":
+            # For subjective questions, check if awarded marks > 50% of question marks
+            awarded = 0.0
+            student_ans_text = None
+            if isinstance(student_ans, dict):
+                awarded = float(student_ans.get("awarded_marks") or 0.0)
+                student_ans_text = student_ans.get("answer_text") or student_ans.get("text")
+                teacher_feedback = student_ans.get("feedback") or student_ans.get("remarks")
+            else:
+                student_ans_text = str(student_ans)
+            student_ans_display = student_ans_text
+            marks_obtained = awarded
+            if awarded >= (q_marks * 0.5):
+                correct_answers += 1
+                topic_scores[matched_topic]["correct"] += 1
+                q_status = "correct" if awarded >= q_marks else "partial"
+            else:
+                incorrect_answers += 1
+                q_status = "incorrect"
+        elif q_type == "single_select":
+            student_ans_display = _resolve_option_letter_to_text(student_ans, options_list)
+            if correct_val is not None and student_ans is not None:
+                match = False
+                sa = str(student_ans).strip().upper()
+                co = str(correct_val).strip().upper()
+                if sa == co:
+                    match = True
+                elif len(co) == 1 and 'A' <= co <= 'Z' and options_list:
+                    idx = ord(co) - ord('A')
+                    if 0 <= idx < len(options_list):
+                        opt_val = str(options_list[idx]).strip().upper()
+                        if sa == opt_val:
+                            match = True
+                elif len(sa) == 1 and 'A' <= sa <= 'Z' and options_list:
+                    idx = ord(sa) - ord('A')
+                    if 0 <= idx < len(options_list):
+                        opt_val = str(options_list[idx]).strip().upper()
+                        if co == opt_val:
+                            match = True
+                if match:
+                    correct_answers += 1
+                    topic_scores[matched_topic]["correct"] += 1
+                    q_status = "correct"
+                    marks_obtained = q_marks
+                else:
+                    incorrect_answers += 1
+                    q_status = "incorrect"
+            else:
+                incorrect_answers += 1
+                q_status = "incorrect"
+        elif q_type == "multi_select":
+            if correct_val is not None and student_ans is not None:
+                def normalize_to_text(val_str):
+                    vals = [v.strip().upper() for v in str(val_str).split(",") if v.strip()]
+                    normalized = set()
+                    for v in vals:
+                        if len(v) == 1 and 'A' <= v <= 'Z' and options_list:
+                            idx = ord(v) - ord('A')
+                            if 0 <= idx < len(options_list):
+                                normalized.add(str(options_list[idx]).strip().upper())
+                                continue
+                        normalized.add(v)
+                    return normalized
+                norm_student = normalize_to_text(student_ans)
+                norm_correct = normalize_to_text(correct_val)
+                # Build display from raw student answer
+                if isinstance(student_ans, str):
+                    student_ans_display = ", ".join(
+                        _resolve_option_letter_to_text(v.strip(), options_list)
+                        for v in student_ans.split(",") if v.strip()
+                    )
+                else:
+                    student_ans_display = str(student_ans)
+                if norm_student == norm_correct and len(norm_correct) > 0:
+                    correct_answers += 1
+                    topic_scores[matched_topic]["correct"] += 1
+                    q_status = "correct"
+                    marks_obtained = q_marks
+                else:
+                    incorrect_answers += 1
+                    q_status = "incorrect"
+            else:
+                incorrect_answers += 1
+                q_status = "incorrect"
+        else:
+            student_ans_display = str(student_ans) if student_ans is not None else None
+            if correct_val is not None and student_ans is not None:
+                # Compare answers (case insensitive, trimmed)
+                if str(student_ans).strip().lower() == str(correct_val).strip().lower():
+                    correct_answers += 1
+                    topic_scores[matched_topic]["correct"] += 1
+                    q_status = "correct"
+                    marks_obtained = q_marks
+                else:
+                    incorrect_answers += 1
+                    q_status = "incorrect"
+
+        # Append to per-question review
+        question_review.append({
+            "number": q_idx + 1,
+            "question": q.get("question_text", ""),
+            "type": q_type,
+            "options": options_list,
+            "max_marks": q_marks,
+            "marks_obtained": marks_obtained,
+            "student_answer": student_ans_display,
+            "correct_answer": correct_ans_display,
+            "status": q_status,
+            "teacher_feedback": teacher_feedback,
+        })
+                
+    # Calculate duration
+    time_taken = "N/A"
+    started = sess.get("started_at")
+    ended = sess.get("ended_at")
+    if started and ended:
+        try:
+            from dateutil.parser import parse
+            s_dt = parse(started)
+            e_dt = parse(ended)
+            diff = e_dt - s_dt
+            secs = diff.total_seconds()
+            mins = int(secs // 60)
+            hrs = mins // 60
+            mins = mins % 60
+            if hrs > 0:
+                time_taken = f"{hrs}h {mins}m"
+            else:
+                time_taken = f"{mins}m"
+        except Exception:
+            pass
+            
+    warnings_count = sess.get("warnings_count", 0) or 0
+    integrity = "Excellent (0 warnings)"
+    if warnings_count > 3:
+        integrity = f"Suspicious ({warnings_count} warnings)"
+    elif warnings_count > 0:
+        integrity = f"Good ({warnings_count} warnings)"
+        
+    # Format topic stats
+    topic_stats = []
+    weakest_topic = None
+    min_accuracy = 101.0
+    
+    for topic, stats in topic_scores.items():
+        if stats["total"] > 0:
+            acc = round((stats["correct"] / stats["total"]) * 100)
+            topic_stats.append({
+                "name": topic,
+                "accuracy": acc,
+                "count": f"{stats['correct']}/{stats['total']}"
+            })
+            if acc < min_accuracy:
+                min_accuracy = acc
+                weakest_topic = topic
+                
+    # AI Revision recommendation
+    recommendation = "You performed well overall! Keep up the good work and continue practicing mock exams."
+    if weakest_topic and min_accuracy < 75:
+        recommendation = f"Your score in {weakest_topic} ({min_accuracy}%) is relatively weak. We suggest reviewing relevant textbook chapters and attempting specialized practice questions."
+        
+    # If there are teacher remarks, show them
+    if sub.get("remarks"):
+        recommendation += f" Teacher's Remarks: {sub.get('remarks')}"
+        
+    # Get total class count to show e.g. "Rank 14th of 45 students"
+    class_students_res = await sb.table("profiles").select("id").count("exact").eq("role", "student").eq("class", user.get("class") or '10A').aexecute()
+    class_total = class_students_res.count or 15
+    
+    # Calculate grade and pass status dynamically if not published yet
+    score = float(sub.get("score") or 0.0)
+    total_marks = float(exam_data.get("total_marks") or 100.0)
+    passing_marks = float(exam_data.get("passing_marks") or (total_marks * 0.4))
+    pct = (score / total_marks * 100) if total_marks > 0 else 0
+    
+    grade_letter = sub.get("grade_letter")
+    if not grade_letter:
+        if pct >= 90: grade_letter = "A+"
+        elif pct >= 80: grade_letter = "A"
+        elif pct >= 70: grade_letter = "B+"
+        elif pct >= 60: grade_letter = "B"
+        elif pct >= 50: grade_letter = "C"
+        elif pct >= 40: grade_letter = "D"
+        else: grade_letter = "F"
+        
+    is_pass = sub.get("is_pass")
+    if is_pass is None:
+        is_pass = score >= passing_marks
+
+    return {
+        "success": True,
+        "data": {
+            "exam_title": exam_data.get("title"),
+            "score_obtained": score,
+            "total_marks": total_marks,
+            "rank": sub.get("class_rank"),
+            "class_total": class_total,
+            "grade": grade_letter,
+            "is_pass": is_pass,
+            "status": "PASS" if is_pass else "FAIL",
+            "total_questions": total_questions,
+            "correct_answers": correct_answers,
+            "incorrect_answers": incorrect_answers,
+            "skipped_answers": skipped_answers,
+            "time_taken": time_taken,
+            "accuracy_ratio": round((correct_answers / total_questions * 100) if total_questions > 0 else 0, 1),
+            "integrity_rating": integrity,
+            "topic_stats": topic_stats,
+            "recommendation": recommendation,
+            "question_review": question_review,
+        }
+    }
+
 
 

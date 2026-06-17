@@ -248,6 +248,12 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                      tooltip: 'Schedule',
+                      onPressed: _showScheduleModal,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -453,8 +459,7 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                             ),
                           )
                         : ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.fromLTRB(14, 8, 14, 80),
                             itemCount: _periods.length,
                             itemBuilder: (context, index) {
                               return _buildPeriodCard(_periods[index]);
@@ -464,19 +469,6 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
         ],
       ),
 
-      // Float Button to Schedule Class / Meetings — positioned on start (left) to avoid bot icon
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'teacher_timetable_fab',
-        onPressed: _showScheduleModal,
-        backgroundColor: const Color(0xFF1E40AF),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text(
-          'Schedule',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-        ),
-      ),
     );
   }
 

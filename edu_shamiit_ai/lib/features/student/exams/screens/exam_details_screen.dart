@@ -78,7 +78,7 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
     if (mic) {
       list.add('Ensure you are in a quiet room. Ambient sound and background voices will be recorded and analyzed.');
     }
-    list.add('Leaving the exam screen or switching tabs will trigger security warnings. 3 warnings result in auto-submission.');
+    list.add('Leaving the exam screen or switching tabs will trigger security warnings. 5 warnings result in auto-submission.');
     list.add('Ensure you have physical rough sheets. You will need to upload your subjective answers in image/PDF format.');
     return list;
   }
@@ -555,7 +555,7 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                       child: Text(
                         submission != null && (submission['status'] == 'submitted' || submission['status'] == 'graded')
                             ? 'Submitted'
-                            : (submission != null && submission['status'] == 'active'
+                            : (((submission != null && submission['status'] == 'active') || dataPayload['session'] != null)
                                 ? 'Resume Exam'
                                 : (hasPasscode ? 'Unlock & Join' : 'Start Exam')),
                         style: const TextStyle(

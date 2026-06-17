@@ -143,13 +143,13 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
         ),
         const SizedBox(height: 28),
 
-        // Result Route trigger
+        // Return to Exams Route trigger
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () {
-              // Redirect directly to results
-              context.pushReplacement('/student/exams/result/${widget.examId}');
+              // Redirect to student exams list
+              context.pushReplacement('/student/exams');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF134E4A),
@@ -159,7 +159,7 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('View Result Analysis'),
+            child: const Text('Return to Exams'),
           ),
         ),
         const SizedBox(height: 8),

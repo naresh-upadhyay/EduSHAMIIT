@@ -1193,6 +1193,44 @@ async def delete_transport_assignment(assignment_id: str, user=Depends(require_s
     return {"success": True, "message": "Transport assignment removed"}
 
 
+@router.post("/transport/stops")
+async def create_bus_stop(request: dict, user=Depends(require_student_admin), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    if not request.get("route_id") or not request.get("stop_name"):
+        raise HTTPException(status_code=400, detail="route_id and stop_name are required")
+    data = {
+        "id": str(uuid.uuid4()),
+        "school_id": school_id,
+        "route_id": request["route_id"],
+        "stop_name": request["stop_name"],
+        "latitude": request.get("latitude"),
+        "longitude": request.get("longitude"),
+        "stop_order": request.get("stop_order", 1),
+        "estimated_arrival": request.get("estimated_arrival"),
+        "is_student_stop": request.get("is_student_stop", True)
+    }
+    result = await sb.table("bus_stops").insert(data).aexecute()
+    return {"success": True, "school_id": school_id, "data": result.data[0] if result.data else data}
+
+
+@router.post("/transport/locations")
+async def create_bus_location(request: dict, user=Depends(require_student_admin), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    if not request.get("route_id"):
+        raise HTTPException(status_code=400, detail="route_id is required")
+    data = {
+        "id": str(uuid.uuid4()),
+        "school_id": school_id,
+        "route_id": request["route_id"],
+        "latitude": request.get("latitude", 0.0),
+        "longitude": request.get("longitude", 0.0),
+        "speed": request.get("speed", 0.0),
+        "recorded_at": datetime.now().isoformat()
+    }
+    result = await sb.table("bus_locations").insert(data).aexecute()
+    return {"success": True, "school_id": school_id, "data": result.data[0] if result.data else data}
+
+
 # ===========================================================
 # Library CRUD
 # ===========================================================

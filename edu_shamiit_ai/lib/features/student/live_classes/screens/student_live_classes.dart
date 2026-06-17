@@ -281,7 +281,7 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                         child: Center(child: Text('Error: ${liveClassesState.error}')),
                       )
                     : Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                         child: AzureGrid<LiveClassModel>(
                           title: 'Live & Recorded Sessions',
                           items: allClasses,

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -121,17 +120,17 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     }
   }
 
-  Future<void> _extendTime(String sessionId, String name) async {
+  Future<void> _extendTime(String sessionId, String name, {int extraMinutes = 15}) async {
     try {
       final res = await _apiService.sendProctorAction(
         widget.examId,
         sessionId,
         action: 'extend',
-        extraMinutes: 15,
+        extraMinutes: extraMinutes,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Extended duration for $name by 15 mins.'), backgroundColor: Colors.green),
+        SnackBar(content: Text('Extended duration for $name by $extraMinutes mins.'), backgroundColor: Colors.green),
       );
       if (res['success'] == true && res['data'] != null) {
         final updatedSession = res['data'] as Map<String, dynamic>;
@@ -150,6 +149,174 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
         SnackBar(content: Text('Failed to extend time: $e'), backgroundColor: Colors.red),
       );
     }
+  }
+
+  Future<void> _toggleForceCamera(String sessionId, String studentName, bool currentActive) async {
+    final newActive = !currentActive;
+    try {
+      final channelName = 'proctor_signal_$sessionId';
+      final channel = Supabase.instance.client.channel(channelName);
+      
+      channel.subscribe((status, [error]) {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          channel.sendBroadcastMessage(
+            event: 'force_camera',
+            payload: {'enabled': newActive},
+          ).then((_) {
+            Supabase.instance.client.removeChannel(channel);
+          });
+        }
+      });
+
+      final res = await _apiService.sendProctorAction(
+        widget.examId,
+        sessionId,
+        action: 'force_camera',
+        cameraActive: newActive,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newActive ? 'Camera forced ON for $studentName.' : 'Camera forced OFF for $studentName.'),
+          backgroundColor: Colors.teal,
+        ),
+      );
+
+      if (res['success'] == true && res['data'] != null) {
+        final updatedSession = res['data'] as Map<String, dynamic>;
+        setState(() {
+          final idx = _sessions.indexWhere((s) => s['id'] == sessionId);
+          if (idx != -1) {
+            _sessions[idx] = updatedSession;
+          }
+        });
+      } else {
+        _loadSessions();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _toggleForceMic(String sessionId, String studentName, bool currentActive) async {
+    final newActive = !currentActive;
+    try {
+      final channelName = 'proctor_signal_$sessionId';
+      final channel = Supabase.instance.client.channel(channelName);
+      
+      channel.subscribe((status, [error]) {
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          channel.sendBroadcastMessage(
+            event: 'force_mic',
+            payload: {'enabled': newActive},
+          ).then((_) {
+            Supabase.instance.client.removeChannel(channel);
+          });
+        }
+      });
+
+      final res = await _apiService.sendProctorAction(
+        widget.examId,
+        sessionId,
+        action: 'force_mic',
+        micActive: newActive,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newActive ? 'Microphone forced ON for $studentName.' : 'Microphone forced OFF for $studentName.'),
+          backgroundColor: Colors.teal,
+        ),
+      );
+
+      if (res['success'] == true && res['data'] != null) {
+        final updatedSession = res['data'] as Map<String, dynamic>;
+        setState(() {
+          final idx = _sessions.indexWhere((s) => s['id'] == sessionId);
+          if (idx != -1) {
+            _sessions[idx] = updatedSession;
+          }
+        });
+      } else {
+        _loadSessions();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _showCustomTimeExtensionDialog(String sessionId, String studentName) {
+    final controller = TextEditingController(text: '15');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Extend Time for $studentName',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter additional duration in minutes:',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1E293B),
+                hintText: 'e.g. 15',
+                hintStyle: const TextStyle(color: Colors.grey),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF334155)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Colors.teal),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+            onPressed: () {
+              final val = int.tryParse(controller.text);
+              if (val != null && val > 0) {
+                Navigator.pop(context);
+                _extendTime(sessionId, studentName, extraMinutes: val);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid positive number.'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('Extend', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _forceSubmit(String sessionId, String name) async {
@@ -420,7 +587,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
 
             _buildProctorDetailRow('Question Status', session['active_question'] != null ? 'Active' : 'N/A'),
             _buildProctorDetailRow('Extra duration', '${session['extra_minutes'] ?? 0} Mins'),
-            _buildProctorDetailRow('Warnings', '$warnings / 3', valueColor: warnings > 0 ? Colors.red : null),
+            _buildProctorDetailRow('Warnings', '$warnings / 5', valueColor: warnings > 0 ? Colors.red : null),
             _buildProctorDetailRow('Connection', isOnline ? 'Online' : 'Offline', valueColor: isOnline ? Colors.green : Colors.red),
             _buildProctorDetailRow('Status', status.toUpperCase(), valueColor: status == 'suspended' ? Colors.red : null),
             
@@ -429,9 +596,24 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildLockIcon(Icons.videocam, isOnline),
-                _buildLockIcon(Icons.mic, isOnline),
-                _buildLockIcon(Icons.pause, !isPaused),
+                _buildControlIconButton(
+                  icon: (session['camera_active'] as bool? ?? true) ? Icons.videocam : Icons.videocam_off,
+                  isActive: session['camera_active'] as bool? ?? true,
+                  onTap: () => _toggleForceCamera(session['id'], studentName, session['camera_active'] as bool? ?? true),
+                  tooltip: (session['camera_active'] as bool? ?? true) ? 'Camera active. Tap to force OFF.' : 'Camera muted. Tap to force ON.',
+                ),
+                _buildControlIconButton(
+                  icon: (session['mic_active'] as bool? ?? true) ? Icons.mic : Icons.mic_off,
+                  isActive: session['mic_active'] as bool? ?? true,
+                  onTap: () => _toggleForceMic(session['id'], studentName, session['mic_active'] as bool? ?? true),
+                  tooltip: (session['mic_active'] as bool? ?? true) ? 'Mic active. Tap to force OFF.' : 'Mic muted. Tap to force ON.',
+                ),
+                _buildControlIconButton(
+                  icon: isPaused ? Icons.play_arrow : Icons.pause,
+                  isActive: !isPaused,
+                  onTap: () => _pauseSession(session['id'], studentName, !isPaused),
+                  tooltip: isPaused ? 'Exam paused. Tap to resume.' : 'Exam active. Tap to pause.',
+                ),
               ],
             ),
             const Spacer(),
@@ -455,12 +637,17 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showProctorFeedDialog(session, studentName),
+                  onPressed: isOnline ? () => _showProctorFeedDialog(session, studentName) : null,
                   icon: const Icon(Icons.videocam, size: 14, color: Colors.white),
-                  label: const Text('View Live Proctor Feed', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  label: Text(
+                    isOnline ? 'View Live Proctor Feed' : 'Student Offline / Feed Unavailable',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEF4444),
+                    backgroundColor: isOnline ? const Color(0xFFEF4444) : Colors.grey.shade400,
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledForegroundColor: Colors.grey.shade600,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -516,6 +703,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
         onExtend: _extendTime,
         onSuspend: _suspendStudent,
         onReopen: _reopenSession,
+        onToggleCamera: _toggleForceCamera,
+        onToggleMic: _toggleForceMic,
       ),
     );
   }
@@ -540,11 +729,44 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     );
   }
 
-  Widget _buildLockIcon(IconData icon, bool isPassing) {
-    return Icon(
-      icon,
-      size: 16,
-      color: isPassing ? Colors.green : Colors.red,
+
+  Widget _buildControlIconButton({
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    final activeBg = Colors.green.shade50;
+    final inactiveBg = Colors.red.shade50;
+    final activeColor = Colors.green.shade700;
+    final inactiveColor = Colors.red.shade700;
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isActive ? activeBg : inactiveBg,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isActive ? Colors.green.shade200 : Colors.red.shade200,
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: isActive ? activeColor : inactiveColor,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -584,7 +806,15 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
               title: const Text('Extend Time (+15 Mins)'),
               onTap: () {
                 Navigator.pop(context);
-                _extendTime(sessionId, studentName);
+                _extendTime(sessionId, studentName, extraMinutes: 15);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.alarm_add, color: Colors.teal),
+              title: const Text('Extend Time (Custom Duration...)'),
+              onTap: () {
+                Navigator.pop(context);
+                _showCustomTimeExtensionDialog(sessionId, studentName);
               },
             ),
             ListTile(
@@ -781,9 +1011,11 @@ class _ProctorFeedDialog extends StatefulWidget {
   final List<Map<String, dynamic>> Function() getSessions;
   final Future<void> Function(String sessionId, String studentName) onWarn;
   final Future<void> Function(String sessionId, String studentName, bool pause) onPause;
-  final Future<void> Function(String sessionId, String studentName) onExtend;
+  final Future<void> Function(String sessionId, String studentName, {int extraMinutes}) onExtend;
   final Future<void> Function(String sessionId, String studentName) onSuspend;
   final Future<void> Function(String sessionId, String studentName) onReopen;
+  final Future<void> Function(String sessionId, String studentName, bool currentActive) onToggleCamera;
+  final Future<void> Function(String sessionId, String studentName, bool currentActive) onToggleMic;
 
   const _ProctorFeedDialog({
     required this.examId,
@@ -795,6 +1027,8 @@ class _ProctorFeedDialog extends StatefulWidget {
     required this.onExtend,
     required this.onSuspend,
     required this.onReopen,
+    required this.onToggleCamera,
+    required this.onToggleMic,
   });
 
   @override
@@ -810,6 +1044,7 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
   bool _isConnecting = true;
   String? _connectError;
   Timer? _timer;
+  EventsListener<RoomEvent>? _roomListener;
 
   @override
   void initState() {
@@ -818,7 +1053,7 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
     _connectToLiveKit();
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
-        setState(() {});
+        _updateTracks();
       }
     });
   }
@@ -876,8 +1111,8 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
 
       _proctorRoom = Room();
       
-      final listener = _proctorRoom!.createListener();
-      listener.on<RoomEvent>((event) {
+      _roomListener = _proctorRoom!.createListener();
+      _roomListener!.on<RoomEvent>((event) {
         debugPrint('[TeacherProctor] RoomEvent: $event');
         if (event is TrackSubscribedEvent || event is TrackUnsubscribedEvent || 
             event is ParticipantConnectedEvent || event is ParticipantDisconnectedEvent) {
@@ -913,9 +1148,14 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
     for (final participant in _proctorRoom!.remoteParticipants.values) {
       for (final pub in participant.videoTrackPublications) {
         if (pub.subscribed && pub.track is VideoTrack) {
-          if (pub.source == TrackSource.camera) {
+          final isCamera = pub.source == TrackSource.camera || 
+                           pub.name.toLowerCase().contains('camera');
+          final isScreen = pub.source == TrackSource.screenShareVideo || 
+                           pub.name.toLowerCase().contains('screen');
+          
+          if (isCamera) {
             newCameraTrack = pub.track as VideoTrack;
-          } else if (pub.source == TrackSource.screenShareVideo) {
+          } else if (isScreen) {
             newScreenTrack = pub.track as VideoTrack;
           }
         }
@@ -930,9 +1170,77 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
     }
   }
 
+  void _showFeedCustomTimeExtensionDialog() {
+    final controller = TextEditingController(text: '15');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0F172A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Extend Time for ${widget.studentName}',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter additional duration in minutes:',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1E293B),
+                hintText: 'e.g. 15',
+                hintStyle: const TextStyle(color: Colors.grey),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF334155)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Colors.teal),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+            onPressed: () async {
+              final val = int.tryParse(controller.text);
+              if (val != null && val > 0) {
+                Navigator.pop(context);
+                await widget.onExtend(widget.sessionId, widget.studentName, extraMinutes: val);
+                setState(() {});
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid positive number.'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text('Extend', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
+    _roomListener?.dispose();
     if (_proctorRoom != null) {
       try {
         _proctorRoom!.disconnect();
@@ -1140,6 +1448,30 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                           ),
                                   ),
                                   if (isOnline) ...[
+                                    if (_cameraTrack != null)
+                                      Positioned(
+                                        top: 12,
+                                        right: 12,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: Colors.black.withOpacity(0.6),
+                                            padding: const EdgeInsets.all(4),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => _FullScreenVideoDialog(
+                                                track: _cameraTrack!,
+                                                title: '${widget.studentName} - CAM 01',
+                                                fit: VideoViewFit.cover,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
                                     Positioned(
                                       top: 12,
                                       left: 12,
@@ -1186,9 +1518,38 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                             child: Center(
                               child: isOnline 
                                   ? (_screenTrack != null
-                                      ? VideoTrackRenderer(
-                                          _screenTrack!,
-                                          fit: VideoViewFit.contain,
+                                      ? Stack(
+                                          children: [
+                                            Center(
+                                              child: VideoTrackRenderer(
+                                                _screenTrack!,
+                                                fit: VideoViewFit.contain,
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 8,
+                                              right: 8,
+                                              child: IconButton(
+                                                icon: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                                style: IconButton.styleFrom(
+                                                  backgroundColor: Colors.black.withOpacity(0.6),
+                                                  padding: const EdgeInsets.all(4),
+                                                  minimumSize: Size.zero,
+                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                ),
+                                                onPressed: () {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) => _FullScreenVideoDialog(
+                                                      track: _screenTrack!,
+                                                      title: '${widget.studentName} - SCR 02',
+                                                      fit: VideoViewFit.contain,
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ],
                                         )
                                       : const Column(
                                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1316,7 +1677,9 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                       await widget.onWarn(widget.sessionId, widget.studentName);
                                       setState(() {});
                                     },
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange.shade800,
+                                    ),
                                     child: const Text('Warn', style: TextStyle(fontSize: 11, color: Colors.white)),
                                   ),
                                 ),
@@ -1327,8 +1690,58 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                       await widget.onPause(widget.sessionId, widget.studentName, !isPaused);
                                       setState(() {});
                                     },
-                                    style: ElevatedButton.styleFrom(backgroundColor: isPaused ? Colors.green : Colors.red),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isPaused ? Colors.green : Colors.red,
+                                    ),
                                     child: Text(isPaused ? 'Resume' : 'Pause', style: const TextStyle(fontSize: 11, color: Colors.white)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final camActive = session['camera_active'] as bool? ?? true;
+                                      await widget.onToggleCamera(widget.sessionId, widget.studentName, camActive);
+                                      setState(() {});
+                                    },
+                                    icon: Icon(
+                                      (session['camera_active'] as bool? ?? true) ? Icons.videocam : Icons.videocam_off,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                    label: Text(
+                                      (session['camera_active'] as bool? ?? true) ? 'Cam: ON' : 'Cam: OFF',
+                                      style: const TextStyle(fontSize: 11, color: Colors.white),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: (session['camera_active'] as bool? ?? true) ? Colors.green.shade800 : Colors.red.shade900,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final micActive = session['mic_active'] as bool? ?? true;
+                                      await widget.onToggleMic(widget.sessionId, widget.studentName, micActive);
+                                      setState(() {});
+                                    },
+                                    icon: Icon(
+                                      (session['mic_active'] as bool? ?? true) ? Icons.mic : Icons.mic_off,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                    label: Text(
+                                      (session['mic_active'] as bool? ?? true) ? 'Mic: ON' : 'Mic: OFF',
+                                      style: const TextStyle(fontSize: 11, color: Colors.white),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: (session['mic_active'] as bool? ?? true) ? Colors.green.shade800 : Colors.red.shade900,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1339,11 +1752,10 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: () async {
-                                      await widget.onExtend(widget.sessionId, widget.studentName);
-                                      setState(() {});
+                                      _showFeedCustomTimeExtensionDialog();
                                     },
                                     style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF334155)),
-                                    child: const Text('+15 mins', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                    child: const Text('Extend Time', style: TextStyle(fontSize: 11, color: Colors.white)),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -1369,6 +1781,66 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FullScreenVideoDialog extends StatelessWidget {
+  final VideoTrack track;
+  final String title;
+  final VideoViewFit fit;
+
+  const _FullScreenVideoDialog({
+    required this.track,
+    required this.title,
+    this.fit = VideoViewFit.contain,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: const Color(0xFF020617),
+      child: Stack(
+        children: [
+          Center(
+            child: VideoTrackRenderer(
+              track,
+              fit: fit,
+            ),
+          ),
+          Positioned(
+            top: 20,
+            left: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 20,
+            right: 20,
+            child: IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black54,
+                padding: const EdgeInsets.all(8),
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
       ),
     );
   }

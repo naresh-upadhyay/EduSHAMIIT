@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
+import 'package:edu_shamiit_ai/core/theme/responsive_dialog_padding.dart';
 
 ThemeData getStudentTheme({Brightness brightness = Brightness.light}) {
   final isDark = brightness == Brightness.dark;
@@ -162,6 +163,15 @@ ThemeData getStudentTheme({Brightness brightness = Brightness.light}) {
         borderSide: const BorderSide(color: Colors.red),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: isDark ? StudentColors.darkSurface : Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 8,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+      ),
+      insetPadding: const ResponsiveInsetPadding(),
     ),
   );
 }

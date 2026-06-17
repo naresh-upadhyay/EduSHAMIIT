@@ -376,8 +376,6 @@ async def create_group(request: dict, user=Depends(get_current_user), school_id=
         "name": name,
         "description": description,
         "created_by": user["id"],
-        "group_level": group_level,
-        "class_name": class_name if group_level == "class" else None,
         "is_private": is_private
     }).aexecute()
     

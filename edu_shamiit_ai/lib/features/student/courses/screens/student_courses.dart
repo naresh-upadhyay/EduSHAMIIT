@@ -194,7 +194,7 @@ class _StudentCoursesState extends ConsumerState<StudentCourses> {
                           child: Center(child: Text('Error: ${coursesState.error}')),
                         )
                       : Padding(
-                          padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 16),
+                          padding: Responsive.contentPadding(context).copyWith(top: 16, bottom: 80),
                           child: AzureGrid<CourseModel>(
                             title: 'Subject Courses',
                             items: coursesState.courses,

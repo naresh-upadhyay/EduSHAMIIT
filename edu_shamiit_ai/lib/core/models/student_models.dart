@@ -1121,6 +1121,8 @@ class ExamSchedule {
   final double? obtainedScore;
   final bool hasPasscode;
   final DateTime? releaseTime;
+  final bool hasSession;
+  final String? sessionStatus;
 
   ExamSchedule({
     required this.id,
@@ -1139,6 +1141,8 @@ class ExamSchedule {
     this.obtainedScore,
     this.hasPasscode = false,
     this.releaseTime,
+    this.hasSession = false,
+    this.sessionStatus,
   });
 
   factory ExamSchedule.fromJson(Map<String, dynamic> json) {
@@ -1169,6 +1173,8 @@ class ExamSchedule {
       obtainedScore: json['obtained_score'] != null ? double.tryParse(json['obtained_score'].toString()) : null,
       hasPasscode: json['has_passcode'] as bool? ?? false,
       releaseTime: json['release_time'] != null ? DateTime.tryParse(json['release_time'].toString()) : null,
+      hasSession: json['has_session'] as bool? ?? false,
+      sessionStatus: json['session_status'] as String?,
     );
   }
 

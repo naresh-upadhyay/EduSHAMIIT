@@ -24,6 +24,7 @@ class StudentDashboard extends ConsumerStatefulWidget {
 class _StudentDashboardState extends ConsumerState<StudentDashboard> {
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
+  bool _isAiInsightCollapsed = true;
   RealtimeChannel? _notifChannel;
 
   @override
@@ -683,10 +684,27 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('🤖 AI INSIGHT'.tr(ref), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
-          const SizedBox(height: 8),
-          const Text('You have a Math homework due today. Based on your past performance, you might need about 45 mins to complete it.', 
-               style: TextStyle(fontSize: 12, color: Color(0xFF166534), height: 1.5)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('🤖 AI INSIGHT'.tr(ref), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+              InkWell(
+                onTap: () => setState(() => _isAiInsightCollapsed = !_isAiInsightCollapsed),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_isAiInsightCollapsed ? 'Show'.tr(ref) : 'Hide'.tr(ref), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+                    Icon(_isAiInsightCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 14, color: const Color(0xFF166534)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!_isAiInsightCollapsed) ...[
+            const SizedBox(height: 8),
+            Text('You have a Math homework due today. Based on your past performance, you might need about 45 mins to complete it.'.tr(ref), 
+                 style: const TextStyle(fontSize: 12, color: Color(0xFF166534), height: 1.5)),
+          ],
         ],
       ),
     );

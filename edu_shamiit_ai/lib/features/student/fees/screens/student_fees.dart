@@ -33,7 +33,7 @@ class _StudentFeesState extends ConsumerState<StudentFees>
   double _totalOutstanding = 0;
   bool _isLoading = true;
   String? _error;
-  bool _isOutstandingCollapsed = false;
+  bool _isOutstandingCollapsed = true;
   DateTime _selectedAcademicYearDate = DateTime(2025, 6, 1);
 
   @override
@@ -444,19 +444,12 @@ class _StudentFeesState extends ConsumerState<StudentFees>
             if (!_isOutstandingCollapsed)
               Transform.translate(
                 offset: const Offset(0, -14),
-                child: Responsive.isWide(context)
-                    ? Center(
-                        child: SizedBox(
-                          width: 500, // Limit width on wide screens
-                          child: _buildOutstandingCard(),
-                        ),
-                      )
-                    : _buildOutstandingCard(),
+                child: _buildOutstandingCard(),
               ),
 
             // Content Grid Table
             Padding(
-              padding: Responsive.contentPadding(context).copyWith(bottom: 16),
+              padding: Responsive.contentPadding(context).copyWith(bottom: 80),
               child: AzureGrid<FeeRecord>(
                 title: 'All Invoices',
                 items: _feeRecords,

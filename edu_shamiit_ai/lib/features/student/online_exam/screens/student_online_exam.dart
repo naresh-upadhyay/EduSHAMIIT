@@ -18,6 +18,7 @@ class StudentOnlineExam extends ConsumerStatefulWidget {
 
 class _StudentOnlineExamState extends ConsumerState<StudentOnlineExam> {
   final StudentApiService _studentApi = StudentApiService();
+  bool _isAiTipCollapsed = true;
   List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'English'];
 
   @override
@@ -277,35 +278,52 @@ String _getMonthAbbr(String dateStr) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '🤖 AI Exam Prep Tip',
-            style: TextStyle(
-              fontFamily: AppFonts.heading,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '🤖 AI Exam Prep Tip',
+                style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              InkWell(
+                onTap: () => setState(() => _isAiTipCollapsed = !_isAiTipCollapsed),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_isAiTipCollapsed ? 'Show' : 'Hide', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white70)),
+                    Icon(_isAiTipCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 14, color: Colors.white70),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Based on your performance, focus on Integration & Calculus. These topics have 65% weightage in finals. Practice 10 problems daily.',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.75),
-              height: 1.6,
+          if (!_isAiTipCollapsed) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Based on your performance, focus on Integration & Calculus. These topics have 65% weightage in finals. Practice 10 problems daily.',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.white.withValues(alpha: 0.75),
+                height: 1.6,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withValues(alpha: 0.15),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('📚 Start AI Study Plan', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
             ),
-            child: const Text('📚 Start AI Study Plan', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-          ),
+          ],
         ],
       ),
     );

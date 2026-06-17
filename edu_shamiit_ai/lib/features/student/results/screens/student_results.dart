@@ -25,7 +25,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
   List<ExamResult> _examResults = [];
   bool _isLoading = true;
   String? _error;
-  bool _isStatsCollapsed = false;
+  bool _isStatsCollapsed = true;
 
   @override
   void initState() {
@@ -310,7 +310,6 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           // Overall Performance Quick Cards Row
           if (!_isStatsCollapsed)
             Container(
-              constraints: const BoxConstraints(maxWidth: 800),
               margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -356,7 +355,7 @@ class _StudentResultsState extends ConsumerState<StudentResults> {
           // Exam Results Table Grid
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
               child: AzureGrid<ExamResult>(
                 title: 'Exam Results Ledger',
                 items: _examResults,

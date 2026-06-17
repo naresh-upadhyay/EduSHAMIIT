@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, dev
 
 
 @asynccontextmanager
@@ -18,8 +18,12 @@ async def lifespan(app: FastAPI):
         # Run orphaned recordings cleanup asynchronously in background at startup
         import asyncio
         asyncio.create_task(cleanup_orphaned_recordings_from_storage())
+        
+        # Run expired exams auto-submit scheduler task
+        from app.services.exam_cleanup import start_exam_cleanup_scheduler
+        asyncio.create_task(start_exam_cleanup_scheduler(30))
     except Exception as e:
-        print(f"[MinIO] Bucket initialization/cleanup failed: {e}")
+        print(f"[MinIO] Bucket initialization/cleanup/scheduler failed: {e}")
     yield
     print("EduSHAMIIT API shutting down...")
 
@@ -146,6 +150,7 @@ app.include_router(students_admin.router, prefix="/api/admin/students", tags=["S
 app.include_router(teachers_admin.router, prefix="/api/admin/teachers", tags=["Teacher Admin"])
 app.include_router(calls.router, prefix="/api", tags=["Calls"])
 app.include_router(live_classes.router, prefix="/api", tags=["Live Classes"])
+app.include_router(dev.router, prefix="/api/dev", tags=["Dev"])
 
 
 @app.get("/health")

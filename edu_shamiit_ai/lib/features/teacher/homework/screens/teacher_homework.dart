@@ -332,15 +332,6 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
           ),
         ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'teacher_homework_fab',
-        onPressed: _showCreateModal,
-        backgroundColor: _kPink,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Create', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
-      ),
     );
   }
 
@@ -374,6 +365,11 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
           IconButton(
             onPressed: _loadAll,
             icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+          ),
+          IconButton(
+            onPressed: _showCreateModal,
+            icon: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
+            tooltip: 'Create Homework',
           ),
         ],
       ),
@@ -426,13 +422,20 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     if (_active.isEmpty) return _buildEmpty('No active homework', '📝');
     if (Responsive.isWide(context)) {
       return Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
         child: AzureGrid<TeacherHomeworkAssignment>(
           title: 'Active Homework',
           items: _active,
           columns: _buildActiveColumns(),
           searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
           onRefresh: _loadAll,
+          extraCommandActions: [
+            IconButton(
+              icon: const Icon(Icons.add_rounded, color: _kPink),
+              tooltip: 'Create Homework',
+              onPressed: _showCreateModal,
+            ),
+          ],
           mobileCardBuilder: (context, hw) => const SizedBox(),
         ),
       );
@@ -453,13 +456,20 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     if (all.isEmpty) return _buildEmpty('No submissions yet', '📋');
     if (Responsive.isWide(context)) {
       return Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
         child: AzureGrid<TeacherHomeworkAssignment>(
           title: 'Submissions Overview',
           items: all,
           columns: _buildSubmissionColumns(),
           searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
           onRefresh: _loadAll,
+          extraCommandActions: [
+            IconButton(
+              icon: const Icon(Icons.add_rounded, color: _kPink),
+              tooltip: 'Create Homework',
+              onPressed: _showCreateModal,
+            ),
+          ],
           mobileCardBuilder: (context, hw) => const SizedBox(),
         ),
       );
@@ -498,13 +508,20 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework>
     if (_graded.isEmpty) return _buildEmpty('No graded homework yet', '✅');
     if (Responsive.isWide(context)) {
       return Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
         child: AzureGrid<TeacherHomeworkAssignment>(
           title: 'Graded History',
           items: _graded,
           columns: _buildGradedColumns(),
           searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_}',
           onRefresh: _loadAll,
+          extraCommandActions: [
+            IconButton(
+              icon: const Icon(Icons.add_rounded, color: _kPink),
+              tooltip: 'Create Homework',
+              onPressed: _showCreateModal,
+            ),
+          ],
           mobileCardBuilder: (context, hw) => const SizedBox(),
         ),
       );

@@ -677,7 +677,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
   Widget _buildMobileListView(List<T> pagedItems) {
     if (widget.disableVerticalScroll) {
       return Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 80),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(pagedItems.length, (idx) {
@@ -736,7 +736,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 80),
       itemCount: pagedItems.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, idx) {

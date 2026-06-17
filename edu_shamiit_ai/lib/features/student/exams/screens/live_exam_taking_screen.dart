@@ -7,7 +7,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:livekit_client/livekit_client.dart';
+import 'package:livekit_client/livekit_client.dart' hide ConnectionState;
+import 'package:livekit_client/livekit_client.dart' as lk show ConnectionState;
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
@@ -55,12 +56,15 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   
   // Proctoring warnings count
   int _warningCount = 0;
-  final int _maxWarnings = 3;
+  final int _maxWarnings = 5;
+  bool _isWarningDialogActive = false;
 
   // Proctor dynamic flags
   bool _isPaused = false;
   int _extraMinutes = 0;
   String? _teacherMessage;
+  bool _cameraActive = true;
+  bool _micActive = true;
 
   bool _isLoading = true;
   String? _error;
@@ -70,6 +74,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   
   // File Upload State
   bool _isUploadingFile = false;
+  bool _isSubmitting = false;
 
   // Notifications
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
@@ -124,6 +129,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       
       final mappedQuestions = questionsList.map((q) {
         String uiType = q['question_type'] ?? 'mcq';
+        if (uiType == 'single_select') uiType = 'mcq';
+        if (uiType == 'multi_select') uiType = 'multi_correct';
         if (uiType == 'fill_in_the_blank') uiType = 'fill_blank';
         if (uiType == 'assertion_reason') uiType = 'mcq';
         
@@ -197,6 +204,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             _warningCount = session['warnings_count'] as int? ?? 0;
             _teacherMessage = session['teacher_message'] as String?;
             _proctorLogs = session['proctor_logs'] as List<dynamic>? ?? [];
+            _cameraActive = session['camera_active'] as bool? ?? true;
+            _micActive = session['mic_active'] as bool? ?? true;
             final startedAtStr = session['started_at'] as String?;
             if (startedAtStr != null) {
               try {
@@ -347,6 +356,13 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         }
       };
 
+      if (!_cameraActive) {
+        await _cameraTrack?.mute();
+      }
+      if (!_micActive) {
+        await _micTrack?.mute();
+      }
+
       setState(() {
         _proctorStreamsInitialized = true;
       });
@@ -357,7 +373,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
 
       // Add a small grace period before resetting the stream initialization flag
       // to let focus settle back onto the web page.
-      Future.delayed(const Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 5), () {
         if (mounted) {
           setState(() {
             _isInitializingStreams = false;
@@ -396,6 +412,18 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           debugPrint('[ProctorSignaling] Received disconnect_request: $payload');
           _handleDisconnectRequest();
         })
+        .onBroadcast(event: 'force_camera', callback: (payload) {
+          debugPrint('[ProctorSignaling] Received force_camera: $payload');
+          if (payload is Map) {
+            _handleForceCamera(payload['enabled'] == true);
+          }
+        })
+        .onBroadcast(event: 'force_mic', callback: (payload) {
+          debugPrint('[ProctorSignaling] Received force_mic: $payload');
+          if (payload is Map) {
+            _handleForceMic(payload['enabled'] == true);
+          }
+        })
         .subscribe((status, [error]) {
           debugPrint('[ProctorSignaling] Subscribe status: $status, error: $error');
         });
@@ -431,16 +459,47 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       debugPrint('[ProctorSignaling] Connecting to LiveKit: $sfuUrl, Room: $roomName');
 
       _proctorRoom = Room();
+      
+      final listener = _proctorRoom!.createListener();
+      listener.on<RoomEvent>((event) {
+        if (event is RoomDisconnectedEvent) {
+          debugPrint('[ProctorRoom] Received RoomDisconnectedEvent. Retrying connection in 3 seconds...');
+          Future.delayed(const Duration(seconds: 3), () {
+            if (mounted && _proctorRoom != null && _proctorRoom!.connectionState == lk.ConnectionState.disconnected) {
+              _handleConnectRequest();
+            }
+          });
+        }
+      });
+
       await _proctorRoom!.connect(sfuUrl, token);
 
       if (_cameraTrack != null) {
-        await _proctorRoom!.localParticipant!.publishVideoTrack(_cameraTrack!);
+        debugPrint('[ProctorSignaling] Publishing camera track...');
+        await _proctorRoom!.localParticipant!.publishVideoTrack(
+          _cameraTrack!,
+          publishOptions: const VideoPublishOptions(
+            name: 'camera',
+          ),
+        );
       }
       if (_micTrack != null) {
-        await _proctorRoom!.localParticipant!.publishAudioTrack(_micTrack!);
+        debugPrint('[ProctorSignaling] Publishing microphone track...');
+        await _proctorRoom!.localParticipant!.publishAudioTrack(
+          _micTrack!,
+          publishOptions: const AudioPublishOptions(
+            name: 'microphone',
+          ),
+        );
       }
       if (_screenTrack != null) {
-        await _proctorRoom!.localParticipant!.publishVideoTrack(_screenTrack!);
+        debugPrint('[ProctorSignaling] Publishing screenshare track...');
+        await _proctorRoom!.localParticipant!.publishVideoTrack(
+          _screenTrack!,
+          publishOptions: const VideoPublishOptions(
+            name: 'screenshare',
+          ),
+        );
       }
 
       debugPrint('[ProctorSignaling] Successfully published tracks to LiveKit room');
@@ -461,6 +520,40 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     }
   }
 
+  Future<void> _handleForceCamera(bool enabled) async {
+    try {
+      if (_cameraTrack != null) {
+        if (enabled) {
+          await _cameraTrack!.unmute();
+        } else {
+          await _cameraTrack!.mute();
+        }
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    } catch (e) {
+      debugPrint('[ProctorSignaling] Error forcing camera: $e');
+    }
+  }
+
+  Future<void> _handleForceMic(bool enabled) async {
+    try {
+      if (_micTrack != null) {
+        if (enabled) {
+          await _micTrack!.unmute();
+        } else {
+          await _micTrack!.mute();
+        }
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    } catch (e) {
+      debugPrint('[ProctorSignaling] Error forcing mic: $e');
+    }
+  }
+
   void _cleanupProctorStreams() {
     if (_proctorRoom != null) {
       try {
@@ -470,18 +563,21 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     }
     if (_cameraTrack != null) {
       try {
+        _cameraTrack!.mediaStreamTrack.stop();
         _cameraTrack!.stop();
       } catch (_) {}
       _cameraTrack = null;
     }
     if (_micTrack != null) {
       try {
+        _micTrack!.mediaStreamTrack.stop();
         _micTrack!.stop();
       } catch (_) {}
       _micTrack = null;
     }
     if (_screenTrack != null) {
       try {
+        _screenTrack!.mediaStreamTrack.stop();
         _screenTrack!.stop();
       } catch (_) {}
       _screenTrack = null;
@@ -505,7 +601,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     });
   }
 
-  Future<bool> _submitAnswersToBackend() async {
+  Future<bool> _submitAnswersToBackend({bool isAutoSave = false}) async {
     final Map<String, dynamic> answersToSend = {};
     for (int i = 0; i < _questions.length; i++) {
       final q = _questions[i];
@@ -525,6 +621,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       await _apiService.submitOnlineExamDynamic(
         examId: widget.examId,
         answers: answersToSend,
+        isAutoSave: isAutoSave,
       );
       return true;
     } catch (_) {
@@ -533,6 +630,11 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   }
 
   Future<void> _executeFinalSubmission({bool isAuto = false}) async {
+    if (_isSubmitting) return;
+    setState(() {
+      _isSubmitting = true;
+    });
+
     // Show a blocker loading overlay
     showDialog(
       context: context,
@@ -558,17 +660,17 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     );
 
     // Call submit
-    final success = await _submitAnswersToBackend();
+    final success = await _submitAnswersToBackend(isAutoSave: false);
     
     // Close the loading dialog
     if (mounted) {
-      Navigator.of(context).pop();
+      Navigator.of(context, rootNavigator: true).pop();
     }
 
     if (success) {
       _showNotification('Exam Submitted', isAuto ? 'Your exam answers were submitted automatically.' : 'Your exam answers have been locked and submitted.');
       if (mounted) {
-        context.pushReplacement('/student/exams/submit/${widget.examId}?auto=$isAuto');
+        context.go('/student/exams/submit/${widget.examId}?auto=$isAuto');
       }
     } else {
       // Show retry dialog
@@ -583,12 +685,18 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop(); // close retry dialog
+                  setState(() {
+                    _isSubmitting = false;
+                  });
                 },
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop(); // close retry dialog
+                  setState(() {
+                    _isSubmitting = false;
+                  });
                   _executeFinalSubmission(isAuto: isAuto); // retry submission
                 },
                 child: const Text('Retry'),
@@ -603,7 +711,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   void _startAutoSave() {
     _autoSaveTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
       if (_isPaused) return;
-      _submitAnswersToBackend();
+      _submitAnswersToBackend(isAutoSave: true);
       
       if (mounted) {
         setState(() {
@@ -621,17 +729,29 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   }
 
   Future<void> _syncProctorSession() async {
+    // Auto-reconnect fail-safe check
+    if (_sessionId != null && _proctorRoom != null && 
+        _proctorRoom!.connectionState == lk.ConnectionState.disconnected) {
+      debugPrint('[ProctorRoom] syncProctorSession detected disconnected state. Reconnecting...');
+      _handleConnectRequest();
+    }
+
     try {
       final currentQ = _questions.isNotEmpty && _currentQuestionIndex < _questions.length
           ? _questions[_currentQuestionIndex]
           : null;
       final qId = currentQ?['id']?.toString();
       
+      final cameraActive = _cameraTrack != null && !_cameraTrack!.muted;
+      final micActive = _micTrack != null && !_micTrack!.muted;
+      
       final res = await _apiService.pingOnlineExamSession(
         widget.examId,
         warningsCount: _warningCount,
         activeQuestionId: qId,
         isOnline: true,
+        cameraActive: cameraActive,
+        micActive: micActive,
       );
       
       if (res['success'] == true && res['data'] != null) {
@@ -652,6 +772,16 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             if (startedAtStr != null) {
               _sessionStartedAt = DateTime.parse(startedAtStr).toUtc();
             }
+            final dbCameraActive = data['camera_active'] as bool? ?? true;
+            final dbMicActive = data['mic_active'] as bool? ?? true;
+            if (dbCameraActive != _cameraActive) {
+              _cameraActive = dbCameraActive;
+              _handleForceCamera(dbCameraActive);
+            }
+            if (dbMicActive != _micActive) {
+              _micActive = dbMicActive;
+              _handleForceMic(dbMicActive);
+            }
           });
           _updateCountdown();
           
@@ -670,21 +800,35 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                 '⚠️ Proctor Warning $_warningCount/$_maxWarnings',
                 teacherMsg ?? 'You have received a warning from the proctor.'
               );
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => AlertDialog(
-                  title: Text('⚠️ Proctor Warning $_warningCount/$_maxWarnings', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                  content: Text(teacherMsg ?? 'You have received a warning from the proctor.\n\nWarning: Reaching $_maxWarnings warnings will result in auto-submission.'),
-                  actions: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('I Understand'),
-                    ),
-                  ],
-                ),
-              );
+              if (mounted && !_isWarningDialogActive) {
+                setState(() {
+                  _isWarningDialogActive = true;
+                });
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => AlertDialog(
+                    title: Text('⚠️ Proctor Warning $_warningCount/$_maxWarnings', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    content: Text(teacherMsg ?? 'You have received a warning from the proctor.\n\nWarning: Reaching $_maxWarnings warnings will result in auto-submission.'),
+                    actions: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Future.delayed(const Duration(seconds: 2), () {
+                            if (mounted) {
+                              setState(() {
+                                _isWarningDialogActive = false;
+                              });
+                            }
+                          });
+                        },
+                        child: const Text('I Understand'),
+                      ),
+                    ],
+                  ),
+                );
+              }
             }
           }
           
@@ -698,7 +842,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             _autoSaveTimer.cancel();
             _proctorSyncTimer?.cancel();
             _showNotification('Exam Completed', 'Your exam session was completed.');
-            context.pushReplacement('/student/exams/submit/${widget.examId}?auto=true');
+            if (mounted) {
+              context.go('/student/exams/submit/${widget.examId}?auto=true');
+            }
           }
         }
       }
@@ -706,9 +852,10 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   }
 
   void _triggerCheatingWarning() async {
-    if (!_proctorStreamsInitialized || _isInitializingStreams) return;
+    if (!_proctorStreamsInitialized || _isInitializingStreams || _isWarningDialogActive) return;
     if (_warningCount < _maxWarnings - 1) {
       setState(() {
+        _isWarningDialogActive = true;
         _warningCount++;
       });
       
@@ -730,11 +877,20 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           barrierDismissible: false,
           builder: (context) => AlertDialog(
             title: Text('⚠️ Proctor Warning $_warningCount/$_maxWarnings', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            content: const Text('Focus loss detected! Switching tabs, minimizing windows, or taking screenshots is prohibited.\n\nWarning: Reaching 3 warnings will result in auto-submission.'),
+            content: Text('Focus loss detected! Switching tabs, minimizing windows, or taking screenshots is prohibited.\n\nWarning: Reaching $_maxWarnings warnings will result in auto-submission.'),
             actions: [
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (mounted) {
+                      setState(() {
+                        _isWarningDialogActive = false;
+                      });
+                    }
+                  });
+                },
                 child: const Text('I Understand'),
               ),
             ],

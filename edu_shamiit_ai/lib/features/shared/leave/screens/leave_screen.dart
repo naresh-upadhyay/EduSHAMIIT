@@ -116,7 +116,6 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
 
     return Scaffold(
       backgroundColor: _bgColor,
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -178,6 +177,11 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
                             .read(leaveProvider.notifier)
                             .fetchLeaves(forceRefresh: true),
                       ),
+                      const SizedBox(width: 8),
+                      _GlassBtn(
+                        icon: Icons.add_rounded,
+                        onTap: () => _showApplySheet(context),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -234,23 +238,6 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
             const SizedBox(height: 80), // FAB clearance
           ],
         ),
-      ),
-
-      // ── FAB ─────────────────────────────────────────────────────────────
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'leave_fab',
-        onPressed: () => _showApplySheet(context),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Apply Leave',
-          style: TextStyle(
-            fontFamily: AppFonts.heading,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        elevation: 6,
       ),
     );
   }
@@ -565,7 +552,7 @@ class _UpcomingTab extends ConsumerWidget {
 
     if (Responsive.isWide(context)) {
       return Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0),
         child: AzureGrid<LeaveApplication>(
           title: 'Upcoming Applications',
           items: upcoming,
@@ -582,7 +569,7 @@ class _UpcomingTab extends ConsumerWidget {
       onRefresh: () =>
           ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
         children: [
           if (upcoming.isEmpty)
             const _EmptyState(
@@ -629,7 +616,7 @@ class _PastTab extends ConsumerWidget {
 
     if (Responsive.isWide(context)) {
       return Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 80.0),
         child: AzureGrid<LeaveApplication>(
           title: 'Past Applications History',
           items: past,
@@ -646,7 +633,7 @@ class _PastTab extends ConsumerWidget {
       onRefresh: () =>
           ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
         children: [
           if (past.isEmpty)
             const _EmptyState(

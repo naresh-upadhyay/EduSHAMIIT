@@ -9,6 +9,7 @@ from app.middleware.auth import get_current_user, require_school_id, require_tea
 from app.services.supabase_client import get_supabase
 from app.cache.redis_client import get_cached, set_cached, invalidate_cache
 from app.config import settings
+from app.models import QuestionType
 
 router = APIRouter()
 
@@ -265,21 +266,18 @@ async def teacher_timetable(day: str = "monday", date: Optional[str] = None, use
         
     target_date_str = target_date.isoformat()
     
-    # 1. Fetch regular timetable periods OR date-specific periods for today
+    # 1. Fetch regular timetable periods for this day_of_week
     db_schedule = (await sb.table("timetable")
                     .select("*, subjects(name, icon, color)")
                     .eq("school_id", school_id)
                     .eq("teacher_id", user["id"])
-                    .or_(f"day_of_week.eq.{day_num},date.eq.{target_date_str}")
+                    .eq("day_of_week", day_num)
                     .order("start_time")
                     .aexecute()).data
                     
     # Map regular timetable slots to flattened format expected by Flutter models
     schedule = []
     for idx, slot in enumerate(db_schedule):
-        slot_date = slot.get("date")
-        if slot_date is not None and slot_date != target_date_str:
-            continue
             
         sub_name = slot.get("subjects", {}).get("name") if slot.get("subjects") else "Subject"
         if slot.get("custom_subject"):
@@ -400,6 +398,10 @@ async def schedule_timetable_slot(request: dict, user=Depends(require_teacher), 
     # Verify teacher is assigned to the class they are scheduling
     tt_res = await sb.table("timetable").select("class").eq("school_id", school_id).eq("teacher_id", user["id"]).aexecute()
     assigned_classes = {row["class"].strip().upper() for row in (tt_res.data or []) if row.get("class")}
+    # Fallback: also allow the class from the teacher's own profile (for teachers with no timetable rows yet)
+    profile_class = user.get("class", "")
+    if profile_class:
+        assigned_classes.add(profile_class.strip().upper())
     if class_name.strip().upper() not in assigned_classes:
         raise HTTPException(
             status_code=403,
@@ -442,7 +444,14 @@ async def schedule_timetable_slot(request: dict, user=Depends(require_teacher), 
         
         return {"success": True, "school_id": school_id, "data": res.data[0]}
     else:
-        res = await sb.table("timetable").insert({
+        # Try to resolve a subject_id from the subject name if not provided
+        subject_id = request.get("subject_id")
+        if not subject_id and custom_subject:
+            subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", custom_subject).limit(1).maybe_single().aexecute()
+            if subj_res.data:
+                subject_id = subj_res.data["id"]
+
+        insert_data = {
             "school_id": school_id,
             "teacher_id": user["id"],
             "class": class_name,
@@ -450,14 +459,15 @@ async def schedule_timetable_slot(request: dict, user=Depends(require_teacher), 
             "start_time": start_time,
             "end_time": end_time,
             "room": room,
-            "date": date_str,
-            "slot_type": slot_type,
-            "custom_subject": custom_subject
-        }).aexecute()
-        
+        }
+        if subject_id:
+            insert_data["subject_id"] = subject_id
+
+        res = await sb.table("timetable").insert(insert_data).aexecute()
+
         # Invalidate cache
         await invalidate_cache(school_id, "teacher_dashboard")
-        
+
         return {"success": True, "school_id": school_id, "data": res.data[0]}
 
 
@@ -467,20 +477,28 @@ async def create_exam(request: dict, user=Depends(require_teacher), school_id=De
     print("Incoming create_exam payload:", request)
     sb = get_supabase()
     
-    # 1. Map subject name to subject_id if needed
-    subject_id = request.get("subject_id")
-    subject_name = request.get("subject")
-    if not subject_id and subject_name:
-        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
-        if subj_res.data:
-            subject_id = subj_res.data["id"]
-            
     # 2. Map class / class_id to target_classes
     target_classes = request.get("target_classes")
     if not target_classes:
         class_val = request.get("class") or request.get("class_id")
         if class_val:
             target_classes = [class_val]
+
+    # 1. Map subject name to subject_id if needed
+    subject_id = request.get("subject_id")
+    subject_name = request.get("subject")
+    if not subject_id and subject_name:
+        class_val = target_classes[0] if (target_classes and len(target_classes) > 0) else None
+        subj_query = sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name)
+        if class_val:
+            subj_query = subj_query.eq("class", class_val)
+        subj_res = await subj_query.limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            subject_id = subj_res.data["id"]
+        else:
+            subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+            if subj_res_fallback.data:
+                subject_id = subj_res_fallback.data["id"]
 
     # Verify teacher is assigned to these target classes
     if target_classes:
@@ -2155,20 +2173,313 @@ async def teacher_delete_exam_question(exam_id: str, question_id: str, user=Depe
 @router.get("/exams/{exam_id}/submissions")
 async def teacher_get_exam_submissions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    res = await sb.table("exam_submissions").select("*, profiles!student_id(full_name, roll_number)").eq("exam_id", exam_id).aexecute()
+    res = await sb.table("exam_submissions").select("*, profiles!student_id(full_name, roll_number, class)").eq("exam_id", exam_id).order("score", ascending=False).aexecute()
     return {"success": True, "school_id": school_id, "data": {"submissions": res.data}}
 
 
 @router.post("/exams/{exam_id}/submissions/{submission_id}/grade")
 async def teacher_grade_exam_submission(exam_id: str, submission_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    score = request.get("score")
+    remarks = request.get("remarks", "")
+    answers = request.get("answers")
+    
+    # Fetch exam to get total_marks and passing_marks for grade calculation
+    exam_res = await sb.table("exams").select("total_marks, passing_marks").eq("id", exam_id).maybe_single().aexecute()
+    exam_data = exam_res.data or {}
+    total_marks = float(exam_data.get("total_marks") or 100)
+    passing_marks = float(exam_data.get("passing_marks") or (total_marks * 0.4))
+
+    # Validate overall score
+    if score is not None:
+        score_val = float(score)
+        if score_val > total_marks:
+            raise HTTPException(status_code=400, detail=f"Total score ({score_val}) cannot exceed exam total marks ({total_marks})")
+        if score_val < 0:
+            raise HTTPException(status_code=400, detail="Total score cannot be negative")
+
+    # Fetch exam questions to validate individual question marks limits
+    questions_res = await sb.table("exam_questions").select("id, marks").eq("exam_id", exam_id).aexecute()
+    questions = questions_res.data or []
+    question_max_marks = {q["id"]: float(q.get("marks") or 0.0) for q in questions}
+
+    # Validate individual subjective question marks if answers is provided
+    if answers:
+        for q_id, q_ans in answers.items():
+            if isinstance(q_ans, dict) and "awarded_marks" in q_ans:
+                awarded = float(q_ans["awarded_marks"])
+                max_marks = question_max_marks.get(q_id)
+                if max_marks is not None and awarded > max_marks:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Awarded marks ({awarded}) exceed maximum allowed marks ({max_marks}) for question {q_id}"
+                    )
+                if awarded < 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Awarded marks ({awarded}) cannot be negative for question {q_id}"
+                    )
+
+    is_pass = (score is not None and float(score) >= passing_marks)
+    pct = (float(score) / total_marks * 100) if score is not None else 0
+    if pct >= 90: grade_letter = "A+"
+    elif pct >= 80: grade_letter = "A"
+    elif pct >= 70: grade_letter = "B+"
+    elif pct >= 60: grade_letter = "B"
+    elif pct >= 50: grade_letter = "C"
+    elif pct >= 40: grade_letter = "D"
+    else: grade_letter = "F"
+    
     update_data = {
-        "score": request.get("score"),
+        "score": score,
+        "remarks": remarks,
         "status": "graded",
         "graded_at": datetime.utcnow().isoformat(),
+        "grade_letter": grade_letter,
+        "is_pass": is_pass,
     }
+    if answers is not None:
+        update_data["answers"] = answers
+        
     res = await sb.table("exam_submissions").update(update_data).eq("id", submission_id).eq("exam_id", exam_id).aexecute()
-    return {"success": True, "school_id": school_id, "data": res.data[0]}
+    return {"success": True, "school_id": school_id, "data": res.data[0] if res.data else {}}
+
+
+@router.get("/exams/{exam_id}/analytics")
+async def teacher_get_exam_analytics(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """
+    Returns real analytics for a completed/graded exam:
+    - Participation stats (assigned, submitted, graded)
+    - Score distribution (bins of 10%)
+    - Per-question accuracy (% of students who got it right)
+    - Top 5 performers, bottom 5 performers
+    - Grade distribution (A+, A, B+, B, C, D, F)
+    - Average, highest, lowest scores
+    - Pass rate
+    """
+    sb = get_supabase()
+
+    # Fetch exam details
+    exam_res = await sb.table("exams").select("title, total_marks, passing_marks, target_classes, results_published_at").eq("id", exam_id).maybe_single().aexecute()
+    exam_data = exam_res.data or {}
+    total_marks = exam_data.get("total_marks") or 100
+    passing_marks = float(exam_data.get("passing_marks") or (total_marks * 0.4))
+
+    # Fetch all graded submissions
+    subs_res = await sb.table("exam_submissions").select(
+        "id, student_id, score, status, grade_letter, is_pass, answers, profiles!student_id(full_name, roll_number)"
+    ).eq("exam_id", exam_id).aexecute()
+    all_submissions = subs_res.data or []
+    graded = [s for s in all_submissions if s.get("status") == "graded" or s.get("score") is not None]
+    submitted = [s for s in all_submissions if s.get("status") in ("submitted", "graded")]
+
+    # Fetch questions for per-question accuracy
+    q_res = await sb.table("exam_questions").select("id, question_text, question_type, options, correct_answer, marks, order_number").eq("exam_id", exam_id).order("order_number").aexecute()
+    questions = q_res.data or []
+
+    # Score stats
+    scores = [float(s["score"]) for s in graded if s.get("score") is not None]
+    avg_score = round(sum(scores) / len(scores), 2) if scores else 0
+    highest_score = round(max(scores), 2) if scores else 0
+    lowest_score = round(min(scores), 2) if scores else 0
+    pass_count = sum(1 for s in graded if s.get("is_pass") or (s.get("score") is not None and float(s["score"]) >= passing_marks))
+    pass_rate = round(pass_count / len(graded) * 100, 1) if graded else 0
+
+    # Score distribution (bins: 0-10, 10-20, ..., 90-100)
+    bins = {f"{i*10}-{(i+1)*10}%": 0 for i in range(10)}
+    for score in scores:
+        pct = (score / total_marks) * 100
+        bin_idx = min(int(pct // 10), 9)
+        key = f"{bin_idx*10}-{(bin_idx+1)*10}%"
+        bins[key] = bins.get(key, 0) + 1
+
+    # Grade distribution
+    grade_dist = {"A+": 0, "A": 0, "B+": 0, "B": 0, "C": 0, "D": 0, "F": 0}
+    for s in graded:
+        pct = (float(s["score"]) / total_marks * 100) if s.get("score") is not None else 0
+        if pct >= 90: grade_dist["A+"] += 1
+        elif pct >= 80: grade_dist["A"] += 1
+        elif pct >= 70: grade_dist["B+"] += 1
+        elif pct >= 60: grade_dist["B"] += 1
+        elif pct >= 50: grade_dist["C"] += 1
+        elif pct >= 40: grade_dist["D"] += 1
+        else: grade_dist["F"] += 1
+
+    # Per-question accuracy (for MCQ, numerical, fill_in_the_blank, assertion_reason)
+    question_stats = []
+    for q in questions:
+        q_id = q["id"]
+        correct_answer = q.get("correct_answer")
+        q_type = q.get("question_type", "mcq")
+        if q_type == "subjective":
+            question_stats.append({
+                "id": q_id,
+                "text": q["question_text"][:80] + "..." if len(q.get("question_text", "")) > 80 else q.get("question_text", ""),
+                "type": q_type,
+                "marks": q.get("marks", 0),
+                "accuracy": None,
+                "attempts": len(submitted),
+            })
+            continue
+        attempts = 0
+        correct = 0
+        for s in submitted:
+            answers = s.get("answers") or {}
+            student_ans = answers.get(q_id) or answers.get(str(q_id))
+            if student_ans is not None:
+                attempts += 1
+                if correct_answer:
+                    if q_type == "single_select" or q_type == "mcq":
+                        match = False
+                        sa = str(student_ans).strip().upper()
+                        co = str(correct_answer).strip().upper()
+                        if sa == co:
+                            match = True
+                        elif len(co) == 1 and 'A' <= co <= 'Z' and q.get("options") and isinstance(q["options"], list):
+                            idx = ord(co) - ord('A')
+                            if 0 <= idx < len(q["options"]):
+                                opt_val = str(q["options"][idx]).strip().upper()
+                                if sa == opt_val:
+                                    match = True
+                        elif len(sa) == 1 and 'A' <= sa <= 'Z' and q.get("options") and isinstance(q["options"], list):
+                            idx = ord(sa) - ord('A')
+                            if 0 <= idx < len(q["options"]):
+                                opt_val = str(q["options"][idx]).strip().upper()
+                                if co == opt_val:
+                                    match = True
+                        if match:
+                            correct += 1
+                    elif q_type == "multi_select" or q_type == "multi_correct":
+                        def normalize_to_text(val_str):
+                            vals = [v.strip().upper() for v in str(val_str).split(",") if v.strip()]
+                            normalized = set()
+                            for v in vals:
+                                if len(v) == 1 and 'A' <= v <= 'Z' and q.get("options") and isinstance(q["options"], list):
+                                    idx = ord(v) - ord('A')
+                                    if 0 <= idx < len(q["options"]):
+                                        normalized.add(str(q["options"][idx]).strip().upper())
+                                        continue
+                                normalized.add(v)
+                            return normalized
+                        norm_student = normalize_to_text(student_ans)
+                        norm_correct = normalize_to_text(correct_answer)
+                        if norm_student == norm_correct and len(norm_correct) > 0:
+                            correct += 1
+                    else:
+                        if str(student_ans).strip().lower() == str(correct_answer).strip().lower():
+                            correct += 1
+        accuracy = round(correct / attempts * 100, 1) if attempts > 0 else 0
+        question_stats.append({
+            "id": q_id,
+            "text": q["question_text"][:80] + "..." if len(q.get("question_text", "")) > 80 else q.get("question_text", ""),
+            "type": q_type,
+            "marks": q.get("marks", 0),
+            "accuracy": accuracy,
+            "attempts": attempts,
+            "correct": correct,
+        })
+
+    # Top 5 and bottom 5 performers
+    sorted_graded = sorted(graded, key=lambda s: float(s.get("score") or 0), reverse=True)
+    def fmt_student(s):
+        prof = s.get("profiles") or {}
+        return {
+            "name": prof.get("full_name", "Student"),
+            "roll": prof.get("roll_number", ""),
+            "score": float(s.get("score") or 0),
+            "percentage": round(float(s.get("score") or 0) / total_marks * 100, 1),
+            "grade": s.get("grade_letter", ""),
+            "is_pass": s.get("is_pass", False),
+        }
+    top_performers = [fmt_student(s) for s in sorted_graded[:5]]
+    bottom_performers = [fmt_student(s) for s in sorted_graded[-5:] if sorted_graded] if len(sorted_graded) > 5 else []
+
+    return {
+        "success": True,
+        "data": {
+            "exam": exam_data,
+            "total_marks": total_marks,
+            "passing_marks": passing_marks,
+            "results_published": exam_data.get("results_published_at") is not None,
+            "stats": {
+                "total_submissions": len(all_submissions),
+                "submitted": len(submitted),
+                "graded": len(graded),
+                "avg_score": avg_score,
+                "highest_score": highest_score,
+                "lowest_score": lowest_score,
+                "pass_count": pass_count,
+                "pass_rate": pass_rate,
+            },
+            "score_distribution": bins,
+            "grade_distribution": grade_dist,
+            "question_stats": question_stats,
+            "top_performers": top_performers,
+            "bottom_performers": bottom_performers,
+        }
+    }
+
+
+@router.post("/exams/{exam_id}/results/publish")
+async def teacher_publish_exam_results(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """
+    Publish exam results:
+    1. Compute and store class_rank for all graded submissions
+    2. Update exam with results_published_at timestamp
+    3. Update exam status to 'completed'
+    """
+    sb = get_supabase()
+
+    # Fetch all graded submissions ordered by score desc
+    subs_res = await sb.table("exam_submissions").select(
+        "id, student_id, score, grade_letter, is_pass"
+    ).eq("exam_id", exam_id).in_("status", ["graded", "submitted"]).aexecute()
+    submissions = subs_res.data or []
+
+    # Get exam info for grade calculations
+    exam_res = await sb.table("exams").select("total_marks, passing_marks").eq("id", exam_id).maybe_single().aexecute()
+    exam_data = exam_res.data or {}
+    total_marks = float(exam_data.get("total_marks") or 100)
+    passing_marks = float(exam_data.get("passing_marks") or (total_marks * 0.4))
+
+    # Sort by score descending and assign class ranks
+    graded = sorted(
+        [s for s in submissions if s.get("score") is not None],
+        key=lambda s: float(s["score"]),
+        reverse=True
+    )
+
+    for rank, sub in enumerate(graded, start=1):
+        score = float(sub["score"])
+        pct = (score / total_marks) * 100
+        is_pass = score >= passing_marks
+        if pct >= 90: grade_letter = "A+"
+        elif pct >= 80: grade_letter = "A"
+        elif pct >= 70: grade_letter = "B+"
+        elif pct >= 60: grade_letter = "B"
+        elif pct >= 50: grade_letter = "C"
+        elif pct >= 40: grade_letter = "D"
+        else: grade_letter = "F"
+
+        await sb.table("exam_submissions").update({
+            "class_rank": rank,
+            "is_pass": is_pass,
+            "grade_letter": grade_letter,
+            "status": "graded",
+        }).eq("id", sub["id"]).aexecute()
+
+    # Mark exam as results published and status completed
+    now_ts = datetime.utcnow().isoformat()
+    await sb.table("exams").update({
+        "results_published_at": now_ts,
+        "status": "completed",
+    }).eq("id", exam_id).aexecute()
+
+    return {
+        "success": True,
+        "message": f"Results published for {len(graded)} students",
+        "published_at": now_ts,
+    }
 
 
 @router.get("/exams/{exam_id}/sessions")
@@ -2260,8 +2571,25 @@ async def teacher_proctor_action(
         update_data["status"] = "suspended"
         update_data["ended_at"] = datetime.now(timezone.utc).isoformat()
         current_logs.append({"time": now_time, "event": "Student suspended from exam by proctor", "severity": "error"})
+    elif action == "force_camera":
+        camera_active = request.get("camera_active", True)
+        update_data["camera_active"] = camera_active
+        current_logs.append({
+            "time": now_time,
+            "event": f"Proctor forced camera {'ON' if camera_active else 'OFF'}",
+            "severity": "info"
+        })
+    elif action == "force_mic":
+        mic_active = request.get("mic_active", True)
+        update_data["mic_active"] = mic_active
+        current_logs.append({
+            "time": now_time,
+            "event": f"Proctor forced microphone {'ON' if mic_active else 'OFF'}",
+            "severity": "info"
+        })
     elif action == "reopen":
         update_data["status"] = "active"
+        update_data["warnings_count"] = 0
         update_data["ended_at"] = None
         update_data["teacher_message"] = None
         
@@ -2281,7 +2609,7 @@ async def teacher_proctor_action(
         else:
             update_data["started_at"] = datetime.now(timezone.utc).isoformat()
 
-        current_logs.append({"time": now_time, "event": "Exam session reopened by proctor", "severity": "info"})
+        current_logs.append({"time": now_time, "event": "Exam session reopened by proctor. Warning count reset.", "severity": "info"})
         # Update submission status to active so student can rejoin and resume saving answers
         await sb.table("exam_submissions").update({"status": "active"}).eq("exam_id", exam_id).eq("student_id", sess["student_id"]).aexecute()
     else:
@@ -2328,17 +2656,27 @@ async def teacher_update_exam(
                 detail="Cannot schedule or publish an exam with 0 questions. Please add questions using the Paper Builder first."
             )
     
-    # translate subject name to subject_id
-    subject_name = request.get("subject")
-    if subject_name and not update_data.get("subject_id"):
-        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
-        if subj_res.data:
-            update_data["subject_id"] = subj_res.data["id"]
-            
     # translate class to target_classes
     class_val = request.get("class") or request.get("class_id")
     if class_val and not update_data.get("target_classes"):
         update_data["target_classes"] = [class_val]
+
+    # translate subject name to subject_id
+    subject_name = request.get("subject")
+    if subject_name and not update_data.get("subject_id"):
+        target_classes = update_data.get("target_classes") or check_exam.data.get("target_classes")
+        class_val = target_classes[0] if (target_classes and len(target_classes) > 0) else None
+        
+        subj_query = sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name)
+        if class_val:
+            subj_query = subj_query.eq("class", class_val)
+        subj_res = await subj_query.limit(1).maybe_single().aexecute()
+        if subj_res.data:
+            update_data["subject_id"] = subj_res.data["id"]
+        else:
+            subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+            if subj_res_fallback.data:
+                update_data["subject_id"] = subj_res_fallback.data["id"]
 
     # Verify teacher is assigned to these target classes on update
     if "target_classes" in update_data and update_data["target_classes"]:
@@ -2470,9 +2808,12 @@ async def teacher_get_question_bank(
     sb = get_supabase()
     query = sb.table("question_bank").select("*, subjects(name)").eq("school_id", school_id)
     if subject and subject != "All":
-        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject).limit(1).maybe_single().aexecute()
+        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject).aexecute()
         if subj_res.data:
-            query = query.eq("subject_id", subj_res.data["id"])
+            subj_ids = [s["id"] for s in subj_res.data]
+            query = query.in_("subject_id", subj_ids)
+        else:
+            query = query.eq("subject_id", "00000000-0000-0000-0000-000000000000")
     if difficulty and difficulty != "All":
         query = query.eq("difficulty", difficulty)
     
@@ -2489,10 +2830,23 @@ async def teacher_add_question_bank(
     sb = get_supabase()
     subject_name = request.get("subject")
     subject_id = request.get("subject_id")
+    class_name = request.get("class") or request.get("class_id")
     if not subject_id and subject_name:
-        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+        subj_query = sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name)
+        if class_name:
+            subj_query = subj_query.eq("class", class_name)
+        subj_res = await subj_query.limit(1).maybe_single().aexecute()
         if subj_res.data:
             subject_id = subj_res.data["id"]
+        else:
+            # Fallback to match by name and current teacher
+            subj_res_t = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).eq("teacher_id", user["id"]).limit(1).maybe_single().aexecute()
+            if subj_res_t.data:
+                subject_id = subj_res_t.data["id"]
+            else:
+                subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+                if subj_res_fallback.data:
+                    subject_id = subj_res_fallback.data["id"]
             
     if not subject_id:
         subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).limit(1).maybe_single().aexecute()
@@ -2531,10 +2885,22 @@ async def teacher_update_question_bank(
     updates = {k: v for k, v in request.items() if k in allowed}
     
     subject_name = request.get("subject")
+    class_name = request.get("class") or request.get("class_id")
     if subject_name:
-        subj_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+        subj_query = sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name)
+        if class_name:
+            subj_query = subj_query.eq("class", class_name)
+        subj_res = await subj_query.limit(1).maybe_single().aexecute()
         if subj_res.data:
             updates["subject_id"] = subj_res.data["id"]
+        else:
+            subj_res_t = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).eq("teacher_id", user["id"]).limit(1).maybe_single().aexecute()
+            if subj_res_t.data:
+                updates["subject_id"] = subj_res_t.data["id"]
+            else:
+                subj_res_fallback = await sb.table("subjects").select("id").eq("school_id", school_id).eq("name", subject_name).limit(1).maybe_single().aexecute()
+                if subj_res_fallback.data:
+                    updates["subject_id"] = subj_res_fallback.data["id"]
             
     res = await sb.table("question_bank").update(updates).eq("id", question_id).aexecute()
     return {"success": True, "school_id": school_id, "data": res.data[0]}
@@ -2554,31 +2920,94 @@ async def teacher_delete_question_bank(
 @router.get("/question-bank/export-template")
 async def export_question_template(type: str = "mcq", subject: str = None):
     subj_name = subject.strip() if (subject and subject.strip()) else None
+    active_sub = subj_name or "Physics"
     
-    # Select appropriate default fallback subject based on type
-    if type.lower() == "mcq":
-        active_sub = subj_name or "Physics"
-    elif type.lower() == "true_false":
-        active_sub = subj_name or "Chemistry"
-    elif type.lower() == "short_answer":
-        active_sub = subj_name or "Biology"
-    else:
-        active_sub = subj_name or "History"
-        
-    # Escape quotes cleanly without using backslashes inside f-strings
-    active_sub_escaped = '"' + active_sub.replace('"', '""') + '"'
-    
-    if type.lower() == "mcq":
-        content = f"subject,question_text,options,correct_answer,difficulty,marks,chapter\n{active_sub_escaped},What is the SI unit of force?,Newton|Joule|Pascal|Watt,Newton,Easy,1,Mechanics\n"
-    elif type.lower() == "true_false":
-        content = f"subject,question_text,correct_answer,difficulty,marks,chapter\n{active_sub_escaped},Water has a neutral pH of 7.,True,Easy,1,Acids and Bases\n"
-    elif type.lower() == "short_answer":
-        content = f"subject,question_text,model_answer,difficulty,marks,chapter\n{active_sub_escaped},Explain the function of mitochondria.,Mitochondria generate chemical energy in the form of ATP to power cell activities.,Medium,3,Cell Biology\n"
-    else:
-        content = f"subject,question_text,model_answer,difficulty,marks,chapter\n{active_sub_escaped},Describe the primary causes of World War I.,Militarism alliances imperialism and nationalism (MAIN causes) combined to spark the war.,Hard,5,Modern History\n"
-    
-    from fastapi.responses import StreamingResponse
+    import csv
     import io
+    from fastapi.responses import StreamingResponse
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["subject", "question_text", "question_type", "options", "correct_answer", "difficulty", "marks", "chapter"])
+    
+    t = type.lower()
+    if t == "all":
+        writer.writerow([
+            active_sub,
+            "What is the SI unit of force?",
+            QuestionType.single_select.value,
+            "Newton|Joule|Pascal|Watt",
+            "A",
+            "Easy",
+            "1",
+            "Mechanics"
+        ])
+        writer.writerow([
+            active_sub,
+            "Which of the following are Newton's laws of motion?",
+            QuestionType.multi_select.value,
+            "Law of Inertia|Law of Acceleration|Law of Action-Reaction|Law of Gravity",
+            "A,B,C",
+            "Medium",
+            "2",
+            "Mechanics"
+        ])
+        writer.writerow([
+            active_sub,
+            "Explain the function of mitochondria.",
+            QuestionType.subjective.value,
+            "",
+            "Mitochondria generate chemical energy in the form of ATP to power cell activities.",
+            "Medium",
+            "3",
+            "Cell Biology"
+        ])
+    elif t in ("single_select", "mcq", "true_false"):
+        writer.writerow([
+            active_sub,
+            "What is the SI unit of force?",
+            QuestionType.single_select.value,
+            "Newton|Joule|Pascal|Watt",
+            "A",
+            "Easy",
+            "1",
+            "Mechanics"
+        ])
+    elif t in ("multi_select", "multi_correct"):
+        writer.writerow([
+            active_sub,
+            "Which of the following are Newton's laws of motion?",
+            QuestionType.multi_select.value,
+            "Law of Inertia|Law of Acceleration|Law of Action-Reaction|Law of Gravity",
+            "A,B,C",
+            "Medium",
+            "2",
+            "Mechanics"
+        ])
+    elif t in ("subjective", "short_answer", "long_answer"):
+        writer.writerow([
+            active_sub,
+            "Explain the function of mitochondria.",
+            QuestionType.subjective.value,
+            "",
+            "Mitochondria generate chemical energy in the form of ATP to power cell activities.",
+            "Medium",
+            "3",
+            "Cell Biology"
+        ])
+    else:
+        writer.writerow([
+            active_sub,
+            "What is the SI unit of force?",
+            QuestionType.single_select.value,
+            "Newton|Joule|Pascal|Watt",
+            "A",
+            "Easy",
+            "1",
+            "Mechanics"
+        ])
+        
+    content = output.getvalue()
     return StreamingResponse(
         io.BytesIO(content.encode("utf-8")), 
         media_type="text/csv", 
@@ -2620,6 +3049,17 @@ async def bulk_upload_questions(
     reader = csv.DictReader(f)
     inserted = []
     
+    def map_question_type(val: str) -> str:
+        v = val.lower().strip()
+        if v in ("single_select", "mcq", "true_false"):
+            return "single_select"
+        elif v in ("multi_select", "multi_correct"):
+            return "multi_select"
+        elif v in ("subjective", "short_answer", "long_answer"):
+            return "subjective"
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid or unsupported question type: '{val}'")
+
     for row in reader:
         # Normalize keys: lowercase, stripped of spaces, check for None key/values
         cleaned_row = {
@@ -2635,19 +3075,52 @@ async def bulk_upload_questions(
         row_subject_name = cleaned_row.get("subject") or ""
         row_subject_id = default_subject_id
         if row_subject_name:
-            matched_id = subjects_map.get(row_subject_name.lower())
+            matched_id = subjects_map.get(row_subject_name.lower().strip())
             if matched_id:
                 row_subject_id = matched_id
         
+        row_q_type = cleaned_row.get("question_type") or question_type
+        mapped_type = map_question_type(row_q_type)
+        
         options = None
-        if question_type == "mcq":
+        correct = ""
+        
+        if mapped_type in ("single_select", "multi_select"):
             opts_str = cleaned_row.get("options", "")
             if opts_str:
                 options = [o.strip() for o in opts_str.split("|") if o.strip()]
             else:
                 options = []
+            if len(options) < 2:
+                raise HTTPException(status_code=400, detail=f"Select question must have at least 2 options. Found: '{opts_str}'")
                 
-        correct = cleaned_row.get("correct_answer") or cleaned_row.get("model_answer") or ""
+            correct_ans = cleaned_row.get("correct_answer") or cleaned_row.get("correct_answers") or cleaned_row.get("model_answer") or ""
+            correct_ans = correct_ans.strip()
+            
+            if mapped_type == "single_select":
+                if len(correct_ans) != 1 or not correct_ans.isalpha():
+                    raise HTTPException(status_code=400, detail=f"Correct answer for single_select must be a single letter (A-Z). Found: '{correct_ans}'")
+                letter = correct_ans.upper()
+                idx = ord(letter) - ord('A')
+                if idx < 0 or idx >= len(options):
+                    raise HTTPException(status_code=400, detail=f"Correct answer letter '{letter}' is out of range for the {len(options)} options provided.")
+                correct = letter
+            else:  # multi_select
+                letters = [l.strip().upper() for l in correct_ans.split(",") if l.strip()]
+                if not letters:
+                    raise HTTPException(status_code=400, detail=f"Correct answer for multi_select must contain comma-separated letters. Found: '{correct_ans}'")
+                for letter in letters:
+                    if len(letter) != 1 or not letter.isalpha():
+                        raise HTTPException(status_code=400, detail=f"Invalid letter in correct_answer for multi_select: '{letter}'")
+                    idx = ord(letter) - ord('A')
+                    if idx < 0 or idx >= len(options):
+                        raise HTTPException(status_code=400, detail=f"Correct answer letter '{letter}' is out of range for the {len(options)} options provided.")
+                sorted_letters = sorted(list(set(letters)))
+                correct = ",".join(sorted_letters)
+        else:  # subjective
+            options = None
+            correct = cleaned_row.get("correct_answer") or cleaned_row.get("model_answer") or ""
+                
         diff = cleaned_row.get("difficulty", "Medium")
         
         try:
@@ -2662,7 +3135,7 @@ async def bulk_upload_questions(
             "teacher_id": user["id"],
             "subject_id": row_subject_id,
             "question_text": q_text,
-            "question_type": question_type,
+            "question_type": mapped_type,
             "options": options,
             "correct_answer": correct,
             "difficulty": diff,

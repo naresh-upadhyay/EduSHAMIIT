@@ -40,6 +40,7 @@ import 'package:edu_shamiit_ai/features/student/exams/screens/exam_instructions_
 import 'package:edu_shamiit_ai/features/student/exams/screens/live_exam_taking_screen.dart';
 import 'package:edu_shamiit_ai/features/student/exams/screens/exam_submission_screen.dart';
 import 'package:edu_shamiit_ai/features/student/exams/screens/exam_result_screen.dart';
+import 'package:edu_shamiit_ai/features/student/exams/screens/exam_review_screen.dart';
 
 import 'package:edu_shamiit_ai/features/teacher/dashboard/screens/teacher_dashboard.dart';
 import 'package:edu_shamiit_ai/features/teacher/timetable/screens/teacher_timetable.dart';
@@ -341,6 +342,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (context, state) {
             final id = state.pathParameters['id']!;
             return NoTransitionPage(child: ExamResultScreen(examId: id));
+          },
+        ),
+        GoRoute(
+          path: '/student/exams/review/:id',
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return NoTransitionPage(child: ExamReviewScreen(examId: id));
           },
         ),
         GoRoute(

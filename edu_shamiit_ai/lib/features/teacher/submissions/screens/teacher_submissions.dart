@@ -36,6 +36,7 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
   String? _error;
   String _homeworkId = '';
   bool _aiGrading = false;
+  bool _isAiGradingCollapsed = true;
 
   @override
   void initState() {
@@ -379,38 +380,60 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFFECDD3)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(8)),
-            child: const Text('🤖 AI GRADING ASSIST', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(8)),
+                child: const Text('🤖 AI GRADING ASSIST', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
+              ),
+              InkWell(
+                onTap: () => setState(() => _isAiGradingCollapsed = !_isAiGradingCollapsed),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_isAiGradingCollapsed ? 'Show' : 'Hide', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _kRedDark)),
+                    Icon(_isAiGradingCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 14, color: _kRedDark),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'AI can auto-grade objective questions to save your time.',
-              style: TextStyle(fontSize: 10, color: _kRedDark),
+          if (!_isAiGradingCollapsed) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'AI can auto-grade objective questions to save your time.',
+                    style: TextStyle(fontSize: 10, color: _kRedDark),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    setState(() => _aiGrading = true);
+                    await Future.delayed(const Duration(seconds: 2));
+                    if (mounted) {
+                      setState(() => _aiGrading = false);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🤖 AI grading complete! 12 submissions auto-graded.'), backgroundColor: _kSuccess));
+                      _loadSubmissions();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(10)),
+                    child: _aiGrading
+                        ? const SizedBox(width: 40, child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))))
+                        : const Text('🚀 Auto-grade', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
+                  ),
+                ),
+              ],
             ),
-          ),
-          GestureDetector(
-            onTap: () async {
-              setState(() => _aiGrading = true);
-              await Future.delayed(const Duration(seconds: 2));
-              if (mounted) {
-                setState(() => _aiGrading = false);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🤖 AI grading complete! 12 submissions auto-graded.'), backgroundColor: _kSuccess));
-                _loadSubmissions();
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(color: _kRed, borderRadius: BorderRadius.circular(10)),
-              child: _aiGrading
-                  ? const SizedBox(width: 40, child: Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))))
-                  : const Text('🚀 Auto-grade', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: AppFonts.heading)),
-            ),
-          ),
+          ],
         ],
       ),
     );

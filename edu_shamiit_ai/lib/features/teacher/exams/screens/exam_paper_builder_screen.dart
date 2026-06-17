@@ -6,6 +6,7 @@ import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
+import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
 
 class ExamPaperBuilderScreen extends ConsumerStatefulWidget {
   final String? examId;
@@ -25,10 +26,6 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
 
   // Selector state variables
   List<TeacherExam> _allExams = [];
-  String _searchQuery = '';
-  String _selectedClass = 'All';
-  String _selectedSubject = 'All';
-  String _selectedCategory = 'All';
 
   @override
   void initState() {
@@ -90,34 +87,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
     }
   }
 
-  List<String> get _uniqueClasses {
-    final classes = _allExams.map((e) => e.class_).where((c) => c.isNotEmpty).toSet().toList();
-    classes.sort();
-    return ['All', ...classes];
-  }
 
-  List<String> get _uniqueSubjects {
-    final subjects = _allExams.map((e) => e.subject).where((s) => s.isNotEmpty).toSet().toList();
-    subjects.sort();
-    return ['All', ...subjects];
-  }
-
-  List<String> get _uniqueCategories {
-    final categories = _allExams.map((e) => e.examCategory).where((c) => c.isNotEmpty).toSet().toList();
-    categories.sort();
-    return ['All', ...categories];
-  }
-
-  List<TeacherExam> get _filteredExams {
-    return _allExams.where((exam) {
-      final matchesSearch = exam.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          exam.subject.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesClass = _selectedClass == 'All' || exam.class_ == _selectedClass;
-      final matchesSubject = _selectedSubject == 'All' || exam.subject == _selectedSubject;
-      final matchesCategory = _selectedCategory == 'All' || exam.examCategory == _selectedCategory;
-      return matchesSearch && matchesClass && matchesSubject && matchesCategory;
-    }).toList();
-  }
 
   int get _calculatedTotalMarks {
     return _examQuestions.fold<int>(0, (sum, q) => sum + (int.tryParse(q['marks']?.toString() ?? '1') ?? 1));
@@ -194,11 +164,160 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
     return '$dateStr at $formattedHour:$minute $period';
   }
 
+  List<AzureGridColumn<TeacherExam>> _buildGridColumns() {
+    return [
+      AzureGridColumn<TeacherExam>(
+        label: 'Exam Title',
+        width: 170.0,
+        compare: (a, b) => a.title.compareTo(b.title),
+        cellBuilder: (exam) => Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: exam.examType.toLowerCase() == 'online'
+                    ? const Color(0xFFEEF2FF)
+                    : const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                exam.examType.toLowerCase() == 'online' ? '🖥️' : '📝',
+                style: const TextStyle(fontSize: 10),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                exam.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Subject & Marks',
+        width: 130.0,
+        compare: (a, b) => a.subject.compareTo(b.subject),
+        cellBuilder: (exam) => Text('${exam.subject} (${exam.totalMarks}M)'),
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Class',
+        width: 80.0,
+        compare: (a, b) => a.class_.compareTo(b.class_),
+        cellBuilder: (exam) => Text(exam.class_),
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Category',
+        width: 100.0,
+        compare: (a, b) => a.examCategory.compareTo(b.examCategory),
+        cellBuilder: (exam) {
+          Color typeColor = Colors.grey;
+          switch (exam.examCategory.toLowerCase()) {
+            case 'mid term':
+            case 'term':
+              typeColor = Colors.blue;
+              break;
+            case 'unit test':
+            case 'unit':
+              typeColor = Colors.green;
+              break;
+            case 'quiz':
+            case 'practice test':
+              typeColor = Colors.orange;
+              break;
+            case 'final':
+            case 'final exam':
+              typeColor = Colors.purple;
+              break;
+          }
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: typeColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              exam.examCategory,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: typeColor,
+              ),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Status',
+        width: 100.0,
+        compare: (a, b) => a.status.compareTo(b.status),
+        cellBuilder: (exam) {
+          final color = _getStatusColor(exam.status);
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Text(
+              _getStatusLabel(exam.status),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          );
+        },
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Date & Time',
+        width: 160.0,
+        cellBuilder: (exam) => Text(_formatExamDateTime(exam)),
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Duration',
+        width: 85.0,
+        cellBuilder: (exam) => Text(exam.duration),
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Qns',
+        width: 60.0,
+        compare: (a, b) => a.questionCount.compareTo(b.questionCount),
+        cellBuilder: (exam) => Text(exam.questionCount.toString()),
+      ),
+      AzureGridColumn<TeacherExam>(
+        label: 'Action',
+        width: 120.0,
+        cellBuilder: (exam) => SizedBox(
+          height: 24,
+          child: ElevatedButton(
+            onPressed: () {
+              context.pushReplacement('/teacher/exams/paper-builder?examId=${exam.id}');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Build Paper',
+              style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
   Widget _buildExamSelectorScreen() {
-    final filtered = _filteredExams;
-    final classes = _uniqueClasses;
-    final subjects = _uniqueSubjects;
-    final categories = _uniqueCategories;
+    final classes = _allExams.map((e) => e.class_).where((c) => c.isNotEmpty).toSet().toList()..sort();
+    final subjects = _allExams.map((e) => e.subject).where((s) => s.isNotEmpty).toSet().toList()..sort();
+    final categories = _allExams.map((e) => e.examCategory).where((c) => c.isNotEmpty).toSet().toList()..sort();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -227,159 +346,36 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Search and Filters Header Panel
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
-              child: Column(
-                children: [
-                  // Search Bar
-                  TextField(
-                    onChanged: (v) {
-                      setState(() {
-                        _searchQuery = v;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Search Exams',
-                      hintText: 'Search by exam title or subject...',
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF6366F1)),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                setState(() {
-                                  _searchQuery = '';
-                                });
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Dropdown Filters Row
-                  Row(
-                    children: [
-                      // Class Filter
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedClass,
-                          decoration: InputDecoration(
-                            labelText: 'Class',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          items: classes.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12)))).toList(),
-                          onChanged: (v) {
-                            setState(() {
-                              _selectedClass = v!;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Subject Filter
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedSubject,
-                          decoration: InputDecoration(
-                            labelText: 'Subject',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)))).toList(),
-                          onChanged: (v) {
-                            setState(() {
-                              _selectedSubject = v!;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Category Filter
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedCategory,
-                          decoration: InputDecoration(
-                            labelText: 'Category',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12)))).toList(),
-                          onChanged: (v) {
-                            setState(() {
-                              _selectedCategory = v!;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Exams List
-            Expanded(
-              child: filtered.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.assignment_outlined, size: 64, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No exams found matching filters.',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.grey),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Create a new exam first to start building its paper.',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () => context.push('/teacher/exams/create'),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Create Exam'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF6366F1),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                            )
-                          ],
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final exam = filtered[index];
-                        return _buildSelectorExamCard(exam);
-                      },
-                    ),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12.0, 4.0, 12.0, 12.0),
+          child: AzureGrid<TeacherExam>(
+            title: 'Exams List',
+            items: _allExams,
+            columns: _buildGridColumns(),
+            searchMatcher: (exam) => '${exam.title} ${exam.subject} ${exam.class_} ${exam.examCategory}',
+            filters: [
+              if (classes.isNotEmpty)
+                AzureGridFilter<TeacherExam>(
+                  label: 'Class',
+                  options: classes,
+                  filterFn: (exam, option) => exam.class_ == option,
+                ),
+              if (subjects.isNotEmpty)
+                AzureGridFilter<TeacherExam>(
+                  label: 'Subject',
+                  options: subjects,
+                  filterFn: (exam, option) => exam.subject == option,
+                ),
+              if (categories.isNotEmpty)
+                AzureGridFilter<TeacherExam>(
+                  label: 'Category',
+                  options: categories,
+                  filterFn: (exam, option) => exam.examCategory == option,
+                ),
+            ],
+            onRefresh: _loadExamData,
+            mobileCardBuilder: (context, exam) => _buildSelectorExamCard(exam),
+          ),
         ),
       ),
     );
@@ -733,7 +729,8 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
   }
 
   Widget _buildQuestionCard(int index, Map<String, dynamic> question) {
-    final type = (question['question_type'] ?? 'mcq').toString().toUpperCase();
+    final rawType = (question['question_type'] ?? 'mcq').toString();
+    final type = _questionTypeLabel(rawType);
     final marks = question['marks'] ?? 1;
     final optionsRaw = question['options'];
     List<String> options = [];
@@ -794,7 +791,10 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
             if (options.isNotEmpty) ...[
               const SizedBox(height: 12),
               ...options.asMap().entries.map((entry) {
-                final isCorrect = question['correct_answer'] == entry.value;
+                final rawType = (question['question_type'] ?? 'mcq').toString();
+                final bool isCorrect = rawType == 'multi_correct'
+                    ? (question['correct_answer']?.toString() ?? '').split(',').map((s) => s.trim()).contains(entry.value)
+                    : question['correct_answer'] == entry.value;
                 return Container(
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 4),
@@ -824,6 +824,19 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
         ),
       ),
     );
+  }
+
+  String _questionTypeLabel(String type) {
+    switch (type.toLowerCase()) {
+      case 'mcq': return 'Single Select';
+      case 'multi_correct': return 'Multi Select';
+      case 'short_answer': return 'Short Answer';
+      case 'long_answer': return 'Long Answer';
+      case 'subjective': return 'Subjective';
+      case 'numerical': return 'Numerical';
+      case 'true_false': return 'True / False';
+      default: return type.toUpperCase();
+    }
   }
 
   Widget _buildActionFooter() {
@@ -1184,7 +1197,8 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
     
     String qType = question?['question_type'] ?? 'mcq';
     if (qType == 'subjective') qType = 'short_answer';
-    if (qType != 'mcq' && qType != 'true_false' && qType != 'short_answer' && qType != 'long_answer') {
+    if (qType == 'true_false') qType = 'mcq'; // true_false covered by single-select MCQ
+    if (qType != 'mcq' && qType != 'multi_correct' && qType != 'short_answer' && qType != 'long_answer') {
       qType = 'mcq';
     }
     
@@ -1212,7 +1226,20 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
     }
     String mcqCorrectAnswer = question?['correct_answer'] ?? '';
 
-    // True/False state
+    // Multi-select correct answers
+    List<String> multiCorrectAnswers = [];
+    final rawCorrectMulti = question?['correct_answer']?.toString() ?? '';
+    if (qType == 'multi_correct' && rawCorrectMulti.isNotEmpty) {
+      try {
+        if (rawCorrectMulti.startsWith('[')) {
+          multiCorrectAnswers = List<String>.from(rawCorrectMulti.replaceAll('[','').replaceAll(']','').replaceAll('"','').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
+        } else {
+          multiCorrectAnswers = rawCorrectMulti.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+        }
+      } catch (_) {}
+    }
+
+    // True/False state (kept for display of legacy questions)
     String tfCorrectAnswer = question?['correct_answer'] ?? 'True';
     if (tfCorrectAnswer.toLowerCase() == 'true') tfCorrectAnswer = 'True';
     if (tfCorrectAnswer.toLowerCase() == 'false') tfCorrectAnswer = 'False';
@@ -1305,14 +1332,28 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                       ),
                                       items: const [
-                                        DropdownMenuItem(value: 'mcq', child: Text('MCQ (Multiple Choice)')),
-                                        DropdownMenuItem(value: 'true_false', child: Text('True / False')),
-                                        DropdownMenuItem(value: 'short_answer', child: Text('Short Answer (Subjective)')),
-                                        DropdownMenuItem(value: 'long_answer', child: Text('Long Answer (Subjective)')),
+                                        DropdownMenuItem(
+                                          value: 'mcq',
+                                          child: Row(children: [Icon(Icons.radio_button_checked, size: 16, color: Color(0xFF6366F1)), SizedBox(width: 8), Text('Single Select (MCQ)')]),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'multi_correct',
+                                          child: Row(children: [Icon(Icons.check_box, size: 16, color: Color(0xFF059669)), SizedBox(width: 8), Text('Multi Select (Checkboxes)')]),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'short_answer',
+                                          child: Row(children: [Icon(Icons.short_text, size: 16, color: Color(0xFFF59E0B)), SizedBox(width: 8), Text('Short Answer (Subjective)')]),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'long_answer',
+                                          child: Row(children: [Icon(Icons.subject, size: 16, color: Color(0xFFEF4444)), SizedBox(width: 8), Text('Long Answer (Subjective)')]),
+                                        ),
                                       ],
                                       onChanged: (v) {
                                         setDialogState(() {
                                           qType = v!;
+                                          if (v != 'multi_correct') multiCorrectAnswers.clear();
+                                          if (v != 'mcq') mcqCorrectAnswer = '';
                                         });
                                       },
                                     ),
@@ -1329,28 +1370,77 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                                     ),
                                     
                                     // DYNAMIC INPUTS ACCORDING TO QUESTION TYPE
-                                    if (qType == 'mcq') ...[
+                                    if (qType == 'mcq' || qType == 'multi_correct') ...[
                                       const SizedBox(height: 20),
-                                      const Text(
-                                        'Configure Options',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            qType == 'multi_correct' ? Icons.check_box : Icons.radio_button_checked,
+                                            size: 16,
+                                            color: qType == 'multi_correct' ? const Color(0xFF059669) : const Color(0xFF6366F1),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            qType == 'multi_correct' ? 'Options & Correct Answers (tick all correct)' : 'Configure Options',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 10),
+                                      if (qType == 'multi_correct')
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 4, bottom: 8),
+                                          child: Text(
+                                            'Tick checkboxes next to all correct options.',
+                                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                          ),
+                                        )
+                                      else
+                                        const SizedBox(height: 10),
                                       ...optionControllers.asMap().entries.map((entry) {
                                         final idx = entry.key;
                                         final ctrl = entry.value;
+                                        final optText = ctrl.text.trim();
+                                        final isCorrect = qType == 'multi_correct' && multiCorrectAnswers.contains(optText);
                                         return Padding(
                                           padding: const EdgeInsets.only(bottom: 8.0),
                                           child: Row(
                                             children: [
-                                              CircleAvatar(
-                                                radius: 12,
-                                                backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
-                                                child: Text(
-                                                  String.fromCharCode(65 + idx),
-                                                  style: const TextStyle(fontSize: 10, color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+                                              if (qType == 'multi_correct')
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    setDialogState(() {
+                                                      final t = ctrl.text.trim();
+                                                      if (t.isEmpty) return;
+                                                      if (multiCorrectAnswers.contains(t)) {
+                                                        multiCorrectAnswers.remove(t);
+                                                      } else {
+                                                        multiCorrectAnswers.add(t);
+                                                      }
+                                                    });
+                                                  },
+                                                  child: Container(
+                                                    width: 22,
+                                                    height: 22,
+                                                    decoration: BoxDecoration(
+                                                      color: isCorrect ? const Color(0xFF059669) : Colors.white,
+                                                      borderRadius: BorderRadius.circular(4),
+                                                      border: Border.all(
+                                                        color: isCorrect ? const Color(0xFF059669) : const Color(0xFFCBD5E1),
+                                                        width: 1.5,
+                                                      ),
+                                                    ),
+                                                    child: isCorrect ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
+                                                  ),
+                                                )
+                                              else
+                                                CircleAvatar(
+                                                  radius: 11,
+                                                  backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                                                  child: Text(
+                                                    String.fromCharCode(65 + idx),
+                                                    style: const TextStyle(fontSize: 9, color: Color(0xFF6366F1), fontWeight: FontWeight.bold),
+                                                  ),
                                                 ),
-                                              ),
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: TextFormField(
@@ -1358,11 +1448,18 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                                                   decoration: InputDecoration(
                                                     hintText: 'Option ${idx + 1}',
                                                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: isCorrect ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
+                                                    ),
+                                                    enabledBorder: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      borderSide: BorderSide(color: isCorrect ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
+                                                    ),
+                                                    filled: isCorrect,
+                                                    fillColor: const Color(0xFFF0FDF4),
                                                   ),
-                                                  onChanged: (v) {
-                                                    setDialogState(() {});
-                                                  },
+                                                  onChanged: (v) => setDialogState(() {}),
                                                 ),
                                               ),
                                               if (optionControllers.length > 2)
@@ -1370,7 +1467,9 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                                                   icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 18),
                                                   onPressed: () {
                                                     setDialogState(() {
+                                                      final removed = optionControllers[idx].text.trim();
                                                       optionControllers.removeAt(idx);
+                                                      multiCorrectAnswers.remove(removed);
                                                     });
                                                   },
                                                 ),
@@ -1388,37 +1487,48 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                                         icon: const Icon(Icons.add, size: 16),
                                         label: const Text('Add Option', style: TextStyle(fontSize: 11)),
                                       ),
-                                      const SizedBox(height: 16),
-                                      DropdownButtonFormField<String>(
-                                        value: (mcqCorrectAnswer.isNotEmpty && optionControllers.any((c) => c.text.trim() == mcqCorrectAnswer.trim() && c.text.isNotEmpty)) ? mcqCorrectAnswer.trim() : null,
-                                        decoration: InputDecoration(
-                                          labelText: 'Correct Answer Option',
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                      if (qType == 'mcq') ...[
+                                        const SizedBox(height: 16),
+                                        DropdownButtonFormField<String>(
+                                          value: (mcqCorrectAnswer.isNotEmpty && optionControllers.any((c) => c.text.trim() == mcqCorrectAnswer.trim() && c.text.isNotEmpty)) ? mcqCorrectAnswer.trim() : null,
+                                          decoration: InputDecoration(
+                                            labelText: 'Correct Answer Option',
+                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                          ),
+                                          hint: const Text('Select Correct Choice'),
+                                          items: optionControllers
+                                              .where((c) => c.text.trim().isNotEmpty)
+                                              .map((c) => c.text.trim())
+                                              .toSet()
+                                              .map((text) => DropdownMenuItem(value: text, child: Text(text)))
+                                              .toList(),
+                                          onChanged: (v) => setDialogState(() => mcqCorrectAnswer = v!),
+                                          validator: (v) => v == null ? 'Select correct answer' : null,
                                         ),
-                                        hint: const Text('Select Correct Choice'),
-                                        items: optionControllers
-                                            .where((c) => c.text.trim().isNotEmpty)
-                                            .map((c) => c.text.trim())
-                                            .toSet()
-                                            .map((text) => DropdownMenuItem(value: text, child: Text(text)))
-                                            .toList(),
-                                        onChanged: (v) => setDialogState(() => mcqCorrectAnswer = v!),
-                                        validator: (v) => v == null ? 'Select correct answer' : null,
-                                      ),
-                                    ] else if (qType == 'true_false') ...[
-                                      const SizedBox(height: 16),
-                                      DropdownButtonFormField<String>(
-                                        value: tfCorrectAnswer,
-                                        decoration: InputDecoration(
-                                          labelText: 'Correct Answer',
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                        ),
-                                        items: const [
-                                          DropdownMenuItem(value: 'True', child: Text('True')),
-                                          DropdownMenuItem(value: 'False', child: Text('False')),
-                                        ],
-                                        onChanged: (v) => setDialogState(() => tfCorrectAnswer = v!),
-                                      ),
+                                      ] else if (qType == 'multi_correct') ...[
+                                        const SizedBox(height: 4),
+                                        if (multiCorrectAnswers.isEmpty)
+                                          const Padding(
+                                            padding: EdgeInsets.only(top: 4),
+                                            child: Text(
+                                              '⚠️ Tick at least one correct answer above.',
+                                              style: TextStyle(fontSize: 11, color: Color(0xFFEF4444)),
+                                            ),
+                                          )
+                                        else
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF0FDF4),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: const Color(0xFF86EFAC)),
+                                            ),
+                                            child: Text(
+                                              '✓ Correct: ${multiCorrectAnswers.join(', ')}',
+                                              style: const TextStyle(fontSize: 11, color: Color(0xFF166534), fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                      ],
                                     ] else ...[
                                       const SizedBox(height: 16),
                                       TextFormField(
@@ -1482,8 +1592,21 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                                           if (qType == 'mcq') {
                                             correctAns = mcqCorrectAnswer;
                                             options = optionControllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
-                                          } else if (qType == 'true_false') {
-                                            correctAns = tfCorrectAnswer;
+                                            if (correctAns.isEmpty) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Please select a correct answer option.'), backgroundColor: Colors.red),
+                                              );
+                                              return;
+                                            }
+                                          } else if (qType == 'multi_correct') {
+                                            if (multiCorrectAnswers.isEmpty) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('Please tick at least one correct answer.'), backgroundColor: Colors.red),
+                                              );
+                                              return;
+                                            }
+                                            options = optionControllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+                                            correctAns = multiCorrectAnswers.join(', ');
                                           } else {
                                             correctAns = subjectiveAnswerController.text.trim();
                                           }

@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr
+from enum import Enum
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Any, Dict
 from datetime import datetime
 
@@ -384,7 +385,8 @@ class GenerateQuestionsRequest(BaseModel):
     count: Optional[int] = 10
     difficulty: Optional[str] = "medium"
     total_marks: Optional[int] = 100
-    num_mcq: Optional[int] = 10
+    num_single_select: Optional[int] = 10
+    num_multi_select: Optional[int] = 5
     num_subjective: Optional[int] = 5
 
 
@@ -434,3 +436,47 @@ class UpdateSettingsRequest(BaseModel):
     notifications_enabled: Optional[bool] = None
     dark_mode: Optional[bool] = None
     language: Optional[str] = None
+
+
+class QuestionType(str, Enum):
+    single_select = "single_select"
+    multi_select = "multi_select"
+    subjective = "subjective"
+
+
+class QuestionBase(BaseModel):
+    question_text: str = Field(..., description="The text of the question")
+    question_type: QuestionType = Field(QuestionType.single_select, description="Type of the question")
+    options: Optional[List[str]] = Field(None, description="List of options (only for select types)")
+    correct_answer: Optional[str] = Field(None, description="Correct option index (A, B...) or comma-separated indices (A,C), or model answer text")
+    marks: Optional[int] = Field(1, description="Marks assigned to the question")
+    difficulty: Optional[str] = Field("Medium", description="Easy, Medium, or Hard")
+    chapter: Optional[str] = Field(None, description="Optional chapter/topic grouping")
+
+
+class CreateQuestionRequest(QuestionBase):
+    pass
+
+
+class UpdateQuestionRequest(BaseModel):
+    question_text: Optional[str] = None
+    question_type: Optional[QuestionType] = None
+    options: Optional[List[str]] = None
+    correct_answer: Optional[str] = None
+    marks: Optional[int] = None
+    difficulty: Optional[str] = None
+    chapter: Optional[str] = None
+
+
+class QuestionResponse(QuestionBase):
+    id: str
+    school_id: Optional[str] = None
+    teacher_id: Optional[str] = None
+    subject_id: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class ExamSubmitRequest(BaseModel):
+    answers: Dict[str, str] = Field(..., description="Dictionary mapping question UUID to student answer text/letter")
+    is_auto_save: Optional[bool] = False

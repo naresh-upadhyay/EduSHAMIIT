@@ -29,7 +29,7 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
   List<String> _categories = ['All'];
   bool _isLoading = true;
   String? _error;
-  bool _isAiBannerCollapsed = false;
+  bool _isAiBannerCollapsed = true;
 
   @override
   void initState() {
@@ -230,6 +230,37 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
         label: 'Status / Actions',
         width: 210.0,
         cellBuilder: (exam) {
+          final status = exam.submissionStatus;
+          final isDone = status == 'graded' || status == 'submitted' || exam.sessionStatus == 'completed';
+
+          if (isDone) {
+            String statusText = 'Submitted';
+            Color textCol = const Color(0xFF1D4ED8);
+            if (status == 'graded' && exam.obtainedScore != null) {
+              statusText = 'Graded: ${exam.obtainedScore}/${exam.totalMarks}';
+              textCol = const Color(0xFF15803D);
+              return InkWell(
+                onTap: () => context.push('/student/exams/result/${exam.id}'),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.analytics_outlined, size: 14, color: textCol),
+                      const SizedBox(width: 4),
+                      Text(statusText, style: TextStyle(color: textCol, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              );
+            } else if (exam.sessionStatus == 'completed' && status != 'submitted') {
+              statusText = 'Unsubmitted';
+              textCol = const Color(0xFFF97316); // Orange
+            }
+            return Text(statusText, style: TextStyle(color: textCol, fontWeight: FontWeight.bold));
+          }
+
           final isActive = now.isAfter(exam.dateTime) && now.isBefore(exam.endTime);
           final isUpcoming = now.isBefore(exam.dateTime);
 
@@ -244,7 +275,10 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     backgroundColor: Colors.red,
                   ),
-                  child: const Text('Join Now', style: TextStyle(fontSize: 11, color: Colors.white)),
+                  child: Text(
+                    (status == 'active' || exam.hasSession) ? 'Resume Now' : 'Join Now',
+                    style: const TextStyle(fontSize: 11, color: Colors.white),
+                  ),
                 ),
               );
             } else {
@@ -262,15 +296,11 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
             }
             return Text('⏳ $text', style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold));
           } else {
-            final status = exam.submissionStatus;
             String statusText = 'Completed';
             Color textCol = const Color(0xFF475569);
-            if (status == 'graded' && exam.obtainedScore != null) {
-              statusText = 'Graded: ${exam.obtainedScore}/${exam.totalMarks}';
-              textCol = const Color(0xFF15803D);
-            } else if (status == 'submitted') {
-              statusText = 'Submitted';
-              textCol = const Color(0xFF1D4ED8);
+            if (status == 'active' || exam.hasSession) {
+              statusText = 'Unsubmitted';
+              textCol = const Color(0xFFF97316); // Orange
             } else if (exam.examType.toLowerCase() == 'online') {
               statusText = 'Absent';
               textCol = const Color(0xFF991B1B);
@@ -353,13 +383,7 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                             Expanded(child: _buildAiPrepCard()),
                           ],
                         )
-                      : Align(
-                          alignment: Alignment.centerLeft,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 600),
-                            child: _buildAiPrepCard(),
-                          ),
-                        ),
+                      : _buildAiPrepCard(),
                 ),
               ] else ...[
                 Padding(
@@ -375,7 +399,7 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
               ],
             ],
             Padding(
-              padding: Responsive.contentPadding(context).copyWith(bottom: 16),
+              padding: Responsive.contentPadding(context).copyWith(bottom: 80),
               child: AzureGrid<ExamSchedule>(
                 title: 'All Exam Schedules',
                 items: _allExams,
@@ -958,22 +982,28 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
     String statusText = 'Exam Completed';
     Color bg = const Color(0xFFF1F5F9);
     Color textCol = const Color(0xFF475569);
+    bool canViewResult = false;
     
     if (status == 'graded' && exam.obtainedScore != null) {
       statusText = 'Graded: ${exam.obtainedScore}/${exam.totalMarks} Marks';
       bg = const Color(0xFFF0FDF4);
       textCol = const Color(0xFF15803D);
+      canViewResult = true;
     } else if (status == 'submitted') {
       statusText = 'Submission Received • Pending Evaluation';
       bg = const Color(0xFFEFF6FF);
       textCol = const Color(0xFF1D4ED8);
+    } else if (status == 'active' || exam.hasSession || exam.sessionStatus == 'completed') {
+      statusText = 'Unsubmitted';
+      bg = const Color(0xFFFFF7ED); // Light Orange
+      textCol = const Color(0xFFC2410C); // Dark Orange
     } else if (exam.examType.toLowerCase() == 'online') {
-      statusText = 'Absent / Unsubmitted';
+      statusText = 'Absent';
       bg = const Color(0xFFFEF2F2);
       textCol = const Color(0xFF991B1B);
     }
 
-    return Container(
+    final card = Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
@@ -981,15 +1011,32 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Center(
-        child: Text(
-          statusText,
-          style: TextStyle(
-            color: textCol,
-            fontWeight: FontWeight.w800,
-            fontSize: 11,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (canViewResult) ...[
+              Icon(Icons.analytics_outlined, size: 14, color: textCol),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              canViewResult ? '$statusText - View Analysis' : statusText,
+              style: TextStyle(
+                color: textCol,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+          ],
         ),
       ),
     );
+
+    if (canViewResult) {
+      return GestureDetector(
+        onTap: () => context.push('/student/exams/result/${exam.id}'),
+        child: card,
+      );
+    }
+    return card;
   }
 }
