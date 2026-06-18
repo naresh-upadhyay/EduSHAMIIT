@@ -91,6 +91,8 @@ String _normalizeTeacherRoute(dynamic value,
     '/salary': '/teacher/salary',
     '/profile': '/teacher/profile',
     '/notifications': '/teacher/notifications',
+    '/achievements': '/teacher/achievements',
+    '/teacher/achievements': '/teacher/achievements',
   };
 
   return aliases[route] ?? route;
@@ -406,6 +408,8 @@ class TeacherDashboard {
                 title: 'Documents', icon: '📁', route: '/teacher/documents'),
             QuickAccessItem(
                 title: 'Salary', icon: '💰', route: '/teacher/salary'),
+            QuickAccessItem(
+                title: 'Achievements', icon: '🏆', route: '/teacher/achievements'),
           ],
     );
   }

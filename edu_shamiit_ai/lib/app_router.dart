@@ -30,6 +30,7 @@ import 'package:edu_shamiit_ai/features/student/notices/screens/student_notices_
 import 'package:edu_shamiit_ai/features/student/transport/screens/student_transport_screen.dart';
 
 import 'package:edu_shamiit_ai/features/student/achievements/screens/student_achievements_screen.dart';
+import 'package:edu_shamiit_ai/features/teacher/achievements/screens/teacher_achievements_screen.dart';
 import 'package:edu_shamiit_ai/features/student/live_classes/screens/student_live_classes.dart';
 import 'package:edu_shamiit_ai/features/student/leaderboard/screens/student_leaderboard.dart';
 import 'package:edu_shamiit_ai/features/student/messaging/screens/student_messaging.dart';
@@ -429,6 +430,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/teacher/class-detail',
           pageBuilder: (_, __) => const NoTransitionPage(child: TeacherMyClasses()),
+        ),
+        GoRoute(
+          path: '/teacher/achievements',
+          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherAchievementsScreen()),
         ),
         GoRoute(
           path: '/teacher/notices',

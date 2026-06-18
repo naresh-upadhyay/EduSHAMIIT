@@ -162,6 +162,15 @@ async def mark_attendance(request: dict, user=Depends(require_teacher), school_i
     if db_records:
         await sb.rpc("batch_upsert_attendance", {"p_records": db_records}).aexecute()
         
+        # Award XP for attending classes
+        try:
+            from app.services.supabase_client import award_xp
+            for r in records:
+                if r.get("status") == "present":
+                    await award_xp(sb, school_id, r["student_id"], 10, "attendance", None, f"Attended class on {date}")
+        except Exception as e:
+            print(f"Error awarding attendance XP: {str(e)}", flush=True)
+        
     return {"success": True, "school_id": school_id, "message": f"Successfully marked attendance for {len(records)} students"}
 
 
@@ -350,6 +359,17 @@ async def grade_submission(request: dict, user=Depends(require_teacher), school_
         "teacher_remarks": feedback, "graded_by": user["id"],
         "graded_at": datetime.now().isoformat(),
     }).eq("id", sub_id).eq("school_id", school_id).aexecute()
+
+    # Award XP dynamically based on homework grade
+    if marks is not None:
+        try:
+            from app.services.supabase_client import award_xp
+            xp_to_add = int((float(marks) / (float(max_marks) or 25.0)) * 50)
+            if xp_to_add > 0:
+                await award_xp(sb, school_id, submission["student_id"], xp_to_add, "homework", sub_id, f"Homework graded: {marks}/{max_marks} marks")
+        except Exception as e:
+            print(f"Error awarding homework XP: {str(e)}", flush=True)
+
     return {"success": True, "school_id": school_id, "message": "Submission graded"}
 
 
@@ -1678,6 +1698,179 @@ async def teacher_get_exams(type: str = None, user=Depends(get_current_user), sc
     return {"success": True, "school_id": school_id, "data": {"exams": exams_data}}
 
 
+@router.get("/exams/{exam_id}")
+async def teacher_get_exam_details(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    exam_res = await sb.table("exams").select("*, subjects(name, class)").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
+    exam = exam_res.data
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    # Get question count
+    q_count_res = await sb.table("exam_questions").select("id").eq("exam_id", exam_id).aexecute()
+    exam["question_count"] = len(q_count_res.data or [])
+    
+    # Get joined count
+    sessions_res = await sb.table("exam_sessions").select("student_id").eq("exam_id", exam_id).aexecute()
+    joined_students = {row["student_id"] for row in (sessions_res.data or []) if row.get("student_id")}
+    exam["joined_count"] = len(joined_students)
+    
+    # Get completed/submitted count
+    submissions_res = await sb.table("exam_submissions").select("student_id").eq("exam_id", exam_id).aexecute()
+    completed_students = {row["student_id"] for row in (submissions_res.data or []) if row.get("student_id")}
+    exam["completed_count"] = len(completed_students)
+    
+    # Format target classes
+    tc = exam.get("target_classes")
+    if tc:
+        if isinstance(tc, str):
+            try:
+                import json
+                tc = json.loads(tc)
+            except Exception:
+                pass
+        if isinstance(tc, list):
+            exam["class"] = ", ".join(tc)
+        else:
+            exam["class"] = str(tc)
+    else:
+        subj = exam.get("subjects") or {}
+        exam["class"] = subj.get("class", "Unknown")
+        
+    if not exam.get("exam_date"):
+        exam["exam_date"] = exam.get("start_time")[:10] if exam.get("start_time") else None
+        
+    exam["duration"] = str(exam.get("duration_minutes", 0)) + " mins"
+    subj = exam.get("subjects") or {}
+    exam["subject"] = subj.get("name", "Unknown")
+    
+    return {"success": True, "school_id": school_id, "data": exam}
+
+
+@router.get("/exams/{exam_id}/attendance")
+async def teacher_get_exam_attendance(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Fetch exam details
+    exam_res = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
+    exam = exam_res.data
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    # Parse target classes
+    classes = []
+    tc = exam.get("target_classes")
+    if tc:
+        if isinstance(tc, str):
+            try:
+                import json
+                tc_parsed = json.loads(tc)
+                if isinstance(tc_parsed, list):
+                    classes = tc_parsed
+                else:
+                    classes = [str(tc_parsed)]
+            except Exception:
+                classes = [tc]
+        elif isinstance(tc, list):
+            classes = tc
+
+    # Fetch students in target classes
+    students_query = sb.table("profiles").select("id, full_name, roll_number, class").eq("school_id", school_id).eq("role", "student")
+    if classes:
+        students_query = students_query.in_("class", classes)
+    students_res = await students_query.aexecute()
+    students = students_res.data or []
+
+    # Filter by specific students if scope is Specific Students
+    scope = exam.get("scope", "All Students")
+    target_students = exam.get("target_students")
+    if scope == "Specific Students" and target_students:
+        if isinstance(target_students, str):
+            try:
+                import json
+                target_students = json.loads(target_students)
+            except Exception:
+                pass
+        if isinstance(target_students, list):
+            target_ids = set(target_students)
+            students = [s for s in students if s["id"] in target_ids]
+
+    # Fetch submissions
+    submissions_res = await sb.table("exam_submissions").select("id, student_id, status").eq("exam_id", exam_id).aexecute()
+    submissions = submissions_res.data or []
+    attended_student_ids = {sub["student_id"] for sub in submissions}
+    sub_map = {sub["student_id"]: sub for sub in submissions}
+
+    data = []
+    for s in students:
+        s_id = s["id"]
+        sub = sub_map.get(s_id)
+        data.append({
+            "id": s_id,
+            "full_name": s["full_name"],
+            "roll_number": s["roll_number"],
+            "class": s["class"],
+            "present": s_id in attended_student_ids,
+            "submission_id": sub["id"] if sub else None,
+            "status": sub["status"] if sub else None
+        })
+
+    return {"success": True, "school_id": school_id, "data": {"students": data}}
+
+
+@router.post("/exams/{exam_id}/attendance")
+async def teacher_save_exam_attendance(exam_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # Fetch exam details
+    exam_res = await sb.table("exams").select("*").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
+    exam = exam_res.data
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    student_ids = request.get("student_ids", [])
+    present_set = set(student_ids)
+
+    # Fetch current submissions
+    curr_subs_res = await sb.table("exam_submissions").select("id, student_id, status").eq("exam_id", exam_id).aexecute()
+    curr_subs = {sub["student_id"]: sub for sub in (curr_subs_res.data or [])}
+
+    to_insert = []
+    to_delete = []
+
+    # Find new present students to insert
+    for s_id in present_set:
+        if s_id not in curr_subs:
+            to_insert.append({
+                "exam_id": exam_id,
+                "student_id": s_id,
+                "status": "submitted",
+                "answers": {},
+                "score": None,
+                "submitted_at": datetime.utcnow().isoformat()
+            })
+
+    # Find marked-absent students to delete
+    for s_id, sub in curr_subs.items():
+        if s_id not in present_set:
+            if sub["status"] == "graded":
+                raise HTTPException(status_code=400, detail=f"Cannot mark student absent because their exam is already graded.")
+            to_delete.append(sub["id"])
+
+    if to_insert:
+        await sb.table("exam_submissions").insert(to_insert).aexecute()
+    if to_delete:
+        await sb.table("exam_submissions").delete().in_("id", to_delete).aexecute()
+
+    # Award XP for attending offline exam
+    try:
+        from app.services.supabase_client import award_xp
+        for s_id in present_set:
+            await award_xp(sb, school_id, s_id, 15, "attendance", exam_id, f"Attended offline exam: {exam.get('title')}")
+    except Exception as e:
+        print(f"Error awarding exam attendance XP: {str(e)}", flush=True)
+
+    return {"success": True, "school_id": school_id, "message": "Attendance saved successfully"}
+
+
 @router.get("/notices")
 async def teacher_get_notices(
     category: str = None,
@@ -2423,8 +2616,23 @@ async def teacher_grade_exam_submission(exam_id: str, submission_id: str, reques
     }
     if answers is not None:
         update_data["answers"] = answers
-        
+
     res = await sb.table("exam_submissions").update(update_data).eq("id", submission_id).eq("exam_id", exam_id).aexecute()
+
+    # Award XP dynamically based on exam score
+    if score is not None:
+        try:
+            sub_res = await sb.table("exam_submissions").select("student_id").eq("id", submission_id).maybe_single().aexecute()
+            sub_data = sub_res.data or {}
+            student_id = sub_data.get("student_id")
+            if student_id:
+                from app.services.supabase_client import award_xp
+                xp_to_add = int((float(score) / (total_marks or 100.0)) * 150)
+                if xp_to_add > 0:
+                    await award_xp(sb, school_id, student_id, xp_to_add, "exam", submission_id, f"Exam graded: {score}/{total_marks} marks")
+        except Exception as e:
+            print(f"Error awarding exam XP: {str(e)}", flush=True)
+
     return {"success": True, "school_id": school_id, "data": res.data[0] if res.data else {}}
 
 
@@ -3515,6 +3723,161 @@ async def teacher_class_courses(class_name: str, user=Depends(require_teacher), 
             result_courses.append(course)
             
     return {"success": True, "data": result_courses}
+
+
+# ===========================================================
+# Teacher Achievements & Tasks CRUD + Progress Tracking
+# ===========================================================
+
+@router.get("/achievements/tasks")
+async def teacher_get_tasks(user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """List all achievement/task templates."""
+    sb = get_supabase()
+    res = await sb.table("achievements").select("*").eq("school_id", school_id).order("created_at", ascending=False).aexecute()
+    return {"success": True, "school_id": school_id, "data": {"tasks": res.data or []}}
+
+
+@router.post("/achievements/tasks")
+async def teacher_create_task(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """Create a new task template."""
+    sb = get_supabase()
+    name = request.get("name")
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+        
+    data = {
+        "id": str(uuid.uuid4()),
+        "school_id": school_id,
+        "name": name,
+        "description": request.get("description", ""),
+        "icon": request.get("icon", "🏆"),
+        "xp_reward": int(request.get("xp_reward", 100)),
+        "rarity": request.get("rarity", "common"),
+        "criteria": request.get("criteria", ""),
+        "target_class": request.get("target_class"),
+        "created_at": datetime.utcnow().isoformat()
+    }
+    result = await sb.table("achievements").insert(data).aexecute()
+    return {"success": True, "school_id": school_id, "data": result.data[0] if result.data else data}
+
+
+@router.put("/achievements/tasks/{task_id}")
+async def teacher_update_task(task_id: str, request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """Edit a task template."""
+    sb = get_supabase()
+    allowed = {"name", "description", "icon", "xp_reward", "rarity", "criteria", "target_class"}
+    update_data = {k: v for k, v in request.items() if k in allowed}
+    if "xp_reward" in update_data:
+        update_data["xp_reward"] = int(update_data["xp_reward"])
+        
+    await sb.table("achievements").update(update_data).eq("id", task_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "message": "Task updated successfully"}
+
+
+@router.delete("/achievements/tasks/{task_id}")
+async def teacher_delete_task(task_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """Delete a task template."""
+    sb = get_supabase()
+    await sb.table("achievements").delete().eq("id", task_id).eq("school_id", school_id).aexecute()
+    return {"success": True, "message": "Task deleted successfully"}
+
+
+@router.get("/achievements/student-progress")
+async def teacher_get_student_progress(class_name: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """Returns student list with their total XP, streaks, and list of earned achievements."""
+    sb = get_supabase()
+    
+    # 1. Fetch students in target class
+    students_res = await sb.table("profiles").select("id, full_name, roll_number, class, xp_points, learning_streak").eq("school_id", school_id).eq("class", class_name).eq("role", "student").order("xp_points", ascending=False).aexecute()
+    students = students_res.data or []
+    
+    # 2. Fetch all student achievements earned for this school
+    sa_res = await sb.table("student_achievements").select("student_id, achievement_id").eq("school_id", school_id).aexecute()
+    sa_data = sa_res.data or []
+    
+    # Group achievements by student
+    student_badges = {}
+    for row in sa_data:
+        s_id = row["student_id"]
+        ach_id = row["achievement_id"]
+        if s_id not in student_badges:
+            student_badges[s_id] = []
+        student_badges[s_id].append(ach_id)
+        
+    progress_list = []
+    for s in students:
+        s_id = s["id"]
+        progress_list.append({
+            "id": s_id,
+            "name": s["full_name"],
+            "roll_number": s["roll_number"],
+            "class": s["class"],
+            "xp_points": s.get("xp_points") or 0,
+            "learning_streak": s.get("learning_streak") or 0,
+            "earned_badges": student_badges.get(s_id, [])
+        })
+        
+    return {"success": True, "school_id": school_id, "data": {"students": progress_list}}
+
+
+@router.post("/achievements/unlock")
+async def teacher_unlock_task(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """Manually unlock a task (achievement) for a student."""
+    sb = get_supabase()
+    student_id = request.get("student_id")
+    task_id = request.get("task_id")
+    if not student_id or not task_id:
+        raise HTTPException(status_code=400, detail="student_id and task_id are required")
+        
+    # 1. Check if achievement exists
+    ach_res = await sb.table("achievements").select("*").eq("id", task_id).eq("school_id", school_id).maybe_single().aexecute()
+    achievement = ach_res.data
+    if not achievement:
+        raise HTTPException(status_code=404, detail="Task template not found")
+        
+    # 2. Check if already earned
+    sa_check = await sb.table("student_achievements").select("id").eq("school_id", school_id).eq("student_id", student_id).eq("achievement_id", task_id).maybe_single().aexecute()
+    if sa_check.data:
+        return {"success": True, "message": "Task already completed by student"}
+        
+    # 3. Award the achievement
+    await sb.table("student_achievements").insert({
+        "school_id": school_id,
+        "student_id": student_id,
+        "achievement_id": task_id,
+        "progress": 100.0
+    }).aexecute()
+    
+    # 4. Credit XP
+    from app.services.supabase_client import award_xp
+    await award_xp(sb, school_id, student_id, achievement["xp_reward"], "teacher_task", task_id, f"Completed Task: {achievement['name']} (unlocked by instructor)")
+    
+    return {"success": True, "message": f"Task '{achievement['name']}' unlocked and {achievement['xp_reward']} XP credited."}
+
+
+@router.post("/achievements/penalty")
+async def teacher_apply_penalty(request: dict, user=Depends(require_teacher), school_id=Depends(require_school_id)):
+    """Apply an XP penalty deduction to a student."""
+    sb = get_supabase()
+    student_id = request.get("student_id")
+    amount = request.get("amount") # should be positive, we will negate it
+    reason = request.get("reason") or "Behavioral deduction"
+    if not student_id or not amount:
+        raise HTTPException(status_code=400, detail="student_id and amount are required")
+        
+    try:
+        val = int(amount)
+        if abs(val) > 50:
+            raise HTTPException(status_code=400, detail="Deduction amount cannot be greater than 50 XP")
+        penalty_amount = -abs(val)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid penalty amount format")
+        
+    from app.services.supabase_client import award_xp
+    await award_xp(sb, school_id, student_id, penalty_amount, "manual_penalty", None, f"Penalty: {reason}")
+    
+    return {"success": True, "message": f"Deducted {abs(penalty_amount)} XP penalty successfully."}
+
 
 
 

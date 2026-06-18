@@ -1731,6 +1731,62 @@ class TeacherApiService {
     }
   }
 
+  /// Get single exam details
+  Future<Map<String, dynamic>> getExam(String examId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/exams/$examId'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return _toMap(decoded);
+      } else {
+        throw Exception('Failed to load exam details: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching exam details: $e');
+    }
+  }
+
+  /// Get exam manual attendance for offline exams
+  Future<Map<String, dynamic>> getExamAttendance(String examId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/attendance'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to load exam attendance: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching exam attendance: $e');
+    }
+  }
+
+  /// Save exam manual attendance for offline exams
+  Future<Map<String, dynamic>> saveExamAttendance(String examId, List<String> studentIds) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/attendance'),
+        headers: await _getHeaders(),
+        body: json.encode({'student_ids': studentIds}),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to save exam attendance: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error saving exam attendance: $e');
+    }
+  }
+
   /// Get all live student sessions for an exam
   Future<List<Map<String, dynamic>>> getExamSessions(String examId) async {
     try {
@@ -2177,6 +2233,149 @@ class TeacherApiService {
       }
     } catch (e) {
       return [];
+    }
+  }
+
+  // ============================================
+  // TEACHER ACHIEVEMENTS & TASKS
+  // ============================================
+
+  /// Get all achievement/task templates
+  Future<List<dynamic>> getTeacherTasks() async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/achievements/tasks'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = decoded['data'] as Map<String, dynamic>? ?? {};
+        return data['tasks'] as List<dynamic>? ?? [];
+      } else {
+        throw Exception('Failed to load tasks: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Load tasks request failed: $e');
+    }
+  }
+
+  /// Create a new task template
+  Future<Map<String, dynamic>> createTeacherTask(Map<String, dynamic> taskData) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/achievements/tasks'),
+        headers: await _getHeaders(),
+        body: json.encode(taskData),
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['data'] as Map<String, dynamic>? ?? {};
+      } else {
+        throw Exception('Failed to create task: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Create task request failed: $e');
+    }
+  }
+
+  /// Update an existing task template
+  Future<void> updateTeacherTask(String taskId, Map<String, dynamic> taskData) async {
+    try {
+      final response = await _client.put(
+        Uri.parse('$_baseUrl/teacher/achievements/tasks/$taskId'),
+        headers: await _getHeaders(),
+        body: json.encode(taskData),
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update task: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Update task request failed: $e');
+    }
+  }
+
+  /// Delete a task template
+  Future<void> deleteTeacherTask(String taskId) async {
+    try {
+      final response = await _client.delete(
+        Uri.parse('$_baseUrl/teacher/achievements/tasks/$taskId'),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete task: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Delete task request failed: $e');
+    }
+  }
+
+  /// Get student achievements progress list for a classroom
+  Future<List<dynamic>> getStudentProgress(String className) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/achievements/student-progress').replace(
+          queryParameters: {'class_name': className},
+        ),
+        headers: await _getHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        final data = decoded['data'] as Map<String, dynamic>? ?? {};
+        return data['students'] as List<dynamic>? ?? [];
+      } else {
+        throw Exception('Failed to load student progress: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Load student progress request failed: $e');
+    }
+  }
+
+  /// Manually unlock a task for a student
+  Future<bool> unlockStudentTask(String studentId, String taskId) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/achievements/unlock'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'student_id': studentId,
+          'task_id': taskId,
+        }),
+      );
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to unlock task: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Unlock task request failed: $e');
+    }
+  }
+
+  /// Deduct/apply an XP penalty to a student
+  Future<bool> applyStudentPenalty(String studentId, int amount, String reason) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/achievements/penalty'),
+        headers: await _getHeaders(),
+        body: json.encode({
+          'student_id': studentId,
+          'amount': amount,
+          'reason': reason,
+        }),
+      );
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        try {
+          final Map<String, dynamic> data = json.decode(response.body) as Map<String, dynamic>;
+          if (data.containsKey('detail')) {
+            throw Exception(data['detail']);
+          }
+        } catch (_) {}
+        throw Exception('Failed to apply penalty: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
     }
   }
 }

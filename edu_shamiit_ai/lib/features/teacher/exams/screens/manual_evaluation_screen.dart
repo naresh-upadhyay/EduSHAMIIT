@@ -26,6 +26,7 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isAutoGradingBulk = false;
+  bool _isOffline = false;
   String? _error;
   String _studentSearchQuery = '';
 
@@ -53,12 +54,17 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
       _error = null;
     });
     try {
+      final exam = await _apiService.getExam(widget.examId);
+      _isOffline = (exam['exam_type']?.toString().toLowerCase() == 'offline');
+
       final questions = await _apiService.getExamQuestions(widget.examId);
       final submissionsData = await _apiService.getExamSubmissions(widget.examId);
       final filtered = submissionsData
           .where((s) => s['status'] == 'submitted' || s['status'] == 'graded')
           .toList();
-      final subjective = questions.where((q) => q['question_type'] == 'subjective').toList();
+      final subjective = _isOffline
+          ? questions
+          : questions.where((q) => q['question_type'] == 'subjective').toList();
 
       if (mounted) {
         setState(() {
@@ -112,6 +118,7 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   double _calculateAutoGradedMarks(Map<String, dynamic> sub) {
+    if (_isOffline) return 0.0;
     final answers = sub['answers'] as Map<String, dynamic>? ?? {};
     double m = 0.0;
     for (final q in _allQuestions) {
@@ -564,26 +571,27 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
             ),
           ),
         ),
-        // Bulk Action Button
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _isAutoGradingBulk ? null : _gradeAllAuto,
-              icon: _isAutoGradingBulk
-                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _primary))
-                  : const Icon(Icons.auto_awesome_rounded, size: 14),
-              label: Text(_isAutoGradingBulk ? 'Grading...' : 'Grade All Auto'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                side: const BorderSide(color: _primary),
-                foregroundColor: _primary,
+        // Bulk Action Button (only if not offline exam)
+        if (!_isOffline)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isAutoGradingBulk ? null : _gradeAllAuto,
+                icon: _isAutoGradingBulk
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _primary))
+                    : const Icon(Icons.auto_awesome_rounded, size: 14),
+                label: Text(_isAutoGradingBulk ? 'Grading...' : 'Grade All Auto'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  side: const BorderSide(color: _primary),
+                  foregroundColor: _primary,
+                ),
               ),
             ),
           ),
-        ),
         const SizedBox(height: 8),
         const Divider(height: 1, color: _border),
         // Student Tiles List
@@ -793,9 +801,12 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                   children: [
                     Icon(Icons.person_rounded, size: 14, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
-                    Text('Student Response', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey.shade600)),
+                    Text(
+                      _isOffline ? 'Question Options & Answer' : 'Student Response',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                    ),
                     const Spacer(),
-                    if (!isSub && cAns != null) ...[
+                    if (!_isOffline && !isSub && cAns != null) ...[
                       Icon(
                         isOk ? Icons.check_circle_rounded : Icons.cancel_rounded,
                         size: 16,
@@ -814,26 +825,75 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                   ],
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
+                if (!_isOffline)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Text(
+                      sText.isNotEmpty ? sText : '— No response —',
+                      style: TextStyle(fontSize: 12.5, height: 1.5, color: sText.isNotEmpty ? Colors.black87 : Colors.grey),
+                    ),
                   ),
-                  child: Text(
-                    sText.isNotEmpty ? sText : '— No response —',
-                    style: TextStyle(fontSize: 12.5, height: 1.5, color: sText.isNotEmpty ? Colors.black87 : Colors.grey),
-                  ),
-                ),
-                if (!isSub && cAns != null && cAns.isNotEmpty) ...[
+                if (q['options'] != null && q['options'] is List) ...[
+                  const SizedBox(height: 6),
+                  const Text('Options:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  ... (q['options'] as List).map((opt) {
+                    final isCorrectOpt = cAns != null && opt.toString().trim().toLowerCase() == cAns;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isCorrectOpt ? _success.withOpacity(0.08) : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isCorrectOpt ? _success.withOpacity(0.3) : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isCorrectOpt ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                            size: 14,
+                            color: isCorrectOpt ? _success : Colors.grey,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              opt.toString(),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: isCorrectOpt ? _success : Colors.black87,
+                                fontWeight: isCorrectOpt ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+                if (cAns != null && cAns.isNotEmpty && (q['options'] == null || q['options'] is! List)) ...[
                   const SizedBox(height: 8),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.check_circle_outline_rounded, size: 13, color: _success),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 1.0),
+                        child: Icon(Icons.check_circle_outline_rounded, size: 13, color: _success),
+                      ),
                       const SizedBox(width: 4),
-                      Text('Correct: $cAns', style: const TextStyle(fontSize: 11, color: _success, fontWeight: FontWeight.w600)),
+                      Expanded(
+                        child: Text(
+                          'Correct Answer: $cAns',
+                          style: const TextStyle(fontSize: 11, color: _success, fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -939,7 +999,10 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
         ),
         const SizedBox(height: 20),
         if (_subjectiveQuestions.isNotEmpty) ...[
-          const Text('GRADE SUBJECTIVE QUESTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Text(
+            _isOffline ? 'GRADE QUESTIONS' : 'GRADE SUBJECTIVE QUESTIONS',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
           const SizedBox(height: 12),
           ..._subjectiveQuestions.map((q) {
             final maxM = (q['marks'] as num?)?.toDouble() ?? 0.0;

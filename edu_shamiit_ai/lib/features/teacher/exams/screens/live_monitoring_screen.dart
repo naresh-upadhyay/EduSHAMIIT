@@ -18,20 +18,65 @@ class LiveMonitoringScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
-  late Timer _pollingTimer;
+  Timer? _pollingTimer;
   final TeacherApiService _apiService = TeacherApiService();
   List<Map<String, dynamic>> _sessions = [];
   bool _isLoading = true;
   String? _error;
 
+  // Offline exam attendance state variables
+  bool _isOfflineExam = false;
+  Map<String, dynamic>? _examDetails;
+  List<Map<String, dynamic>> _attendanceList = [];
+  List<String> _presentStudentIds = [];
+  String _searchQuery = '';
+  bool _isSavingAttendance = false;
+
   @override
   void initState() {
     super.initState();
-    _loadSessions();
-    // Periodically poll active student session proctoring details every 5 seconds
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _loadSessions();
-    });
+    _loadExamAndData();
+  }
+
+  Future<void> _loadExamAndData() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final exam = await _apiService.getExam(widget.examId);
+      _examDetails = exam;
+      _isOfflineExam = (exam['exam_type']?.toString().toLowerCase() == 'offline');
+
+      if (_isOfflineExam) {
+        final attendanceData = await _apiService.getExamAttendance(widget.examId);
+        final studentsList = (attendanceData['data']?['students'] ?? attendanceData['students']) as List? ?? [];
+        _attendanceList = studentsList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _presentStudentIds = _attendanceList
+            .where((s) => s['present'] == true)
+            .map((s) => s['id'] as String)
+            .toList();
+        setState(() {
+          _isLoading = false;
+        });
+      } else {
+        await _loadSessions();
+        _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+          _loadSessions();
+        });
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadSessions() async {
@@ -55,7 +100,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
 
   @override
   void dispose() {
-    _pollingTimer.cancel();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
@@ -414,9 +459,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
-          'Live Proctoring Panel',
-          style: TextStyle(
+        title: Text(
+          _isOfflineExam ? 'Offline Exam Attendance' : 'Live Proctoring Panel',
+          style: const TextStyle(
             fontFamily: AppFonts.heading,
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -436,7 +481,11 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
               setState(() {
                 _isLoading = true;
               });
-              _loadSessions();
+              if (_isOfflineExam) {
+                _loadExamAndData();
+              } else {
+                _loadSessions();
+              }
             },
           ),
         ],
@@ -449,44 +498,55 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Error loading sessions: $_error', style: const TextStyle(color: Colors.red)),
+                        Text('Error: $_error', style: const TextStyle(color: Colors.red)),
                         const SizedBox(height: 16),
-                        ElevatedButton(onPressed: _loadSessions, child: const Text('Retry')),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (_isOfflineExam) {
+                              _loadExamAndData();
+                            } else {
+                              _loadSessions();
+                            }
+                          },
+                          child: const Text('Retry'),
+                        ),
                       ],
                     ),
                   )
-                : _sessions.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No students are currently active in this exam.',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-                        ),
-                      )
-                    : Column(
-                        children: [
-                          _buildProctorOverviewBar(),
-                          Expanded(
-                            child: GridView.builder(
-                              padding: const EdgeInsets.all(16),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: Responsive.value<int>(
-                                  context,
-                                  mobile: 1,
-                                  tablet: 2,
-                                  desktop: 4,
-                                ),
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                mainAxisExtent: 310,
-                              ),
-                              itemCount: _sessions.length,
-                              itemBuilder: (context, index) {
-                                return _buildStudentProctorCard(_sessions[index]);
-                              },
+                : _isOfflineExam
+                    ? _buildOfflineAttendanceUI()
+                    : _sessions.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No students are currently active in this exam.',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
                             ),
+                          )
+                        : Column(
+                            children: [
+                              _buildProctorOverviewBar(),
+                              Expanded(
+                                child: GridView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: Responsive.value<int>(
+                                      context,
+                                      mobile: 1,
+                                      tablet: 2,
+                                      desktop: 4,
+                                    ),
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                    mainAxisExtent: 310,
+                                  ),
+                                  itemCount: _sessions.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildStudentProctorCard(_sessions[index]);
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
       ),
     );
   }
@@ -837,6 +897,282 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildOfflineAttendanceUI() {
+    final filtered = _attendanceList.where((student) {
+      final name = (student['full_name'] ?? '').toString().toLowerCase();
+      final cls = (student['class'] ?? '').toString().toLowerCase();
+      final roll = (student['roll_number'] ?? '').toString().toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return name.contains(query) || cls.contains(query) || roll.contains(query);
+    }).toList();
+
+    final total = _attendanceList.length;
+    final present = _presentStudentIds.length;
+    final absent = total - present;
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.white,
+          child: Row(
+            children: [
+              Expanded(child: _buildSummaryCard('Total Students', '$total', Colors.blue)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildSummaryCard('Present', '$present', Colors.green)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildSummaryCard('Absent', '$absent', Colors.red)),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: TextField(
+            onChanged: (val) => setState(() => _searchQuery = val),
+            decoration: InputDecoration(
+              hintText: 'Search by student name, roll number, class...',
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.indigo, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                      const SizedBox(height: 12),
+                      Text(
+                        _searchQuery.isEmpty ? 'No students assigned to this exam.' : 'No students matching search criteria.',
+                        style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, idx) {
+                    final student = filtered[idx];
+                    final sId = student['id'];
+                    final isPresent = _presentStudentIds.contains(sId);
+                    final isGraded = student['status'] == 'graded';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isPresent ? Colors.green.withOpacity(0.3) : const Color(0xFFE2E8F0),
+                          width: isPresent ? 1.5 : 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: isPresent ? Colors.green.withOpacity(0.1) : Colors.indigo.withOpacity(0.05),
+                            radius: 20,
+                            child: Text(
+                              (student['full_name'] ?? 'S').substring(0, 1).toUpperCase(),
+                              style: TextStyle(
+                                color: isPresent ? Colors.green : Colors.indigo,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        student['full_name'] ?? 'Student',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isGraded)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'Graded',
+                                          style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Class: ${student['class'] ?? "N/A"} • Roll: ${student['roll_number'] ?? "—"}',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Switch(
+                            value: isPresent,
+                            activeColor: Colors.green,
+                            onChanged: isGraded
+                                ? null
+                                : (val) {
+                                    setState(() {
+                                      if (val) {
+                                        if (!_presentStudentIds.contains(sId)) {
+                                          _presentStudentIds.add(sId);
+                                        }
+                                      } else {
+                                        _presentStudentIds.remove(sId);
+                                      }
+                                    });
+                                  },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isSavingAttendance ? null : _saveAttendanceData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: _isSavingAttendance
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Save Attendance',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveAttendanceData() async {
+    setState(() {
+      _isSavingAttendance = true;
+    });
+    try {
+      await _apiService.saveExamAttendance(widget.examId, _presentStudentIds);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Attendance saved successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await _loadExamAndData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save attendance: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingAttendance = false;
+        });
+      }
+    }
   }
 }
 

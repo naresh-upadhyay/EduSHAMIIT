@@ -224,16 +224,420 @@ async def student_timetable(day: str = "monday", date: Optional[str] = None, use
 
 @router.get("/results")
 async def student_results(category: str = "All", user=Depends(require_student), school_id=Depends(require_school_id)):
+    """
+    Fetch student exam results from exam_submissions joined with published exams.
+    Also includes legacy 'results' table data if present.
+    Returns data in the format expected by ExamResult.fromJson().
+    """
     sb = get_supabase()
-    query = sb.table("results").select("*, subjects(name, icon)").eq("school_id", school_id).eq("student_id", user["id"])
-    if category != "All":
-        # Use exam_type instead of exam_category
-        query = query.eq("exam_type", category)
-    results = (await query.order("created_at", ascending=False).aexecute()).data
-    total = sum(float(r.get("marks_obtained", 0)) for r in results)
-    max_total = sum(float(r.get("total_marks", 100)) for r in results)
-    avg_score = (total / max_total * 100) if max_total > 0 else 0
-    return {"success": True, "school_id": school_id, "data": {"overall": {"avg_score": round(avg_score, 1), "grade": _calculate_grade(avg_score), "total_exams": len(results)}, "results": results}}
+
+    # ── Primary source: published exam_submissions ──────────────────────────
+    subs_res = await sb.table("exam_submissions").select(
+        "id, exam_id, score, grade_letter, class_rank, is_pass, graded_at, "
+        "exams(id, title, total_marks, passing_marks, exam_type, school_id, results_published_at, subjects(name, icon))"
+    ).eq("student_id", user["id"]).aexecute()
+
+    submissions = subs_res.data or []
+
+    formatted_results = []
+    for sub in submissions:
+        exam = sub.get("exams") or {}
+        # Only show results that are published
+        if not exam.get("results_published_at"):
+            continue
+
+        score = float(sub.get("score") or 0)
+        total_marks = float(exam.get("total_marks") or 100)
+        pct = (score / total_marks * 100) if total_marks > 0 else 0
+        grade = sub.get("grade_letter") or _calculate_grade(pct)
+
+        # Filter by exam_type if requested
+        exam_type = exam.get("exam_type") or "General"
+        if category != "All" and exam_type != category:
+            continue
+
+        subj = exam.get("subjects") or {}
+
+        formatted_results.append({
+            "id": sub.get("id", ""),
+            "exam_title": exam.get("title", "Unknown Exam"),
+            "subject": subj.get("name", "Unknown"),
+            "subject_icon": subj.get("icon", "📚"),
+            "exam_date": exam.get("results_published_at") or sub.get("graded_at") or "",
+            "marks_obtained": score,
+            "max_marks": total_marks,
+            "grade": grade,
+            "rank": sub.get("class_rank"),
+            "exam_type": exam_type,
+            "is_pass": sub.get("is_pass", False),
+            "remarks": "Pass" if sub.get("is_pass") else "Fail",
+        })
+
+    # ── Fallback / legacy: results table ───────────────────────────────────
+    legacy_res = await sb.table("results").select("*, subjects(name, icon)").eq("school_id", school_id).eq("student_id", user["id"]).order("created_at", ascending=False).aexecute()
+    legacy_rows = legacy_res.data or []
+    for r in legacy_rows:
+        subj = r.get("subjects") or {}
+        marks_obtained = float(r.get("marks_obtained") or 0)
+        total_marks = float(r.get("total_marks") or 100)
+        pct = (marks_obtained / total_marks * 100) if total_marks > 0 else 0
+        grade = r.get("grade") or _calculate_grade(pct)
+        exam_type = r.get("exam_type") or "General"
+        if category != "All" and exam_type != category:
+            continue
+        formatted_results.append({
+            "id": r.get("id", ""),
+            "exam_title": r.get("exam_title") or r.get("title") or "Exam",
+            "subject": subj.get("name") or r.get("subject") or "Unknown",
+            "subject_icon": subj.get("icon", "📚"),
+            "exam_date": r.get("exam_date") or r.get("created_at") or "",
+            "marks_obtained": marks_obtained,
+            "max_marks": total_marks,
+            "grade": grade,
+            "rank": r.get("rank"),
+            "exam_type": exam_type,
+            "remarks": r.get("remarks"),
+        })
+
+    # Sort by exam_date descending
+    formatted_results.sort(key=lambda x: x.get("exam_date") or "", reverse=True)
+
+    total_score = sum(float(r["marks_obtained"]) for r in formatted_results)
+    max_score = sum(float(r["max_marks"]) for r in formatted_results)
+    avg_score = (total_score / max_score * 100) if max_score > 0 else 0
+
+    return {
+        "success": True,
+        "school_id": school_id,
+        "data": formatted_results
+    }
+
+
+@router.post("/results/pdf")
+async def student_download_results_pdf(
+    request: dict,
+    user=Depends(require_student),
+    school_id=Depends(require_school_id)
+):
+    """
+    Generate and download a PDF report card for selected or all exam results in a college/university format.
+    """
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.units import inch
+    
+    sb = get_supabase()
+    
+    # 1. Fetch student profile and school info
+    profile_res = await sb.table("profiles").select("*").eq("id", user["id"]).maybe_single().aexecute()
+    profile = profile_res.data or {}
+    
+    school_res = await sb.table("schools").select("*").eq("id", school_id).maybe_single().aexecute()
+    school = school_res.data or {}
+    school_name = school.get("name", "EDUSHAMIIT ACADEMY")
+
+    # 2. Fetch exam_submissions
+    subs_res = await sb.table("exam_submissions").select(
+        "id, exam_id, score, grade_letter, class_rank, is_pass, graded_at, "
+        "exams(id, title, total_marks, passing_marks, exam_type, school_id, results_published_at, subjects(name, icon))"
+    ).eq("student_id", user["id"]).aexecute()
+    submissions = subs_res.data or []
+
+    formatted_results = []
+    for sub in submissions:
+        exam = sub.get("exams") or {}
+        # Only show results that are published
+        if not exam.get("results_published_at"):
+            continue
+
+        score = float(sub.get("score") or 0)
+        total_marks = float(exam.get("total_marks") or 100)
+        pct = (score / total_marks * 100) if total_marks > 0 else 0
+        grade = sub.get("grade_letter") or _calculate_grade(pct)
+        exam_type = exam.get("exam_type") or "General"
+        subj = exam.get("subjects") or {}
+
+        formatted_results.append({
+            "id": sub.get("id", ""),
+            "exam_title": exam.get("title", "Unknown Exam"),
+            "subject": subj.get("name", "Unknown"),
+            "exam_date": exam.get("results_published_at")[:10] if exam.get("results_published_at") else "",
+            "marks_obtained": score,
+            "max_marks": total_marks,
+            "passing_marks": float(exam.get("passing_marks") or (total_marks * 0.4)),
+            "grade": grade,
+            "rank": sub.get("class_rank"),
+            "exam_type": exam_type,
+            "is_pass": sub.get("is_pass", False) or (score >= float(exam.get("passing_marks") or (total_marks * 0.4))),
+            "remarks": "Pass" if (sub.get("is_pass") or (score >= float(exam.get("passing_marks") or (total_marks * 0.4)))) else "Fail",
+        })
+
+    # 3. Fetch legacy results table
+    legacy_res = await sb.table("results").select("*, subjects(name, icon)").eq("school_id", school_id).eq("student_id", user["id"]).order("created_at", ascending=False).aexecute()
+    legacy_rows = legacy_res.data or []
+    for r in legacy_rows:
+        subj = r.get("subjects") or {}
+        marks_obtained = float(r.get("marks_obtained") or 0)
+        total_marks = float(r.get("total_marks") or 100)
+        pct = (marks_obtained / total_marks * 100) if total_marks > 0 else 0
+        grade = r.get("grade") or _calculate_grade(pct)
+        exam_type = r.get("exam_type") or "General"
+        pass_m = float(r.get("passing_marks") or (total_marks * 0.4))
+        is_pass = marks_obtained >= pass_m
+        formatted_results.append({
+            "id": r.get("id", ""),
+            "exam_title": r.get("exam_title") or r.get("title") or "Exam",
+            "subject": subj.get("name") or r.get("subject") or "Unknown",
+            "exam_date": r.get("exam_date")[:10] if r.get("exam_date") else (r.get("created_at")[:10] if r.get("created_at") else ""),
+            "marks_obtained": marks_obtained,
+            "max_marks": total_marks,
+            "passing_marks": pass_m,
+            "grade": grade,
+            "rank": r.get("rank"),
+            "exam_type": exam_type,
+            "is_pass": is_pass,
+            "remarks": r.get("remarks") or ("Pass" if is_pass else "Fail"),
+        })
+
+    # 4. Filter results based on exam_ids if provided
+    selected_ids = request.get("exam_ids", [])
+    if selected_ids:
+        id_set = set(selected_ids)
+        formatted_results = [r for r in formatted_results if r["id"] in id_set]
+
+    # Sort chronologically by date
+    formatted_results.sort(key=lambda x: x.get("exam_date") or "", reverse=True)
+
+    if not formatted_results:
+        raise HTTPException(status_code=400, detail="No exam results selected or found.")
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+    
+    # Theme color definitions
+    C_BRAND = colors.HexColor("#4F46E5") # Indigo
+    C_BRAND_LIGHT = colors.HexColor("#EEF2FF")
+    C_BORDER = colors.HexColor("#E2E8F0")
+    C_TEXT = colors.HexColor("#1E293B")
+    C_DARK = colors.HexColor("#0F172A")
+    
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'SchoolTitle', parent=styles['Normal'],
+        fontSize=18, leading=22, fontName='Helvetica-Bold',
+        textColor=C_BRAND, alignment=TA_CENTER, spaceAfter=4
+    )
+    subtitle_style = ParagraphStyle(
+        'ReportSubtitle', parent=styles['Normal'],
+        fontSize=11, leading=14, fontName='Helvetica-Bold',
+        textColor=colors.HexColor("#475569"), alignment=TA_CENTER, spaceAfter=15
+    )
+    section_title = ParagraphStyle(
+        'SectionTitle', parent=styles['Normal'],
+        fontSize=11, leading=14, fontName='Helvetica-Bold',
+        textColor=C_DARK, spaceBefore=12, spaceAfter=6
+    )
+    body_style = ParagraphStyle(
+        'BodyTextCustom', parent=styles['Normal'],
+        fontSize=8.5, leading=11, fontName='Helvetica',
+        textColor=C_TEXT
+    )
+    body_bold = ParagraphStyle(
+        'BodyTextBold', parent=styles['Normal'],
+        fontSize=8.5, leading=11, fontName='Helvetica-Bold',
+        textColor=C_DARK
+    )
+    body_center = ParagraphStyle(
+        'BodyTextCenter', parent=styles['Normal'],
+        fontSize=8.5, leading=11, fontName='Helvetica',
+        textColor=C_TEXT, alignment=TA_CENTER
+    )
+    body_center_bold = ParagraphStyle(
+        'BodyTextCenterBold', parent=styles['Normal'],
+        fontSize=8.5, leading=11, fontName='Helvetica-Bold',
+        textColor=C_DARK, alignment=TA_CENTER
+    )
+    body_right_bold = ParagraphStyle(
+        'BodyTextRightBold', parent=styles['Normal'],
+        fontSize=8.5, leading=11, fontName='Helvetica-Bold',
+        textColor=C_DARK, alignment=TA_RIGHT
+    )
+
+    story = []
+    story.append(Paragraph(school_name.upper(), title_style))
+    story.append(Paragraph("OFFICIAL ACADEMIC TRANSCRIPT / REPORT CARD", subtitle_style))
+    story.append(HRFlowable(width='100%', thickness=2, color=C_BRAND, spaceAfter=15))
+
+    # Student details table
+    student_info = [
+        [
+            Paragraph("<b>Student Name:</b>", body_style), Paragraph(str(profile.get("full_name", "Student")), body_bold),
+            Paragraph("<b>Roll Number:</b>", body_style), Paragraph(str(profile.get("roll_number", "N/A")), body_bold)
+        ],
+        [
+            Paragraph("<b>Class & Section:</b>", body_style), Paragraph(f"{profile.get('class', 'N/A')} - {profile.get('section', 'A')}", body_bold),
+            Paragraph("<b>Academic Year:</b>", body_style), Paragraph("2026", body_bold)
+        ],
+        [
+            Paragraph("<b>Email:</b>", body_style), Paragraph(str(profile.get("email", "N/A")), body_bold),
+            Paragraph("<b>Date of Issue:</b>", body_style), Paragraph(datetime.now().strftime("%d %B %Y"), body_bold)
+        ]
+    ]
+    
+    info_table = Table(student_info, colWidths=[1.4*inch, 2.2*inch, 1.2*inch, 2.7*inch])
+    info_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width='100%', thickness=1, color=C_BORDER, spaceAfter=12))
+
+    # Results table
+    table_headers = [
+        Paragraph("<b>SUBJECT</b>", body_bold),
+        Paragraph("<b>EXAM TITLE</b>", body_bold),
+        Paragraph("<b>TYPE</b>", body_bold),
+        Paragraph("<b>MAX</b>", body_center_bold),
+        Paragraph("<b>PASS</b>", body_center_bold),
+        Paragraph("<b>OBTAINED</b>", body_center_bold),
+        Paragraph("<b>%</b>", body_center_bold),
+        Paragraph("<b>GRADE</b>", body_center_bold),
+        Paragraph("<b>REMARKS</b>", body_center_bold)
+    ]
+    table_data = [table_headers]
+    
+    total_max = 0.0
+    total_obtained = 0.0
+    total_exams = len(formatted_results)
+    passed_exams = 0
+    
+    for r in formatted_results:
+        max_m = r["max_marks"]
+        obt_m = r["marks_obtained"]
+        pass_m = r["passing_marks"]
+        pct = (obt_m / max_m * 100) if max_m > 0 else 0.0
+        
+        total_max += max_m
+        total_obtained += obt_m
+        
+        is_pass = r["is_pass"]
+        if is_pass:
+            passed_exams += 1
+            remark_text = f"<font color='#059669'><b>PASS</b></font>"
+        else:
+            remark_text = f"<font color='#DC2626'><b>FAIL</b></font>"
+            
+        table_data.append([
+            Paragraph(str(r["subject"]), body_style),
+            Paragraph(str(r["exam_title"]), body_style),
+            Paragraph(str(r["exam_type"]), body_style),
+            Paragraph(f"{max_m:.0f}", body_center),
+            Paragraph(f"{pass_m:.0f}", body_center),
+            Paragraph(f"{obt_m:.1f}", body_center_bold),
+            Paragraph(f"{pct:.1f}%", body_center),
+            Paragraph(str(r["grade"]), body_center_bold),
+            Paragraph(remark_text, body_center)
+        ])
+        
+    results_table = Table(table_data, colWidths=[1.2*inch, 1.8*inch, 0.9*inch, 0.5*inch, 0.5*inch, 0.9*inch, 0.6*inch, 0.5*inch, 0.6*inch])
+    results_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BACKGROUND', (0, 0), (-1, 0), C_BRAND_LIGHT),
+        ('GRID', (0, 0), (-1, -1), 0.5, C_BORDER),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    
+    story.append(Paragraph("Academic Performance Ledger", section_title))
+    story.append(results_table)
+    story.append(Spacer(1, 10))
+
+    # Summary table
+    agg_pct = (total_obtained / total_max * 100) if total_max > 0 else 0.0
+    final_grade = _calculate_grade(agg_pct)
+    final_status = "PASSED" if passed_exams == total_exams else "PROMOTED WITH FAILURES" if passed_exams > 0 else "FAILED"
+    
+    summary_data = [
+        [
+            Paragraph("<b>Total Exams:</b>", body_style), Paragraph(str(total_exams), body_bold),
+            Paragraph("<b>Aggregate Percentage:</b>", body_style), Paragraph(f"{agg_pct:.2f}%", body_bold)
+        ],
+        [
+            Paragraph("<b>Total Maximum Marks:</b>", body_style), Paragraph(f"{total_max:.0f}", body_bold),
+            Paragraph("<b>Overall Grade:</b>", body_style), Paragraph(final_grade, body_bold)
+        ],
+        [
+            Paragraph("<b>Total Marks Obtained:</b>", body_style), Paragraph(f"{total_obtained:.1f}", body_bold),
+            Paragraph("<b>Result Status:</b>", body_style), Paragraph(f"<font color='{'#059669' if final_status == 'PASSED' else '#DC2626'}'><b>{final_status}</b></font>", body_bold)
+        ]
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[1.8*inch, 1.8*inch, 1.8*inch, 2.1*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+        ('BOX', (0, 0), (-1, -1), 1, C_BORDER),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(Paragraph("Consolidated Academic Summary", section_title))
+    story.append(summary_table)
+    story.append(Spacer(1, 30))
+
+    # Signatures
+    sig_data = [
+        [Paragraph("", body_style), Paragraph("", body_style)],
+        [Spacer(1, 25), Spacer(1, 25)],
+        [Paragraph("<b>Class Teacher Signature</b>", body_style), Paragraph("<b>Controller of Examinations / Principal</b>", body_right_bold)],
+    ]
+    sig_table = Table(sig_data, colWidths=[3.75*inch, 3.75*inch])
+    sig_table.setStyle(TableStyle([
+        ('LINEBELOW', (0, 0), (0, 0), 1, colors.HexColor("#94A3B8")),
+        ('LINEBELOW', (1, 0), (1, 0), 1, colors.HexColor("#94A3B8")),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(sig_table)
+
+    doc.build(story)
+    buffer.seek(0)
+    
+    clean_name = profile.get('full_name', 'Student').replace(' ', '_')
+    filename = f"ReportCard_{clean_name}.pdf"
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
 
 
 @router.get("/exams")
@@ -791,6 +1195,14 @@ async def register_event(event_id: str, user=Depends(get_current_user), school_i
         await sb.table("event_registrations").insert({
             "school_id": school_id, "event_id": event_id, "student_id": user["id"]
         }).aexecute()
+        
+        # Award XP for event registration/participation
+        try:
+            from app.services.supabase_client import award_xp
+            await award_xp(sb, school_id, user["id"], 20, "event_participation", event_id, "Registered for event")
+        except Exception as e:
+            print(f"Error awarding event XP: {str(e)}", flush=True)
+            
     except Exception as e:
         if "23505" in str(e) or "duplicate key" in str(e).lower():
             return {"success": True, "message": "Already registered for this event"}
@@ -799,17 +1211,164 @@ async def register_event(event_id: str, user=Depends(get_current_user), school_i
 
 
 @router.get("/achievements")
-async def student_achievements(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def student_achievements(
+    exclude_leaderboards: bool = False,
+    exclude_history: bool = False,
+    user=Depends(get_current_user), 
+    school_id=Depends(require_school_id)
+):
     sb = get_supabase()
-    # Parallelize profile and achievements
-    p_task = sb.table("profiles").select("xp_points, learning_streak, best_streak").eq("id", user["id"]).single().aexecute()
-    a_task = sb.table("student_achievements").select("*, achievements(name, description, icon, rarity, xp_reward)").eq("school_id", school_id).eq("student_id", user["id"]).order("earned_at", ascending=False).aexecute()
     
-    p_res, a_res = await asyncio.gather(p_task, a_task)
-    profile = p_res.data
-    achievements = a_res.data
+    # 1. Fetch student profile details
+    p_res = await sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()
+    profile = p_res.data or {}
     
-    return {"success": True, "school_id": school_id, "data": {"xp_points": profile.get("xp_points", 0), "learning_streak": profile.get("learning_streak", 0), "best_streak": profile.get("best_streak", 0), "achievements": achievements}}
+    # 2. Fetch student earned achievements
+    a_res = await sb.table("student_achievements").select("*, achievements(name, description, icon, rarity, xp_reward)").eq("school_id", school_id).eq("student_id", user["id"]).order("earned_at", ascending=False).aexecute()
+    earned_list = a_res.data or []
+    earned_ids = {row["achievement_id"] for row in earned_list}
+    
+    student_xp = profile.get("xp_points", 0)
+    
+    # Calculate Ranks via database count query (highly scalable)
+    class_name = profile.get("class") or ""
+    class_rank = 1
+    if class_name:
+        class_rank_res = await sb.table("profiles").select("id").count("exact").eq("school_id", school_id).eq("class", class_name).eq("role", "student").gt("xp_points", student_xp).aexecute()
+        class_rank = (class_rank_res.count or 0) + 1
+            
+    school_rank_res = await sb.table("profiles").select("id").count("exact").eq("school_id", school_id).eq("role", "student").gt("xp_points", student_xp).aexecute()
+    school_rank = (school_rank_res.count or 0) + 1
+            
+    # Class Leaderboard (optional on initial dashboard fetch)
+    class_leaderboard = []
+    if not exclude_leaderboards and class_name:
+        class_res = await sb.table("profiles").select("id, full_name, xp_points, learning_streak").eq("school_id", school_id).eq("class", class_name).eq("role", "student").order("xp_points", ascending=False).limit(50).aexecute()
+        for rank_idx, s in enumerate(class_res.data or []):
+            class_leaderboard.append({
+                "rank": rank_idx + 1,
+                "student_id": s["id"],
+                "full_name": s.get("full_name", "Student"),
+                "xp_points": s.get("xp_points", 0),
+                "learning_streak": s.get("learning_streak", 0)
+            })
+        
+    # School Leaderboard (optional on initial dashboard fetch)
+    school_leaderboard = []
+    if not exclude_leaderboards:
+        school_res = await sb.table("profiles").select("id, full_name, xp_points, learning_streak").eq("school_id", school_id).eq("role", "student").order("xp_points", ascending=False).limit(50).aexecute()
+        for rank_idx, s in enumerate(school_res.data or []):
+            school_leaderboard.append({
+                "rank": rank_idx + 1,
+                "student_id": s["id"],
+                "full_name": s.get("full_name", "Student"),
+                "xp_points": s.get("xp_points", 0),
+                "learning_streak": s.get("learning_streak", 0)
+            })
+        
+    # Map unlocked achievements
+    unlocked_achievements = []
+    for row in earned_list:
+        ach = row.get("achievements") or {}
+        unlocked_achievements.append({
+            "id": row.get("achievement_id"),
+            "title": ach.get("name", "Badge"),
+            "description": ach.get("description", ""),
+            "icon": ach.get("icon", "🏆"),
+            "rarity": ach.get("rarity", "common"),
+            "xp_reward": ach.get("xp_reward", 0),
+            "earned_at": row.get("earned_at"),
+            "progress": 100.0,
+            "is_locked": False
+        })
+        
+    # Fetch Locked achievements templates & calculate progress
+    all_templates_res = await sb.table("achievements").select("*").eq("school_id", school_id).aexecute()
+    all_templates = all_templates_res.data or []
+    
+    locked_achievements = []
+    for t in all_templates:
+        if t["id"] in earned_ids:
+            continue
+            
+        progress_val = 20.0
+        name_lower = t["name"].lower()
+        if "attendance" in name_lower:
+            att_cnt_res = await sb.table("attendance").select("id").count("exact").eq("student_id", user["id"]).eq("status", "present").aexecute()
+            att_count = att_cnt_res.count or 0
+            progress_val = min(99.0, (att_count / 10.0) * 100.0)
+        elif "streak" in name_lower:
+            streak_val = profile.get("learning_streak") or 0
+            progress_val = min(99.0, (streak_val / 18.0) * 100.0)
+        elif "submissions" in name_lower or "homework" in name_lower:
+            hw_cnt_res = await sb.table("homework_submissions").select("id").count("exact").eq("student_id", user["id"]).eq("status", "graded").aexecute()
+            hw_count = hw_cnt_res.count or 0
+            progress_val = min(99.0, (hw_count / 5.0) * 100.0)
+            
+        locked_achievements.append({
+            "id": t["id"],
+            "title": t.get("name", ""),
+            "description": t.get("description", ""),
+            "icon": t.get("icon", "🏆"),
+            "rarity": t.get("rarity", "common"),
+            "xp_reward": t.get("xp_reward", 0),
+            "earned_at": None,
+            "progress": round(progress_val, 1),
+            "is_locked": True
+        })
+        
+    # Fetch recent XP history
+    xp_history = []
+    if not exclude_history:
+        tx_res = await sb.table("xp_transactions").select("*").eq("school_id", school_id).eq("student_id", user["id"]).order("created_at", ascending=False).limit(20).aexecute()
+        for tx in (tx_res.data or []):
+            xp_history.append({
+                "id": tx["id"],
+                "amount": tx["amount"],
+                "source_type": tx["source_type"],
+                "description": tx.get("description") or f"Earned XP via {tx['source_type']}",
+                "created_at": tx["created_at"]
+            })
+        
+    return {
+        "success": True, 
+        "school_id": school_id, 
+        "data": {
+            "xp_points": student_xp, 
+            "learning_streak": profile.get("learning_streak", 0), 
+            "best_streak": profile.get("best_streak", 0),
+            "class_rank": class_rank,
+            "school_rank": school_rank,
+            "unlocked_achievements": unlocked_achievements,
+            "locked_achievements": locked_achievements,
+            "class_leaderboard": class_leaderboard,
+            "school_leaderboard": school_leaderboard,
+            "xp_history": xp_history
+        }
+    }
+
+
+@router.get("/achievements/xp-history")
+async def get_student_xp_history(
+    limit: int = 50, 
+    offset: int = 0, 
+    user=Depends(get_current_user), 
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    res = await sb.table("xp_transactions").select("*").eq("school_id", school_id).eq("student_id", user["id"]).order("created_at", ascending=False).limit(limit).offset(offset).aexecute()
+    
+    tx_list = []
+    for tx in (res.data or []):
+        tx_list.append({
+            "id": tx["id"],
+            "amount": tx["amount"],
+            "source_type": tx["source_type"],
+            "description": tx.get("description") or f"Earned XP via {tx['source_type']}",
+            "created_at": tx["created_at"]
+        })
+    return {"success": True, "data": tx_list}
+
 
 
 @router.post("/leave/apply")
@@ -1034,9 +1593,34 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
         if profile_res.data:
             student_class = profile_res.data.get("class")
             
-    # 2. Fetch courses for class
+    # 2. Fetch courses and statistics in parallel
     if student_class:
-        subjects_res = await sb.table("subjects").select("*").eq("school_id", school_id).eq("class", student_class).aexecute()
+        subjects_task = sb.table("subjects").select("*").eq("school_id", school_id).eq("class", student_class).aexecute()
+    else:
+        # Dummy async function that returns a structure matching subjects_res
+        async def dummy_subjects():
+            class DummyRes:
+                data = []
+            return DummyRes()
+        subjects_task = dummy_subjects()
+        
+    subs_task = sb.table("exam_submissions").select(
+        "score, exams(total_marks, results_published_at, subjects(id, name))"
+    ).eq("student_id", user["id"]).aexecute()
+    
+    legacy_task = sb.table("results").select(
+        "marks_obtained, total_marks, subject_id, subjects(id, name)"
+    ).eq("school_id", school_id).eq("student_id", user["id"]).aexecute()
+    
+    hw_subs_task = sb.table("homework_submissions").select(
+        "marks, status, homework(max_marks, subjects(id, name))"
+    ).eq("student_id", user["id"]).aexecute()
+    
+    # Gather in parallel
+    if student_class:
+        subjects_res, subs_res, legacy_res, hw_subs_res = await asyncio.gather(
+            subjects_task, subs_task, legacy_task, hw_subs_task
+        )
         
         # Deduplicate subjects by name
         unique_subjects = {}
@@ -1052,10 +1636,60 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
         else:
             db_courses = []
     else:
+        # Fallback if no student_class
+        _, subs_res, legacy_res, hw_subs_res = await asyncio.gather(
+            subjects_task, subs_task, legacy_task, hw_subs_task
+        )
         courses_res = await sb.table("courses").select("*, subjects(*), profiles!teacher_id(full_name)").eq("school_id", school_id).aexecute()
         db_courses = courses_res.data or []
 
-    # 3. Enhance course data with scores, progress, syllabus coverage, and upcoming topics matching the mockup!
+    # 3. Compile subject-wise performance averages
+    exam_stats = {} # subject_name_lower -> {"score": float, "max": float}
+    hw_stats = {} # subject_name_lower -> {"score": float, "max": float}
+    
+    # Process exam submissions
+    for sub in (subs_res.data or []):
+        exam = sub.get("exams") or {}
+        if not exam.get("results_published_at"):
+            continue
+        subj = exam.get("subjects") or {}
+        subj_name = subj.get("name", "").strip().lower()
+        if subj_name:
+            score_val = float(sub.get("score") or 0)
+            total_marks = float(exam.get("total_marks") or 100)
+            if subj_name not in exam_stats:
+                exam_stats[subj_name] = {"score": 0.0, "max": 0.0}
+            exam_stats[subj_name]["score"] += score_val
+            exam_stats[subj_name]["max"] += total_marks
+            
+    # Process legacy results
+    for r in (legacy_res.data or []):
+        subj = r.get("subjects") or {}
+        subj_name = subj.get("name") or r.get("subject") or ""
+        subj_name = subj_name.strip().lower()
+        if subj_name:
+            score_val = float(r.get("marks_obtained") or 0)
+            total_marks = float(r.get("total_marks") or 100)
+            if subj_name not in exam_stats:
+                exam_stats[subj_name] = {"score": 0.0, "max": 0.0}
+            exam_stats[subj_name]["score"] += score_val
+            exam_stats[subj_name]["max"] += total_marks
+            
+    # Process homework submissions
+    for hs in (hw_subs_res.data or []):
+        if hs.get("status") == "graded" or hs.get("marks") is not None:
+            hw = hs.get("homework") or {}
+            subj = hw.get("subjects") or {}
+            subj_name = subj.get("name", "").strip().lower()
+            if subj_name:
+                score_val = float(hs.get("marks") or 0)
+                max_marks = float(hw.get("max_marks") or 25)
+                if subj_name not in hw_stats:
+                    hw_stats[subj_name] = {"score": 0.0, "max": 0.0}
+                hw_stats[subj_name]["score"] += score_val
+                hw_stats[subj_name]["max"] += max_marks
+
+    # 4. Enhance course data with scores, progress, syllabus coverage, and upcoming topics matching the mockup!
     enhanced_courses = []
     seen_subject_names = set()
     for c in db_courses:
@@ -1075,16 +1709,28 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
         progress = 0.75
         chapters_count = f"{subj.get('total_chapters', 30)} chapters"
         
-        # Real score lookup from results if present
-        try:
-            results_res = await sb.table("results").select("marks_obtained, total_marks").eq("school_id", school_id).eq("student_id", user["id"]).eq("subject_id", c["subject_id"]).aexecute()
-            if results_res.data:
-                total_obtained = sum(float(r["marks_obtained"]) for r in results_res.data)
-                total_max = sum(float(r["total_marks"]) for r in results_res.data)
-                if total_max > 0:
-                    score = f"{int(total_obtained / total_max * 100)}%"
-        except Exception:
-            pass
+        # Calculate combined average score for subject (60% exams, 40% homeworks)
+        has_exams = subj_name_lower in exam_stats and exam_stats[subj_name_lower]["max"] > 0
+        has_hw = subj_name_lower in hw_stats and hw_stats[subj_name_lower]["max"] > 0
+        
+        exam_avg = 0.0
+        if has_exams:
+            exam_avg = (exam_stats[subj_name_lower]["score"] / exam_stats[subj_name_lower]["max"]) * 100
+            
+        hw_avg = 0.0
+        if has_hw:
+            hw_avg = (hw_stats[subj_name_lower]["score"] / hw_stats[subj_name_lower]["max"]) * 100
+            
+        combined_val = None
+        if has_exams and has_hw:
+            combined_val = (exam_avg * 0.6) + (hw_avg * 0.4)
+        elif has_exams:
+            combined_val = exam_avg
+        elif has_hw:
+            combined_val = hw_avg
+            
+        if combined_val is not None:
+            score = f"{int(round(combined_val))}%"
 
         # Calculate real chapters and progress from database
         real_chapters_count = 0
@@ -1222,6 +1868,9 @@ async def student_courses(user=Depends(get_current_user), school_id=Depends(requ
                 "Final Exam Prep"
             ]
             resources_text = "6 video lectures, 4 quizzes"
+
+        if combined_val is not None:
+            score = f"{int(round(combined_val))}%"
 
         enhanced_courses.append({
             "id": c["id"],
@@ -1679,11 +2328,50 @@ async def delete_live_class_comment(
 
 
 @router.get("/leaderboard")
-async def student_leaderboard(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+async def student_leaderboard(
+    scope: str = "class", 
+    limit: int = 50, 
+    offset: int = 0, 
+    user=Depends(require_student), 
+    school_id=Depends(require_school_id)
+):
     sb = get_supabase()
     student_class = user.get("class")
-    students = (await sb.table("profiles").select("id, full_name, xp_points, learning_streak, avatar_url").eq("school_id", school_id).eq("class", student_class).eq("role", "student").order("xp_points", ascending=False).limit(20).aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"leaderboard": students, "class": student_class}}
+    if not student_class:
+        profile_res = await sb.table("profiles").select("class").eq("id", user["id"]).maybe_single().aexecute()
+        if profile_res.data:
+            student_class = profile_res.data.get("class")
+            
+    query = sb.table("profiles").select("id, full_name, xp_points, learning_streak, avatar_url, class").eq("school_id", school_id).eq("role", "student").order("xp_points", ascending=False)
+    
+    if scope == "class" and student_class:
+        query = query.eq("class", student_class)
+        
+    res = await query.limit(limit).offset(offset).aexecute()
+    students = res.data or []
+    
+    leaderboard_data = []
+    for idx, s in enumerate(students):
+        leaderboard_data.append({
+            "rank": offset + idx + 1,
+            "student_id": s["id"],
+            "full_name": s.get("full_name", "Student"),
+            "class_name": s.get("class") or "",
+            "xp_points": s.get("xp_points", 0),
+            "learning_streak": s.get("learning_streak", 0),
+            "avatar_url": s.get("avatar_url")
+        })
+        
+    return {
+        "success": True, 
+        "school_id": school_id, 
+        "data": {
+            "leaderboard": leaderboard_data, 
+            "class": student_class,
+            "scope": scope
+        }
+    }
+
 
 
 @router.get("/settings")

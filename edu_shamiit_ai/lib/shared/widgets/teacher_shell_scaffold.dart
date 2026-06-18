@@ -31,6 +31,10 @@ class TeacherShellScaffold extends ConsumerWidget {
         label: 'My Classes',
         route: '/teacher/my-classes'),
     _NavItem(
+        icon: Icons.emoji_events_rounded,
+        label: 'Achievements',
+        route: '/teacher/achievements'),
+    _NavItem(
         icon: Icons.schedule_rounded,
         label: 'Timetable',
         route: '/teacher/timetable'),

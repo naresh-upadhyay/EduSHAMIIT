@@ -87,34 +87,46 @@ class Achievement {
   final String title;
   final String description;
   final String category;
+  final String rarity;
   final int xpReward;
+  final String? icon;
   final String? iconUrl;
   final DateTime? earnedAt;
+  final double progress;
   final bool isLocked;
+  final String? targetClass;
 
   Achievement({
     required this.id,
     required this.title,
     required this.description,
     required this.category,
+    required this.rarity,
     required this.xpReward,
+    this.icon,
     this.iconUrl,
     this.earnedAt,
+    required this.progress,
     required this.isLocked,
+    this.targetClass,
   });
 
   factory Achievement.fromJson(Map<String, dynamic> json) {
     return Achievement(
       id: json['id'] ?? '',
-      title: json['title'] ?? '',
+      title: json['title'] ?? json['name'] ?? '',
       description: json['description'] ?? '',
-      category: json['category'] ?? '',
+      category: json['category'] ?? json['rarity'] ?? '',
+      rarity: json['rarity'] ?? 'common',
       xpReward: json['xp_reward'] ?? 0,
+      icon: json['icon'],
       iconUrl: json['icon_url'],
       earnedAt: json['earned_at'] != null
           ? DateTime.tryParse(json['earned_at'])
           : null,
+      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
       isLocked: json['is_locked'] ?? true,
+      targetClass: json['target_class'],
     );
   }
 
@@ -124,10 +136,122 @@ class Achievement {
       'title': title,
       'description': description,
       'category': category,
+      'rarity': rarity,
       'xp_reward': xpReward,
+      'icon': icon,
       'icon_url': iconUrl,
       'earned_at': earnedAt?.toIso8601String(),
+      'progress': progress,
       'is_locked': isLocked,
+      'target_class': targetClass,
+    };
+  }
+}
+
+
+
+/// XP Transaction model
+class XpTransaction {
+  final String id;
+  final int amount;
+  final String sourceType;
+  final String description;
+  final DateTime createdAt;
+
+  XpTransaction({
+    required this.id,
+    required this.amount,
+    required this.sourceType,
+    required this.description,
+    required this.createdAt,
+  });
+
+  factory XpTransaction.fromJson(Map<String, dynamic> json) {
+    return XpTransaction(
+      id: json['id'] ?? '',
+      amount: json['amount'] ?? 0,
+      sourceType: json['source_type'] ?? '',
+      description: json['description'] ?? '',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'amount': amount,
+      'source_type': sourceType,
+      'description': description,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+}
+
+/// Student Achievements Dashboard model
+class StudentAchievementsDashboard {
+  final int xpPoints;
+  final int learningStreak;
+  final int bestStreak;
+  final int classRank;
+  final int schoolRank;
+  final List<Achievement> unlockedAchievements;
+  final List<Achievement> lockedAchievements;
+  final List<LeaderboardEntry> classLeaderboard;
+  final List<LeaderboardEntry> schoolLeaderboard;
+  final List<XpTransaction> xpHistory;
+
+  StudentAchievementsDashboard({
+    required this.xpPoints,
+    required this.learningStreak,
+    required this.bestStreak,
+    required this.classRank,
+    required this.schoolRank,
+    required this.unlockedAchievements,
+    required this.lockedAchievements,
+    required this.classLeaderboard,
+    required this.schoolLeaderboard,
+    required this.xpHistory,
+  });
+
+  factory StudentAchievementsDashboard.fromJson(Map<String, dynamic> json) {
+    return StudentAchievementsDashboard(
+      xpPoints: json['xp_points'] ?? 0,
+      learningStreak: json['learning_streak'] ?? 0,
+      bestStreak: json['best_streak'] ?? 0,
+      classRank: json['class_rank'] ?? 1,
+      schoolRank: json['school_rank'] ?? 1,
+      unlockedAchievements: (json['unlocked_achievements'] as List? ?? [])
+          .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      lockedAchievements: (json['locked_achievements'] as List? ?? [])
+          .map((e) => Achievement.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      classLeaderboard: (json['class_leaderboard'] as List? ?? [])
+          .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      schoolLeaderboard: (json['school_leaderboard'] as List? ?? [])
+          .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      xpHistory: (json['xp_history'] as List? ?? [])
+          .map((e) => XpTransaction.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'xp_points': xpPoints,
+      'learning_streak': learningStreak,
+      'best_streak': bestStreak,
+      'class_rank': classRank,
+      'school_rank': schoolRank,
+      'unlocked_achievements': unlockedAchievements.map((e) => e.toJson()).toList(),
+      'locked_achievements': lockedAchievements.map((e) => e.toJson()).toList(),
+      'class_leaderboard': classLeaderboard.map((e) => e.toJson()).toList(),
+      'school_leaderboard': schoolLeaderboard.map((e) => e.toJson()).toList(),
+      'xp_history': xpHistory.map((e) => e.toJson()).toList(),
     };
   }
 }
@@ -276,6 +400,8 @@ class ExamResult {
   final String? remarks;
   final double? classAverage;
   final int? rank;
+  final String? examType;  // 'Mid-Term', 'End-Term', 'Class Test', 'General', etc.
+  final bool? isPass;
 
   ExamResult({
     required this.id,
@@ -288,23 +414,50 @@ class ExamResult {
     this.remarks,
     this.classAverage,
     this.rank,
+    this.examType,
+    this.isPass,
   });
 
   factory ExamResult.fromJson(Map<String, dynamic> json) {
+    // max_marks can come as 'max_marks' or 'total_marks' from different sources
+    final maxM = double.tryParse(
+          (json['max_marks'] ?? json['total_marks'])?.toString() ?? '0') ?? 0;
+    final marksO = double.tryParse(json['marks_obtained']?.toString() ?? '0') ?? 0;
+    // Auto-calculate grade if not provided
+    String grade = json['grade']?.toString() ?? '';
+    if (grade.isEmpty && maxM > 0) {
+      final pct = marksO / maxM * 100;
+      if (pct >= 90) {
+        grade = 'A+';
+      } else if (pct >= 80) {
+        grade = 'A';
+      } else if (pct >= 70) {
+        grade = 'B+';
+      } else if (pct >= 60) {
+        grade = 'B';
+      } else if (pct >= 50) {
+        grade = 'C';
+      } else if (pct >= 40) {
+        grade = 'D';
+      } else {
+        grade = 'F';
+      }
+    }
     return ExamResult(
       id: json['id'] ?? '',
-      examTitle: json['exam_title'] ?? '',
-      subject: json['subject'] ?? '',
+      examTitle: json['exam_title'] ?? json['title'] ?? 'Exam',
+      subject: json['subject'] ?? 'Unknown',
       examDate: DateTime.tryParse(json['exam_date'] ?? '') ?? DateTime.now(),
-      marksObtained:
-          double.tryParse(json['marks_obtained']?.toString() ?? '0') ?? 0,
-      maxMarks: double.tryParse(json['max_marks']?.toString() ?? '0') ?? 0,
-      grade: json['grade'] ?? '',
-      remarks: json['remarks'],
+      marksObtained: marksO,
+      maxMarks: maxM,
+      grade: grade,
+      remarks: json['remarks']?.toString(),
       classAverage: json['class_average'] != null
           ? double.tryParse(json['class_average'].toString())
           : null,
-      rank: json['rank'],
+      rank: json['rank'] is int ? json['rank'] : int.tryParse(json['rank']?.toString() ?? ''),
+      examType: json['exam_type']?.toString(),
+      isPass: json['is_pass'] as bool?,
     );
   }
 
@@ -320,6 +473,8 @@ class ExamResult {
       'remarks': remarks,
       'class_average': classAverage,
       'rank': rank,
+      'exam_type': examType,
+      'is_pass': isPass,
     };
   }
 }
@@ -501,6 +656,7 @@ class LeaderboardEntry {
   final String className;
   final int xpPoints;
   final String? photoUrl;
+  final int learningStreak;
 
   LeaderboardEntry({
     required this.rank,
@@ -509,16 +665,21 @@ class LeaderboardEntry {
     required this.className,
     required this.xpPoints,
     this.photoUrl,
+    required this.learningStreak,
   });
+
+  // Alias for backward compatibility / different screens
+  String get fullName => studentName;
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
     return LeaderboardEntry(
       rank: json['rank'] ?? 0,
       studentId: json['student_id'] ?? '',
       studentName: json['student_name'] ?? json['full_name'] ?? '',
-      className: json['class_name'] ?? '',
+      className: json['class_name'] ?? json['class'] ?? '',
       xpPoints: json['xp_points'] ?? 0,
-      photoUrl: json['photo_url'],
+      photoUrl: json['photo_url'] ?? json['avatar_url'],
+      learningStreak: json['learning_streak'] ?? 0,
     );
   }
 
@@ -530,6 +691,7 @@ class LeaderboardEntry {
       'class_name': className,
       'xp_points': xpPoints,
       'photo_url': photoUrl,
+      'learning_streak': learningStreak,
     };
   }
 }

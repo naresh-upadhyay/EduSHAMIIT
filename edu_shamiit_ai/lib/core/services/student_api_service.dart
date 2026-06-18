@@ -1125,14 +1125,37 @@ class StudentApiService {
     }
   }
 
+  /// Get achievements dashboard containing total XP, ranks, unlocked and locked achievements (excluding heavy leaderboard/history data)
+  Future<StudentAchievementsDashboard> getAchievementsDashboard() async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/achievements?exclude_leaderboards=true&exclude_history=true'),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] : decoded;
+        return StudentAchievementsDashboard.fromJson(data);
+      } else {
+        throw ApiException('Failed to load achievements dashboard: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw ApiException('Achievements dashboard request failed: $e');
+    }
+  }
+
   // ============================================
   // LEADERBOARD
   // ============================================
 
-  /// Get leaderboard
+  /// Get leaderboard with scope, limit and offset pagination
   Future<List<LeaderboardEntry>> getLeaderboard({
-    String? scope, // 'class', 'school', 'global'
+    String? scope, // 'class', 'school'
     int? limit,
+    int? offset,
   }) async {
     try {
       final response = await _client
@@ -1141,35 +1164,69 @@ class StudentApiService {
               queryParameters: {
                 if (scope != null) 'scope': scope,
                 if (limit != null) 'limit': limit.toString(),
+                if (offset != null) 'offset': offset.toString(),
               },
             ),
             headers: await _headers,
           )
           .timeout(AppConfig.apiTimeout);
 
+      print('[getLeaderboard] Scope: $scope, Status: ${response.statusCode}, Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;
         final data = decoded.containsKey('data') 
-            ? (decoded['data'] is List 
-                ? decoded['data'] as List 
-                : (decoded['data'] as Map).values.firstWhere((v) => v is List, orElse: () => []) as List)
+            ? (decoded['data'] is Map && (decoded['data'] as Map).containsKey('leaderboard')
+                ? decoded['data']['leaderboard'] as List
+                : (decoded['data'] is List ? decoded['data'] as List : []))
             : [];
         return data
             .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
             .toList();
       } else {
-        // Fallback to mock data when API fails
-        return (MockDataService().getLeaderboard())
-            .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
-            .toList();
+        throw Exception('API returned status code ${response.statusCode}');
       }
     } catch (e) {
-      // Fallback to mock data when API fails
-      return (MockDataService().getLeaderboard())
-          .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
-          .toList();
+      print('[getLeaderboard] Error: $e');
+      rethrow;
     }
   }
+
+  /// Get XP transaction history with pagination
+  Future<List<XpTransaction>> getXpHistory({
+    int? limit,
+    int? offset,
+  }) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/achievements/xp-history').replace(
+              queryParameters: {
+                if (limit != null) 'limit': limit.toString(),
+                if (offset != null) 'offset': offset.toString(),
+              },
+            ),
+            headers: await _headers,
+          )
+          .timeout(AppConfig.apiTimeout);
+
+      print('[getXpHistory] Response: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        final data = decoded.containsKey('data') ? decoded['data'] as List : [];
+        return data
+            .map((e) => XpTransaction.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception('API returned status code ${response.statusCode}');
+      }
+    } catch (e) {
+      print('[getXpHistory] Error: $e');
+      rethrow;
+    }
+  }
+
 
   // ============================================
   // LEAVE
@@ -1583,6 +1640,29 @@ class StudentApiService {
       return response.statusCode == 200;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Download exam results PDF
+  Future<List<int>> downloadResultsPdf(List<String> examIds) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('${AppConfig.apiBaseUrl}/student/results/pdf'),
+            headers: await _headers,
+            body: jsonEncode({
+              'exam_ids': examIds,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw ApiException('Failed to download PDF report: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw ApiException('Download PDF report failed: $e');
     }
   }
 }
