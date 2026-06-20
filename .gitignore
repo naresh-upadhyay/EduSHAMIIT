@@ -1,5 +1,6 @@
 # Env files — keep .env.example tracked, ignore real secrets
 .env
+.vscode
 .idea/*
 !.env.example
 

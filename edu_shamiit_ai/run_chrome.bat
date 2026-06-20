@@ -1,0 +1,3 @@
+@echo off
+echo Starting EduSHAMIIT Chrome (Forced IPv4)...
+flutter run -d chrome --web-port 63307 --web-hostname 127.0.0.1

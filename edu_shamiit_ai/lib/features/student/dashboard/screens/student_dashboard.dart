@@ -76,10 +76,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     try {
       final response = await ApiService().get('/student/dashboard');
       final data = response.containsKey('data') ? response['data'] : response;
-      
+
       if (data != null && data is Map && data.containsKey('quick_access')) {
         final List quickAccess = List.from(data['quick_access']);
-        final hasSettings = quickAccess.any((item) => item['title'] == 'Settings');
+        final hasSettings =
+            quickAccess.any((item) => item['title'] == 'Settings');
         if (!hasSettings) {
           quickAccess.add({
             "title": "Settings",
@@ -171,21 +172,97 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         },
       ],
       "quick_access": [
-        {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
-        {"title": "Results", "icon": "📊", "route": "/student/results", "bg": "FDF4FF"},
-        {"title": "Fees", "icon": "💳", "route": "/student/fees", "bg": "ECFDF5"},
-        {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
-        {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
-        {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
-        {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
-        {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
-        {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
-        {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
-        {"title": "Leave", "icon": "✉️", "route": "/student/leave-application", "bg": "FEF2F2"},
-        {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
-        {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": true},
-        {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
-        {"title": "Settings", "icon": "⚙️", "route": "/student/settings", "bg": "F1F5F9"},
+        {
+          "title": "Timetable",
+          "icon": "🗓️",
+          "route": "/student/timetable",
+          "bg": "EEF2FF"
+        },
+        {
+          "title": "Results",
+          "icon": "📊",
+          "route": "/student/results",
+          "bg": "FDF4FF"
+        },
+        {
+          "title": "Fees",
+          "icon": "💳",
+          "route": "/student/fees",
+          "bg": "ECFDF5"
+        },
+        {
+          "title": "Notices",
+          "icon": "📢",
+          "route": "/student/notices",
+          "bg": "FFF7ED"
+        },
+        {
+          "title": "Homework",
+          "icon": "📝",
+          "route": "/student/homework",
+          "bg": "FDF2F8"
+        },
+        {
+          "title": "Transport",
+          "icon": "🚌",
+          "route": "/student/transport",
+          "bg": "EFF6FF"
+        },
+        {
+          "title": "Achieve",
+          "icon": "🏆",
+          "route": "/student/achievements",
+          "bg": "F0FDF4"
+        },
+        {
+          "title": "Attendance",
+          "icon": "📋",
+          "route": "/student/attendance",
+          "bg": "EFF6FF"
+        },
+        {
+          "title": "Library",
+          "icon": "📖",
+          "route": "/student/library",
+          "bg": "FAF5FF"
+        },
+        {
+          "title": "Courses",
+          "icon": "📚",
+          "route": "/student/courses",
+          "bg": "ECFDF5"
+        },
+        {
+          "title": "Leave",
+          "icon": "✉️",
+          "route": "/student/leave-application",
+          "bg": "FEF2F2"
+        },
+        {
+          "title": "Exams",
+          "icon": "✍️",
+          "route": "/student/exams",
+          "bg": "EEF2FF"
+        },
+        {
+          "title": "Live Class",
+          "icon": "🔴",
+          "route": "/student/live-classes",
+          "bg": "FFE4E6",
+          "badge": true
+        },
+        {
+          "title": "Messages",
+          "icon": "💬",
+          "route": "/student/messaging",
+          "bg": "E0E7FF"
+        },
+        {
+          "title": "Settings",
+          "icon": "⚙️",
+          "route": "/student/settings",
+          "bg": "F1F5F9"
+        },
       ],
     };
   }
@@ -325,14 +402,16 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                         Row(
                           children: [
                             GestureDetector(
-                              onTap: () => context.push('/student/notifications'),
+                              onTap: () =>
+                                  context.push('/student/notifications'),
                               child: Stack(
                                 children: [
                                   Container(
                                     width: 36,
                                     height: 36,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.1),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: const Icon(
@@ -351,12 +430,17 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFEF4444),
                                           shape: BoxShape.circle,
-                                          border: Border.all(color: const Color(0xFF4F46E5), width: 1.5),
+                                          border: Border.all(
+                                              color: const Color(0xFF4F46E5),
+                                              width: 1.5),
                                         ),
                                         child: Center(
                                           child: Text(
                                             '$unreadCount',
-                                            style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                                fontSize: 8,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold),
                                           ),
                                         ),
                                       ),
@@ -375,39 +459,49 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                                    border: Border.all(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.3),
+                                        width: 1.5),
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(9),
-                                    child: avatarUrl != null && avatarUrl.isNotEmpty
+                                    child: avatarUrl != null &&
+                                            avatarUrl.isNotEmpty
                                         ? CachedNetworkImage(
                                             imageUrl: avatarUrl,
                                             fit: BoxFit.cover,
-                                            placeholder: (context, url) => Container(
-                                              color: Colors.white.withValues(alpha: 0.1),
+                                            placeholder: (context, url) =>
+                                                Container(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.1),
                                               child: Center(
                                                 child: Text(
                                                   user['avatar_emoji'] ?? '🧑',
-                                                  style: const TextStyle(fontSize: 18),
+                                                  style: const TextStyle(
+                                                      fontSize: 18),
                                                 ),
                                               ),
                                             ),
-                                            errorWidget: (context, url, error) => Center(
+                                            errorWidget:
+                                                (context, url, error) => Center(
                                               child: Text(
                                                 user['avatar_emoji'] ?? '🧑',
-                                                style: const TextStyle(fontSize: 18),
+                                                style: const TextStyle(
+                                                    fontSize: 18),
                                               ),
                                             ),
                                           )
                                         : Center(
                                             child: Text(
                                               user['avatar_emoji'] ?? '🧑',
-                                              style: const TextStyle(fontSize: 18),
+                                              style:
+                                                  const TextStyle(fontSize: 18),
                                             ),
                                           ),
                                   ),
+                                ),
                               ),
-                            ),
                             ),
                           ],
                         ),
@@ -415,7 +509,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                     ),
                     const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -426,14 +521,16 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('🔥 Learning Streak'.tr(ref),
+                              Text(
+                                '🔥 Learning Streak'.tr(ref),
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              Text('Keep it going!'.tr(ref),
+                              Text(
+                                'Keep it going!'.tr(ref),
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: Colors.white.withValues(alpha: 0.5),
@@ -452,7 +549,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                                   color: Color(0xFFF59E0B),
                                 ),
                               ),
-                              Text('days'.tr(ref),
+                              Text(
+                                'days'.tr(ref),
                                 style: TextStyle(
                                   fontSize: 9,
                                   color: Colors.white.withValues(alpha: 0.5),
@@ -467,10 +565,19 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.'.tr(ref), route: '/student/attendance'),
-                        _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score'.tr(ref), route: '/student/results'),
-                        _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank'.tr(ref), route: '/student/achievements'),
-                        _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points'.tr(ref), route: '/student/achievements'),
+                        _buildStatItem('${stats['attendance_pct'] ?? 0}%',
+                            'Attend.'.tr(ref),
+                            route: '/student/attendance'),
+                        _buildStatItem(
+                            '${stats['avg_score'] ?? 0}', 'Avg Score'.tr(ref),
+                            route: '/student/results'),
+                        _buildStatItem(
+                            '${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}',
+                            'Rank'.tr(ref),
+                            route: '/student/achievements'),
+                        _buildStatItem(
+                            '${stats['xp_points'] ?? 0}', 'XP Points'.tr(ref),
+                            route: '/student/achievements'),
                       ],
                     ),
                   ],
@@ -487,10 +594,14 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     if (n == null) return '';
     if (n >= 11 && n <= 13) return 'th';
     switch (n % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   }
 
@@ -499,8 +610,14 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
       onTap: () => route != null ? context.push(route) : null,
       child: Column(
         children: [
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
-          Text(label, style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.6))),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white)),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10, color: Colors.white.withValues(alpha: 0.6))),
         ],
       ),
     );
@@ -514,7 +631,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Quick Access'.tr(ref),
+        Text(
+          'Quick Access'.tr(ref),
           style: TextStyle(
             fontFamily: AppFonts.heading,
             fontSize: 14,
@@ -557,13 +675,16 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: Color(int.parse(item['bg'] ?? 'EEF2FF', radix: 16)).withValues(alpha: 0.8),
+                        color:
+                            Color(int.parse(item['bg'] ?? 'EEF2FF', radix: 16))
+                                .withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Center(
                         child: Stack(
                           children: [
-                            Text(item['icon'], style: const TextStyle(fontSize: 20)),
+                            Text(item['icon'],
+                                style: const TextStyle(fontSize: 20)),
                             if (item['badge'] == true)
                               Positioned(
                                 right: 0,
@@ -588,7 +709,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                         fontFamily: AppFonts.body,
                         fontSize: 9.5,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? StudentColors.darkText2 : const Color(0xFF475569),
+                        color: isDark
+                            ? StudentColors.darkText2
+                            : const Color(0xFF475569),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -611,7 +734,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Today''s Classes'.tr(ref),
+            Text(
+              'Today' 's Classes'.tr(ref),
               style: const TextStyle(
                 fontFamily: AppFonts.heading,
                 fontSize: 14,
@@ -620,7 +744,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
             ),
             TextButton(
               onPressed: () => context.push('/student/timetable'),
-              child: Text('View All →'.tr(ref), style: const TextStyle(fontSize: 12, color: StudentColors.primary)),
+              child: Text('View All →'.tr(ref),
+                  style: const TextStyle(
+                      fontSize: 12, color: StudentColors.primary)),
             ),
           ],
         ),
@@ -646,15 +772,22 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               color: StudentColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Center(child: Text(item['icon'], style: const TextStyle(fontSize: 20))),
+            child: Center(
+                child:
+                    Text(item['icon'], style: const TextStyle(fontSize: 20))),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item['subject'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                Text('${item['start_time']} - ${item['end_time']} | ${item['teacher']}', style: const TextStyle(fontSize: 11, color: StudentColors.text3)),
+                Text(item['subject'],
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(
+                    '${item['start_time']} - ${item['end_time']} | ${item['teacher']}',
+                    style: const TextStyle(
+                        fontSize: 11, color: StudentColors.text3)),
               ],
             ),
           ),
@@ -665,7 +798,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                 color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text('● Ongoing'.tr(ref), style: const TextStyle(color: Colors.red, fontSize: 9, fontWeight: FontWeight.bold)),
+              child: Text('● Ongoing'.tr(ref),
+                  style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -676,7 +813,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFF0FDF4), Color(0xFFDCFCE7)]),
+        gradient: const LinearGradient(
+            colors: [Color(0xFFF0FDF4), Color(0xFFDCFCE7)]),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFBBF7D0)),
       ),
@@ -686,14 +824,29 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('🤖 AI INSIGHT'.tr(ref), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+              Text('🤖 AI INSIGHT'.tr(ref),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF166534))),
               InkWell(
-                onTap: () => setState(() => _isAiInsightCollapsed = !_isAiInsightCollapsed),
+                onTap: () => setState(
+                    () => _isAiInsightCollapsed = !_isAiInsightCollapsed),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(_isAiInsightCollapsed ? 'Show'.tr(ref) : 'Hide'.tr(ref), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
-                    Icon(_isAiInsightCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 14, color: const Color(0xFF166534)),
+                    Text(
+                        _isAiInsightCollapsed ? 'Show'.tr(ref) : 'Hide'.tr(ref),
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF166534))),
+                    Icon(
+                        _isAiInsightCollapsed
+                            ? Icons.keyboard_arrow_down
+                            : Icons.keyboard_arrow_up,
+                        size: 14,
+                        color: const Color(0xFF166534)),
                   ],
                 ),
               ),
@@ -701,8 +854,11 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
           ),
           if (!_isAiInsightCollapsed) ...[
             const SizedBox(height: 8),
-            Text('You have a Math homework due today. Based on your past performance, you might need about 45 mins to complete it.'.tr(ref), 
-                 style: const TextStyle(fontSize: 12, color: Color(0xFF166534), height: 1.5)),
+            Text(
+                'You have a Math homework due today. Based on your past performance, you might need about 45 mins to complete it.'
+                    .tr(ref),
+                style: const TextStyle(
+                    fontSize: 12, color: Color(0xFF166534), height: 1.5)),
           ],
         ],
       ),
@@ -718,7 +874,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Pending Homework'.tr(ref),
+            Text(
+              'Pending Homework'.tr(ref),
               style: const TextStyle(
                 fontFamily: AppFonts.heading,
                 fontSize: 14,
@@ -727,7 +884,9 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
             ),
             TextButton(
               onPressed: () => context.push('/student/homework'),
-              child: Text('View All →'.tr(ref), style: const TextStyle(fontSize: 12, color: StudentColors.primary)),
+              child: Text('View All →'.tr(ref),
+                  style: const TextStyle(
+                      fontSize: 12, color: StudentColors.primary)),
             ),
           ],
         ),
@@ -754,12 +913,17 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(hw['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text('${hw['subject']} | Due: ${hw['due_date']}', style: const TextStyle(fontSize: 11, color: StudentColors.text3)),
+                  Text(hw['title'],
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text('${hw['subject']} | Due: ${hw['due_date']}',
+                      style: const TextStyle(
+                          fontSize: 11, color: StudentColors.text3)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: StudentColors.text3),
+            const Icon(Icons.chevron_right,
+                size: 20, color: StudentColors.text3),
           ],
         ),
       ),

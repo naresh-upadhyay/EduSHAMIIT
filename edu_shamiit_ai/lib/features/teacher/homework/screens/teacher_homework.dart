@@ -23,6 +23,18 @@ const _kSuccess = Color(0xFF059669);
 const _kWarning = Color(0xFFD97706);
 const _kError = Color(0xFFEF4444);
 
+class HomeworkActionButtonState {
+  final String label;
+  final Color backgroundColor;
+  final Color textColor;
+
+  const HomeworkActionButtonState({
+    required this.label,
+    required this.backgroundColor,
+    required this.textColor,
+  });
+}
+
 class TeacherHomework extends ConsumerStatefulWidget {
   const TeacherHomework({super.key});
 
@@ -49,6 +61,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
   List<String> _classes = [];
   List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Computer Science'];
   DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
+  String _activeStatusFilter = 'All';
+  String _activeActionStateFilter = 'All';
 
   @override
   void initState() {
@@ -133,6 +147,40 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
     return _kSuccess;
   }
 
+  HomeworkActionButtonState _getActionButtonState(TeacherHomeworkAssignment hw) {
+    if (hw.submittedCount == 0) {
+      return const HomeworkActionButtonState(
+        label: 'Awaiting Submissions',
+        backgroundColor: Color(0xFF64748B), // Slate grey
+        textColor: Colors.white,
+      );
+    }
+
+    final graded = hw.gradedCount ?? 0;
+    final pending = hw.submittedCount - graded;
+    if (pending > 0) {
+      return HomeworkActionButtonState(
+        label: 'Pending ($pending)',
+        backgroundColor: const Color(0xFFD97706), // Warning amber
+        textColor: Colors.white,
+      );
+    }
+
+    if (hw.submittedCount < hw.totalCount) {
+      return HomeworkActionButtonState(
+        label: 'Waiting (${hw.totalCount - hw.submittedCount} left)',
+        backgroundColor: const Color(0xFF0284C7), // Sky blue/Info
+        textColor: Colors.white,
+      );
+    }
+
+    return const HomeworkActionButtonState(
+      label: 'All Graded ✓',
+      backgroundColor: Color(0xFF059669), // Success green
+      textColor: Colors.white,
+    );
+  }
+
   List<AzureGridColumn<TeacherHomeworkAssignment>> _buildHomeworkColumns() {
     return [
       AzureGridColumn<TeacherHomeworkAssignment>(
@@ -193,9 +241,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       AzureGridColumn<TeacherHomeworkAssignment>(
         label: 'Status',
         width: 110.0,
-        compare: (a, b) => a.status.compareTo(b.status),
+        compare: (a, b) => a.computedStatus.compareTo(b.computedStatus),
         cellBuilder: (hw) {
-          final st = hw.status.toLowerCase();
+          final st = hw.computedStatus.toLowerCase();
           Color color;
           String label;
           if (st == 'active') {
@@ -203,7 +251,7 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
             label = 'ACTIVE';
           } else if (st == 'pending') {
             color = _kWarning;
-            label = 'SUBMISSIONS';
+            label = 'PENDING';
           } else {
             color = _kSuccess;
             label = 'GRADED';
@@ -228,41 +276,44 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       ),
       AzureGridColumn<TeacherHomeworkAssignment>(
         label: 'Actions',
-        width: 160.0,
-        cellBuilder: (hw) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 24,
-              child: ElevatedButton(
-                onPressed: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _dueColor(hw),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                  elevation: 0,
+        width: 190.0,
+        cellBuilder: (hw) {
+          final btnState = _getActionButtonState(hw);
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 24,
+                child: ElevatedButton(
+                  onPressed: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: btnState.backgroundColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    elevation: 0,
+                  ),
+                  child: Text(btnState.label, style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-                child: Text('Review (${hw.submittedCount})', style: const TextStyle(fontSize: 10, color: Colors.white)),
               ),
-            ),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.alarm_rounded, size: 14, color: _kWarning),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () => _showReminderDialog(hw),
-              tooltip: 'Send Reminder',
-            ),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.more_vert_rounded, size: 14, color: Colors.grey),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: () => _showEditSheet(hw),
-              tooltip: 'More Actions',
-            ),
-          ],
-        ),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.alarm_rounded, size: 14, color: _kWarning),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _showReminderDialog(hw),
+                tooltip: 'Send Reminder',
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.more_vert_rounded, size: 14, color: Colors.grey),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _showEditSheet(hw),
+                tooltip: 'More Actions',
+              ),
+            ],
+          );
+        },
       ),
     ];
   }
@@ -286,18 +337,56 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                           items: _allHomework,
                           columns: _buildHomeworkColumns(),
                           mobileCardBuilder: (context, hw) => _buildActiveCard(hw),
-                          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_} ${hw.status}',
+                          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_} ${hw.computedStatus}',
                           onRefresh: _loadAll,
+                          enableSelection: true,
+                          bulkActions: (context, selected) => _buildBulkActions(context, selected),
+                          onFilterChanged: (label, val) {
+                            setState(() {
+                              if (label == 'Status') {
+                                _activeStatusFilter = val;
+                              } else if (label == 'Action State') {
+                                _activeActionStateFilter = val;
+                              }
+                            });
+                          },
                           filters: [
                             AzureGridFilter<TeacherHomeworkAssignment>(
                               label: 'Status',
-                              options: const ['Active', 'Submissions', 'Graded'],
+                              options: const ['Active', 'Pending', 'Graded'],
                               filterFn: (hw, option) {
                                 if (option == 'All') return true;
-                                final st = hw.status.toLowerCase();
+                                final st = hw.computedStatus.toLowerCase();
                                 if (option == 'Active') return st == 'active';
-                                if (option == 'Submissions') return st == 'pending';
+                                if (option == 'Pending') return st == 'pending';
                                 if (option == 'Graded') return st == 'completed';
+                                return true;
+                              },
+                            ),
+                            AzureGridFilter<TeacherHomeworkAssignment>(
+                              label: 'Action State',
+                              options: const [
+                                'Awaiting Submissions',
+                                'Pending Grade',
+                                'Waiting for Submissions',
+                                'All Graded'
+                              ],
+                              filterFn: (hw, option) {
+                                if (option == 'All') return true;
+                                final graded = hw.gradedCount ?? 0;
+                                final pending = hw.submittedCount - graded;
+                                if (option == 'Awaiting Submissions') {
+                                  return hw.submittedCount == 0;
+                                }
+                                if (option == 'Pending Grade') {
+                                  return hw.submittedCount > 0 && pending > 0;
+                                }
+                                if (option == 'Waiting for Submissions') {
+                                  return hw.submittedCount > 0 && pending == 0 && hw.submittedCount < hw.totalCount;
+                                }
+                                if (option == 'All Graded') {
+                                  return hw.submittedCount > 0 && pending == 0 && hw.submittedCount == hw.totalCount;
+                                }
                                 return true;
                               },
                             ),
@@ -380,8 +469,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
     final color = _dueColor(hw);
     final icon = _subjectIcon(hw.subject);
     final pct = hw.submissionRate;
-    final st = hw.status.toLowerCase();
-    final statusLabel = st == 'active' ? 'ACTIVE' : st == 'pending' ? 'SUBMISSIONS' : 'GRADED';
+    final st = hw.computedStatus.toLowerCase();
+    final statusLabel = st == 'active' ? 'ACTIVE' : st == 'pending' ? 'PENDING' : 'GRADED';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -439,11 +528,16 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
             Row(
               children: [
                 Expanded(
-                  child: _buildBtn(
-                    label: '📋 Review (${hw.submittedCount})',
-                    bg: color,
-                    fg: Colors.white,
-                    onTap: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
+                  child: Builder(
+                    builder: (context) {
+                      final btnState = _getActionButtonState(hw);
+                      return _buildBtn(
+                        label: btnState.label,
+                        bg: btnState.backgroundColor,
+                        fg: btnState.textColor,
+                        onTap: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
+                      );
+                    }
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -1139,6 +1233,285 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         width: 36, height: 36,
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
         child: Center(child: Text(icon, style: TextStyle(fontSize: 14, color: fg))),
+      ),
+    );
+  }
+
+  List<Widget> _buildBulkActions(BuildContext context, List<TeacherHomeworkAssignment> selected) {
+    return [
+      SizedBox(
+        height: 32,
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.notifications_active_rounded, size: 14, color: Colors.white),
+          label: const Text('Send Targeted Notifications', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+          onPressed: () => _showBulkNotificationDialog(selected),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _kPink,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            elevation: 0,
+          ),
+        ),
+      ),
+    ];
+  }
+
+  void _showBulkNotificationDialog(List<TeacherHomeworkAssignment> selected) {
+    final homeworkIds = selected.map((e) => e.id).toList();
+
+    int totalReminders = 0;
+    int totalGrades = 0;
+    for (var hw in selected) {
+      totalReminders += (hw.totalCount - hw.submittedCount);
+      totalGrades += (hw.gradedCount ?? 0);
+    }
+
+    String initialMode = 'reminder';
+    bool isPendingState = false;
+
+    if (_activeActionStateFilter == 'Awaiting Submissions' ||
+        _activeActionStateFilter == 'Waiting for Submissions' ||
+        _activeStatusFilter == 'Active') {
+      initialMode = 'reminder';
+    } else if (_activeActionStateFilter == 'All Graded' || _activeStatusFilter == 'Graded') {
+      initialMode = 'graded';
+    } else if (_activeActionStateFilter == 'Pending Grade' || _activeStatusFilter == 'Pending') {
+      isPendingState = true;
+    } else {
+      if (totalReminders > 0) {
+        initialMode = 'reminder';
+      } else if (totalGrades > 0) {
+        initialMode = 'graded';
+      }
+    }
+
+    bool isSending = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          Widget content;
+          if (isSending) {
+            content = const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: _kPink),
+                SizedBox(height: 12),
+                Text('Sending notifications...', style: TextStyle(fontSize: 12, color: _kText2)),
+              ],
+            );
+          } else if (isPendingState) {
+            content = Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _kWarning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _kWarning.withOpacity(0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Text('⚠️', style: TextStyle(fontSize: 20)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Evaluation Phase Active',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _kWarning),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'The selected homework assignments are currently pending teacher grading. Students do not need any notifications until grading is complete. No actions will be taken.',
+                  style: TextStyle(fontSize: 12, color: _kText2),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            );
+          } else {
+            content = Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select the targeted notification group for the ${selected.length} selected assignments:',
+                  style: const TextStyle(fontSize: 12, color: _kText, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () {
+                    setS(() {
+                      initialMode = 'reminder';
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: initialMode == 'reminder' ? _kPink.withOpacity(0.05) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: initialMode == 'reminder' ? _kPink : _kBorder,
+                        width: initialMode == 'reminder' ? 2 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('📥', style: TextStyle(fontSize: 20)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Send Submission Reminders ($totalReminders students)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: initialMode == 'reminder' ? _kPink : _kText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Notify students who have not submitted their homework yet.',
+                                style: TextStyle(fontSize: 10, color: _kText3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Radio<String>(
+                          value: 'reminder',
+                          groupValue: initialMode,
+                          activeColor: _kPink,
+                          onChanged: (val) {
+                            if (val != null) setS(() => initialMode = val);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: () {
+                    setS(() {
+                      initialMode = 'graded';
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: initialMode == 'graded' ? _kPink.withOpacity(0.05) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: initialMode == 'graded' ? _kPink : _kBorder,
+                        width: initialMode == 'graded' ? 2 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('📝', style: TextStyle(fontSize: 20)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Send Grade Releases ($totalGrades students)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: initialMode == 'graded' ? _kPink : _kText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Notify students whose assignments have been graded to view results.',
+                                style: TextStyle(fontSize: 10, color: _kText3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Radio<String>(
+                          value: 'graded',
+                          groupValue: initialMode,
+                          activeColor: _kPink,
+                          onChanged: (val) {
+                            if (val != null) setS(() => initialMode = val);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Column(
+              children: [
+                Text('🔔', style: TextStyle(fontSize: 40)),
+                SizedBox(height: 4),
+                Text('Targeted Notifications', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kPink, fontSize: 16), textAlign: TextAlign.center),
+              ],
+            ),
+            content: content,
+            actions: isSending
+                ? []
+                : [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      child: const Text('Cancel', style: TextStyle(color: _kText3)),
+                    ),
+                    if (!isPendingState)
+                      ElevatedButton(
+                        onPressed: () async {
+                          setS(() {
+                            isSending = true;
+                          });
+                          try {
+                            final result = await _apiService.sendBulkHomeworkNotifications(homeworkIds, mode: initialMode);
+                            if (dialogCtx.mounted) {
+                              Navigator.pop(dialogCtx);
+                              _loadAll();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('📤 Success! Sent ${result['reminders_sent']} reminders and ${result['grades_sent']} grade notifications.'),
+                                  backgroundColor: _kSuccess,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setS(() {
+                              isSending = false;
+                            });
+                            if (dialogCtx.mounted) {
+                              ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: $e'),
+                                  backgroundColor: _kError,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _kPink,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Send Notifications', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+                      ),
+                  ],
+          );
+        },
       ),
     );
   }

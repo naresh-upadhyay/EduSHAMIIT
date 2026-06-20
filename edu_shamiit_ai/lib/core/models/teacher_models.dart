@@ -757,6 +757,7 @@ class TeacherHomeworkAssignment {
   final String status; // active, pending, completed, archived
   final int submittedCount;
   final int totalCount;
+  final int? gradedCount; // New
   final String? attachmentUrl;
   final int? maxMarks;
   final String? instructions;
@@ -774,6 +775,7 @@ class TeacherHomeworkAssignment {
     required this.status,
     required this.submittedCount,
     required this.totalCount,
+    this.gradedCount,
     this.attachmentUrl,
     this.maxMarks,
     this.instructions,
@@ -793,6 +795,7 @@ class TeacherHomeworkAssignment {
       status: _toStr(json['status'], fallback: 'active'),
       submittedCount: _toInt(json['submitted_count']),
       totalCount: _toInt(json['total_count']),
+      gradedCount: json['graded_count'] == null ? null : _toInt(json['graded_count']),
       attachmentUrl: _toStr(json['attachment_url']).isEmpty
           ? null
           : _toStr(json['attachment_url']),
@@ -819,6 +822,7 @@ class TeacherHomeworkAssignment {
       'status': status,
       'submitted_count': submittedCount,
       'total_count': totalCount,
+      'graded_count': gradedCount,
       'attachment_url': attachmentUrl,
       'max_marks': maxMarks,
       'instructions': instructions,
@@ -831,7 +835,20 @@ class TeacherHomeworkAssignment {
   double get submissionRate =>
       totalCount > 0 ? (submittedCount / totalCount * 100) : 0.0;
   bool get isOverdue =>
-      dueDate.isBefore(DateTime.now()) && status != 'completed';
+      dueDate.isBefore(DateTime.now()) && computedStatus != 'completed';
+
+  String get computedStatus {
+    final now = DateTime.now();
+    if (now.isBefore(dueDate)) {
+      return 'active';
+    }
+    final graded = gradedCount ?? 0;
+    final pending = submittedCount - graded;
+    if (pending > 0) {
+      return 'pending';
+    }
+    return 'completed';
+  }
 }
 
 /// Homework submission model

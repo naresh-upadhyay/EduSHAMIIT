@@ -491,6 +491,27 @@ class TeacherApiService {
     }
   }
 
+  /// Send bulk targeted notifications to students for selected homework assignments
+  Future<Map<String, dynamic>> sendBulkHomeworkNotifications(List<String> homeworkIds, {String? mode}) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/teacher/homework/bulk-notify'),
+        headers: await _getHeaders(),
+        body: jsonEncode({
+          'homework_ids': homeworkIds,
+          if (mode != null) 'mode': mode,
+        }),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to send bulk notifications: ${response.statusCode}');
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Error sending bulk notifications: $e');
+    }
+  }
+
   /// Get homework submissions
   Future<List<HomeworkSubmission>> getHomeworkSubmissions({
     required String homeworkId,

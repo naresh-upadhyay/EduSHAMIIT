@@ -18,10 +18,12 @@ class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});
 
   @override
-  ConsumerState<TeacherDashboardScreen> createState() => _TeacherDashboardScreenState();
+  ConsumerState<TeacherDashboardScreen> createState() =>
+      _TeacherDashboardScreenState();
 }
 
-class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen> {
+class _TeacherDashboardScreenState
+    extends ConsumerState<TeacherDashboardScreen> {
   final TeacherApiService _apiService = TeacherApiService();
   models.TeacherDashboard? _dashboardData;
   bool _isLoading = true;
@@ -173,6 +175,29 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     final stats = _dashboardData!.stats;
     final profileImageUrl = user.profileImageUrl;
 
+    final hour = DateTime.now().hour;
+    final String greeting;
+    final String greetingIcon;
+    if (hour >= 5 && hour < 7) {
+      greeting = 'Good Morning'.tr(ref);
+      greetingIcon = '🌅';
+    } else if (hour >= 7 && hour < 12) {
+      greeting = 'Good Morning'.tr(ref);
+      greetingIcon = '☀️';
+    } else if (hour >= 12 && hour < 17) {
+      greeting = 'Good Afternoon'.tr(ref);
+      greetingIcon = '🌤️';
+    } else if (hour >= 17 && hour < 20) {
+      greeting = 'Good Evening'.tr(ref);
+      greetingIcon = '🌆';
+    } else if (hour >= 20 && hour < 24) {
+      greeting = 'Good Evening'.tr(ref);
+      greetingIcon = '🌙';
+    } else {
+      greeting = 'Good Evening'.tr(ref);
+      greetingIcon = '⭐';
+    }
+
     return SliverAppBar(
       expandedHeight: Responsive.headerExpandedHeight(context),
       pinned: true,
@@ -194,20 +219,29 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Welcome, ${user.fullName}! 👋',
+                            '$greeting $greetingIcon',
+                            style: TextStyle(
+                              fontFamily: AppFonts.body,
+                              fontSize: 11,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user.fullName,
                             style: const TextStyle(
                               fontFamily: AppFonts.heading,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${user.subject} • ${user.classes.length} Classes',
+                            '${user.subject} · ${user.specialization ?? 'Teacher'}',
                             style: TextStyle(
                               fontFamily: AppFonts.body,
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.white.withValues(alpha: 0.8),
                             ),
                           ),
@@ -215,62 +249,89 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                       ),
                       Row(
                         children: [
-                          Stack(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                                onPressed: () async {
-                                  await context.push('/teacher/notifications');
-                                  _loadDashboard();
-                                },
-                              ),
-                              if (_unreadCount > 0)
-                                Positioned(
-                                  right: 8,
-                                  top: 8,
-                                  child: Container(
-                                    width: 18,
-                                    height: 18,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFEF4444),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Center(
-                                      child: Text('$_unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10)),
-                                    ),
+                          GestureDetector(
+                            onTap: () async {
+                              await context.push('/teacher/notifications');
+                              _loadDashboard();
+                            },
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.notifications_outlined,
+                                    color: Colors.white,
+                                    size: 18,
                                   ),
                                 ),
-                            ],
+                                if (_unreadCount > 0)
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: const Color(0xFF0C4A6E),
+                                            width: 1.5),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '$_unreadCount',
+                                          style: const TextStyle(
+                                              fontSize: 8,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           GestureDetector(
                             onTap: () async {
                               await context.push('/teacher/profile');
                               _loadDashboard();
                             },
                             child: Container(
-                              width: 40,
-                              height: 40,
+                              width: 36,
+                              height: 36,
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
-                                shape: BoxShape.circle,
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: Colors.white.withValues(alpha: 0.3),
                                   width: 1.5,
                                 ),
                               ),
-                              child: ClipOval(
-                                child: profileImageUrl != null && profileImageUrl.isNotEmpty
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(9),
+                                child: profileImageUrl != null &&
+                                        profileImageUrl.isNotEmpty
                                     ? CachedNetworkImage(
                                         imageUrl: profileImageUrl,
                                         fit: BoxFit.cover,
-                                        placeholder: (context, url) => Container(
-                                          color: Colors.white.withValues(alpha: 0.1),
+                                        placeholder: (context, url) =>
+                                            Container(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.1),
                                           child: const Center(
-                                            child: Text('👨‍🏫', style: TextStyle(fontSize: 20)),
+                                            child: Text('👨‍🏫',
+                                                style: TextStyle(fontSize: 20)),
                                           ),
                                         ),
-                                        errorWidget: (context, url, error) => _initials(user.fullName),
+                                        errorWidget: (context, url, error) =>
+                                            _initials(user.fullName),
                                       )
                                     : _initials(user.fullName),
                               ),
@@ -280,14 +341,20 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem('📊', '${stats.attendancePct}%', 'Attendance'),
-                      _buildStatItem('📝', '${stats.avgScore}', 'Avg Score'),
-                      _buildStatItem('👥', '${stats.studentsCount}', 'Students'),
-                      _buildStatItem('⭐', '${user.xpPoints}', 'XP'),
+                      _buildStatItem('${stats.studentsCount}', 'Students',
+                          route: '/teacher/student-directory'),
+                      _buildStatItem(
+                          '${stats.attendancePct.toStringAsFixed(0)}%',
+                          'Avg Attend.',
+                          route: '/teacher/attendance'),
+                      _buildStatItem('${stats.classesCount}', 'Classes',
+                          route: '/teacher/my-classes'),
+                      _buildStatItem('${stats.pendingGrading}', 'Pending',
+                          route: '/teacher/homework'),
                     ],
                   ),
                 ],
@@ -299,29 +366,30 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
     );
   }
 
-  Widget _buildStatItem(String emoji, String value, String label) {
-    return Column(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: AppFonts.heading,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
+  Widget _buildStatItem(String value, String label, {String? route}) {
+    return GestureDetector(
+      onTap: () => route != null ? context.push(route) : null,
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontFamily: AppFonts.heading,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontFamily: AppFonts.body,
-            fontSize: 12,
-            color: Colors.white.withValues(alpha: 0.7),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: AppFonts.body,
+              fontSize: 10,
+              color: Colors.white.withValues(alpha: 0.6),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -428,7 +496,8 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
       decoration: BoxDecoration(
         color: StudentColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: isNow ? Border.all(color: StudentColors.success, width: 2) : null,
+        border:
+            isNow ? Border.all(color: StudentColors.success, width: 2) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -540,7 +609,7 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => context.push('/teacher/homework'),
               child: Text('View All'.tr(ref)),
             ),
           ],
@@ -552,70 +621,79 @@ class _TeacherDashboardScreenState extends ConsumerState<TeacherDashboardScreen>
   }
 
   Widget _buildTaskCard(models.TeacherTask task) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: StudentColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Text(task.icon, style: const TextStyle(fontSize: 28)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.title,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.heading,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${task.class_} • ${task.count} submissions',
-                  style: const TextStyle(
-                    fontFamily: AppFonts.body,
-                    fontSize: 13,
-                    color: StudentColors.text3,
-                  ),
-                ),
-              ],
+    return GestureDetector(
+      onTap: () => context.push('/teacher/homework'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: StudentColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: StudentColors.warningBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              'Due: ${task.dueDate}',
-              style: const TextStyle(
-                color: StudentColors.warning,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+          ],
+        ),
+        child: Row(
+          children: [
+            Text(task.icon, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: const TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${task.class_} • ${task.count} submissions',
+                    style: const TextStyle(
+                      fontFamily: AppFonts.body,
+                      fontSize: 13,
+                      color: StudentColors.text3,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: StudentColors.warningBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Due: ${task.dueDate}',
+                style: const TextStyle(
+                  color: StudentColors.warning,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _initials(String name) {
-    final i = name.trim().split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+    final i = name
+        .trim()
+        .split(' ')
+        .take(2)
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .join()
+        .toUpperCase();
     return Center(
       child: Text(
         i,

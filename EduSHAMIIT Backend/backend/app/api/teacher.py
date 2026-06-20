@@ -53,9 +53,27 @@ async def teacher_dashboard(user=Depends(require_teacher), school_id=Depends(req
     }).aexecute()
     
     data = res.data[0] if res.data else {}
+    
+    # Map profile department/designation to subject/specialization for the frontend model
+    if "teacher" in data and data["teacher"]:
+        profile = data["teacher"]
+        role = profile.get("role") or "teacher"
+        role_display = {
+            "teacher": "Teacher",
+            "principle": "Principle",
+            "principal": "Principal",
+            "hod": "HOD",
+            "admin": "Admin"
+        }.get(role.lower(), role.capitalize())
+        
+        profile["subject"] = role_display
+        if not profile.get("specialization"):
+            profile["specialization"] = profile.get("department") or profile.get("primary_subject") or profile.get("designation") or "General"
+            
     result = {"success": True, "school_id": school_id, "data": data}
     await set_cached(school_id, "teacher_dashboard", result, user["id"], ttl=120)
     return result
+
 
 
 @router.get("/classes")
@@ -333,6 +351,189 @@ async def send_homework_reminder(
         await sb.table("notifications").insert(records[i: i + 500]).aexecute()
         
     return {"success": True, "sent_count": len(pending_student_ids), "message": f"Reminders sent to {len(pending_student_ids)} students"}
+
+
+@router.post("/homework/bulk-notify")
+async def bulk_notify_homework(
+    request: dict,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    homework_ids = request.get("homework_ids")
+    mode = request.get("mode", "all")  # "reminder", "graded", or "all"
+    if not homework_ids or not isinstance(homework_ids, list):
+        raise HTTPException(status_code=400, detail="homework_ids must be a list of strings")
+        
+    sb = get_supabase()
+    
+    def format_summary_list(titles_list):
+        if not titles_list:
+            return ""
+        if len(titles_list) == 1:
+            return f"'{titles_list[0]}'"
+        elif len(titles_list) <= 3:
+            return ", ".join(f"'{t}'" for t in titles_list)
+        else:
+            first_three = ", ".join(f"'{t}'" for t in titles_list[:3])
+            return f"{first_three}, and {len(titles_list) - 3} more"
+
+    def format_graded_list(graded_items):
+        if not graded_items:
+            return ""
+        formatted = []
+        for title, marks in graded_items:
+            marks_str = f" ({marks} marks)" if marks is not None else ""
+            formatted.append(f"'{title}'{marks_str}")
+        if len(formatted) == 1:
+            return formatted[0]
+        elif len(formatted) <= 3:
+            return ", ".join(formatted)
+        else:
+            first_three = ", ".join(formatted[:3])
+            return f"{first_three}, and {len(formatted) - 3} more"
+
+    # Map to track status per student: student_id -> {"unsubmitted": [], "graded": [], "school_id": ...}
+    student_status = {}
+    
+    for homework_id in homework_ids:
+        # 1. Fetch homework details
+        hw_res = await sb.table("homework").select("*").eq("id", homework_id).eq("school_id", school_id).maybe_single().aexecute()
+        if not hw_res.data:
+            continue
+            
+        homework = hw_res.data
+        target_class = homework.get("class")
+        title = homework.get("title")
+        if not target_class:
+            continue
+            
+        # 2. Fetch all student profiles in this class
+        students_res = await sb.table("profiles").select("id").eq("school_id", school_id).eq("class", target_class).eq("role", "student").aexecute()
+        student_ids = [s["id"] for s in (students_res.data or [])]
+        if not student_ids:
+            continue
+            
+        # 3. Fetch homework submissions details for this homework
+        submitted_res = await sb.table("homework_submissions").select("student_id, status, marks").eq("homework_id", homework_id).eq("school_id", school_id).aexecute()
+        submissions = submitted_res.data or []
+        
+        # Build maps of student submission status
+        submission_map = {sub["student_id"]: sub for sub in submissions}
+        
+        for student_id in student_ids:
+            if student_id not in student_status:
+                student_status[student_id] = {
+                    "unsubmitted": [],
+                    "graded": [],
+                    "school_id": school_id
+                }
+            
+            sub = submission_map.get(student_id)
+            if not sub:
+                student_status[student_id]["unsubmitted"].append({
+                    "homework_id": homework_id,
+                    "title": title
+                })
+            elif sub.get("status") == "graded":
+                student_status[student_id]["graded"].append({
+                    "homework_id": homework_id,
+                    "title": title,
+                    "marks": sub.get("marks")
+                })
+
+    records = []
+    total_reminders_sent = 0
+    total_grades_sent = 0
+    
+    import uuid
+    from datetime import datetime
+    
+    for student_id, info in student_status.items():
+        unsubmitted = info["unsubmitted"]
+        graded = info["graded"]
+        s_school_id = info["school_id"]
+        
+        if mode == "reminder" and unsubmitted:
+            ref_id = unsubmitted[0]["homework_id"]
+            titles = [x["title"] for x in unsubmitted]
+            formatted_titles = format_summary_list(titles)
+            if len(unsubmitted) == 1:
+                body = f"Please submit your homework: {formatted_titles}"
+            else:
+                body = f"You have {len(unsubmitted)} pending homework submissions: {formatted_titles}. Please submit them soon."
+                
+            records.append({
+                "id": str(uuid.uuid4()),
+                "school_id": s_school_id,
+                "user_id": student_id,
+                "title": "📚 Homework Reminder",
+                "body": body,
+                "type": "homework",
+                "reference_id": ref_id,
+                "is_read": False,
+                "created_at": datetime.utcnow().isoformat(),
+            })
+            total_reminders_sent += 1
+            
+        elif mode == "graded" and graded:
+            ref_id = graded[0]["homework_id"]
+            formatted_graded = format_graded_list([(x["title"], x["marks"]) for x in graded])
+            if len(graded) == 1:
+                body = f"Your homework {formatted_graded} has been graded!"
+            else:
+                body = f"You have {len(graded)} graded homeworks: {formatted_graded}."
+                
+            records.append({
+                "id": str(uuid.uuid4()),
+                "school_id": s_school_id,
+                "user_id": student_id,
+                "title": "📝 Homework Graded",
+                "body": body,
+                "type": "homework",
+                "reference_id": ref_id,
+                "is_read": False,
+                "created_at": datetime.utcnow().isoformat(),
+            })
+            total_grades_sent += 1
+            
+        elif mode == "all" and (unsubmitted or graded):
+            ref_id = unsubmitted[0]["homework_id"] if unsubmitted else graded[0]["homework_id"]
+            body_parts = []
+            if unsubmitted:
+                titles = [x["title"] for x in unsubmitted]
+                formatted_titles = format_summary_list(titles)
+                body_parts.append(f"Pending submissions: {formatted_titles}")
+                total_reminders_sent += 1
+            if graded:
+                formatted_graded = format_graded_list([(x["title"], x["marks"]) for x in graded])
+                body_parts.append(f"Graded: {formatted_graded}")
+                total_grades_sent += 1
+                
+            body = ". ".join(body_parts) + "."
+            records.append({
+                "id": str(uuid.uuid4()),
+                "school_id": s_school_id,
+                "user_id": student_id,
+                "title": "📊 Homework Summary Update",
+                "body": body,
+                "type": "homework",
+                "reference_id": ref_id,
+                "is_read": False,
+                "created_at": datetime.utcnow().isoformat(),
+            })
+
+    # Insert notifications in chunks
+    if records:
+        for i in range(0, len(records), 500):
+            await sb.table("notifications").insert(records[i: i + 500]).aexecute()
+            
+    return {
+        "success": True, 
+        "reminders_sent": total_reminders_sent, 
+        "grades_sent": total_grades_sent, 
+        "message": f"Successfully sent {total_reminders_sent} reminders and {total_grades_sent} grade notifications."
+    }
+
 
 
 
@@ -948,10 +1149,21 @@ async def teacher_gradebook(
                 max_m = float(sub["homework"]["max_marks"])
             hw_max_total += max_m
             
-        # Combine exam and homework scores
-        combined_obtained = exam_total + hw_total
-        combined_max = exam_max_total + hw_max_total
-        avg = (combined_obtained / combined_max * 100) if combined_max > 0 else 0.0
+        # Combine exam and homework scores (60% Exams / 40% Homeworks weighted average)
+        has_exams = exam_max_total > 0
+        has_hw = hw_max_total > 0
+        
+        exam_avg = (exam_total / exam_max_total * 100) if has_exams else 0.0
+        hw_avg = (hw_total / hw_max_total * 100) if has_hw else 0.0
+        
+        if has_exams and has_hw:
+            avg = (exam_avg * 0.6) + (hw_avg * 0.4)
+        elif has_exams:
+            avg = exam_avg
+        elif has_hw:
+            avg = hw_avg
+        else:
+            avg = 0.0
         
         # Trend
         trend = 'stable'
@@ -1438,9 +1650,24 @@ async def teacher_profile(user=Depends(get_current_user), school_id=Depends(requ
         tt_classes.insert(0, profile_class)
     profile["classes"] = tt_classes
     
+    # Map profile department/designation to subject/specialization for the frontend model
+    role = profile.get("role") or "teacher"
+    role_display = {
+        "teacher": "Teacher",
+        "principle": "Principle",
+        "principal": "Principal",
+        "hod": "HOD",
+        "admin": "Admin"
+    }.get(role.lower(), role.capitalize())
+    
+    profile["subject"] = role_display
+    if not profile.get("specialization"):
+        profile["specialization"] = profile.get("department") or profile.get("primary_subject") or profile.get("designation") or "General"
+        
     result = {"success": True, "school_id": school_id, "data": {"profile": profile}}
     await set_cached(school_id, "teacher_profile", result, user["id"], ttl=300)
     return result
+
 
 
 
@@ -1746,18 +1973,23 @@ async def teacher_get_homework(status: str = None, user=Depends(get_current_user
                 
         # Query submissions count grouped by homework_id
         hw_ids = [hw["id"] for hw in homework]
-        submissions_res = await sb.table("homework_submissions").select("homework_id, id").eq("school_id", school_id).in_("homework_id", hw_ids).aexecute()
+        submissions_res = await sb.table("homework_submissions").select("homework_id, status").eq("school_id", school_id).in_("homework_id", hw_ids).aexecute()
         submissions_data = submissions_res.data or []
         
         hw_submission_count = {}
+        hw_graded_count = {}
         for sub in submissions_data:
             h_id = sub.get("homework_id")
+            sub_status = sub.get("status")
             if h_id:
                 hw_submission_count[h_id] = hw_submission_count.get(h_id, 0) + 1
+                if sub_status == 'graded':
+                    hw_graded_count[h_id] = hw_graded_count.get(h_id, 0) + 1
                 
         for hw in homework:
             hw["total_count"] = class_student_count.get(hw["class"], 0)
             hw["submitted_count"] = hw_submission_count.get(hw["id"], 0)
+            hw["graded_count"] = hw_graded_count.get(hw["id"], 0)
             subj = hw.get("subjects") or {}
             hw["subject"] = subj.get("name", "Unknown")
             hw["subject_icon"] = subj.get("icon", "📚")

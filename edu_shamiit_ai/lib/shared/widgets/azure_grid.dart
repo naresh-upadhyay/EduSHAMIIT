@@ -58,6 +58,7 @@ class AzureGrid<T> extends StatefulWidget {
   final VoidCallback? onRefresh;
   final bool disableVerticalScroll;
   final bool loading;
+  final void Function(String label, String value)? onFilterChanged;
 
   const AzureGrid({
     super.key,
@@ -76,6 +77,7 @@ class AzureGrid<T> extends StatefulWidget {
     this.onRefresh,
     this.disableVerticalScroll = false,
     this.loading = false,
+    this.onFilterChanged,
   });
 
   @override
@@ -391,6 +393,9 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                               _activeFilters[filter.label] = val;
                               _currentPage = 0;
                             });
+                            if (widget.onFilterChanged != null) {
+                              widget.onFilterChanged!(filter.label, val);
+                            }
                           }
                         },
                       ),
