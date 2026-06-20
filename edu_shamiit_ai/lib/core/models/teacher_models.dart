@@ -956,6 +956,7 @@ class TeacherExam {
   final int questionCount;
   final int joinedCount;
   final int completedCount;
+  final int questionMarksSum;
 
   const TeacherExam({
     required this.id,
@@ -988,6 +989,7 @@ class TeacherExam {
     this.questionCount = 0,
     this.joinedCount = 0,
     this.completedCount = 0,
+    this.questionMarksSum = 0,
   });
 
   factory TeacherExam.fromJson(Map<String, dynamic> json) {
@@ -1026,6 +1028,7 @@ class TeacherExam {
       questionCount: json['question_count'] as int? ?? 0,
       joinedCount: json['joined_count'] as int? ?? 0,
       completedCount: json['completed_count'] as int? ?? 0,
+      questionMarksSum: json['question_marks_sum'] as int? ?? 0,
     );
   }
 
@@ -1061,6 +1064,7 @@ class TeacherExam {
       'question_count': questionCount,
       'joined_count': joinedCount,
       'completed_count': completedCount,
+      'question_marks_sum': questionMarksSum,
     };
   }
 }

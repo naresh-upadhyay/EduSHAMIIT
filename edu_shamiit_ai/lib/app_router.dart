@@ -32,7 +32,6 @@ import 'package:edu_shamiit_ai/features/student/transport/screens/student_transp
 import 'package:edu_shamiit_ai/features/student/achievements/screens/student_achievements_screen.dart';
 import 'package:edu_shamiit_ai/features/teacher/achievements/screens/teacher_achievements_screen.dart';
 import 'package:edu_shamiit_ai/features/student/live_classes/screens/student_live_classes.dart';
-import 'package:edu_shamiit_ai/features/student/leaderboard/screens/student_leaderboard.dart';
 import 'package:edu_shamiit_ai/features/student/messaging/screens/student_messaging.dart';
 import 'package:edu_shamiit_ai/features/teacher/messaging/screens/teacher_messaging.dart';
 import 'package:edu_shamiit_ai/features/student/settings/screens/student_settings.dart';
@@ -54,7 +53,6 @@ import 'package:edu_shamiit_ai/features/teacher/gradebook/screens/teacher_gradeb
 import 'package:edu_shamiit_ai/features/teacher/my_classes/screens/teacher_my_classes.dart';
 import 'package:edu_shamiit_ai/features/teacher/notices/screens/teacher_notices.dart';
 import 'package:edu_shamiit_ai/features/teacher/profile/screens/teacher_profile.dart';
-import 'package:edu_shamiit_ai/features/teacher/grading/screens/teacher_grading.dart';
 import 'package:edu_shamiit_ai/features/teacher/exams/screens/teacher_exams.dart';
 import 'package:edu_shamiit_ai/features/teacher/exams/screens/create_exam_screen.dart';
 import 'package:edu_shamiit_ai/features/teacher/exams/screens/question_bank_screen.dart';
@@ -289,7 +287,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/leaderboard',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentLeaderboard()),
+          redirect: (context, state) => '/student/achievements',
         ),
         GoRoute(
           path: '/student/messaging',
@@ -445,11 +443,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/teacher/grading',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherGrading()),
+          redirect: (context, state) => '/teacher/gradebook',
         ),
         GoRoute(
           path: '/teacher/grading-config',
-          pageBuilder: (_, __) => const NoTransitionPage(child: TeacherGrading()),
+          redirect: (context, state) => '/teacher/gradebook',
         ),
         GoRoute(
           path: '/teacher/exams',

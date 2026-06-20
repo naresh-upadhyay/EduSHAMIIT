@@ -564,7 +564,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
       final String status = _visibilityMode == 'Immediate'
           ? 'published'
           : _visibilityMode == 'Scheduled'
-              ? 'ready'
+              ? 'scheduled'
               : (_exam?.status ?? 'new');
 
       final DateTime now = DateTime.now();

@@ -110,58 +110,86 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     return '$dateStr at $formattedHour:$minute $period';
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'new':
-        return Colors.blue;
-      case 'in_progress':
-        return Colors.orange;
-      case 'ready':
-      case 'scheduled':
-        return Colors.green;
-      case 'published':
-        return Colors.purple;
-      case 'completed':
-        return Colors.red;
-      default:
-        return Colors.grey;
+  Color _getStatusColor(TeacherExam exam) {
+    final status = exam.status.toLowerCase();
+    if (status == 'new') {
+      return Colors.blue;
     }
-  }
-
-  String _getStatusLabel(String status) {
-    switch (status.toLowerCase()) {
-      case 'new':
-        return 'New';
-      case 'in_progress':
-        return 'In progress';
-      case 'ready':
-      case 'scheduled':
-        return 'Ready';
-      case 'published':
-        return 'Published';
-      case 'completed':
-        return 'Completed';
-      default:
-        if (status.isEmpty) return 'New';
-        return status[0].toUpperCase() + status.substring(1);
+    if (status == 'in_progress' || exam.questionMarksSum < exam.totalMarks) {
+      return Colors.orange;
     }
-  }
-
-  IconData _getPrimaryActionIcon(TeacherExam exam) {
+    
+    // Fully built (100/100)
+    if (exam.startTime == null) {
+      return Colors.green;
+    }
+    
+    // Scheduled or published
     final now = DateTime.now();
-    final start = exam.startTime ?? exam.examDate;
+    final start = exam.startTime!;
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
     
-    if (exam.questionCount == 0) {
-      return Icons.build_circle_outlined;
+    if (now.isBefore(start)) {
+      return Colors.blueAccent;
+    } else if (now.isAfter(start) && now.isBefore(end)) {
+      return Colors.purple;
+    } else {
+      return Colors.red;
+    }
+  }
+
+  String _getStatusLabel(TeacherExam exam) {
+    final status = exam.status.toLowerCase();
+    if (status == 'new') {
+      return 'New';
+    }
+    if (status == 'in_progress' || exam.questionMarksSum < exam.totalMarks) {
+      return 'In progress (${exam.questionMarksSum}/${exam.totalMarks})';
     }
     
-    final status = exam.status.toLowerCase();
-    if (status == 'new' || status == 'in_progress' || status == 'draft') {
-      return Icons.assignment_ind_outlined;
+    // Fully built (100/100)
+    if (exam.startTime == null) {
+      return 'Ready';
     }
+    
+    // Scheduled or published
+    final now = DateTime.now();
+    final start = exam.startTime!;
+    final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
+    final durationMins = int.tryParse(digits) ?? 90;
+    final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
+    
+    if (now.isBefore(start)) {
+      return 'Scheduled';
+    } else if (now.isAfter(start) && now.isBefore(end)) {
+      return 'Published';
+    } else {
+      return 'Completed';
+    }
+  }
+
+  IconData _getPrimaryActionIcon(TeacherExam exam) {
+    final status = exam.status.toLowerCase();
+    final isDraftOrIncomplete = status == 'new' ||
+        status == 'in_progress' ||
+        status == 'draft' ||
+        exam.questionMarksSum < exam.totalMarks;
+
+    if (isDraftOrIncomplete) {
+      return Icons.build_circle_outlined;
+    }
+
+    if (exam.startTime == null) {
+      return Icons.calendar_today_outlined;
+    }
+
+    final now = DateTime.now();
+    final start = exam.startTime!;
+    final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
+    final durationMins = int.tryParse(digits) ?? 90;
+    final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
     
     if (now.isBefore(start)) {
       return Icons.assignment_ind_outlined;
@@ -175,20 +203,25 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
   }
 
   String _getPrimaryActionLabel(TeacherExam exam) {
+    final status = exam.status.toLowerCase();
+    final isDraftOrIncomplete = status == 'new' ||
+        status == 'in_progress' ||
+        status == 'draft' ||
+        exam.questionMarksSum < exam.totalMarks;
+
+    if (isDraftOrIncomplete) {
+      return 'Build Paper';
+    }
+
+    if (exam.startTime == null) {
+      return 'Schedule Exam';
+    }
+
     final now = DateTime.now();
-    final start = exam.startTime ?? exam.examDate;
+    final start = exam.startTime!;
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
-    if (exam.questionCount == 0) {
-      return 'Build Paper';
-    }
-    
-    final status = exam.status.toLowerCase();
-    if (status == 'new' || status == 'in_progress' || status == 'draft') {
-      return 'Assign';
-    }
     
     if (now.isBefore(start)) {
       return 'Assign';
@@ -202,23 +235,28 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
   }
 
   Color _getPrimaryActionColor(TeacherExam exam) {
+    final status = exam.status.toLowerCase();
+    final isDraftOrIncomplete = status == 'new' ||
+        status == 'in_progress' ||
+        status == 'draft' ||
+        exam.questionMarksSum < exam.totalMarks;
+
+    if (isDraftOrIncomplete) {
+      return const Color(0xFF6366F1);
+    }
+
+    if (exam.startTime == null) {
+      return const Color(0xFF0F766E);
+    }
+
     final now = DateTime.now();
-    final start = exam.startTime ?? exam.examDate;
+    final start = exam.startTime!;
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
     
-    if (exam.questionCount == 0) {
-      return const Color(0xFF6366F1);
-    }
-    
-    final status = exam.status.toLowerCase();
-    if (status == 'new' || status == 'in_progress' || status == 'draft') {
-      return const Color(0xFF0EA5E9);
-    }
-    
     if (now.isBefore(start)) {
-      return const Color(0xFF0F766E);
+      return const Color(0xFF0EA5E9);
     }
     
     if (now.isAfter(start) && now.isBefore(end)) {
@@ -229,22 +267,27 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
   }
 
   void _navigateByStatus(TeacherExam exam) {
-    final now = DateTime.now();
-    final start = exam.startTime ?? exam.examDate;
-    final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
-    final durationMins = int.tryParse(digits) ?? 90;
-    final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
-    if (exam.questionCount == 0) {
+    final status = exam.status.toLowerCase();
+    final isDraftOrIncomplete = status == 'new' ||
+        status == 'in_progress' ||
+        status == 'draft' ||
+        exam.questionMarksSum < exam.totalMarks;
+
+    if (isDraftOrIncomplete) {
       context.push('/teacher/exams/paper-builder?examId=${exam.id}');
       return;
     }
-    
-    final status = exam.status.toLowerCase();
-    if (status == 'new' || status == 'in_progress' || status == 'draft') {
+
+    if (exam.startTime == null) {
       context.push('/teacher/exams/assign/${exam.id}');
       return;
     }
+
+    final now = DateTime.now();
+    final start = exam.startTime!;
+    final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
+    final durationMins = int.tryParse(digits) ?? 90;
+    final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
     
     if (now.isBefore(start)) {
       context.push('/teacher/exams/assign/${exam.id}');
@@ -304,6 +347,31 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
         cellBuilder: (exam) => Text(exam.class_),
       ),
       AzureGridColumn<TeacherExam>(
+        label: 'Category',
+        width: 110.0,
+        compare: (a, b) => a.examCategory.compareTo(b.examCategory),
+        cellBuilder: (exam) {
+          final color = _getTypeColor(exam.examCategory);
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Text(
+              exam.examCategory.trim().isEmpty ? 'General' : exam.examCategory,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          );
+        },
+      ),
+
+      AzureGridColumn<TeacherExam>(
         label: 'Date & Time',
         width: 160.0,
         cellBuilder: (exam) => Text(_formatExamDateTime(exam)),
@@ -324,7 +392,7 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
         width: 100.0,
         compare: (a, b) => a.status.compareTo(b.status),
         cellBuilder: (exam) {
-          final color = _getStatusColor(exam.status);
+          final color = _getStatusColor(exam);
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
@@ -333,7 +401,7 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
               border: Border.all(color: color.withOpacity(0.3)),
             ),
             child: Text(
-              _getStatusLabel(exam.status),
+              _getStatusLabel(exam),
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -614,15 +682,15 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(exam.status).withOpacity(0.1),
+                        color: _getStatusColor(exam).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        _getStatusLabel(exam.status),
+                        _getStatusLabel(exam),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: _getStatusColor(exam.status),
+                          color: _getStatusColor(exam),
                         ),
                       ),
                     ),

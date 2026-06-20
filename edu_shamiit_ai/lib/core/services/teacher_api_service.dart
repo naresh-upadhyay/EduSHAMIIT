@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
@@ -610,6 +611,36 @@ class TeacherApiService {
     }
   }
 
+  /// Get consolidated gradebook data (roster, homeworks, submissions)
+  Future<Map<String, dynamic>> getConsolidatedGradebook({
+    required String classId,
+    String? assessmentType,
+    String? subjectId,
+  }) async {
+    try {
+      final params = <String, String>{'class_name': classId};
+      if (assessmentType != null && assessmentType != 'All') params['assessment_type'] = assessmentType;
+      if (subjectId != null) params['subject_id'] = subjectId;
+
+      final queryString =
+          params.entries.map((e) => '${e.key}=${e.value}').join('&');
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/gradebook?$queryString'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        final data = decoded['data'] ?? decoded;
+        return Map<String, dynamic>.from(data as Map);
+      } else {
+        throw Exception('Failed to load gradebook: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching gradebook: $e');
+    }
+  }
+
   /// Add grade record
   Future<GradeRecord> addGrade({
     required String studentId,
@@ -815,6 +846,24 @@ class TeacherApiService {
       }
     } catch (e) {
       throw Exception('Error deleting exam: $e');
+    }
+  }
+
+  /// Download exam paper as PDF
+  Future<Uint8List> downloadExamPaperPdf(String examId) async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/teacher/exams/$examId/pdf'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Failed to download exam paper PDF: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error downloading exam paper PDF: $e');
     }
   }
 

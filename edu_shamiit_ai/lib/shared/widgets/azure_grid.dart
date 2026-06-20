@@ -53,8 +53,11 @@ class AzureGrid<T> extends StatefulWidget {
   final int defaultPageSize;
   final bool enableSelection;
   final List<Widget>? extraCommandActions;
+  final List<Widget>? extraCommandFilters;
+  final Widget? subHeader;
   final VoidCallback? onRefresh;
   final bool disableVerticalScroll;
+  final bool loading;
 
   const AzureGrid({
     super.key,
@@ -68,8 +71,11 @@ class AzureGrid<T> extends StatefulWidget {
     this.defaultPageSize = 10,
     this.enableSelection = false,
     this.extraCommandActions,
+    this.extraCommandFilters,
+    this.subHeader,
     this.onRefresh,
     this.disableVerticalScroll = false,
+    this.loading = false,
   });
 
   @override
@@ -173,10 +179,19 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Command Bar (Header + Search + Filters + Actions)
+           // 1. Command Bar (Header + Search + Filters + Actions)
           _buildCommandBar(context, isMobile),
 
+          if (widget.loading)
+            const LinearProgressIndicator(minHeight: 2, backgroundColor: Colors.transparent),
+
           const Divider(height: 1, thickness: 1),
+
+          // Sub-header (e.g. stats row)
+          if (widget.subHeader != null) ...[
+            widget.subHeader!,
+            const Divider(height: 1, thickness: 1),
+          ],
 
           // 2. Content (Table or Mobile Cards list)
           widget.disableVerticalScroll
@@ -285,6 +300,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
             alignment: WrapAlignment.start,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              // Extra Command Filters (e.g. API-backed dropdowns)
+              if (widget.extraCommandFilters != null) ...widget.extraCommandFilters!,
               // Search Input Box
               if (widget.searchMatcher != null)
                 SizedBox(

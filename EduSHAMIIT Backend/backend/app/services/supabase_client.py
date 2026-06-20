@@ -520,87 +520,8 @@ async def check_and_award_achievements(sb, school_id: str, student_id: str, trig
     Checks student statistics and automatically awards achievements if criteria is met.
     """
     try:
-        # 1. Fetch student's current earned achievements to avoid duplicates
-        earned_res = await sb.table("student_achievements").select("achievement_id").eq("school_id", school_id).eq("student_id", student_id).aexecute()
-        earned_ids = {row["achievement_id"] for row in (earned_res.data or [])}
-        
-        # 2. Fetch all achievement templates
-        templates_res = await sb.table("achievements").select("*").eq("school_id", school_id).aexecute()
-        templates = templates_res.data or []
-        
-        for t in templates:
-            t_id = t["id"]
-            if t_id in earned_ids:
-                continue
-            
-            # Check criteria based on trigger_type or template name
-            name_lower = t["name"].lower()
-            should_award = False
-            
-            if "academic" in name_lower or "exam" in name_lower:
-                # Check for score >= 90% on any exam
-                subs = (await sb.table("exam_submissions").select("score, exams(total_marks)").eq("student_id", student_id).eq("status", "graded").aexecute()).data or []
-                for s in subs:
-                    score = float(s.get("score") or 0)
-                    total = float(s.get("exams", {}).get("total_marks") or 100)
-                    if total > 0 and (score / total) >= 0.9:
-                        should_award = True
-                        break
-            
-            elif "streak" in name_lower:
-                # Check learning streak in profiles
-                prof = (await sb.table("profiles").select("learning_streak").eq("id", student_id).maybe_single().aexecute()).data
-                if prof and (prof.get("learning_streak") or 0) >= 18:
-                    should_award = True
-            
-            elif "attendance" in name_lower:
-                # Check attendance count
-                att_res = await sb.table("attendance").select("id").count("exact").eq("student_id", student_id).eq("status", "present").aexecute()
-                if att_res.count and att_res.count >= 10:
-                    should_award = True
-                    
-            elif "submissions" in name_lower or "homework" in name_lower:
-                # Check if homework graded
-                hw_res = await sb.table("homework_submissions").select("id").count("exact").eq("student_id", student_id).eq("status", "graded").aexecute()
-                if hw_res.count and hw_res.count >= 5:
-                    should_award = True
-            
-            if should_award:
-                # Award this achievement!
-                await sb.table("student_achievements").insert({
-                    "school_id": school_id,
-                    "student_id": student_id,
-                    "achievement_id": t_id,
-                    "progress": 100.0
-                }).aexecute()
-                
-                # Credit the XP
-                await sb.table("xp_transactions").insert({
-                    "school_id": school_id,
-                    "student_id": student_id,
-                    "amount": t["xp_reward"],
-                    "source_type": "achievement",
-                    "source_id": t_id,
-                    "description": f"Achievement unlocked: {t['name']}"
-                }).aexecute()
-                
-                prof_res = await sb.table("profiles").select("xp_points").eq("id", student_id).maybe_single().aexecute()
-                current_xp = 0
-                if prof_res.data:
-                    current_xp = prof_res.data.get("xp_points") or 0
-                    
-                await sb.table("profiles").update({"xp_points": current_xp + t["xp_reward"]}).eq("id", student_id).aexecute()
-                
-                # Send notification
-                await sb.table("notifications").insert({
-                    "school_id": school_id,
-                    "user_id": student_id,
-                    "title": f"🏆 Achievement Unlocked: {t['name']}",
-                    "body": f"You earned {t['xp_reward']} XP! Keep it up! 🎉",
-                    "type": "achievement",
-                    "reference_id": t_id
-                }).aexecute()
-                
+        from app.services.badge_rules import evaluate_and_update_student_badges
+        await evaluate_and_update_student_badges(sb, school_id, student_id)
     except Exception as e:
         print(f"Error checking achievements: {str(e)}", flush=True)
 

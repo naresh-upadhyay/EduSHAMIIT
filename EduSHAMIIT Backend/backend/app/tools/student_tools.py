@@ -411,7 +411,21 @@ def get_student_tools(school_id: str) -> list:
         user_id = get_current_user_id()
 
         profile = sb.table("profiles").select("xp_points, learning_streak, best_streak").eq("id", user_id).single().execute().data
-        achievements = sb.table("student_achievements").select("*, achievements(name, description, icon, rarity, xp_reward)").eq("school_id", school_id).eq("student_id", user_id).order("earned_at", ascending=False).execute().data
+        achievements = sb.table("student_achievements").select("*, achievements(name, description, icon, rarity, xp_reward)").eq("school_id", school_id).eq("student_id", user_id).execute().data or []
+
+        unlocked = []
+        locked = []
+        for a in achievements:
+            is_locked = a.get("earned_at") is None and float(a.get("progress") or 0.0) < 100.0
+            if is_locked:
+                locked.append(a)
+            else:
+                unlocked.append(a)
+
+        # Sort unlocked by earned_at descending
+        unlocked.sort(key=lambda x: x.get("earned_at") or "", reverse=True)
+        # Sort locked by progress descending
+        locked.sort(key=lambda x: float(x.get("progress") or 0.0), reverse=True)
 
         buf = [f"🏆 Achievements:"]
         buf.append(f"  ⭐ XP Points: {profile.get('xp_points', 0)}")
@@ -419,14 +433,22 @@ def get_student_tools(school_id: str) -> list:
         buf.append(f"  🏅 Best Streak: {profile.get('best_streak', 0)} days")
         buf.append("")
 
-        if achievements:
+        if unlocked:
             buf.append("🎖️ Badges Earned:")
-            for a in achievements:
+            for a in unlocked:
                 ach = a.get("achievements") or {}
                 buf.append(f"  {ach.get('icon', '🏆')} {ach.get('name', 'Unknown')} ({ach.get('rarity', 'common')})")
                 buf.append(f"     +{ach.get('xp_reward', 0)} XP | {ach.get('description', '')}")
         else:
             buf.append("No badges earned yet. Keep working! 💪")
+
+        if locked:
+            buf.append("\n📈 Badges in Progress:")
+            for a in locked:
+                ach = a.get("achievements") or {}
+                prog = float(a.get("progress") or 0.0)
+                buf.append(f"  {ach.get('icon', '🏆')} {ach.get('name', 'Unknown')} - {prog:.1f}% Complete")
+                buf.append(f"     Target: {ach.get('description', '')}")
 
         return "\n".join(buf)
 

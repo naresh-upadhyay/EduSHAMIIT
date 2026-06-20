@@ -104,7 +104,6 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
         {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
         {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": True},
         {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
-        {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard", "bg": "FEF3C7"},
     ]
     
     result = {"success": True, "school_id": school_id, "data": data}
@@ -640,9 +639,36 @@ async def student_download_results_pdf(
     )
 
 
+async def _auto_publish_scheduled_exams(sb, school_id: str):
+    from datetime import datetime, timezone
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        # Update 1: release_time is not null and release_time <= now
+        await sb.table("exams")\
+            .update({"status": "published"})\
+            .eq("school_id", school_id)\
+            .in_("status", ["scheduled", "ready"])\
+            .is_("release_time", "not.null")\
+            .lte("release_time", now)\
+            .aexecute()
+            
+        # Update 2: release_time is null and start_time is not null and start_time <= now
+        await sb.table("exams")\
+            .update({"status": "published"})\
+            .eq("school_id", school_id)\
+            .in_("status", ["scheduled", "ready"])\
+            .is_("release_time", "null")\
+            .is_("start_time", "not.null")\
+            .lte("start_time", now)\
+            .aexecute()
+    except Exception as e:
+        print(f"Error auto-publishing exams in backend: {e}", flush=True)
+
+
 @router.get("/exams")
 async def student_exams(user=Depends(require_student), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    await _auto_publish_scheduled_exams(sb, school_id)
     
     # 1. Fetch student's class from database
     profile_res = await sb.table("profiles").select("class").eq("id", user["id"]).maybe_single().aexecute()
@@ -1219,14 +1245,17 @@ async def student_achievements(
 ):
     sb = get_supabase()
     
-    # 1. Fetch student profile details
+    # JIT Evaluate/Update all badges & progress
+    from app.services.badge_rules import evaluate_and_update_student_badges
+    await evaluate_and_update_student_badges(sb, school_id, user["id"])
+    
+    # 1. Fetch student profile details (after potential XP updates!)
     p_res = await sb.table("profiles").select("*").eq("id", user["id"]).single().aexecute()
     profile = p_res.data or {}
     
-    # 2. Fetch student earned achievements
+    # 2. Fetch student achievements & badges
     a_res = await sb.table("student_achievements").select("*, achievements(name, description, icon, rarity, xp_reward)").eq("school_id", school_id).eq("student_id", user["id"]).order("earned_at", ascending=False).aexecute()
     earned_list = a_res.data or []
-    earned_ids = {row["achievement_id"] for row in earned_list}
     
     student_xp = profile.get("xp_points", 0)
     
@@ -1266,11 +1295,19 @@ async def student_achievements(
                 "learning_streak": s.get("learning_streak", 0)
             })
         
-    # Map unlocked achievements
+    # Map unlocked and locked achievements
     unlocked_achievements = []
+    locked_achievements = []
+    
     for row in earned_list:
         ach = row.get("achievements") or {}
-        unlocked_achievements.append({
+        if not ach:
+            continue
+            
+        progress_val = float(row.get("progress") or 0.0)
+        is_locked = row.get("earned_at") is None or progress_val < 100.0
+        
+        item = {
             "id": row.get("achievement_id"),
             "title": ach.get("name", "Badge"),
             "description": ach.get("description", ""),
@@ -1278,44 +1315,14 @@ async def student_achievements(
             "rarity": ach.get("rarity", "common"),
             "xp_reward": ach.get("xp_reward", 0),
             "earned_at": row.get("earned_at"),
-            "progress": 100.0,
-            "is_locked": False
-        })
+            "progress": progress_val,
+            "is_locked": is_locked
+        }
         
-    # Fetch Locked achievements templates & calculate progress
-    all_templates_res = await sb.table("achievements").select("*").eq("school_id", school_id).aexecute()
-    all_templates = all_templates_res.data or []
-    
-    locked_achievements = []
-    for t in all_templates:
-        if t["id"] in earned_ids:
-            continue
-            
-        progress_val = 20.0
-        name_lower = t["name"].lower()
-        if "attendance" in name_lower:
-            att_cnt_res = await sb.table("attendance").select("id").count("exact").eq("student_id", user["id"]).eq("status", "present").aexecute()
-            att_count = att_cnt_res.count or 0
-            progress_val = min(99.0, (att_count / 10.0) * 100.0)
-        elif "streak" in name_lower:
-            streak_val = profile.get("learning_streak") or 0
-            progress_val = min(99.0, (streak_val / 18.0) * 100.0)
-        elif "submissions" in name_lower or "homework" in name_lower:
-            hw_cnt_res = await sb.table("homework_submissions").select("id").count("exact").eq("student_id", user["id"]).eq("status", "graded").aexecute()
-            hw_count = hw_cnt_res.count or 0
-            progress_val = min(99.0, (hw_count / 5.0) * 100.0)
-            
-        locked_achievements.append({
-            "id": t["id"],
-            "title": t.get("name", ""),
-            "description": t.get("description", ""),
-            "icon": t.get("icon", "🏆"),
-            "rarity": t.get("rarity", "common"),
-            "xp_reward": t.get("xp_reward", 0),
-            "earned_at": None,
-            "progress": round(progress_val, 1),
-            "is_locked": True
-        })
+        if is_locked:
+            locked_achievements.append(item)
+        else:
+            unlocked_achievements.append(item)
         
     # Fetch recent XP history
     xp_history = []
@@ -2952,6 +2959,7 @@ async def cancel_acquisition_request(
 @router.get("/exams/{exam_id}/online")
 async def student_get_online_exam(exam_id: str, user=Depends(require_student), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    await _auto_publish_scheduled_exams(sb, school_id)
     # Fetch exam details
     exam_res = await sb.table("exams").select("*, subjects(name, icon), profiles!teacher_id(full_name)").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
     exam = exam_res.data

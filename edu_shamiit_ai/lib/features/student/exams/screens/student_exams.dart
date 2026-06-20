@@ -93,6 +93,27 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
     return icons[subject] ?? '📚';
   }
 
+  Color _getTypeColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'term':
+      case 'mid term':
+        return Colors.blue;
+      case 'unit':
+      case 'unit test':
+      case 'weekly test':
+        return Colors.green;
+      case 'quiz':
+      case 'practice test':
+        return Colors.orange;
+      case 'final':
+      case 'final exam':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+
   String _getMonthAbbreviation(int month) {
     const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     return months[month - 1];
@@ -199,6 +220,31 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
           );
         },
       ),
+      AzureGridColumn<ExamSchedule>(
+        label: 'Category',
+        width: 110.0,
+        compare: (a, b) => a.examCategory.compareTo(b.examCategory),
+        cellBuilder: (exam) {
+          final color = _getTypeColor(exam.examCategory);
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Text(
+              exam.examCategory.trim().isEmpty ? 'General' : exam.examCategory,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          );
+        },
+      ),
+
       AzureGridColumn<ExamSchedule>(
         label: 'Schedule',
         width: 150.0,

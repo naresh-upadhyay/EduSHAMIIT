@@ -662,6 +662,8 @@ async def create_result(
         "created_at": datetime.utcnow().isoformat(),
     }
     result = await sb.table("results").insert(data).aexecute()
+    from app.cache.redis_client import invalidate_cache
+    await invalidate_cache(school_id, "teacher_gradebook")
     return {"success": True, "school_id": school_id, "data": result.data[0] if result.data else data}
 
 
@@ -700,6 +702,8 @@ async def create_bulk_results(
             "created_at": datetime.utcnow().isoformat(),
         })
     await sb.table("results").insert(records).aexecute()
+    from app.cache.redis_client import invalidate_cache
+    await invalidate_cache(school_id, "teacher_gradebook")
     return {"success": True, "school_id": school_id, "message": f"{len(records)} results entered"}
 
 
@@ -714,6 +718,8 @@ async def update_result(
     allowed = {"marks_obtained", "total_marks", "grade", "remarks", "exam_type"}
     update_data = {k: v for k, v in request.items() if k in allowed}
     await sb.table("results").update(update_data).eq("id", result_id).eq("school_id", school_id).aexecute()
+    from app.cache.redis_client import invalidate_cache
+    await invalidate_cache(school_id, "teacher_gradebook")
     return {"success": True, "message": "Result updated"}
 
 
@@ -725,6 +731,8 @@ async def delete_result(
 ):
     sb = get_supabase()
     await sb.table("results").delete().eq("id", result_id).eq("school_id", school_id).aexecute()
+    from app.cache.redis_client import invalidate_cache
+    await invalidate_cache(school_id, "teacher_gradebook")
     return {"success": True, "message": "Result deleted"}
 
 

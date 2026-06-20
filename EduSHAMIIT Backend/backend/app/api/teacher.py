@@ -14,14 +14,27 @@ from app.models import QuestionType
 router = APIRouter()
 
 
+def _normalize_question_type(q_type):
+    if not q_type:
+        return "single_select"
+    q_type_lower = str(q_type).lower().strip()
+    if q_type_lower in ("mcq", "true_false", "single_correct", "assertion_reason", "multiple_choice", "single_select"):
+        return "single_select"
+    elif q_type_lower in ("multi_select", "multi_correct"):
+        return "multi_select"
+    elif q_type_lower in ("subjective", "short_answer", "long_answer", "numerical", "fill_in_the_blank", "descriptive"):
+        return "subjective"
+    return "single_select"
+
+
 def _calculate_grade(pct):
     if pct >= 90: return "A+"
-    if pct >= 80: return "A"
-    if pct >= 70: return "B+"
-    if pct >= 60: return "B"
-    if pct >= 50: return "C"
-    if pct >= 40: return "D"
-    return "F"
+    elif pct >= 80: return "A"
+    elif pct >= 70: return "B+"
+    elif pct >= 60: return "B"
+    elif pct >= 50: return "C"
+    elif pct >= 40: return "D"
+    else: return "F"
 
 
 @router.get("/dashboard")
@@ -153,7 +166,7 @@ async def mark_attendance(request: dict, user=Depends(require_teacher), school_i
             "subject_id": subject_id,
             "teacher_id": user["id"],
             "marked_by": user["id"],
-            "class_name": class_name,   # Use class_name key (not "class" which is a reserved SQL keyword)
+            "class": class_name,        # Use "class" key matching the database column mapping
             "date": date,
             "status": r["status"],
             "remarks": r.get("remarks")
@@ -370,6 +383,7 @@ async def grade_submission(request: dict, user=Depends(require_teacher), school_
         except Exception as e:
             print(f"Error awarding homework XP: {str(e)}", flush=True)
 
+    await invalidate_cache(school_id, "teacher_gradebook")
     return {"success": True, "school_id": school_id, "message": "Submission graded"}
 
 
@@ -417,6 +431,7 @@ async def return_submission(request: dict, user=Depends(require_teacher), school
         
     # 4. Fetch updated submission
     updated = await sb.table("homework_submissions").select("*, homework(max_marks)").eq("id", sub_id).maybe_single().aexecute()
+    await invalidate_cache(school_id, "teacher_gradebook")
     return {"success": True, "school_id": school_id, "data": updated.data}
 
 
@@ -804,8 +819,15 @@ async def generate_exam_questions(request: dict, user=Depends(require_teacher), 
 
 
 @router.get("/gradebook")
-async def teacher_gradebook(class_name: str = "", subject_id: str = "", user=Depends(require_teacher), school_id=Depends(require_school_id)):
-    cached = await get_cached(school_id, "teacher_gradebook", f"{user['id']}_{class_name}_{subject_id}")
+async def teacher_gradebook(
+    class_name: str = "", 
+    subject_id: str = "", 
+    assessment_type: Optional[str] = None,
+    user=Depends(require_teacher), 
+    school_id=Depends(require_school_id)
+):
+    cache_key = f"{user['id']}_{class_name}_{subject_id}_{assessment_type}"
+    cached = await get_cached(school_id, "teacher_gradebook", cache_key)
     if cached:
         return cached
 
@@ -814,21 +836,159 @@ async def teacher_gradebook(class_name: str = "", subject_id: str = "", user=Dep
     
     results = []
     if students:
-        query = sb.table("results").select("student_id, marks_obtained, total_marks, grade, exam_type").eq("school_id", school_id).in_("student_id", [s["id"] for s in students])
+        # Fetch legacy results
+        legacy_query = sb.table("results").select("student_id, marks_obtained, total_marks, grade, exam_type, subject_id, subjects(name)").eq("school_id", school_id).in_("student_id", [s["id"] for s in students])
         if subject_id:
-            query = query.eq("subject_id", subject_id)
-        results = (await query.aexecute()).data
+            try:
+                uuid.UUID(subject_id)
+                legacy_query = legacy_query.eq("subject_id", subject_id)
+            except ValueError:
+                pass
+        if assessment_type and assessment_type != "All":
+            legacy_query = legacy_query.eq("exam_type", assessment_type)
+        legacy_data = (await legacy_query.aexecute()).data or []
+
+        # Fetch exam submissions (published exams only)
+        subs_query = sb.table("exam_submissions").select(
+            "student_id, score, grade_letter, is_pass, graded_at, "
+            "exams(id, title, total_marks, exam_type, results_published_at, subject_id, subjects(name))"
+        ).in_("student_id", [s["id"] for s in students])
+        subs_data = (await subs_query.aexecute()).data or []
+
+        # Unify legacy and exam submissions
+        for r in legacy_data:
+            subj = r.get("subjects") or {}
+            subj_name = subj.get("name") or "Unknown"
+            marks = float(r.get("marks_obtained") or 0)
+            total = float(r.get("total_marks") or 100)
+            pct = (marks / total * 100) if total > 0 else 0
+            grade = r.get("grade") or _calculate_grade(pct)
+            results.append({
+                "student_id": r["student_id"],
+                "marks_obtained": marks,
+                "total_marks": total,
+                "grade": grade,
+                "exam_type": r.get("exam_type") or "General",
+                "exam_title": r.get("exam_type") or "Exam",
+                "subject_name": subj_name,
+                "subject_id": r.get("subject_id")
+            })
+
+        for sub in subs_data:
+            exam = sub.get("exams") or {}
+            if not exam or not exam.get("results_published_at"):
+                continue
+
+            exam_subj_id = exam.get("subject_id")
+            # Apply subject filter
+            if subject_id:
+                try:
+                    uuid.UUID(subject_id)
+                    if str(exam_subj_id) != str(subject_id):
+                        continue
+                except ValueError:
+                    pass
+
+            # Apply assessment type filter
+            exam_type = exam.get("exam_type") or "General"
+            if assessment_type and assessment_type != "All":
+                if exam_type != assessment_type:
+                    continue
+
+            subj = exam.get("subjects") or {}
+            subj_name = subj.get("name") or "Unknown"
+            marks = float(sub.get("score") or 0)
+            total = float(exam.get("total_marks") or 100)
+            pct = (marks / total * 100) if total > 0 else 0
+            grade = sub.get("grade_letter") or _calculate_grade(pct)
+
+            results.append({
+                "student_id": sub["student_id"],
+                "marks_obtained": marks,
+                "total_marks": total,
+                "grade": grade,
+                "exam_type": exam_type,
+                "exam_title": exam.get("title") or "Exam",
+                "subject_name": subj_name,
+                "subject_id": exam_subj_id
+            })
+
+    # Fetch homework assignments for this class
+    homework_query = sb.table("homework").select("id, title, max_marks, subject_id, due_date").eq("school_id", school_id).eq("class", class_name)
+    if subject_id:
+        try:
+            uuid.UUID(subject_id)
+            homework_query = homework_query.eq("subject_id", subject_id)
+        except ValueError:
+            pass
+    homework_list = (await homework_query.aexecute()).data or []
+    homework_ids = [h["id"] for h in homework_list]
+
+    # Fetch submissions for these homeworks
+    submissions = []
+    if homework_ids and students:
+        submissions = (await sb.table("homework_submissions").select("*, homework(title, max_marks)").eq("school_id", school_id).in_("homework_id", homework_ids).in_("student_id", [s["id"] for s in students]).aexecute()).data or []
         
     gradebook = []
     for s in students:
         s_results = [r for r in results if r["student_id"] == s["id"]]
-        total = sum(float(r["marks_obtained"]) for r in s_results)
-        max_total = sum(float(r["total_marks"]) for r in s_results)
-        avg = (total/max_total*100) if max_total > 0 else 0
-        gradebook.append({"student_id": s["id"], "name": s["full_name"], "roll_number": s.get("roll_number"), "results": s_results, "average": round(avg, 1), "grade": _calculate_grade(avg)})
+        exam_total = sum(float(r["marks_obtained"]) for r in s_results)
+        exam_max_total = sum(float(r["total_marks"]) for r in s_results)
         
-    result = {"success": True, "school_id": school_id, "data": {"gradebook": gradebook}}
-    await set_cached(school_id, "teacher_gradebook", result, f"{user['id']}_{class_name}_{subject_id}", ttl=300)
+        # Calculate homework totals for this student
+        s_subs = [sub for sub in submissions if sub["student_id"] == s["id"]]
+        hw_graded = [sub for sub in s_subs if sub["status"] == "graded" and sub["marks"] is not None]
+        
+        hw_total = 0.0
+        hw_max_total = 0.0
+        for sub in hw_graded:
+            hw_total += float(sub["marks"])
+            max_m = 25.0
+            if sub.get("homework") and sub["homework"].get("max_marks") is not None:
+                max_m = float(sub["homework"]["max_marks"])
+            hw_max_total += max_m
+            
+        # Combine exam and homework scores
+        combined_obtained = exam_total + hw_total
+        combined_max = exam_max_total + hw_max_total
+        avg = (combined_obtained / combined_max * 100) if combined_max > 0 else 0.0
+        
+        # Trend
+        trend = 'stable'
+        if s_subs:
+            sorted_subs = sorted(s_subs, key=lambda x: x.get('submitted_at', ''))
+            if sorted_subs and sorted_subs[-1].get('status') == 'graded' and sorted_subs[-1].get('marks') is not None:
+                max_m = float(sorted_subs[-1]['homework']['max_marks']) if sorted_subs[-1].get('homework') and sorted_subs[-1]['homework'].get('max_marks') else 25.0
+                last_hw_pct = (float(sorted_subs[-1]['marks']) / max_m) * 100
+                if last_hw_pct > avg + 5:
+                    trend = 'up'
+                elif last_hw_pct < avg - 10:
+                    trend = 'down'
+                    
+        # Count pending tasks
+        pending_count = sum(1 for sub in s_subs if sub["status"] in ["submitted", "pending"])
+        
+        gradebook.append({
+            "student_id": s["id"], 
+            "name": s["full_name"], 
+            "roll_number": s.get("roll_number"), 
+            "results": s_results, 
+            "average": round(avg, 1), 
+            "grade": _calculate_grade(avg),
+            "trend": trend,
+            "pending_count": pending_count
+        })
+        
+    result = {
+        "success": True, 
+        "school_id": school_id, 
+        "data": {
+            "gradebook": gradebook,
+            "homework_list": homework_list,
+            "homework_submissions": submissions
+        }
+    }
+    await set_cached(school_id, "teacher_gradebook", result, cache_key, ttl=300)
     return result
 
 
@@ -1615,26 +1775,56 @@ async def teacher_get_homework(status: str = None, user=Depends(get_current_user
     return {"success": True, "school_id": school_id, "data": {"homework": homework}}
 
 
+async def _auto_publish_scheduled_exams(sb, school_id: str):
+    from datetime import datetime, timezone
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        # Update 1: release_time is not null and release_time <= now
+        await sb.table("exams")\
+            .update({"status": "published"})\
+            .eq("school_id", school_id)\
+            .in_("status", ["scheduled", "ready"])\
+            .is_("release_time", "not.null")\
+            .lte("release_time", now)\
+            .aexecute()
+            
+        # Update 2: release_time is null and start_time is not null and start_time <= now
+        await sb.table("exams")\
+            .update({"status": "published"})\
+            .eq("school_id", school_id)\
+            .in_("status", ["scheduled", "ready"])\
+            .is_("release_time", "null")\
+            .is_("start_time", "not.null")\
+            .lte("start_time", now)\
+            .aexecute()
+    except Exception as e:
+        print(f"Error auto-publishing exams in backend: {e}", flush=True)
+
+
 
 @router.get("/exams")
 async def teacher_get_exams(type: str = None, user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    await _auto_publish_scheduled_exams(sb, school_id)
     query = sb.table("exams").select("*, subjects(name, class)").eq("school_id", school_id).eq("teacher_id", user["id"])
     exams_data = (await query.order("created_at", ascending=False).aexecute()).data
-    
+
     exam_ids = [e["id"] for e in exams_data]
     question_counts = {}
+    question_marks_sum = {}
     joined_counts = {}
     completed_counts = {}
-    
+
     if exam_ids:
-        # Get count of questions grouped by exam_id
-        q_count_res = await sb.table("exam_questions").select("exam_id").in_("exam_id", exam_ids).aexecute()
+        # Get count of questions and sum of marks grouped by exam_id
+        q_count_res = await sb.table("exam_questions").select("exam_id, marks").in_("exam_id", exam_ids).aexecute()
         for row in (q_count_res.data or []):
             eid = row.get("exam_id")
+            m = float(row.get("marks") or 0.0)
             if eid:
                 question_counts[eid] = question_counts.get(eid, 0) + 1
-                
+                question_marks_sum[eid] = question_marks_sum.get(eid, 0.0) + m
+
         # Get count of sessions (joined) grouped by exam_id
         sessions_res = await sb.table("exam_sessions").select("exam_id, student_id").in_("exam_id", exam_ids).aexecute()
         joined_sets = {}
@@ -1645,7 +1835,7 @@ async def teacher_get_exams(type: str = None, user=Depends(get_current_user), sc
                 joined_sets.setdefault(eid, set()).add(sid)
         for eid, sids in joined_sets.items():
             joined_counts[eid] = len(sids)
-            
+
         # Get count of submissions (completed) grouped by exam_id
         submissions_res = await sb.table("exam_submissions").select("exam_id, student_id").in_("exam_id", exam_ids).aexecute()
         completed_sets = {}
@@ -1660,7 +1850,7 @@ async def teacher_get_exams(type: str = None, user=Depends(get_current_user), sc
     for e in exams_data:
         subj = e.get("subjects") or {}
         e["subject"] = subj.get("name", "Unknown")
-        
+
         tc = e.get("target_classes")
         if tc:
             if isinstance(tc, str):
@@ -1675,19 +1865,20 @@ async def teacher_get_exams(type: str = None, user=Depends(get_current_user), sc
                 e["class"] = str(tc)
         else:
             e["class"] = subj.get("class", "Unknown")
-            
+
         if not e.get("exam_date"):
             e["exam_date"] = e.get("start_time")[:10] if e.get("start_time") else None
-            
+
         e["duration"] = str(e.get("duration_minutes", 0)) + " mins"
         e["question_count"] = question_counts.get(e["id"], 0)
+        e["question_marks_sum"] = int(question_marks_sum.get(e["id"], 0.0))
         e["joined_count"] = joined_counts.get(e["id"], 0)
         e["completed_count"] = completed_counts.get(e["id"], 0)
-        
+
     if type and type.lower() != 'all':
         exams_data = [
-            e for e in exams_data 
-            if (e.get("exam_type") or "").lower() == type.lower() 
+            e for e in exams_data
+            if (e.get("exam_type") or "").lower() == type.lower()
             or (e.get("exam_category") or "").lower() == type.lower()
             or (type.lower() == 'term' and (e.get("exam_category") or "").lower() == 'mid term')
             or (type.lower() == 'unit' and (e.get("exam_category") or "").lower() == 'unit test')
@@ -1701,14 +1892,17 @@ async def teacher_get_exams(type: str = None, user=Depends(get_current_user), sc
 @router.get("/exams/{exam_id}")
 async def teacher_get_exam_details(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
     sb = get_supabase()
+    await _auto_publish_scheduled_exams(sb, school_id)
     exam_res = await sb.table("exams").select("*, subjects(name, class)").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
     exam = exam_res.data
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
         
-    # Get question count
-    q_count_res = await sb.table("exam_questions").select("id").eq("exam_id", exam_id).aexecute()
-    exam["question_count"] = len(q_count_res.data or [])
+    # Get question count and marks sum
+    q_res = await sb.table("exam_questions").select("marks").eq("exam_id", exam_id).aexecute()
+    q_list = q_res.data or []
+    exam["question_count"] = len(q_list)
+    exam["question_marks_sum"] = int(sum(float(q.get("marks") or 0.0) for q in q_list))
     
     # Get joined count
     sessions_res = await sb.table("exam_sessions").select("student_id").eq("exam_id", exam_id).aexecute()
@@ -2487,19 +2681,29 @@ async def cancel_salary_advance(
 # ─── ONLINE EXAMS CRUD ENDPOINTS FOR TEACHERS ───
 
 async def _update_exam_questions_status(sb, exam_id: str):
-    # Count the questions
-    q_res = await sb.table("exam_questions").select("id").eq("exam_id", exam_id).aexecute()
+    # Fetch questions and aggregate marks
+    q_res = await sb.table("exam_questions").select("marks").eq("exam_id", exam_id).aexecute()
     q_count = len(q_res.data) if q_res.data else 0
+    added_marks = sum(float(q.get("marks") or 0.0) for q in (q_res.data or []))
     
-    # Get current exam status
-    exam_res = await sb.table("exams").select("status").eq("id", exam_id).maybe_single().aexecute()
+    # Get current exam status and total marks
+    exam_res = await sb.table("exams").select("status, total_marks").eq("id", exam_id).maybe_single().aexecute()
     if exam_res.data:
         current_status = exam_res.data.get("status")
-        # Only transition between 'new', 'draft' and 'in_progress'
-        if q_count > 0 and current_status in ('new', 'draft'):
-            await sb.table("exams").update({"status": "in_progress"}).eq("id", exam_id).aexecute()
-        elif q_count == 0 and current_status == 'in_progress':
-            await sb.table("exams").update({"status": "new"}).eq("id", exam_id).aexecute()
+        total_marks = float(exam_res.data.get("total_marks") or 100)
+        
+        # Determine target status
+        if q_count == 0:
+            target_status = 'new'
+        elif added_marks == total_marks:
+            target_status = 'ready'
+        else:
+            target_status = 'in_progress'
+            
+        # Only auto-transition if status is in new, draft, in_progress, ready
+        if current_status in ('new', 'draft', 'in_progress', 'ready'):
+            if current_status != target_status:
+                await sb.table("exams").update({"status": target_status}).eq("id", exam_id).aexecute()
 
 @router.get("/exams/{exam_id}/questions")
 async def teacher_get_exam_questions(exam_id: str, user=Depends(require_teacher), school_id=Depends(require_school_id)):
@@ -2518,7 +2722,7 @@ async def teacher_add_exam_question(exam_id: str, request: dict, user=Depends(re
     new_q = {
         "exam_id": exam_id,
         "question_text": request.get("question_text"),
-        "question_type": request.get("question_type", "mcq"),
+        "question_type": _normalize_question_type(request.get("question_type")),
         "options": request.get("options"),
         "correct_answer": request.get("correct_answer"),
         "marks": request.get("marks", 1),
@@ -2534,7 +2738,10 @@ async def teacher_update_exam_question(exam_id: str, question_id: str, request: 
     sb = get_supabase()
     allowed = {"question_text", "question_type", "options", "correct_answer", "marks", "order_number"}
     updates = {k: v for k, v in request.items() if k in allowed}
+    if "question_type" in updates:
+        updates["question_type"] = _normalize_question_type(updates["question_type"])
     res = await sb.table("exam_questions").update(updates).eq("id", question_id).eq("exam_id", exam_id).aexecute()
+    await _update_exam_questions_status(sb, exam_id)
     return {"success": True, "school_id": school_id, "data": res.data[0]}
 
 
@@ -2634,6 +2841,257 @@ async def teacher_grade_exam_submission(exam_id: str, submission_id: str, reques
             print(f"Error awarding exam XP: {str(e)}", flush=True)
 
     return {"success": True, "school_id": school_id, "data": res.data[0] if res.data else {}}
+
+
+@router.get("/exams/{exam_id}/pdf")
+async def teacher_download_exam_pdf(
+    exam_id: str,
+    user=Depends(require_teacher),
+    school_id=Depends(require_school_id)
+):
+    sb = get_supabase()
+    # 1. Fetch exam details
+    exam_res = await sb.table("exams").select("*, subjects(name)").eq("id", exam_id).eq("school_id", school_id).maybe_single().aexecute()
+    exam = exam_res.data
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+        
+    subject_name = exam.get("subjects", {}).get("name") if exam.get("subjects") else "General"
+    
+    # 2. Fetch all questions
+    q_res = await sb.table("exam_questions").select("*").eq("exam_id", exam_id).order("order_number").aexecute()
+    questions = q_res.data or []
+    
+    # 3. Generate PDF using reportlab
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.units import inch
+    from fastapi.responses import StreamingResponse
+    import json
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+    
+    # Theme color definitions
+    C_BRAND = colors.HexColor("#4F46E5") # Indigo
+    C_BORDER = colors.HexColor("#E2E8F0")
+    C_TEXT = colors.HexColor("#1E293B")
+    C_DARK = colors.HexColor("#0F172A")
+    
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'ExamTitle', parent=styles['Normal'],
+        fontSize=16, leading=20, fontName='Helvetica-Bold',
+        textColor=C_DARK, alignment=TA_CENTER, spaceAfter=4
+    )
+    subtitle_style = ParagraphStyle(
+        'ExamSubtitle', parent=styles['Normal'],
+        fontSize=10, leading=12, fontName='Helvetica-Bold',
+        textColor=colors.HexColor("#64748B"), alignment=TA_CENTER, spaceAfter=15
+    )
+    section_title = ParagraphStyle(
+        'SectionTitle', parent=styles['Normal'],
+        fontSize=11, leading=14, fontName='Helvetica-Bold',
+        textColor=C_DARK, spaceBefore=12, spaceAfter=6
+    )
+    body_style = ParagraphStyle(
+        'BodyTextCustom', parent=styles['Normal'],
+        fontSize=9.5, leading=13, fontName='Helvetica',
+        textColor=C_TEXT
+    )
+    body_bold = ParagraphStyle(
+        'BodyTextBold', parent=styles['Normal'],
+        fontSize=9.5, leading=13, fontName='Helvetica-Bold',
+        textColor=C_DARK
+    )
+    body_right_bold = ParagraphStyle(
+        'BodyTextRightBold', parent=styles['Normal'],
+        fontSize=9.5, leading=13, fontName='Helvetica-Bold',
+        textColor=C_DARK, alignment=TA_RIGHT
+    )
+    instruction_style = ParagraphStyle(
+        'InstructionText', parent=styles['Normal'],
+        fontSize=8.5, leading=12, fontName='Helvetica-Oblique',
+        textColor=colors.HexColor("#475569")
+    )
+    
+    story = []
+    
+    # Header block
+    school_name = "EDUSHAMIIT ACADEMY"
+    story.append(Paragraph(school_name.upper(), title_style))
+    story.append(Paragraph(exam.get("title", "EXAMINATION PAPER").upper(), subtitle_style))
+    story.append(HRFlowable(width='100%', thickness=1.5, color=C_BRAND, spaceAfter=12))
+    
+    # Target Class text
+    tc_list = exam.get("target_classes") or []
+    if isinstance(tc_list, str):
+        try:
+            tc_list = json.loads(tc_list)
+        except:
+            pass
+    class_str = ", ".join(tc_list) if isinstance(tc_list, list) else str(tc_list)
+    if not class_str:
+        class_str = "All Classes"
+        
+    duration_minutes = exam.get("duration_minutes") or 90
+    duration_str = f"{duration_minutes} Minutes"
+    
+    total_marks = exam.get("total_marks") or 100
+    
+    # Exam info table (Class, Subject, Duration, Max Marks)
+    exam_info = [
+        [
+            Paragraph("<b>Subject:</b>", body_style), Paragraph(subject_name, body_bold),
+            Paragraph("<b>Maximum Marks:</b>", body_style), Paragraph(f"{total_marks} Marks", body_bold)
+        ],
+        [
+            Paragraph("<b>Class:</b>", body_style), Paragraph(class_str, body_bold),
+            Paragraph("<b>Duration:</b>", body_style), Paragraph(duration_str, body_bold)
+        ]
+    ]
+    
+    info_table = Table(exam_info, colWidths=[1.2*inch, 2.45*inch, 1.35*inch, 2.5*inch])
+    info_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 6))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=C_BORDER, spaceAfter=10))
+    
+    # Student metadata inputs header block (Name, Roll Number, Signature)
+    student_meta = [
+        [
+            Paragraph("<b>Candidate Name:</b> __________________________________", body_style),
+            Paragraph("<b>Roll Number:</b> _______________", body_style)
+        ],
+        [
+            Paragraph("<b>Date of Exam:</b> __________________________________", body_style),
+            Paragraph("<b>Signature:</b> _______________", body_style)
+        ]
+    ]
+    meta_table = Table(student_meta, colWidths=[4.8*inch, 2.7*inch])
+    meta_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 4))
+    story.append(HRFlowable(width='100%', thickness=1, color=C_BRAND, spaceAfter=12))
+    
+    # Instructions Section
+    story.append(Paragraph("Instructions to Candidates:", section_title))
+    instructions = [
+        "1. Write your name and roll number clearly in the spaces provided above.",
+        "2. All questions are compulsory. Check that this paper contains all listed questions.",
+        "3. Read each question carefully before attempting it.",
+        f"4. Calculators are {'ALLOWED' if exam.get('allow_calculator') else 'NOT ALLOWED'} for this examination."
+    ]
+    for ins in instructions:
+        story.append(Paragraph(ins, instruction_style))
+        story.append(Spacer(1, 2))
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=C_BORDER, spaceAfter=15))
+    
+    # Questions List
+    story.append(Paragraph("QUESTIONS", section_title))
+    story.append(Spacer(1, 6))
+    
+    for idx, q in enumerate(questions):
+        q_text = q.get("question_text", "")
+        q_marks = q.get("marks", 1)
+        q_type = (q.get("question_type") or "mcq").lower()
+        
+        # Format the question header with marks
+        q_title = f"<b>Q{idx + 1}.</b> {q_text}"
+        q_marks_str = f"[Weight: {q_marks} Marks]"
+        
+        # We can put question title and marks in a table to align marks to the right
+        q_header = [
+            [Paragraph(q_title, body_bold), Paragraph(q_marks_str, body_right_bold)]
+        ]
+        q_table = Table(q_header, colWidths=[6.3*inch, 1.2*inch])
+        q_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        story.append(q_table)
+        
+        # Parse options for MCQ / Multi-select
+        options_raw = q.get("options")
+        options = []
+        if isinstance(options_raw, list):
+            options = [str(o) for o in options_raw]
+        elif isinstance(options_raw, str) and options_raw.strip():
+            try:
+                options = json.loads(options_raw)
+            except:
+                pass
+                
+        if options and q_type in ("mcq", "multi_correct", "single_select", "multi_select"):
+            # Render choices A, B, C, D
+            opt_table_data = []
+            for o_idx, opt in enumerate(options):
+                prefix = f"({chr(65 + o_idx)})"
+                opt_table_data.append([
+                    Paragraph(f"<b>{prefix}</b> {opt}", body_style)
+                ])
+            opt_table = Table(opt_table_data, colWidths=[7.5*inch])
+            opt_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 18),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ]))
+            story.append(opt_table)
+        elif q_type in ("short_answer", "long_answer", "subjective"):
+            # Leave some writing lines/space
+            space_height = 45 if q_type == "short_answer" else 90
+            story.append(Spacer(1, space_height))
+            
+        story.append(Spacer(1, 10))
+        story.append(HRFlowable(width='100%', thickness=0.3, color=C_BORDER, spaceAfter=10))
+        
+    doc.build(story)
+    buffer.seek(0)
+    
+    clean_title = exam.get("title", "Exam").replace(" ", "_")
+    filename = f"QuestionPaper_{clean_title}.pdf"
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
 
 
 @router.get("/exams/{exam_id}/analytics")
@@ -3040,11 +3498,19 @@ async def teacher_update_exam(
 
     status_val = update_data.get("status")
     if status_val in ("published", "scheduled", "ready"):
-        q_res = await sb.table("exam_questions").select("id").eq("exam_id", exam_id).aexecute()
-        if not q_res.data or len(q_res.data) == 0:
+        q_res = await sb.table("exam_questions").select("id, marks").eq("exam_id", exam_id).aexecute()
+        q_data = q_res.data or []
+        if not q_data:
             raise HTTPException(
                 status_code=400,
                 detail="Cannot schedule or publish an exam with 0 questions. Please add questions using the Paper Builder first."
+            )
+        added_marks = sum(float(q.get("marks") or 0.0) for q in q_data)
+        total_marks = float(update_data.get("total_marks") or check_exam.data.get("total_marks") or 100)
+        if added_marks != total_marks:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot assign or publish the exam because the total marks of added questions ({added_marks:.0f} Marks) does not match the exam total marks ({total_marks:.0f} Marks)."
             )
     
     # translate class to target_classes
@@ -3250,7 +3716,7 @@ async def teacher_add_question_bank(
         "subject_id": subject_id,
         "chapter": request.get("chapter", ""),
         "question_text": request.get("question_text"),
-        "question_type": request.get("question_type", "mcq"),
+        "question_type": _normalize_question_type(request.get("question_type")),
         "options": request.get("options"),
         "correct_answer": request.get("correct_answer"),
         "difficulty": request.get("difficulty", "Medium"),
@@ -3274,6 +3740,8 @@ async def teacher_update_question_bank(
         
     allowed = {"question_text", "question_type", "options", "correct_answer", "difficulty", "marks", "chapter"}
     updates = {k: v for k, v in request.items() if k in allowed}
+    if "question_type" in updates:
+        updates["question_type"] = _normalize_question_type(updates["question_type"])
     
     subject_name = request.get("subject")
     class_name = request.get("class") or request.get("class_id")
@@ -3791,13 +4259,16 @@ async def teacher_get_student_progress(class_name: str, user=Depends(require_tea
     students_res = await sb.table("profiles").select("id, full_name, roll_number, class, xp_points, learning_streak").eq("school_id", school_id).eq("class", class_name).eq("role", "student").order("xp_points", ascending=False).aexecute()
     students = students_res.data or []
     
-    # 2. Fetch all student achievements earned for this school
-    sa_res = await sb.table("student_achievements").select("student_id, achievement_id").eq("school_id", school_id).aexecute()
+    # 2. Fetch all student achievements earned for this school (only fully unlocked badges)
+    sa_res = await sb.table("student_achievements").select("student_id, achievement_id, progress, earned_at").eq("school_id", school_id).aexecute()
     sa_data = sa_res.data or []
     
     # Group achievements by student
     student_badges = {}
     for row in sa_data:
+        # If the badge has progress < 100% and has not been earned, skip it
+        if not row.get("earned_at") and float(row.get("progress") or 0.0) < 100.0:
+            continue
         s_id = row["student_id"]
         ach_id = row["achievement_id"]
         if s_id not in student_badges:

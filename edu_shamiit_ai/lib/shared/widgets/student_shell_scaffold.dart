@@ -84,11 +84,6 @@ class StudentShellScaffold extends ConsumerWidget {
         label: 'Achievements',
         route: '/student/achievements'),
     _NavItem(
-        icon: Icons.leaderboard_rounded,
-        emoji: '🏆',
-        label: 'Leaderboard',
-        route: '/student/leaderboard'),
-    _NavItem(
         icon: Icons.videocam_rounded,
         emoji: '🔴',
         label: 'Live Classes',

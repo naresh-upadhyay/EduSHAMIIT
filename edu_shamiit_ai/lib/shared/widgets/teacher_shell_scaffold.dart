@@ -50,10 +50,6 @@ class TeacherShellScaffold extends ConsumerWidget {
         icon: Icons.grading_rounded,
         label: 'Gradebook',
         route: '/teacher/gradebook'),
-    _NavItem(
-        icon: Icons.rate_review_rounded,
-        label: 'Grading',
-        route: '/teacher/grading'),
     _NavItem(icon: Icons.quiz_rounded, label: 'Exams', route: '/teacher/exams'),
     _NavItem(
         icon: Icons.upload_file_rounded,

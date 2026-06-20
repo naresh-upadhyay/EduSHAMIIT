@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
@@ -7,6 +8,9 @@ import 'package:edu_shamiit_ai/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_ai/core/models/teacher_models.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/shared/widgets/azure_grid.dart';
+import 'package:edu_shamiit_ai/core/utils/download_helper_stub.dart'
+    if (dart.library.js) 'package:edu_shamiit_ai/core/utils/download_helper_web.dart'
+    if (dart.library.io) 'package:edu_shamiit_ai/core/utils/download_helper_mobile.dart';
 
 class ExamPaperBuilderScreen extends ConsumerStatefulWidget {
   final String? examId;
@@ -114,40 +118,53 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'new':
-        return Colors.blue;
-      case 'in_progress':
-        return Colors.orange;
-      case 'ready':
-      case 'scheduled':
-        return Colors.green;
-      case 'published':
-        return Colors.purple;
-      case 'completed':
-        return Colors.red;
-      default:
-        return Colors.grey;
+  Color _getStatusColor(TeacherExam exam) {
+    final status = exam.status.toLowerCase();
+    if (status == 'new') {
+      return Colors.blue;
+    }
+    if (status == 'in_progress' || exam.questionMarksSum < exam.totalMarks) {
+      return Colors.orange;
+    }
+    if (exam.startTime == null) {
+      return Colors.green;
+    }
+    final now = DateTime.now();
+    final start = exam.startTime!;
+    final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
+    final durationMins = int.tryParse(digits) ?? 90;
+    final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
+    if (now.isBefore(start)) {
+      return Colors.blueAccent;
+    } else if (now.isAfter(start) && now.isBefore(end)) {
+      return Colors.purple;
+    } else {
+      return Colors.red;
     }
   }
 
-  String _getStatusLabel(String status) {
-    switch (status.toLowerCase()) {
-      case 'new':
-        return 'New';
-      case 'in_progress':
-        return 'In progress';
-      case 'ready':
-      case 'scheduled':
-        return 'Ready';
-      case 'published':
-        return 'Published';
-      case 'completed':
-        return 'Completed';
-      default:
-        if (status.isEmpty) return 'New';
-        return status[0].toUpperCase() + status.substring(1);
+  String _getStatusLabel(TeacherExam exam) {
+    final status = exam.status.toLowerCase();
+    if (status == 'new') {
+      return 'New';
+    }
+    if (status == 'in_progress' || exam.questionMarksSum < exam.totalMarks) {
+      return 'In progress (${exam.questionMarksSum}/${exam.totalMarks})';
+    }
+    if (exam.startTime == null) {
+      return 'Ready';
+    }
+    final now = DateTime.now();
+    final start = exam.startTime!;
+    final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
+    final durationMins = int.tryParse(digits) ?? 90;
+    final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
+    if (now.isBefore(start)) {
+      return 'Scheduled';
+    } else if (now.isAfter(start) && now.isBefore(end)) {
+      return 'Published';
+    } else {
+      return 'Completed';
     }
   }
 
@@ -254,7 +271,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
         width: 100.0,
         compare: (a, b) => a.status.compareTo(b.status),
         cellBuilder: (exam) {
-          final color = _getStatusColor(exam.status);
+          final color = _getStatusColor(exam);
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
@@ -263,7 +280,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
               border: Border.all(color: color.withOpacity(0.3)),
             ),
             child: Text(
-              _getStatusLabel(exam.status),
+              _getStatusLabel(exam),
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
@@ -442,15 +459,15 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(exam.status).withOpacity(0.1),
+                      color: _getStatusColor(exam).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      _getStatusLabel(exam.status),
+                      _getStatusLabel(exam),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: _getStatusColor(exam.status),
+                        color: _getStatusColor(exam),
                       ),
                     ),
                   ),
@@ -840,6 +857,10 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
   }
 
   Widget _buildActionFooter() {
+    final int targetMarks = _exam?.totalMarks ?? 100;
+    final int currentMarks = _calculatedTotalMarks;
+    final bool marksMatched = currentMarks == targetMarks;
+
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.white,
@@ -861,7 +882,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
-              onPressed: _examQuestions.isEmpty 
+              onPressed: !marksMatched 
                   ? null 
                   : () {
                       context.pushReplacement('/teacher/exams/assign/${_exam!.id}');
@@ -872,7 +893,7 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Proceed to Assign'),
+              child: Text(marksMatched ? 'Proceed to Assign' : 'Assign (Incomplete)'),
             ),
           ),
         ],
@@ -1669,74 +1690,443 @@ class _ExamPaperBuilderScreenState extends ConsumerState<ExamPaperBuilderScreen>
   }
 
   void _showPaperPreview() {
+    bool isDownloading = false;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Question Paper Preview'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _exam!.title.toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      barrierDismissible: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 800),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    )
+                  ],
                 ),
-                Text(
-                  'Subject: ${_exam!.subject} | Class: ${_exam!.class_}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Duration: ${_exam!.duration} | Target: ${_exam!.totalMarks} Marks',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const Divider(height: 24),
-                if (_examQuestions.isEmpty)
-                  const Text('No questions added to this draft yet.')
-                else
-                  ..._examQuestions.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final q = entry.value;
-                    final type = (q['question_type'] ?? 'mcq').toString().toUpperCase();
-                    final optionsRaw = q['options'];
-                    List<String> options = [];
-                    if (optionsRaw is List) {
-                      options = optionsRaw.map((e) => e.toString()).toList();
-                    } else if (optionsRaw is String && optionsRaw.isNotEmpty) {
-                      try {
-                        options = List<String>.from(json.decode(optionsRaw));
-                      } catch (_) {}
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header Bar
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                      ),
+                      child: Row(
                         children: [
-                          Text(
-                            'Q${idx + 1}. ${q['question_text']} (${q['marks']} marks) [$type]',
-                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                          const Icon(Icons.description_outlined, color: Color(0xFF6366F1), size: 24),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Question Paper Preview',
+                            style: TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
                           ),
-                          if (options.isNotEmpty)
-                            ...options.asMap().entries.map((opt) {
-                              return Padding(
-                                padding: const EdgeInsets.only(left: 12, top: 4),
-                                child: Text('${String.fromCharCode(65 + opt.key)}. ${opt.value}'),
-                              );
-                            }),
+                          const Spacer(),
+                          if (isDownloading)
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1)),
+                            )
+                          else
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                setDialogState(() {
+                                  isDownloading = true;
+                                });
+                                try {
+                                  final bytes = await _apiService.downloadExamPaperPdf(_exam!.id);
+                                  final cleanTitle = _exam!.title.replaceAll(RegExp(r'\s+'), '_');
+                                  final filename = 'QuestionPaper_$cleanTitle.pdf';
+                                  await getDownloadHelper().downloadBytes(bytes, filename);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('🎉 Question paper PDF downloaded successfully!'),
+                                      backgroundColor: Color(0xFF10B981),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to download PDF: $e'),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                } finally {
+                                  setDialogState(() {
+                                    isDownloading = false;
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.download, size: 14, color: Colors.white),
+                              label: const Text(
+                                'Download PDF',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6366F1),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                elevation: 0,
+                              ),
+                            ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                            onPressed: () => Navigator.pop(context),
+                          ),
                         ],
                       ),
-                    );
-                  }),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-        ],
-      ),
+                    ),
+
+                    // Scrollable Paper Mockup Container
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 700),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                )
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(40),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // School & Exam Header
+                                const Center(
+                                  child: Text(
+                                    'EDUSHAMIIT ACADEMY',
+                                    style: TextStyle(
+                                      fontFamily: 'serif',
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.5,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Center(
+                                  child: Text(
+                                    _exam!.title.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontFamily: 'serif',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.0,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  height: 2,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Exam Metadata Table (Subject, Class, Duration, Max Marks)
+                                Table(
+                                  columnWidths: const {
+                                    0: FlexColumnWidth(1.2),
+                                    1: FlexColumnWidth(2.5),
+                                    2: FlexColumnWidth(1.3),
+                                    3: FlexColumnWidth(2.5),
+                                  },
+                                  children: [
+                                    TableRow(
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 4),
+                                          child: Text('Subject:', style: TextStyle(fontFamily: 'serif', fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(_exam!.subject, style: const TextStyle(fontFamily: 'serif', fontSize: 12)),
+                                        ),
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 4),
+                                          child: Text('Maximum Marks:', style: TextStyle(fontFamily: 'serif', fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text('${_exam!.totalMarks} Marks', style: const TextStyle(fontFamily: 'serif', fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                    TableRow(
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 4),
+                                          child: Text('Class:', style: TextStyle(fontFamily: 'serif', fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(_exam!.class_, style: const TextStyle(fontFamily: 'serif', fontSize: 12)),
+                                        ),
+                                        const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 4),
+                                          child: Text('Duration:', style: TextStyle(fontFamily: 'serif', fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(_exam!.duration, style: const TextStyle(fontFamily: 'serif', fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  height: 0.5,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Student Metadata Fields
+                                const Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Candidate Name: _______________________________',
+                                        style: TextStyle(fontFamily: 'serif', fontSize: 11),
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      'Roll Number: _______________',
+                                      style: TextStyle(fontFamily: 'serif', fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                const Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Date of Exam: _________________________________',
+                                        style: TextStyle(fontFamily: 'serif', fontSize: 11),
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      'Signature: _______________',
+                                      style: TextStyle(fontFamily: 'serif', fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  height: 1.5,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Instructions to Candidates
+                                const Text(
+                                  'Instructions to Candidates:',
+                                  style: TextStyle(
+                                    fontFamily: 'serif',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  '1. Write your name and roll number clearly in the spaces provided above.\n'
+                                  '2. All questions are compulsory. Check that this paper contains all listed questions.\n'
+                                  '3. Read each question carefully before attempting it.',
+                                  style: TextStyle(
+                                    fontFamily: 'serif',
+                                    fontSize: 10.5,
+                                    fontStyle: FontStyle.italic,
+                                    height: 1.4,
+                                    color: Color(0xFF475569),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  height: 0.5,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 20),
+
+                                // Questions Section Header
+                                const Center(
+                                  child: Text(
+                                    'QUESTIONS',
+                                    style: TextStyle(
+                                      fontFamily: 'serif',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2.0,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                if (_examQuestions.isEmpty)
+                                  const Center(
+                                    child: Text(
+                                      'No questions added to this draft yet.',
+                                      style: TextStyle(fontFamily: 'serif', fontSize: 12, fontStyle: FontStyle.italic),
+                                    ),
+                                  )
+                                else
+                                  ..._examQuestions.asMap().entries.map((entry) {
+                                    final idx = entry.key;
+                                    final q = entry.value;
+                                    final qText = q['question_text'] ?? '';
+                                    final qMarks = q['marks'] ?? 1;
+                                    final qType = (q['question_type'] ?? 'mcq').toString().toLowerCase();
+
+                                    final optionsRaw = q['options'];
+                                    List<String> options = [];
+                                    if (optionsRaw is List) {
+                                      options = optionsRaw.map((e) => e.toString()).toList();
+                                    } else if (optionsRaw is String && optionsRaw.isNotEmpty) {
+                                      try {
+                                        options = List<String>.from(json.decode(optionsRaw));
+                                      } catch (_) {}
+                                    }
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 24.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Question text and marks aligned
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Q${idx + 1}. ',
+                                                style: const TextStyle(
+                                                  fontFamily: 'serif',
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  qText,
+                                                  style: const TextStyle(
+                                                    fontFamily: 'serif',
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    height: 1.3,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                '[$qMarks Marks]',
+                                                style: const TextStyle(
+                                                  fontFamily: 'serif',
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+
+                                          // Options for MCQ/Multi-select
+                                          if (options.isNotEmpty && (qType == 'mcq' || qType == 'multi_correct' || qType == 'single_select' || qType == 'multi_select'))
+                                            Padding(
+                                              padding: const EdgeInsets.only(left: 28.0),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: options.asMap().entries.map((opt) {
+                                                  final charCode = String.fromCharCode(65 + opt.key);
+                                                  return Padding(
+                                                    padding: const EdgeInsets.symmetric(vertical: 3),
+                                                    child: Text(
+                                                      '($charCode) ${opt.value}',
+                                                      style: const TextStyle(
+                                                        fontFamily: 'serif',
+                                                        fontSize: 11.5,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                              ),
+                                            )
+                                          else if (qType == 'short_answer' || qType == 'subjective')
+                                            const Padding(
+                                              padding: EdgeInsets.only(left: 28.0, top: 12, bottom: 12),
+                                              child: SizedBox(
+                                                height: 40,
+                                                child: Text(
+                                                  'Answer Space: _________________________________________________________________',
+                                                  style: TextStyle(fontFamily: 'serif', fontSize: 11, color: Colors.grey),
+                                                ),
+                                              ),
+                                            )
+                                          else if (qType == 'long_answer')
+                                            const Padding(
+                                              padding: EdgeInsets.only(left: 28.0, top: 12, bottom: 12),
+                                              child: SizedBox(
+                                                height: 80,
+                                                child: Text(
+                                                  'Answer Space: \n'
+                                                  '_________________________________________________________________________________\n'
+                                                  '_________________________________________________________________________________',
+                                                  style: TextStyle(fontFamily: 'serif', fontSize: 11, color: Colors.grey, height: 1.5),
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(height: 12),
+                                          Container(
+                                            height: 0.3,
+                                            color: Colors.grey.shade300,
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

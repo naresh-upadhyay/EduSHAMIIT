@@ -185,7 +185,6 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
         {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
         {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": true},
         {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
-        {"title": "Leaderboard", "icon": "🏆", "route": "/student/leaderboard", "bg": "FEF3C7"},
         {"title": "Settings", "icon": "⚙️", "route": "/student/settings", "bg": "F1F5F9"},
       ],
     };
@@ -470,8 +469,8 @@ class _StudentDashboardState extends ConsumerState<StudentDashboard> {
                       children: [
                         _buildStatItem('${stats['attendance_pct'] ?? 0}%', 'Attend.'.tr(ref), route: '/student/attendance'),
                         _buildStatItem('${stats['avg_score'] ?? 0}', 'Avg Score'.tr(ref), route: '/student/results'),
-                        _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank'.tr(ref), route: '/student/leaderboard'),
-                        _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points'.tr(ref), route: '/student/leaderboard'),
+                        _buildStatItem('${stats['class_rank'] ?? '-'}${_getOrdinalSuffix(stats['class_rank'])}', 'Rank'.tr(ref), route: '/student/achievements'),
+                        _buildStatItem('${stats['xp_points'] ?? 0}', 'XP Points'.tr(ref), route: '/student/achievements'),
                       ],
                     ),
                   ],

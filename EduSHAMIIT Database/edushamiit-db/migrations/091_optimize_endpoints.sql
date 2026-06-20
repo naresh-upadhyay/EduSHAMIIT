@@ -1,6 +1,8 @@
 -- 091_optimize_endpoints.sql
 -- Optimizing teacher and student endpoints by consolidating queries into RPC functions
 
+SET ROLE supabase_admin;
+
 -- 1. Teacher Classes with Student Counts (Fixes N+1 problem)
 CREATE OR REPLACE FUNCTION get_teacher_classes_with_counts(p_school_id UUID, p_teacher_id UUID)
 RETURNS TABLE (class TEXT, student_count BIGINT) AS $$
@@ -75,6 +77,18 @@ DECLARE
     v_att_present BIGINT;
     v_latest_result JSONB;
     v_class_rank INT;
+    
+    v_exam_obtained FLOAT := 0;
+    v_exam_max FLOAT := 0;
+    v_sub_obtained FLOAT := 0;
+    v_sub_max FLOAT := 0;
+    v_legacy_obtained FLOAT := 0;
+    v_legacy_max FLOAT := 0;
+    v_hw_obtained FLOAT := 0;
+    v_hw_max FLOAT := 0;
+    v_exam_avg FLOAT := 0;
+    v_hw_avg FLOAT := 0;
+    v_combined_avg NUMERIC := 0;
 BEGIN
     -- Get profile
     SELECT to_jsonb(p) INTO v_profile FROM profiles p WHERE id = p_student_id;
@@ -99,13 +113,49 @@ BEGIN
     ) h;
 
     -- Attendance
-    SELECT COUNT(*) INTO v_att_total FROM attendance WHERE school_id = p_school_id AND student_id = p_student_id;
-    SELECT COUNT(*) INTO v_att_present FROM attendance WHERE school_id = p_school_id AND student_id = p_student_id AND status = 'present';
+    SELECT COUNT(*) INTO v_att_total FROM attendance WHERE school_id = p_school_id AND student_id = p_student_id AND status IN ('present', 'absent', 'late');
+    SELECT COUNT(*) INTO v_att_present FROM attendance WHERE school_id = p_school_id AND student_id = p_student_id AND status IN ('present', 'late');
 
-    -- Latest Result
-    SELECT to_jsonb(r) INTO v_latest_result FROM results r 
-    WHERE school_id = p_school_id AND student_id = p_student_id 
-    ORDER BY created_at DESC LIMIT 1;
+    -- Calculate Exam obtained and max marks (published exam submissions)
+    SELECT COALESCE(SUM(es.score), 0), COALESCE(SUM(e.total_marks), 0)
+    INTO v_sub_obtained, v_sub_max
+    FROM exam_submissions es
+    JOIN exams e ON es.exam_id = e.id
+    WHERE es.student_id = p_student_id AND e.results_published_at IS NOT NULL AND e.school_id = p_school_id;
+
+    -- Calculate Exam obtained and max marks (legacy results)
+    SELECT COALESCE(SUM(r.marks_obtained), 0), COALESCE(SUM(r.total_marks), 0)
+    INTO v_legacy_obtained, v_legacy_max
+    FROM results r
+    WHERE r.student_id = p_student_id AND r.school_id = p_school_id;
+
+    v_exam_obtained := v_sub_obtained + v_legacy_obtained;
+    v_exam_max := v_sub_max + v_legacy_max;
+
+    -- Calculate Homework obtained and max marks (graded active homeworks for the student's class)
+    SELECT COALESCE(SUM(hs.marks), 0), COALESCE(SUM(h.max_marks), 0)
+    INTO v_hw_obtained, v_hw_max
+    FROM homework_submissions hs
+    JOIN homework h ON hs.homework_id = h.id
+    WHERE hs.student_id = p_student_id 
+      AND h.school_id = p_school_id 
+      AND h.class = (v_profile->>'class') 
+      AND h.status = 'active'
+      AND hs.status = 'graded'
+      AND hs.marks IS NOT NULL;
+
+    -- Calculate weighted combined average (60% Exam, 40% HW)
+    IF v_exam_max > 0 AND v_hw_max > 0 THEN
+        v_exam_avg := (v_exam_obtained / v_exam_max) * 100;
+        v_hw_avg := (v_hw_obtained / v_hw_max) * 100;
+        v_combined_avg := ROUND(((v_exam_avg * 0.6) + (v_hw_avg * 0.4))::NUMERIC, 1);
+    ELSIF v_exam_max > 0 THEN
+        v_combined_avg := ROUND(((v_exam_obtained / v_exam_max) * 100)::NUMERIC, 1);
+    ELSIF v_hw_max > 0 THEN
+        v_combined_avg := ROUND(((v_hw_obtained / v_hw_max) * 100)::NUMERIC, 1);
+    ELSE
+        v_combined_avg := 0;
+    END IF;
 
     -- Class Rank
     SELECT COUNT(*) + 1 INTO v_class_rank FROM profiles 
@@ -122,7 +172,7 @@ BEGIN
         ),
         'stats', jsonb_build_object(
             'attendance_pct', CASE WHEN v_att_total > 0 THEN ROUND((v_att_present::FLOAT / v_att_total * 100)::NUMERIC, 1) ELSE 0 END,
-            'avg_score', CASE WHEN v_latest_result IS NOT NULL AND (v_latest_result->>'total_marks')::FLOAT > 0 THEN ROUND(((v_latest_result->>'marks_obtained')::FLOAT / (v_latest_result->>'total_marks')::FLOAT * 100)::NUMERIC, 1) ELSE 0 END,
+            'avg_score', v_combined_avg,
             'class_rank', v_class_rank,
             'xp_points', COALESCE((v_profile->>'xp_points')::INT, 0)
         ),
@@ -130,3 +180,5 @@ BEGIN
         'pending_homework', COALESCE(v_homework, '[]'::jsonb)
     );
 END; $$ LANGUAGE plpgsql;
+
+RESET ROLE;
