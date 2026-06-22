@@ -480,3 +480,14 @@ class QuestionResponse(QuestionBase):
 class ExamSubmitRequest(BaseModel):
     answers: Dict[str, str] = Field(..., description="Dictionary mapping question UUID to student answer text/letter")
     is_auto_save: Optional[bool] = False
+
+
+# OTP Login Models
+class SendLoginOtpRequest(BaseModel):
+    identifier: str  # email or user_id
+
+
+class VerifyLoginOtpRequest(BaseModel):
+    identifier: str
+    otp: str
+    role: Optional[str] = None

@@ -217,6 +217,71 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Sign in with OTP
+  Future<bool> signInWithOtp({
+    required String email,
+    required String otp,
+    required UserRole role,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/auth/verify-login-otp');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: jsonEncode({
+          'identifier': email,
+          'otp': otp,
+          'role': role.value,
+        }),
+      ).timeout(AppConfig.apiTimeout);
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200 && body['success'] == true) {
+        final data = body['data'] as Map<String, dynamic>;
+        final token = data['token'] as String;
+        final user = data['user'] as Map<String, dynamic>;
+        final roleStr = user['role'] as String? ?? 'unknown';
+        final role = UserRoleExtension.fromString(roleStr);
+
+        ApiService().clearCache();
+        await _saveSession(
+          token: token,
+          role: role,
+          userData: user,
+        );
+
+        ref.read(roleProvider.notifier).setRole(role);
+
+        state = AuthState(
+          isLoading: false,
+          isAuthenticated: true,
+          role: role,
+          token: token,
+          userData: user,
+        );
+
+        final userId = user['id'] as String? ?? '';
+        if (userId.isNotEmpty) {
+          CallService.instance.initialize(userId, AppConfig.baseUrl);
+        }
+        return true;
+      }
+
+      final detail = body['detail'] as String? ?? 'OTP login failed';
+      state = state.copyWith(error: detail, isLoading: false);
+      return false;
+    } catch (e) {
+      debugPrint('[AuthProvider] OTP login exception: $e');
+      state = state.copyWith(
+        error: 'Connection error: ${e.toString()}',
+        isLoading: false,
+      );
+      return false;
+    }
+  }
+
   /// Sign out — clears local session.
   Future<void> signOut() async {
     // Clear API cache

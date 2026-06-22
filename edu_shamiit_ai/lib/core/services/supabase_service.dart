@@ -15,7 +15,7 @@ class SupabaseService {
       await Supabase.initialize(
         url: AppConfig.supabaseUrl,
         anonKey: AppConfig.supabaseAnonKey,
-        debug: true,
+        debug: false,
         authOptions: const FlutterAuthClientOptions(
           autoRefreshToken: true,
         ),

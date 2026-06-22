@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
 from typing import Optional, Dict, Any
@@ -9,7 +9,7 @@ from app.models import (
     LoginRequest, RegisterRequest, RefreshRequest, SendOtpRequest, 
     VerifyOtpRequest, ResetPasswordRequest, LoginResponse, RegisterResponse,
     RefreshResponse, OtpResponse, VerifyOtpResponse, ResetPasswordResponse,
-    ErrorResponse
+    ErrorResponse, SendLoginOtpRequest, VerifyLoginOtpRequest
 )
 from jose import jwt
 from datetime import datetime, timedelta, timezone
@@ -462,7 +462,7 @@ async def send_otp(request: EnhancedSendOtpRequest):
             raise HTTPException(status_code=404, detail="User not found")
         
         user_id = user["id"]
-        user_email = user.get("email", identifier)
+        user_email = user.get("email") or (identifier if "@" in identifier else None)
         full_name = user.get("full_name", user_name)
         
         # Check rate limit
@@ -831,3 +831,116 @@ async def delete_user(identifier: str):
     except Exception as e:
         logging.error(f"Error deleting user {identifier}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────
+# OTP AUTHENTICATION ENDPOINTS
+# ──────────────────────────────────────────────────────────────
+
+@router.post("/send-login-otp")
+async def send_login_otp(request: SendLoginOtpRequest):
+    try:
+        sb = get_supabase()
+        email_service = get_email_service()
+        
+        user = await find_user_by_identifier(sb, request.identifier)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        user_id = user["id"]
+        user_email = user.get("email") or (request.identifier if "@" in request.identifier else None)
+        
+        # Check rate limit
+        one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        res = await sb.table("login_otps").select("id").eq("user_id", user_id).gte("created_at", one_hour_ago.isoformat()).aexecute()
+        if len(res.data) >= settings.OTP_RATE_LIMIT_PER_HOUR:
+            raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Max {settings.OTP_RATE_LIMIT_PER_HOUR} requests per hour.")
+            
+        # Invalidate old OTPs
+        await sb.table("login_otps").update({"status": "used"}).eq("user_id", user_id).eq("status", "pending").aexecute()
+        
+        # Generate & store OTP
+        otp = generate_otp(settings.OTP_LENGTH)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRATION_MINUTES)
+        
+        await sb.table("login_otps").insert({
+            "user_id": user_id,
+            "school_id": user.get("school_id"),
+            "otp": otp,
+            "expires_at": expires_at.isoformat(),
+            "status": "pending"
+        }).aexecute()
+        
+        # Send mail
+        sent = email_service.send_login_otp_email(user_email, otp, user.get("full_name"))
+        if not sent:
+            logging.warning(f"Failed to send login OTP email to {user_email}")
+            
+        return OtpResponse(
+            success=True,
+            message="Login OTP sent successfully",
+            expires_in=int(settings.OTP_EXPIRATION_MINUTES * 60)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send login OTP: {str(e)}")
+
+@router.post("/verify-login-otp")
+async def verify_login_otp(request: VerifyLoginOtpRequest):
+    try:
+        sb = get_supabase()
+        user = await find_user_by_identifier(sb, request.identifier)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        user_id = user["id"]
+        
+        if request.role and user["role"].lower() != request.role.lower():
+            raise HTTPException(status_code=403, detail="Selected role does not match registered profile")
+            
+        now = datetime.now(timezone.utc).isoformat()
+        res = await sb.table("login_otps").select("*").eq("user_id", user_id).eq("otp", request.otp).eq("status", "pending").gte("expires_at", now).aexecute()
+        
+        if not res.data:
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+            
+        otp_record = res.data[0]
+        await sb.table("login_otps").update({"status": "used"}).eq("id", otp_record["id"]).aexecute()
+        
+        token = jwt.encode(
+            {
+                "sub": user_id,
+                "school_id": user["school_id"],
+                "role": user["role"],
+                "class": user.get("class"),
+                "email": user.get("email"),
+                "exp": datetime.now(timezone.utc) + timedelta(days=7),
+            },
+            JWT_SECRET,
+            algorithm=JWT_ALGORITHM,
+        )
+        
+        return LoginResponse(
+            success=True,
+            school_id=user["school_id"],
+            data={
+                "token": token,
+                "user": {
+                    "id": user_id,
+                    "full_name": user["full_name"],
+                    "role": user["role"],
+                    "class": user.get("class"),
+                    "school_id": user["school_id"],
+                    "avatar_url": user.get("avatar_url"),
+                },
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to verify login OTP: {str(e)}")
+
+
+
+

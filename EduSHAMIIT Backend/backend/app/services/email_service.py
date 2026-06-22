@@ -352,6 +352,180 @@ class EmailService:
         subject = "EduSHAMIIT Password Reset Successful"
         return self._send_email(to_email, subject, html_content)
 
+    def send_login_otp_email(self, to_email: str, otp: str, user_name: Optional[str] = None) -> bool:
+        """Send a premium, clean transactional OTP email for account login."""
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>EduSHAMIIT Login Verification</title>
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                    background-color: #f3f4f6;
+                    margin: 0;
+                    padding: 0;
+                    -webkit-font-smoothing: antialiased;
+                }}
+                .wrapper {{
+                    width: 100%;
+                    background-color: #f3f4f6;
+                    padding: 40px 0;
+                }}
+                .container {{
+                    max-width: 500px;
+                    margin: 0 auto;
+                    background-color: #ffffff;
+                    border-radius: 16px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+                    overflow: hidden;
+                    border: 1px solid #e5e7eb;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%);
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .logo {{
+                    color: #ffffff;
+                    font-size: 24px;
+                    font-weight: 800;
+                    letter-spacing: -0.5px;
+                    margin: 0;
+                }}
+                .logo span {{
+                    color: #818cf8;
+                }}
+                .content {{
+                    padding: 40px 35px;
+                }}
+                .title {{
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: #1f2937;
+                    margin-top: 0;
+                    margin-bottom: 8px;
+                }}
+                .greeting {{
+                    font-size: 16px;
+                    color: #4b5563;
+                    margin-bottom: 20px;
+                }}
+                .instructions {{
+                    font-size: 14px;
+                    color: #4b5563;
+                    line-height: 1.6;
+                    margin-bottom: 30px;
+                }}
+                .otp-card {{
+                    background-color: #f9fafb;
+                    border: 1px dashed #c7d2fe;
+                    border-radius: 12px;
+                    padding: 24px;
+                    text-align: center;
+                    margin-bottom: 30px;
+                }}
+                .otp-label {{
+                    font-size: 11px;
+                    text-transform: uppercase;
+                    letter-spacing: 1.5px;
+                    color: #6366f1;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                }}
+                .otp-code {{
+                    font-size: 36px;
+                    font-weight: 800;
+                    color: #1e1b4b;
+                    letter-spacing: 8px;
+                    font-family: 'Courier New', monospace;
+                    margin: 0;
+                }}
+                .expiry {{
+                    font-size: 12px;
+                    color: #9ca3af;
+                    margin-top: 8px;
+                }}
+                .warning-box {{
+                    background-color: #fef3c7;
+                    border-left: 4px solid #f59e0b;
+                    padding: 16px;
+                    border-radius: 4px;
+                    margin-bottom: 30px;
+                }}
+                .warning-text {{
+                    font-size: 12px;
+                    color: #78350f;
+                    margin: 0;
+                    line-height: 1.5;
+                }}
+                .footer {{
+                    background-color: #f9fafb;
+                    padding: 30px;
+                    text-align: center;
+                    border-top: 1px solid #f3f4f6;
+                }}
+                .footer-text {{
+                    font-size: 12px;
+                    color: #9ca3af;
+                    line-height: 1.8;
+                    margin: 0 0 10px 0;
+                }}
+                .footer-link {{
+                    color: #6366f1;
+                    text-decoration: none;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="wrapper">
+                <div class="container">
+                    <div class="header">
+                        <div class="logo">Edu<span>SHAMIIT</span></div>
+                    </div>
+                    <div class="content">
+                        <h2 class="title">Verify Your Sign-In</h2>
+                        <div class="greeting">Hello {user_name or 'there'},</div>
+                        <p class="instructions">
+                            We received a request to access your EduSHAMIIT account. Use the secure verification code below to complete your sign-in:
+                        </p>
+                        
+                        <div class="otp-card">
+                            <div class="otp-label">Verification Code</div>
+                            <div class="otp-code">{otp}</div>
+                            <div class="expiry">Expires in {settings.OTP_EXPIRATION_MINUTES} minutes</div>
+                        </div>
+                        
+                        <div class="warning-box">
+                            <p class="warning-text">
+                                <strong>Security Notice:</strong> If you did not make this request, someone else may be trying to access your account. Please log in to change your password immediately or notify school administration.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p class="footer-text">
+                            This is a transactional security notification sent on behalf of EduSHAMIIT.
+                        </p>
+                        <p class="footer-text">
+                            EduSHAMIIT Inc. &bull; 123 Academic Square &bull; Tech City
+                        </p>
+                        <p class="footer-text" style="margin-bottom: 0;">
+                            Need help? <a href="#" class="footer-link">Contact Support</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        subject = "EduSHAMIIT Secure Login Code"
+        return self._send_email(to_email, subject, html_content)
+
+
 
 # Singleton instance
 _email_service = None

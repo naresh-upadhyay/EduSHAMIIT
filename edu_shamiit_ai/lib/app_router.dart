@@ -106,7 +106,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOtp = path == '/otp-verification';
       final isReset = path == '/reset-password';
       final isResetSuccess = path == '/password-reset-success';
-      
       final isPublic = isSplash || isLogin || isForgot || isOtp || isReset || isResetSuccess;
 
       // If user is NOT authenticated, and trying to access a private route, force to login
@@ -160,7 +159,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       builder: (context, state) {
         final args = state.extra as Map<String, dynamic>?;
         final email = args?['email'] as String? ?? '';
-        return OtpVerificationScreen(email: email);
+        final isLogin = args?['isLogin'] as bool? ?? false;
+        final role = args?['role'] as UserRole?;
+        return OtpVerificationScreen(
+          email: email,
+          isLogin: isLogin,
+          role: role,
+        );
       },
     ),
     GoRoute(

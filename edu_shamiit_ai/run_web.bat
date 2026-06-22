@@ -1,3 +1,3 @@
 @echo off
 echo Starting EduSHAMIIT Web Server...
-flutter run -d web-server --web-port 63307 --web-hostname 127.0.0.1
+flutter run -d web-server --web-launch-url http://127.0.0.1:63307

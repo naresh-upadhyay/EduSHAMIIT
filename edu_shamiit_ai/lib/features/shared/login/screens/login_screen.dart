@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_ai/core/providers/auth_provider.dart';
 import 'package:edu_shamiit_ai/core/providers/role_provider.dart';
+import 'package:edu_shamiit_ai/core/config/app_config.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,16 +17,20 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _studentIdController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  UserRole? _selectedRole;
+  UserRole? _selectedRole = UserRole.student; // Default to Student
   String? _roleErrorText;
+  
+  // 0: Password Login, 1: OTP Login
+  int _activeTab = 0;
+  bool _isSendingOtp = false;
+  String? _otpErrorText;
 
   @override
   void initState() {
     super.initState();
-    // Set system UI overlay style for login
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -34,14 +41,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _studentIdController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    debugPrint('Login button pressed!');
-    
+  Future<void> _handlePasswordLogin() async {
     setState(() {
       if (_selectedRole == null) {
         _roleErrorText = 'Please select a role';
@@ -50,22 +55,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
-    // Check form validation
     final isFormValid = _formKey.currentState!.validate();
     if (!isFormValid || _selectedRole == null) {
-      debugPrint('Form validation failed!');
       return;
     }
-    debugPrint('Form validation passed.');
 
-    final email = _studentIdController.text.trim();
+    final email = _emailController.text.trim();
     final password = _passwordController.text;
-    
-    debugPrint('Attempting login with email: $email');
 
     try {
-      final authNotifier = ref.read(authProvider.notifier);
-      final success = await authNotifier.signIn(
+      final success = await ref.read(authProvider.notifier).signIn(
         email: email,
         password: password,
         role: _selectedRole!,
@@ -73,45 +72,96 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
-      debugPrint('Login result: $success');
-
       if (success) {
         final authState = ref.read(authProvider);
-        final role = authState.role;
-        debugPrint('User role: $role');
-        if (role == UserRole.teacher) {
+        if (authState.role == UserRole.teacher) {
           context.go('/teacher/dashboard');
         } else {
           context.go('/student/dashboard');
         }
       } else {
-        // Get error from auth state
-        final authState = ref.read(authProvider);
-        final errorMessage = authState.error ?? 'Login failed. Please check your credentials.';
-        debugPrint('Login failed: $errorMessage');
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+        final errorMessage = ref.read(authProvider).error ?? 'Login failed. Please check your credentials.';
+        _showSnackBar(errorMessage, Colors.red);
       }
     } catch (e) {
-      debugPrint('Login exception: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      _showSnackBar('Error: ${e.toString()}', Colors.red);
     }
+  }
+
+  Future<void> _handleSendOtp() async {
+    setState(() {
+      _otpErrorText = null;
+      if (_selectedRole == null) {
+        _roleErrorText = 'Please select a role';
+      } else {
+        _roleErrorText = null;
+      }
+    });
+
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showSnackBar('Email is required', Colors.orange);
+      return;
+    }
+
+    final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+    if (!emailRegex.hasMatch(email)) {
+      _showSnackBar('Please enter a valid email address', Colors.orange);
+      return;
+    }
+
+    if (_selectedRole == null) {
+      return;
+    }
+
+    setState(() {
+      _isSendingOtp = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/auth/send-login-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'identifier': email}),
+      );
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 && body['success'] == true) {
+        _showSnackBar('Verification code sent to your email!', Colors.green);
+        context.push('/otp-verification', extra: {
+          'email': email,
+          'isLogin': true,
+          'role': _selectedRole,
+        });
+      } else {
+        setState(() {
+          _otpErrorText = body['detail'] ?? 'Failed to send OTP';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _otpErrorText = 'Connection error: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _isSendingOtp = false;
+      });
+    }
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   @override
@@ -120,281 +170,129 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F0C29), Color(0xFF302B63), Color(0xFF24243E)],
+            colors: [Color(0xFF0C0728), Color(0xFF1E1145), Color(0xFF130932)],
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-              children: [
-                const SizedBox(height: 24),
-                // Logo with spinning ring effect
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text('🎓', style: TextStyle(fontSize: 32)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // EduSHAMIIT title
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      const TextSpan(
-                        text: 'Edu',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      TextSpan(
-                        text: 'SHAMIIT',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          foreground: Paint()
-                            ..shader = const LinearGradient(
-                              colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
-                            ).createShader(const Rect.fromLTWH(0, 0, 200, 70)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Subtitle
-                const Text(
-                  'AI-Powered School ERP',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Color(0x66FFFFFF),
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Login as label
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Login as',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Role selector - 2 columns
-                Row(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: _buildRoleCard('Student', '🎒', UserRole.student),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildRoleCard('Teacher', '👨‍🏫', UserRole.teacher),
-                    ),
-                  ],
-                ),
-                if (_roleErrorText != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _roleErrorText!,
-                        style: const TextStyle(
-                          color: Color(0xFFFF6B6B),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
+                    // Premium custom Logo & Name
+                    _buildLogoHeader(),
+                    const SizedBox(height: 24),
+
+                    // Main Glassmorphic Card
+                    Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          width: 1.2,
                         ),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 20),
-
-                // Email field
-                _buildDarkTextField(
-                  controller: _studentIdController,
-                  label: 'Email',
-                  hint: 'Enter your email',
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Email is required';
-                    }
-                    final emailRegex = RegExp(
-                        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
-                    if (!emailRegex.hasMatch(value.trim())) {
-                      return 'Please enter a valid email address';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-
-                // Password field
-                _buildDarkTextField(
-                  controller: _passwordController,
-                  label: 'Password',
-                  hint: 'Enter your password',
-                  obscureText: _obscurePassword,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: Colors.white54,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Password is required';
-                    }
-                    if (value.length < 8) {
-                      return 'Password must be at least 8 characters long';
-                    }
-                    if (!RegExp(r'[A-Z]').hasMatch(value)) {
-                      return 'Password must contain at least one uppercase letter';
-                    }
-                    if (!RegExp(r'[a-z]').hasMatch(value)) {
-                      return 'Password must contain at least one lowercase letter';
-                    }
-                    if (!RegExp(r'\d').hasMatch(value)) {
-                      return 'Password must contain at least one number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 4),
-                // Forgot Password link
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text(
-                      'Forgot Password?',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF4F46E5),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Login button
-                (authState.isLoading
-                    ? const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      )
-                    : Container(
-                        width: double.infinity,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                            blurRadius: 30,
+                            spreadRadius: 2,
                           ),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF4F46E5).withValues(alpha: 0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
+                        ],
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 2 Methods selector (Password / OTP)
+                            _buildTabSwitcher(),
+                            const SizedBox(height: 24),
+
+                            // Role Selection Card
+                            const Text(
+                              'Select Account Type',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white70,
+                                letterSpacing: 0.5,
+                              ),
                             ),
+                            const SizedBox(height: 10),
+                            _buildRoleSelector(),
+                            if (_roleErrorText != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  _roleErrorText!,
+                                  style: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
+                                ),
+                              ),
+                            const SizedBox(height: 20),
+
+                            // Email Address Field
+                            _buildTextField(
+                              controller: _emailController,
+                              label: 'Registered Email',
+                              hint: 'example@school.com',
+                              icon: Icons.mail_outline_rounded,
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Email is required';
+                                }
+                                final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$");
+                                if (!emailRegex.hasMatch(value.trim())) {
+                                  return 'Please enter a valid email address';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 18),
+
+                            // Animated Tab Contents
+                            AnimatedCrossFade(
+                              firstChild: _buildPasswordFields(authState.isLoading),
+                              secondChild: _buildOtpFields(),
+                              crossFadeState: _activeTab == 0
+                                  ? CrossFadeState.showFirst
+                                  : CrossFadeState.showSecond,
+                              duration: const Duration(milliseconds: 300),
+                            ),
+                            
+                            if (_activeTab == 1 && _otpErrorText != null) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                _otpErrorText!,
+                                style: const TextStyle(color: Color(0xFFFF5252), fontSize: 12),
+                              ),
+                            ],
+                            const SizedBox(height: 24),
+
+                            // Main Action Button
+                            _buildActionButton(authState.isLoading),
                           ],
                         ),
-                        child: ElevatedButton(
-                          onPressed: _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            '✨ Login with AI Assist',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      )),
-                const SizedBox(height: 16),
-
-                // AI monitor text
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      '🤖 ',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    Text(
-                      'AI monitors your learning journey every second',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.3),
                       ),
                     ),
+                    
+                    const SizedBox(height: 28),
+                    // Footnote
+                    _buildFooter(),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // Alternative login options
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildAltLoginButton('🆔', 'Face ID'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildAltLoginButton('🔑', 'OTP Login'),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildAltLoginButton('📲', 'QR Scan'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
-              ],
               ),
             ),
           ),
@@ -403,7 +301,180 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildRoleCard(String label, String emoji, UserRole role) {
+  Widget _buildLogoHeader() {
+    return Column(
+      children: [
+        // Beautiful Logo Icon with Outer Glow Ring
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
+                blurRadius: 20,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Text(
+              '🎓',
+              style: TextStyle(fontSize: 38),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Title Text with Premium Gradient effect
+        RichText(
+          text: const TextSpan(
+            children: [
+              TextSpan(
+                text: 'Edu',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                  fontFamily: 'Outfit',
+                ),
+              ),
+              TextSpan(
+                text: 'SHAMIIT',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF818CF8),
+                  letterSpacing: -0.5,
+                  fontFamily: 'Outfit',
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Subtitle
+        Text(
+          'AI-POWERED ACADEMIC PORTAL',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white.withValues(alpha: 0.4),
+            letterSpacing: 2.0,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabSwitcher() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 1.0,
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tabWidth = (constraints.maxWidth - 8) / 2;
+          return Stack(
+            children: [
+              // Sliding active block background
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                alignment: _activeTab == 0
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
+                child: Container(
+                  width: tabWidth,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Selector Buttons overlay
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _activeTab = 0),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: Text(
+                          'Password',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: _activeTab == 0 ? Colors.white : Colors.white60,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _activeTab = 1),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: Text(
+                          'OTP Code',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: _activeTab == 1 ? Colors.white : Colors.white60,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildRoleCard('Student', '🎒', UserRole.student),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _buildRoleCard('Teacher', '👨‍🏫', UserRole.teacher),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleCard(String title, String icon, UserRole role) {
     final isSelected = _selectedRole == role;
     return GestureDetector(
       onTap: () {
@@ -413,34 +484,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         });
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF4F46E5).withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.06),
+              ? const Color(0xFF6366F1).withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.04),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF4F46E5).withValues(alpha: 0.6)
+                ? const Color(0xFF6366F1)
                 : Colors.white.withValues(alpha: 0.08),
             width: 1.5,
           ),
           borderRadius: BorderRadius.circular(14),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                    blurRadius: 10,
+                  )
+                ]
+              : null,
         ),
         child: Column(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 22)),
-            const SizedBox(height: 4),
+            Text(icon, style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 6),
             Text(
-              label,
+              title,
               style: TextStyle(
-                color: isSelected
-                    ? Colors.white.withValues(alpha: 0.7)
-                    : Colors.white.withValues(alpha: 0.7),
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                fontSize: 9.5,
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? Colors.white : Colors.white60,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -448,22 +524,143 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildAltLoginButton(String emoji, String label) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    bool enabled = true,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          enabled: enabled,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          validator: validator,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 13),
+            prefixIcon: Icon(icon, color: const Color(0xFF818CF8), size: 18),
+            suffixIcon: suffixIcon,
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.05),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+            ),
+            errorStyle: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasswordFields(bool isLoading) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTextField(
+          controller: _passwordController,
+          label: 'Password',
+          hint: '••••••••',
+          icon: Icons.lock_outline_rounded,
+          obscureText: _obscurePassword,
+          enabled: !isLoading,
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscurePassword
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              color: Colors.white38,
+              size: 18,
+            ),
+            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Password is required';
+            }
+            if (value.length < 8) {
+              return 'Must be at least 8 characters';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => context.push('/forgot-password'),
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(0, 0),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Forgot Password?',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF818CF8),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOtpFields() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF6366F1).withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+          width: 1,
+        ),
       ),
-      child: Column(
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.4),
-              fontSize: 10,
+          Icon(Icons.info_outline_rounded, color: Color(0xFF818CF8), size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'A 6-digit login verification code will be sent to your email to complete your authentication securely.',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -471,60 +668,78 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildDarkTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    bool? obscureText,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
-            fontWeight: FontWeight.w500,
-            fontSize: 11,
+  Widget _buildActionButton(bool isLoading) {
+    final showLoading = isLoading || (_activeTab == 1 && _isSendingOtp);
+
+    return Container(
+      width: double.infinity,
+      height: 50,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: showLoading
+            ? null
+            : (_activeTab == 0 ? _handlePasswordLogin : _handleSendOtp),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          obscureText: obscureText ?? false,
-          style: const TextStyle(color: Colors.white),
-          validator: validator ?? (value) {
-            if (value == null || value.trim().isEmpty) {
-              return '$label is required';
-            }
-            return null;
-          },
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.08),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        child: showLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                _activeTab == 0 ? '✨ Sign In Securely' : '🚀 Request OTP Code',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              '🤖',
+              style: TextStyle(fontSize: 13),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            const SizedBox(width: 6),
+            Text(
+              'Secure connection monitored by Shami AI',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.35),
+              ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
-            ),
-            errorStyle: const TextStyle(color: Color(0xFFFF6B6B), fontSize: 10),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
-          ),
+          ],
         ),
       ],
     );
