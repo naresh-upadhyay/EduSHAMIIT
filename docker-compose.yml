@@ -461,30 +461,6 @@ services:
       - edushamiit-net
 
   # ============================================================
-  # INFRASTRUCTURE – RabbitMQ (with management UI on 15672)
-  # ============================================================
-  rabbitmq:
-    container_name: edushamiit-rabbitmq
-    image: rabbitmq:3-management-alpine
-    restart: unless-stopped
-    ports:
-      - "5672:5672"
-      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "nc", "-z", "127.0.0.1", "5672"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 180s
-    networks:
-      - edushamiit-net
-
-  # ============================================================
   # INFRASTRUCTURE – Mosquitto MQTT Broker (ports 1883 + 9001 WS)
   # ============================================================
   mosquitto:
@@ -502,27 +478,24 @@ services:
       - edushamiit-net
 
   # ============================================================
-  # FASTAPI – Replica 1
+  # FASTAPI – Single Instance (was 3 replicas)
   # ============================================================
-  api-1:
+  api:
     build:
       context: "./EduSHAMIIT Backend/backend"
       dockerfile: Dockerfile
-    container_name: edushamiit-api-1
+    container_name: edushamiit-api
     restart: unless-stopped
     env_file: ./.env
     environment:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       - SUPABASE_URL=http://kong:8000
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - MQTT_BROKER_HOST=mosquitto
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
     volumes:
       - "./EduSHAMIIT Backend/backend/app:/app/app"
@@ -531,93 +504,7 @@ services:
       - edushamiit-net
 
   # ============================================================
-  # FASTAPI – Replica 2
-  # ============================================================
-  api-2:
-    build:
-      context: "./EduSHAMIIT Backend/backend"
-      dockerfile: Dockerfile
-    container_name: edushamiit-api-2
-    restart: unless-stopped
-    env_file: ./.env
-    environment:
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      - SUPABASE_URL=http://kong:8000
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
-      - MQTT_BROKER_HOST=mosquitto
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - "./EduSHAMIIT Backend/backend/app:/app/app"
-      - "./volumes/assets:/app/assets"
-    networks:
-      - edushamiit-net
-
-  # ============================================================
-  # FASTAPI – Replica 3
-  # ============================================================
-  api-3:
-    build:
-      context: "./EduSHAMIIT Backend/backend"
-      dockerfile: Dockerfile
-    container_name: edushamiit-api-3
-    restart: unless-stopped
-    env_file: ./.env
-    environment:
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      - SUPABASE_URL=http://kong:8000
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
-      - MQTT_BROKER_HOST=mosquitto
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - "./EduSHAMIIT Backend/backend/app:/app/app"
-      - "./volumes/assets:/app/assets"
-    networks:
-      - edushamiit-net
-
-  # ============================================================
-  # COTURN – STUN/TURN Server for WebRTC NAT Traversal
-  # ============================================================
-  coturn:
-    container_name: edushamiit-coturn
-    image: coturn/coturn:4.6.3-alpine
-    restart: unless-stopped
-    ports:
-      - "3478:3478/udp"
-      - "3478:3478/tcp"
-      - "3479:3479/udp"
-      - "3479:3479/tcp"
-      - "49152-49200:49152-49200/udp"
-    command:
-      - "-n"
-      - "--log-file=stdout"
-      - "--min-port=49152"
-      - "--max-port=49200"
-      - "--realm=edushamiit.local"
-      - "--server-name=edushamiit.local"
-      - "--lt-cred-mech"
-      - "--static-auth-secret=${COTURN_SECRET}"
-      - "--no-tls"
-      - "--no-dtls"
-      - "--fingerprint"
-    networks:
-      - edushamiit-net
-
-  # ============================================================
-  # NGINX – Load Balancer (port 80)
+  # NGINX – Reverse Proxy (port 80)
   # ============================================================
   nginx:
     container_name: edushamiit-nginx
@@ -628,9 +515,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - api-1
-      - api-2
-      - api-3
+      - api
     networks:
       - edushamiit-net
 
@@ -720,7 +605,6 @@ volumes:
   db_data:
   db_config:
   redis_data:
-  rabbitmq_data:
   storage_data:
   mosquitto_data:
   mosquitto_logs:

@@ -1,0 +1,44 @@
+# ============================================================
+# EduSHAMIIT Terraform Configuration
+# ============================================================
+# Copy to terraform.tfvars and fill in values before running:
+#   terraform apply
+# ============================================================
+
+# Required: Your GCP Project ID
+project_id = "your-gcp-project-id"
+
+# GCP Region (default: us-central1)
+region = "us-central1"
+
+# Service naming
+service_name = "edushamiit-api"
+image_name   = "edushamiit-api"
+image_tag    = "latest"
+
+# Scaling (min=0 for free tier: no cost when idle)
+min_instances = 0
+max_instances = 3
+concurrency   = 80
+
+# Compute resources (free tier limit: 2M reqs, 1 CPU, 512Mi per instance)
+cpu    = "1"
+memory = "512Mi"
+
+# Request timeout (300s for SSE/chat endpoints)
+timeout_seconds = 300
+
+# Container port (8000 as in Dockerfile)
+container_port = 8000
+
+# Storage
+create_gcs_bucket     = true
+gcs_bucket_location  = "US"
+
+# Secrets — create these in Secret Manager first, then reference here
+# Leave empty ("") to pass via plain text env_vars instead
+# database_url_secret_id     = "edushamiit-database-url"
+# supabase_url_secret_id     = "edushamiit-supabase-url"
+# jwt_secret_secret_id       = "edushamiit-jwt-secret"
+# redis_url_secret_id        = "edushamiit-redis-url"
+# openai_api_key_secret_id   = "edushamiit-openai-key"

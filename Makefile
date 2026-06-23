@@ -1,7 +1,7 @@
 # EduSHAMIIT – Makefile
 # Usage: make <target>
 
-.PHONY: up down reset logs ps shell-db shell-redis shell-rabbit build pull clean help
+.PHONY: up down reset logs ps shell-db shell-redis build pull clean help
 
 # ── Primary commands ───────────────────────────────────────────
 
@@ -46,9 +46,9 @@ stats:
 
 # ── Build ─────────────────────────────────────────────────────
 
-## Rebuild FastAPI images only
+## Rebuild FastAPI image only
 build:
-	docker compose build api-1 api-2 api-3
+	docker compose build api
 
 ## Pull latest images for all services
 pull:
@@ -75,12 +75,6 @@ db-functions:
 ## Open redis-cli inside the Redis container
 shell-redis:
 	docker exec -it edushamiit-redis redis-cli -a $(shell grep REDIS_PASSWORD .env | cut -d= -f2)
-
-# ── RabbitMQ ──────────────────────────────────────────────────
-
-## Open RabbitMQ management shell
-shell-rabbit:
-	docker exec -it edushamiit-rabbitmq rabbitmqctl status
 
 # ── Cleanup ───────────────────────────────────────────────────
 
@@ -110,17 +104,14 @@ help:
 	@echo "  make db-tables    Count tables in public schema"
 	@echo "  make db-functions Count functions in public schema"
 	@echo "  make shell-redis  Open redis-cli"
-	@echo "  make shell-rabbit RabbitMQ status"
 	@echo "  make clean        Remove dangling images/cache"
 	@echo ""
 	@echo "  Ports:"
-	@echo "    :80     → FastAPI (Nginx load balanced)"
+	@echo "    :80     → FastAPI (Nginx reverse proxy)"
 	@echo "    :8000   → Supabase Kong (REST/Auth/Storage/Realtime)"
 	@echo "    :54323  → Supabase Studio"
 	@echo "    :5432   → PostgreSQL"
 	@echo "    :6379   → Redis"
-	@echo "    :5672   → RabbitMQ (AMQP)"
-	@echo "    :15672  → RabbitMQ Management UI"
 	@echo "    :1883   → MQTT (Mosquitto)"
 	@echo "    :9001   → MQTT over WebSockets"
 	@echo "    :6543   → Supavisor (connection pooler)"

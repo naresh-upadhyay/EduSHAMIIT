@@ -2,12 +2,15 @@ from fastapi import HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 import os
+import time
 from typing import Optional, Dict, Any, Callable
 from functools import wraps
 
 security = HTTPBearer()
 
 import contextvars
+
+from app.middleware.jwt_cache import get_cached_payload, set_cached_payload
 
 # ContextVar for current user context (thread/async-safe context for tools)
 _current_user_context = contextvars.ContextVar("current_user_context", default={})
@@ -24,11 +27,28 @@ def get_current_user_id() -> str:
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    """Extract user context from JWT token."""
+    """Extract user context from JWT token with Redis caching."""
+    token = credentials.credentials
+
+    # 1. Try Redis cache first
+    cached = await get_cached_payload(token)
+    if cached:
+        user = {
+            "id": cached.get("sub"),
+            "school_id": cached.get("school_id"),
+            "role": cached.get("role"),
+            "class": cached.get("class"),
+            "email": cached.get("email"),
+        }
+        if user["id"]:
+            set_current_user_context(user)
+            return user
+
+    # 2. Cache miss — decode JWT
     try:
         jwt_secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMIIT-jwt-secret-2026"))
         payload = jwt.decode(
-            credentials.credentials,
+            token,
             jwt_secret,
             algorithms=["HS256"],
             options={"verify_aud": False}
@@ -44,6 +64,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
         if not user["id"]:
             raise HTTPException(status_code=401, detail="Invalid token: missing user ID")
+
+        # 3. Cache the decoded payload for next time
+        exp = payload.get("exp", 0)
+        if exp:
+            await set_cached_payload(token, payload, exp)
 
         # Set context for tools
         set_current_user_context(user)
@@ -65,12 +90,23 @@ async def require_school_id(user: dict = Depends(get_current_user)) -> str:
 
 
 async def get_current_user_optional(request: Request) -> Optional[dict]:
-    """Extract user from JWT token, returns None if not authenticated."""
+    """Extract user from JWT token, returns None if not authenticated. Uses Redis cache."""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return None
 
     token = auth_header.split(" ")[1]
+
+    # 1. Try Redis cache first
+    cached = await get_cached_payload(token)
+    if cached:
+        return {
+            "id": cached.get("sub"),
+            "school_id": cached.get("school_id"),
+            "role": cached.get("role"),
+            "class": cached.get("class"),
+        }
+    # 2. Cache miss — decode JWT
     try:
         jwt_secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMIIT-jwt-secret-2026"))
         payload = jwt.decode(
@@ -79,6 +115,10 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
             algorithms=["HS256"],
             options={"verify_aud": False}
         )
+        # Cache this payload
+        exp = payload.get("exp", 0)
+        if exp:
+            await set_cached_payload(token, payload, exp)
         return {
             "id": payload.get("sub"),
             "school_id": payload.get("school_id"),
