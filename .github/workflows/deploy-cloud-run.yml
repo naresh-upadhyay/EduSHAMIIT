@@ -4,9 +4,27 @@ on:
   push:
     branches: [main, deploy]
     paths:
+      - ".github/workflows/**"
       - "EduSHAMIIT Backend/backend/**"
-      - "cloudbuild.yaml"
       - "infrastructure/terraform/**"
+      - "docker-compose.yml"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "nginx/nginx.conf"
+      - ".env.example"
+      - "Makefile"
+  pull_request:
+    branches: [main, deploy]
+    paths:
+      - ".github/workflows/**"
+      - "EduSHAMIIT Backend/backend/**"
+      - "infrastructure/terraform/**"
+      - "docker-compose.yml"
+      - "Dockerfile"
+      - "requirements.txt"
+      - "nginx/nginx.conf"
+      - ".env.example"
+      - "Makefile"
   workflow_dispatch:
     inputs:
       environment:
