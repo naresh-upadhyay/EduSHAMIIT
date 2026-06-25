@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 env:
-  FLUTTER_VERSION: "3.22.0"
+  FLUTTER_VERSION: "3.27.0"
 
 jobs:
   build-and-deploy:
@@ -43,8 +43,7 @@ jobs:
         run: |
           flutter build web \
             --release \
-            --base-href=/EduSHAMIIT/ \
-            --dart-define=FLUTTER_WEB_USE_SKIA=true
+            --base-href=/EduSHAMIIT/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
