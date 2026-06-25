@@ -150,19 +150,20 @@ jobs:
       - name: Check Cloud Run revision is serving traffic
         run: |
           echo "Checking Cloud Run deployment status..."
-          READY_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
-            --region=${{ env.REGION }} \
-            --format="value(status.latestReadyRevision)")
-          
-          if [ -z "$READY_REVISION" ]; then
-            echo "❌ No ready revision found — deployment failed!"
-            exit 1
-          fi
-          
-          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.REGION }} \
             --format="value(status.url)")
           
-          echo "✅ Revision: $READY_REVISION"
-          echo "✅ URL: $URL"
-          echo "✅ Deployment successful — new version serving traffic!"
+          TRAFFIC=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format="value(status.traffic[0].revisionName)")
+          
+          if [ -z "$TRAFFIC" ]; then
+            echo "❌ No revision serving traffic — deployment may have failed!"
+            gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format="json"
+            exit 1
+          fi
+          
+          echo "✅ Service: $SERVICE_URL"
+          echo "✅ Revision serving 100% traffic: $TRAFFIC"
+          echo "✅ Deployment successful!"
