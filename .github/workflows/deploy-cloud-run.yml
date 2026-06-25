@@ -28,6 +28,7 @@ env:
   REGION: ${{ vars.GCP_REGION || 'us-central1' }}
   SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE_NAME || 'edushamiit-api' }}
   REPOSITORY: ${{ vars.ARTIFACT_REPOSITORY || 'edushamiit-api-repo' }}
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/edushamiit-api
 
 jobs:
   # ─────────────────────────────────────────────────────────
@@ -64,7 +65,7 @@ jobs:
           flake8 app/ --count --select=F401 --statistics --exit-zero
 
   # ─────────────────────────────────────────────────────────
-  # BUILD, PUSH & DEPLOY IN ONE GO
+  # BUILD, PUSH & DEPLOY
   # ─────────────────────────────────────────────────────────
   deploy:
     name: Build, Push & Deploy
@@ -90,21 +91,39 @@ jobs:
         run: |
           gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 
-      - name: Build and Push
-        run: |
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }}"
-          IMAGE_LATEST="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:latest"
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Build and Push to All Registries
+        run: |
+          # Artifact Registry tags
+          AR_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }}"
+          AR_LATEST="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:latest"
+          
+          # Docker Hub tags
+          DH_TAG="${{ github.sha }}"
+          DH_LATEST="latest"
+          
           docker build \
-            -t "${IMAGE}" \
-            -t "${IMAGE_LATEST}" \
+            -t "${AR_IMAGE}" \
+            -t "${AR_LATEST}" \
+            -t "${DOCKER_IMAGE}:${DH_TAG}" \
+            -t "${DOCKER_IMAGE}:${DH_LATEST}" \
             -f EduSHAMIIT\ Backend/backend/Dockerfile \
             EduSHAMIIT\ Backend/backend
-
-          docker push "${IMAGE}"
-          docker push "${IMAGE_LATEST}"
-
-          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+          
+          # Push to Artifact Registry
+          docker push "${AR_IMAGE}"
+          docker push "${AR_LATEST}"
+          
+          # Push to Docker Hub
+          docker push "${DOCKER_IMAGE}:${DH_TAG}"
+          docker push "${DOCKER_IMAGE}:${DH_LATEST}"
+          
+          echo "IMAGE=${AR_IMAGE}" >> $GITHUB_ENV
 
       - name: Deploy to Cloud Run
         run: |
@@ -114,14 +133,15 @@ jobs:
             --platform=managed \
             --allow-unauthenticated \
             --port=8000 \
-            --memory=512Mi \
+            --memory=1Gi \
             --cpu=1 \
             --min-instances=0 \
             --max-instances=3 \
             --timeout=300 \
             --concurrency=80 \
             --no-cpu-throttling \
-            --set-env-vars=ENVIRONMENT=production,DEBUG=false,APP_ENV=production,JWT_ALGORITHM=HS256
+            --set-env-vars=ENVIRONMENT=production,DEBUG=false,APP_ENV=production,JWT_ALGORITHM=HS256 \
+            --update-env-vars=SUPABASE_URL=${{ secrets.SUPABASE_URL }},SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }},SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }},SUPABASE_JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }},DATABASE_URL=${{ secrets.DATABASE_URL }},REDIS_URL=${{ secrets.REDIS_URL }}
 
   # ─────────────────────────────────────────────────────────
   # DEPLOYMENT VERIFICATION

@@ -20,16 +20,30 @@ def get_redis():
 
     if _redis_client is None:
         try:
-            # Using 127.0.0.1 instead of localhost for faster connection on Windows
             redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
             if "localhost" in redis_url:
                 redis_url = redis_url.replace("localhost", "127.0.0.1")
+            
+            # Handle Upstash / cloud Redis with TLS (rediss://)
+            # redis.asyncio handles ssl=True automatically for rediss:// scheme
+            # For redis:// with ssl=True, pass ssl_cert_reqs=None for self-signed certs
+            ssl_params = {}
+            if redis_url.startswith("rediss://"):
+                ssl_params["ssl_cert_reqs"] = None
+            
             _redis_client = redis.from_url(
                 redis_url,
                 decode_responses=True,
-                socket_timeout=0.1,
-                socket_connect_timeout=0.1
+                socket_timeout=2.0,
+                socket_connect_timeout=2.0,
+                **ssl_params
             )
+            # Verify connection works
+            import asyncio
+            try:
+                asyncio.get_event_loop().run_until_complete(_redis_client.ping())
+            except (RuntimeError, Exception):
+                pass  # Event loop may not be available, connection will be tested on first use
         except Exception:
             _redis_enabled = False
             return None
