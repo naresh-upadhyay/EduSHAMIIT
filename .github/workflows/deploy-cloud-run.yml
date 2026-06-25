@@ -155,7 +155,7 @@ jobs:
 
       - name: Deploy to Cloud Run via YAML
         run: |
-          cat > cloudrun.yaml << 'EOF'
+          cat > cloudrun.yaml << EOF
           apiVersion: serving.knative.dev/v1
           kind: Service
           metadata:
