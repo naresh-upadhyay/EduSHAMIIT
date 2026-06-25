@@ -28,7 +28,6 @@ env:
   REGION: ${{ vars.GCP_REGION || 'us-central1' }}
   SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE_NAME || 'edushamiit-api' }}
   REPOSITORY: ${{ vars.ARTIFACT_REPOSITORY || 'edushamiit-api-repo' }}
-  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/edushamiit-api
 
 jobs:
   # ─────────────────────────────────────────────────────────
@@ -65,10 +64,10 @@ jobs:
           flake8 app/ --count --select=F401 --statistics --exit-zero
 
   # ─────────────────────────────────────────────────────────
-  # BUILD, PUSH & DEPLOY
+  # BUILD & PUSH TO ARTIFACT REGISTRY (always works)
   # ─────────────────────────────────────────────────────────
-  deploy:
-    name: Build, Push & Deploy
+  build-and-push:
+    name: Build & Push to Artifact Registry
     runs-on: ubuntu-latest
     needs: [test]
     permissions:
@@ -91,39 +90,21 @@ jobs:
         run: |
           gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push to All Registries
+      - name: Build and Push (Artifact Registry)
         run: |
-          # Artifact Registry tags
-          AR_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }}"
-          AR_LATEST="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:latest"
-          
-          # Docker Hub tags
-          DH_TAG="${{ github.sha }}"
-          DH_LATEST="latest"
-          
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }}"
+          IMAGE_LATEST="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:latest"
+
           docker build \
-            -t "${AR_IMAGE}" \
-            -t "${AR_LATEST}" \
-            -t "${DOCKER_IMAGE}:${DH_TAG}" \
-            -t "${DOCKER_IMAGE}:${DH_LATEST}" \
+            -t "${IMAGE}" \
+            -t "${IMAGE_LATEST}" \
             -f EduSHAMIIT\ Backend/backend/Dockerfile \
             EduSHAMIIT\ Backend/backend
-          
-          # Push to Artifact Registry
-          docker push "${AR_IMAGE}"
-          docker push "${AR_LATEST}"
-          
-          # Push to Docker Hub
-          docker push "${DOCKER_IMAGE}:${DH_TAG}"
-          docker push "${DOCKER_IMAGE}:${DH_LATEST}"
-          
-          echo "IMAGE=${AR_IMAGE}" >> $GITHUB_ENV
+
+          docker push "${IMAGE}"
+          docker push "${IMAGE_LATEST}"
+
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Deploy to Cloud Run
         run: |
@@ -144,12 +125,46 @@ jobs:
             --update-env-vars=SUPABASE_URL=${{ secrets.SUPABASE_URL }},SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }},SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }},SUPABASE_JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }},DATABASE_URL=${{ secrets.DATABASE_URL }},REDIS_URL=${{ secrets.REDIS_URL }}
 
   # ─────────────────────────────────────────────────────────
+  # DEPLOY TO DOCKER HUB (optional — won't block anything)
+  # ─────────────────────────────────────────────────────────
+  push-to-docker-hub:
+    name: Push to Docker Hub
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: ${{ secrets.DOCKER_USERNAME != '' }}
+    continue-on-error: true
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push to Docker Hub
+        run: |
+          DH_IMAGE="${{ secrets.DOCKER_USERNAME }}/edushamiit-api"
+
+          docker build \
+            -t "${DH_IMAGE}:${{ github.sha }}" \
+            -t "${DH_IMAGE}:latest" \
+            -f EduSHAMIIT\ Backend/backend/Dockerfile \
+            EduSHAMIIT\ Backend/backend
+
+          docker push "${DH_IMAGE}:${{ github.sha }}"
+          docker push "${DH_IMAGE}:latest"
+
+  # ─────────────────────────────────────────────────────────
   # DEPLOYMENT VERIFICATION
   # ─────────────────────────────────────────────────────────
   verify-deploy:
     name: Verify Deployment
     runs-on: ubuntu-latest
-    needs: [deploy]
+    needs: [build-and-push]
     if: success()
     permissions:
       contents: read
