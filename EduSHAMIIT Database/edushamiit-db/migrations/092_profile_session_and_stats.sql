@@ -5,7 +5,7 @@
 -- ============================================================
 
 -- Elevate to supabase_admin to modify tables it owns
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 -- ─── 1. Add session column to profiles (if not exists) ───
 ALTER TABLE public.profiles
@@ -73,4 +73,4 @@ GRANT SELECT ON public.student_profile_stats TO anon;
 GRANT SELECT ON public.student_profile_stats TO service_role;
 GRANT SELECT ON public.student_profile_stats TO postgres;
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud migrations (non-superuser)

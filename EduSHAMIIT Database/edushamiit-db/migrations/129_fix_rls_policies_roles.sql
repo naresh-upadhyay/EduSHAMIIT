@@ -1,4 +1,4 @@
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 -- Drop old insecure policies
 DROP POLICY IF EXISTS "teachers_view_results" ON results;
@@ -47,4 +47,4 @@ CREATE POLICY "teachers_approve_leaves" ON leave_applications FOR UPDATE
 CREATE POLICY "manage_grading" ON grading_policies FOR ALL 
   USING (auth.uid() = teacher_id AND EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('teacher', 'admin', 'teacher_admin')));
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud migrations (non-superuser)

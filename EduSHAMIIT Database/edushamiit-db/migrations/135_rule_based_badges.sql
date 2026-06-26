@@ -1,7 +1,7 @@
 -- Migration 135: Rule-Based Badge System
 -- Adds rule-based fields to achievements and configures rules for badges
 
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS rule_type TEXT NULL;
 ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS rule_params JSONB NULL;
@@ -96,4 +96,4 @@ ON CONFLICT (id) DO UPDATE SET
   rarity = EXCLUDED.rarity,
   criteria = EXCLUDED.criteria;
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud migrations (non-superuser)

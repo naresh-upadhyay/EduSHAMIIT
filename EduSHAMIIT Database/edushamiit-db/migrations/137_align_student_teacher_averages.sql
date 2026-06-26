@@ -1,7 +1,7 @@
 -- 137_align_student_teacher_averages.sql
 -- Update student_profile_stats view to correctly calculate consolidated average using a dynamic weighted score (60% Exam, 40% HW).
 
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 CREATE OR REPLACE VIEW public.student_profile_stats AS
 WITH exam_stats AS (
@@ -125,4 +125,4 @@ WHERE p.role = 'student';
 
 GRANT SELECT ON public.student_profile_stats TO authenticated, anon, service_role, postgres;
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud migrations (non-superuser)

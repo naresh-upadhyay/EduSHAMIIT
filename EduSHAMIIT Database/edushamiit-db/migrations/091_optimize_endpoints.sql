@@ -1,7 +1,7 @@
 -- 091_optimize_endpoints.sql
 -- Optimizing teacher and student endpoints by consolidating queries into RPC functions
 
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 -- 1. Teacher Classes with Student Counts (Fixes N+1 problem)
 CREATE OR REPLACE FUNCTION get_teacher_classes_with_counts(p_school_id UUID, p_teacher_id UUID)
@@ -181,4 +181,4 @@ BEGIN
     );
 END; $$ LANGUAGE plpgsql;
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud migrations (non-superuser)

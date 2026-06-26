@@ -23,10 +23,10 @@ ALTER TABLE salary_advances ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for direct client access
 CREATE POLICY "own_salary_advances" ON salary_advances
-  FOR SELECT USING (uid() = teacher_id);
+  FOR SELECT USING (auth.uid() = teacher_id);
 
 CREATE POLICY "insert_own_salary_advances" ON salary_advances
-  FOR INSERT WITH CHECK (uid() = teacher_id);
+  FOR INSERT WITH CHECK (auth.uid() = teacher_id);
 
 CREATE POLICY "update_own_salary_advances" ON salary_advances
-  FOR UPDATE USING (uid() = teacher_id);
+  FOR UPDATE USING (auth.uid() = teacher_id);

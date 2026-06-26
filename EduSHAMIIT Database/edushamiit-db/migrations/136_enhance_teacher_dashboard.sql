@@ -1,7 +1,7 @@
 -- 136_enhance_teacher_dashboard.sql
 -- Recreate get_teacher_dashboard_summary to calculate student avg attendance, student avg score, and list pending tasks.
 
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 CREATE OR REPLACE FUNCTION public.get_teacher_dashboard_summary(p_school_id UUID, p_teacher_id UUID, p_day_of_week INT)
 RETURNS JSONB AS $$
@@ -90,4 +90,4 @@ BEGIN
     );
 END; $$ LANGUAGE plpgsql;
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud migrations (non-superuser)

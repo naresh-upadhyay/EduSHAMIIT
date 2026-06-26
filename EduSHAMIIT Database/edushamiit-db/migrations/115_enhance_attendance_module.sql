@@ -5,7 +5,7 @@
 -- ============================================================
 
 -- Elevate to supabase_admin to modify tables/views/functions
-SET ROLE supabase_admin;
+-- SET ROLE supabase_admin; -- commented out for cloud migrations (non-superuser)
 
 -- 1. Drop old UNIQUE constraint
 ALTER TABLE public.attendance DROP CONSTRAINT IF EXISTS attendance_school_student_subject_date_key;
@@ -139,4 +139,4 @@ $$ LANGUAGE plpgsql;
 GRANT SELECT ON public.student_profile_stats TO authenticated, anon, service_role, postgres;
 GRANT EXECUTE ON FUNCTION public.batch_upsert_attendance(JSONB) TO authenticated, anon, service_role, postgres;
 
-RESET ROLE;
+-- RESET ROLE; -- commented out for cloud migrations (non-superuser)
