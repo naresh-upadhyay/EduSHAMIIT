@@ -566,6 +566,13 @@ async def award_xp(sb, school_id: str, student_id: str, amount: int, source_type
         # 3. Trigger automatic achievement checking! (Only if it's a positive XP award)
         if amount > 0:
             await check_and_award_achievements(sb, school_id, student_id, source_type)
+
+        # 4. Invalidate achievements cache
+        try:
+            from app.cache.redis_client import invalidate_student_achievements
+            await invalidate_student_achievements(school_id, student_id)
+        except Exception:
+            pass
         
         return True
     except Exception as e:

@@ -209,3 +209,16 @@ async def on_live_class_changed(school_id: str, teacher_id: str = None):
     await invalidate_cache(school_id, "teacher_live_classes:*")
     if teacher_id:
         await invalidate_specific(school_id, "live_class_status", teacher_id)
+
+
+async def invalidate_student_achievements(school_id: str, student_id: str):
+    """Invalidate achievements cache for a student."""
+    try:
+        rc = get_redis()
+        if not rc:
+            return
+        pattern = f"{school_id}:student_achievements:{student_id}:*"
+        async for key in rc.scan_iter(match=pattern):
+            await rc.delete(key)
+    except Exception:
+        pass

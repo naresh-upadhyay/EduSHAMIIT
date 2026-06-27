@@ -1243,6 +1243,13 @@ async def student_achievements(
     user=Depends(get_current_user), 
     school_id=Depends(require_school_id)
 ):
+    # Try to load from Redis cache first
+    cache_resource = "student_achievements"
+    cache_id = f"{user['id']}:{exclude_leaderboards}:{exclude_history}"
+    cached_data = await get_cached(school_id, cache_resource, cache_id)
+    if cached_data:
+        return cached_data
+
     sb = get_supabase()
     
     # JIT Evaluate/Update all badges & progress
@@ -1337,7 +1344,7 @@ async def student_achievements(
                 "created_at": tx["created_at"]
             })
         
-    return {
+    response_data = {
         "success": True, 
         "school_id": school_id, 
         "data": {
@@ -1353,6 +1360,11 @@ async def student_achievements(
             "xp_history": xp_history
         }
     }
+    
+    # Cache for 60 seconds (1 minute) to speed up sequential refreshes
+    await set_cached(school_id, cache_resource, response_data, cache_id, ttl=60)
+    
+    return response_data
 
 
 @router.get("/achievements/xp-history")

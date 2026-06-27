@@ -1,36 +1,55 @@
 from datetime import datetime, timezone
 import json
+import asyncio
 
-async def calculate_subject_average(sb, school_id: str, student_id: str, subject_name: str) -> float:
-    # 1. Resolve subject IDs by name
-    subs_res = await sb.table("subjects").select("id, name").eq("school_id", school_id).aexecute()
-    subject_ids = [s["id"] for s in (subs_res.data or []) if s["name"].strip().lower() == subject_name.strip().lower()]
+async def calculate_subject_average(sb, school_id: str, student_id: str, subject_name: str, context: dict = None) -> float:
+    if context:
+        subjects_data = context.get("subjects") or []
+        exam_submissions_data = context.get("exam_submissions") or []
+        results_data = context.get("results") or []
+        hw_submissions_data = context.get("homework_submissions") or []
+    else:
+        # 1. Resolve subject IDs by name
+        subs_res = await sb.table("subjects").select("id, name").eq("school_id", school_id).aexecute()
+        subjects_data = subs_res.data or []
+        
+        # 2. Fetch exam submissions
+        subs_res = await sb.table("exam_submissions").select("score, exams(total_marks, subject_id)").eq("student_id", student_id).eq("status", "graded").aexecute()
+        exam_submissions_data = subs_res.data or []
+        
+        # 3. Fetch legacy results
+        subject_ids = [s["id"] for s in subjects_data if s["name"].strip().lower() == subject_name.strip().lower()]
+        if not subject_ids:
+            return 0.0
+            
+        legacy_res = await sb.table("results").select("marks_obtained, total_marks, subject_id").eq("school_id", school_id).eq("student_id", student_id).in_("subject_id", subject_ids).aexecute()
+        results_data = legacy_res.data or []
+        
+        # 4. Fetch homework submissions
+        hw_subs_res = await sb.table("homework_submissions").select("marks, homework(max_marks, subject_id)").eq("student_id", student_id).eq("status", "graded").aexecute()
+        hw_submissions_data = hw_subs_res.data or []
+
+    # Filter subject IDs
+    subject_ids = [s["id"] for s in subjects_data if s["name"].strip().lower() == subject_name.strip().lower()]
     if not subject_ids:
         return 0.0
 
-    # 2. Fetch exam submissions
-    subs_res = await sb.table("exam_submissions").select("score, exams(total_marks, subject_id)").eq("student_id", student_id).eq("status", "graded").aexecute()
-    
     exam_score_sum = 0.0
     exam_max_sum = 0.0
-    for sub in (subs_res.data or []):
+    for sub in exam_submissions_data:
         exam = sub.get("exams") or {}
         if exam.get("subject_id") in subject_ids:
             exam_score_sum += float(sub.get("score") or 0)
             exam_max_sum += float(exam.get("total_marks") or 100)
 
-    # 3. Fetch legacy results
-    legacy_res = await sb.table("results").select("marks_obtained, total_marks").eq("school_id", school_id).eq("student_id", student_id).in_("subject_id", subject_ids).aexecute()
-    for r in (legacy_res.data or []):
-        exam_score_sum += float(r.get("marks_obtained") or 0)
-        exam_max_sum += float(r.get("total_marks") or 100)
+    for r in results_data:
+        if r.get("subject_id") in subject_ids:
+            exam_score_sum += float(r.get("marks_obtained") or 0)
+            exam_max_sum += float(r.get("total_marks") or 100)
 
-    # 4. Fetch homework submissions
-    hw_subs_res = await sb.table("homework_submissions").select("marks, homework(max_marks, subject_id)").eq("student_id", student_id).eq("status", "graded").aexecute()
-    
     hw_score_sum = 0.0
     hw_max_sum = 0.0
-    for hs in (hw_subs_res.data or []):
+    for hs in hw_submissions_data:
         hw = hs.get("homework") or {}
         if hw.get("subject_id") in subject_ids:
             hw_score_sum += float(hs.get("marks") or 0)
@@ -84,7 +103,7 @@ async def calculate_class_topper_progress(sb, school_id: str, student_id: str) -
     # Else, progress is relative to the topper
     return (student_avg / topper_avg) * 100.0
 
-async def evaluate_progress(sb, school_id: str, student_id: str, rule_type: str, rule_params: dict) -> float:
+async def evaluate_progress(sb, school_id: str, student_id: str, rule_type: str, rule_params: dict, context: dict = None) -> float:
     rule_params = rule_params or {}
     
     if rule_type == 'subject_average':
@@ -92,20 +111,27 @@ async def evaluate_progress(sb, school_id: str, student_id: str, rule_type: str,
         min_average = float(rule_params.get("min_average") or 90.0)
         
         if subject_name:
-            avg = await calculate_subject_average(sb, school_id, student_id, subject_name)
+            avg = await calculate_subject_average(sb, school_id, student_id, subject_name, context)
             progress = (avg / min_average) * 100.0
         else:
             # Any exam score >= 90%
             max_exam_pct = 0.0
-            subs_res = await sb.table("exam_submissions").select("score, exams(total_marks)").eq("student_id", student_id).eq("status", "graded").aexecute()
-            for s in (subs_res.data or []):
+            if context:
+                exam_submissions_data = context.get("exam_submissions") or []
+                results_data = context.get("results") or []
+            else:
+                subs_res = await sb.table("exam_submissions").select("score, exams(total_marks)").eq("student_id", student_id).eq("status", "graded").aexecute()
+                exam_submissions_data = subs_res.data or []
+                legacy_res = await sb.table("results").select("marks_obtained, total_marks").eq("school_id", school_id).eq("student_id", student_id).aexecute()
+                results_data = legacy_res.data or []
+
+            for s in exam_submissions_data:
                 score = float(s.get("score") or 0)
                 total = float(s.get("exams", {}).get("total_marks") or 100)
                 if total > 0:
                     max_exam_pct = max(max_exam_pct, (score / total) * 100.0)
 
-            legacy_res = await sb.table("results").select("marks_obtained, total_marks").eq("school_id", school_id).eq("student_id", student_id).aexecute()
-            for r in (legacy_res.data or []):
+            for r in results_data:
                 score = float(r.get("marks_obtained") or 0)
                 total = float(r.get("total_marks") or 100)
                 if total > 0:
@@ -130,8 +156,11 @@ async def evaluate_progress(sb, school_id: str, student_id: str, rule_type: str,
         
     elif rule_type == 'homework_submissions':
         target_count = int(rule_params.get("count") or 5)
-        hw_cnt_res = await sb.table("homework_submissions").select("id").count("exact").eq("student_id", student_id).eq("status", "graded").aexecute()
-        hw_count = hw_cnt_res.count or 0
+        if context:
+            hw_count = len(context.get("homework_submissions") or [])
+        else:
+            hw_cnt_res = await sb.table("homework_submissions").select("id").count("exact").eq("student_id", student_id).eq("status", "graded").aexecute()
+            hw_count = hw_cnt_res.count or 0
         
         progress = (hw_count / target_count) * 100.0
         return min(100.0, max(0.0, progress))
@@ -158,12 +187,17 @@ async def evaluate_progress(sb, school_id: str, student_id: str, rule_type: str,
         min_subjects = int(rule_params.get("min_subjects") or 2)
         
         stem_names = {'mathematics', 'physics', 'chemistry', 'biology', 'computer science'}
-        subs_res = await sb.table("subjects").select("id, name").eq("school_id", school_id).aexecute()
-        stem_subs = [s for s in (subs_res.data or []) if s["name"].strip().lower() in stem_names]
+        if context:
+            subjects_data = context.get("subjects") or []
+        else:
+            subs_res = await sb.table("subjects").select("id, name").eq("school_id", school_id).aexecute()
+            subjects_data = subs_res.data or []
+            
+        stem_subs = [s for s in subjects_data if s["name"].strip().lower() in stem_names]
         
         count_above_threshold = 0
         for sub in stem_subs:
-            avg = await calculate_subject_average(sb, school_id, student_id, sub["name"])
+            avg = await calculate_subject_average(sb, school_id, student_id, sub["name"], context)
             if avg >= min_average:
                 count_above_threshold += 1
                 
@@ -181,7 +215,27 @@ async def evaluate_and_update_student_badges(sb, school_id: str, student_id: str
         # 2. Fetch all achievement templates
         templates_res = await sb.table("achievements").select("*").eq("school_id", school_id).aexecute()
         templates = templates_res.data or []
-        
+
+        # 3. Pre-fetch context datasets in parallel to optimize grade calculations
+        subjects_task = sb.table("subjects").select("id, name").eq("school_id", school_id).aexecute()
+        exam_submissions_task = sb.table("exam_submissions").select("score, exams(total_marks, subject_id)").eq("student_id", student_id).eq("status", "graded").aexecute()
+        results_task = sb.table("results").select("marks_obtained, total_marks, subject_id").eq("school_id", school_id).eq("student_id", student_id).aexecute()
+        hw_submissions_task = sb.table("homework_submissions").select("marks, homework(max_marks, subject_id)").eq("student_id", student_id).eq("status", "graded").aexecute()
+
+        subjects_res, exam_res, results_res, hw_res = await asyncio.gather(
+            subjects_task, exam_submissions_task, results_task, hw_submissions_task
+        )
+
+        context = {
+            "subjects": subjects_res.data or [],
+            "exam_submissions": exam_res.data or [],
+            "results": results_res.data or [],
+            "homework_submissions": hw_res.data or []
+        }
+
+        # 4. Evaluate progress for all locked templates concurrently
+        eval_tasks = []
+        templates_to_eval = []
         for t in templates:
             t_id = t["id"]
             rule_type = t.get("rule_type")
@@ -194,11 +248,28 @@ async def evaluate_and_update_student_badges(sb, school_id: str, student_id: str
             if existing_sa and float(existing_sa.get("progress") or 0) >= 100.0:
                 continue
                 
-            calculated_progress = await evaluate_progress(sb, school_id, student_id, rule_type, rule_params)
+            templates_to_eval.append((t, existing_sa))
+            eval_tasks.append(evaluate_progress(sb, school_id, student_id, rule_type, rule_params, context))
+
+        if not eval_tasks:
+            return
+
+        eval_results = await asyncio.gather(*eval_tasks)
+
+        # 5. Process results
+        unlocked_xp = 0
+        has_new_unlock = False
+
+        for (t, existing_sa), calculated_progress in zip(templates_to_eval, eval_results):
+            t_id = t["id"]
             calculated_progress = round(calculated_progress, 1)
-            
+
+            # Skip if progress hasn't changed
+            if existing_sa and float(existing_sa.get("progress") or 0) == calculated_progress:
+                continue
+
             if calculated_progress >= 100.0:
-                # Award badge!
+                # Award badge
                 sa_data = {
                     "school_id": school_id,
                     "student_id": student_id,
@@ -211,7 +282,11 @@ async def evaluate_and_update_student_badges(sb, school_id: str, student_id: str
                 else:
                     await sb.table("student_achievements").insert(sa_data).aexecute()
                     
-                # Credit the XP
+                # Collect XP
+                unlocked_xp += t["xp_reward"]
+                has_new_unlock = True
+                
+                # Write XP transaction record
                 await sb.table("xp_transactions").insert({
                     "school_id": school_id,
                     "student_id": student_id,
@@ -220,13 +295,6 @@ async def evaluate_and_update_student_badges(sb, school_id: str, student_id: str
                     "source_id": t_id,
                     "description": f"Achievement unlocked: {t['name']}"
                 }).aexecute()
-                
-                prof_res = await sb.table("profiles").select("xp_points").eq("id", student_id).maybe_single().aexecute()
-                current_xp = 0
-                if prof_res.data:
-                    current_xp = prof_res.data.get("xp_points") or 0
-                    
-                await sb.table("profiles").update({"xp_points": current_xp + t["xp_reward"]}).eq("id", student_id).aexecute()
                 
                 # Send notification
                 await sb.table("notifications").insert({
@@ -250,6 +318,22 @@ async def evaluate_and_update_student_badges(sb, school_id: str, student_id: str
                     await sb.table("student_achievements").update(sa_data).eq("id", existing_sa["id"]).aexecute()
                 else:
                     await sb.table("student_achievements").insert(sa_data).aexecute()
-                    
+
+        # Update profile XP once at the end if new XP was earned
+        if unlocked_xp > 0:
+            prof_res = await sb.table("profiles").select("xp_points").eq("id", student_id).maybe_single().aexecute()
+            current_xp = 0
+            if prof_res.data:
+                current_xp = prof_res.data.get("xp_points") or 0
+            await sb.table("profiles").update({"xp_points": current_xp + unlocked_xp}).eq("id", student_id).aexecute()
+
+        # If achievements changed, invalidate the Redis cache!
+        if has_new_unlock or any(
+            (existing_sa and float(existing_sa.get("progress") or 0) != p) 
+            for (t, existing_sa), p in zip(templates_to_eval, eval_results)
+        ):
+            from app.cache.redis_client import invalidate_student_achievements
+            await invalidate_student_achievements(school_id, student_id)
+
     except Exception as e:
         print(f"Error evaluating student badges: {str(e)}", flush=True)
