@@ -153,60 +153,42 @@ jobs:
           
           echo "✅ Database migrations step complete!"
 
-      - name: Deploy to Cloud Run via YAML
+      - name: Deploy to Cloud Run
         run: |
-          cat > cloudrun.yaml << EOF
-          apiVersion: serving.knative.dev/v1
-          kind: Service
-          metadata:
-            name: ${SERVICE_NAME}
-          spec:
-            template:
-              metadata:
-                annotations:
-                  autoscaling.knative.dev/maxScale: "3"
-              spec:
-                containerConcurrency: 80
-                timeoutSeconds: 300
-                containers:
-                - image: "${IMAGE}"
-                  ports:
-                  - containerPort: 8000
-                    name: http1
-                  resources:
-                    limits:
-                      cpu: "1"
-                      memory: 1Gi
-                  env:
-                  - name: SUPABASE_URL
-                    value: "${{ secrets.SUPABASE_URL }}"
-                  - name: SUPABASE_ANON_KEY
-                    value: "${{ secrets.SUPABASE_ANON_KEY }}"
-                  - name: SUPABASE_SERVICE_ROLE_KEY
-                    value: "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-                  - name: SUPABASE_JWT_SECRET
-                    value: "${{ secrets.SUPABASE_JWT_SECRET }}"
-                  - name: ENVIRONMENT
-                    value: production
-                  - name: DEBUG
-                    value: "false"
-                  - name: APP_ENV
-                    value: production
-                  - name: JWT_ALGORITHM
-                    value: HS256
-                  - name: REDIS_URL
-                    value: "${{ secrets.REDIS_URL }}"
-                  - name: DATABASE_URL
-                    value: "${{ secrets.DATABASE_URL }}"
-                  startupProbe:
-                    tcpSocket:
-                      port: 8000
-                    initialDelaySeconds: 5
-                    timeoutSeconds: 240
-                    periodSeconds: 240
-                    failureThreshold: 1
-          EOF
-          gcloud run services replace cloudrun.yaml --region=${REGION}
+          # Build list of env vars to update
+          ENV_VARS="ENVIRONMENT=production,DEBUG=false,APP_ENV=production,JWT_ALGORITHM=HS256"
+          
+          if [ ! -z "${{ secrets.DATABASE_URL }}" ]; then
+            ENV_VARS="${ENV_VARS},DATABASE_URL=${{ secrets.DATABASE_URL }}"
+          fi
+          if [ ! -z "${{ secrets.SUPABASE_URL }}" ]; then
+            ENV_VARS="${ENV_VARS},SUPABASE_URL=${{ secrets.SUPABASE_URL }}"
+          fi
+          if [ ! -z "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
+            ENV_VARS="${ENV_VARS},SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}"
+          fi
+          if [ ! -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            ENV_VARS="${ENV_VARS},SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          fi
+          if [ ! -z "${{ secrets.SUPABASE_JWT_SECRET }}" ]; then
+            ENV_VARS="${ENV_VARS},SUPABASE_JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }}"
+          fi
+          if [ ! -z "${{ secrets.REDIS_URL }}" ]; then
+            ENV_VARS="${ENV_VARS},REDIS_URL=${{ secrets.REDIS_URL }}"
+          fi
+          
+          gcloud run deploy ${SERVICE_NAME} \
+            --image "${{ env.IMAGE }}" \
+            --region ${REGION} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8000 \
+            --memory 1Gi \
+            --cpu 1 \
+            --max-instances 3 \
+            --concurrency 80 \
+            --timeout 300 \
+            --update-env-vars "${ENV_VARS}"
 
   # ─────────────────────────────────────────────────────────
   # DEPLOY TO DOCKER HUB (optional — won't block anything)
