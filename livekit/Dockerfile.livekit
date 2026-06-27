@@ -1,0 +1,9 @@
+FROM livekit/livekit-server:latest
+
+# Copy original template if needed
+COPY livekit.yaml /livekit_template.yaml
+COPY entrypoint_livekit.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
