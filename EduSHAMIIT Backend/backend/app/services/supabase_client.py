@@ -17,13 +17,21 @@ class SupabaseClient:
         if "localhost" in url:
             url = url.replace("localhost", "127.0.0.1")
         self.url = url.rstrip("/")
-        self.key = key
+        
+        # Clean/sanitize key
+        if key:
+            key = key.strip().strip("'\"")
+        self.key = key or ""
+        
         self.headers = {
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }
+        
+        if self.key and self.key not in ("your-supabase-service-role-key", "your-supabase-anon-key"):
+            self.headers["apikey"] = self.key
+            self.headers["Authorization"] = f"Bearer {self.key}"
+            
         self.auth_url = f"{self.url}/auth/v1"
         self.rest_url = f"{self.url}/rest/v1"
         self._async_client = None
@@ -80,18 +88,27 @@ class AuthClient:
             )
         return str(error_data) if error_data else default
 
+    def _check_key(self):
+        """Ensure the Supabase service role key is correctly configured."""
+        if not self.client.key or self.client.key in ("your-supabase-service-role-key", "your-supabase-anon-key", ""):
+            raise Exception("Supabase Service Role Key (SUPABASE_SERVICE_ROLE_KEY) is missing or not configured in environment or GitHub Secrets. Please add it to your GitHub Repository Secrets.")
+
     async def sign_in_with_password(self, credentials: dict) -> dict:
         """Sign in with email and password."""
+        self._check_key()
         email = credentials.get("email")
         password = credentials.get("password")
         client = await self.client.get_async_client()
 
+        headers = {
+            "Content-Type": "application/json"
+        }
+        if self.client.key:
+            headers["apikey"] = self.client.key
+
         response = await client.post(
             f"{self.client.auth_url}/token?grant_type=password",
-            headers={
-                "apikey": self.client.key,
-                "Content-Type": "application/json"
-            },
+            headers=headers,
             json={"email": email, "password": password},
             timeout=10.0
         )
@@ -105,6 +122,7 @@ class AuthClient:
 
     async def sign_up(self, credentials: dict) -> dict:
         """Sign up with email and password."""
+        self._check_key()
         email = credentials.get("email")
         password = credentials.get("password")
         client = await self.client.get_async_client()
@@ -125,6 +143,7 @@ class AuthClient:
 
     async def refresh_session(self, refresh_token: str) -> dict:
         """Refresh the session using a refresh token."""
+        self._check_key()
         client = await self.client.get_async_client()
         response = await client.post(
             f"{self.client.auth_url}/token?grant_type=refresh_token",
@@ -142,6 +161,7 @@ class AuthClient:
 
     async def admin_delete_user(self, user_id: str):
         """Delete a user using admin privileges (service role key)."""
+        self._check_key()
         client = await self.client.get_async_client()
         response = await client.delete(
             f"{self.client.auth_url}/admin/users/{user_id}",
@@ -161,6 +181,7 @@ class AuthClient:
 
     async def admin_update_user(self, user_id: str, attributes: dict):
         """Update a user using admin privileges (service role key)."""
+        self._check_key()
         client = await self.client.get_async_client()
         response = await client.put(
             f"{self.client.auth_url}/admin/users/{user_id}",
