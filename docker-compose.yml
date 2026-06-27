@@ -481,6 +481,7 @@ services:
   # FASTAPI – Single Instance (was 3 replicas)
   # ============================================================
   api:
+    image: ${DOCKER_IMAGE:-nehanareshupadhyay/erpshamiit:latest}
     build:
       context: "./EduSHAMIIT Backend/backend"
       dockerfile: Dockerfile

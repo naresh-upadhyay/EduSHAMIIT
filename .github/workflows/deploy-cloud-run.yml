@@ -215,16 +215,19 @@ jobs:
       - name: Build and Push to Docker Hub
         if: steps.docker_login.outcome == 'success'
         run: |
-          DH_IMAGE="${{ secrets.DOCKER_USERNAME }}/edushamiit-api"
+          DH_IMAGE="${{ secrets.DOCKER_USERNAME || 'nehanareshupadhyay' }}/erpshamiit"
 
-          docker build \
-            -t "${DH_IMAGE}:${{ github.sha }}" \
-            -t "${DH_IMAGE}:latest" \
-            -f EduSHAMIIT\ Backend/backend/Dockerfile \
-            EduSHAMIIT\ Backend/backend
+          # Build using docker compose to respect the docker-compose configuration
+          DOCKER_IMAGE="${DH_IMAGE}:latest" docker compose build api
 
-          docker push "${DH_IMAGE}:${{ github.sha }}"
+          # Tag with git commit SHA and ref name
+          docker tag "${DH_IMAGE}:latest" "${DH_IMAGE}:${{ github.sha }}"
+          docker tag "${DH_IMAGE}:latest" "${DH_IMAGE}:${{ github.ref_name }}"
+
+          # Push tags
           docker push "${DH_IMAGE}:latest"
+          docker push "${DH_IMAGE}:${{ github.sha }}"
+          docker push "${DH_IMAGE}:${{ github.ref_name }}"
 
   # ─────────────────────────────────────────────────────────
   # DEPLOYMENT VERIFICATION
