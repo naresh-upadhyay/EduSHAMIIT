@@ -159,6 +159,36 @@ class AuthClient:
         data = response.json()
         return AuthResponse(data)
 
+    async def admin_create_user(self, user_data: dict) -> dict:
+        """Create a user using admin privileges (service role key) with auto-confirm."""
+        self._check_key()
+        client = await self.client.get_async_client()
+
+        payload = {
+            "email": user_data.get("email"),
+            "password": user_data.get("password"),
+            "email_confirm": True
+        }
+        if "user_metadata" in user_data:
+            payload["user_metadata"] = user_data["user_metadata"]
+
+        response = await client.post(
+            f"{self.client.auth_url}/admin/users",
+            headers=self.client.headers,
+            json=payload,
+            timeout=10.0
+        )
+
+        if response.status_code not in (200, 201):
+            try:
+                error = response.json()
+            except:
+                error = {"msg": response.text}
+            raise Exception(self._get_error_message(error, "User creation failed"))
+
+        data = response.json()
+        return AuthResponse(data)
+
     async def admin_delete_user(self, user_id: str):
         """Delete a user using admin privileges (service role key)."""
         self._check_key()

@@ -251,7 +251,7 @@ async def register(request: RegisterRequest):
         if existing.data:
             raise Exception("Email already exists")
 
-        auth_response = await sb.auth().sign_up({
+        auth_response = await sb.auth().admin_create_user({
             "email": request.email,
             "password": request.password,
         })
