@@ -483,8 +483,9 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
 
     String qType = question?.questionType ?? 'mcq';
     if (qType == 'subjective') qType = 'short_answer';
-    if (qType == 'true_false')
+    if (qType == 'true_false') {
       qType = 'mcq'; // true_false is covered by single-select MCQ
+    }
     if (qType != 'mcq' &&
         qType != 'multi_correct' &&
         qType != 'short_answer' &&
@@ -731,8 +732,9 @@ class _QuestionBankScreenState extends ConsumerState<QuestionBankScreen> {
                                         setDialogState(() {
                                           qType = v!;
                                           // Reset multi correct answers when switching types
-                                          if (v != 'multi_correct')
+                                          if (v != 'multi_correct') {
                                             multiCorrectAnswers.clear();
+                                          }
                                           if (v != 'mcq') mcqCorrectAnswer = '';
                                         });
                                       },

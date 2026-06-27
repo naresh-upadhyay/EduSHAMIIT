@@ -94,8 +94,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
     }
     _scoreControllers.clear();
     _overallRemarksController.clear();
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return;
+    }
 
     final sub = _submissions[_currentStudentIndex];
     for (final q in _subjectiveQuestions) {
@@ -144,14 +145,16 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   double get _currentAutoGradedMarks {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return 0.0;
+    }
     return _calculateAutoGradedMarks(_submissions[_currentStudentIndex]);
   }
 
   bool get _isCurrentStudentGraded {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return false;
+    }
     return _submissions[_currentStudentIndex]['status'] == 'graded';
   }
 
@@ -159,8 +162,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
       _submissions.where((s) => s['status'] == 'graded').length;
 
   String _getStudentName() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return 'Student';
+    }
     final profile = _submissions[_currentStudentIndex]['profiles']
             as Map<String, dynamic>? ??
         {};
@@ -168,8 +172,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   String _getRollNumber() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return '';
+    }
     final profile = _submissions[_currentStudentIndex]['profiles']
             as Map<String, dynamic>? ??
         {};
@@ -177,8 +182,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Future<void> _submitGrade() async {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return;
+    }
     final sub = _submissions[_currentStudentIndex];
     double subjTotal = 0.0;
 
@@ -738,8 +744,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Widget _buildStudentCard() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return const SizedBox();
+    }
     final sub = _submissions[_currentStudentIndex];
     final isG = sub['status'] == 'graded';
     final score = sub['score'];
@@ -833,8 +840,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Widget _buildQuestionBlock(Map<String, dynamic> q) {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return const SizedBox();
+    }
     final answers = _submissions[_currentStudentIndex]['answers']
             as Map<String, dynamic>? ??
         {};
@@ -1111,8 +1119,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Widget _buildGradingPanel() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) {
       return const SizedBox();
+    }
     final autoM = _currentAutoGradedMarks;
     final totalM = _allQuestions.fold(
         0.0, (sum, q) => sum + ((q['marks'] as num?)?.toDouble() ?? 0.0));

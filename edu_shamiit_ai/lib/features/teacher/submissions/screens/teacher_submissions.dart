@@ -161,11 +161,13 @@ class _TeacherSubmissionsState extends ConsumerState<TeacherSubmissions> {
                               options: const ['Pending', 'Graded', 'Returned'],
                               filterFn: (item, option) {
                                 final st = item.status.toLowerCase();
-                                if (option == 'Pending')
+                                if (option == 'Pending') {
                                   return st == 'pending' || st == 'submitted';
+                                }
                                 if (option == 'Graded') return st == 'graded';
-                                if (option == 'Returned')
+                                if (option == 'Returned') {
                                   return st == 'returned';
+                                }
                                 return true;
                               },
                             ),

@@ -301,9 +301,10 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                 width: 70,
                                 cellBuilder: (item) {
                                   final rank = item['rank'];
-                                  if (rank == null)
+                                  if (rank == null) {
                                     return const Text('—',
                                         style: TextStyle(color: Colors.grey));
+                                  }
                                   return CircleAvatar(
                                     radius: 12,
                                     backgroundColor: rank == 1

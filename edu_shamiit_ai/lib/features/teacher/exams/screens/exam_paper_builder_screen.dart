@@ -1367,8 +1367,9 @@ class _ExamPaperBuilderScreenState
 
     String qType = question?['question_type'] ?? 'mcq';
     if (qType == 'subjective') qType = 'short_answer';
-    if (qType == 'true_false')
+    if (qType == 'true_false') {
       qType = 'mcq'; // true_false covered by single-select MCQ
+    }
     if (qType != 'mcq' &&
         qType != 'multi_correct' &&
         qType != 'short_answer' &&
@@ -1428,8 +1429,9 @@ class _ExamPaperBuilderScreenState
     String tfCorrectAnswer = question?['correct_answer'] ?? 'True';
     if (tfCorrectAnswer.toLowerCase() == 'true') tfCorrectAnswer = 'True';
     if (tfCorrectAnswer.toLowerCase() == 'false') tfCorrectAnswer = 'False';
-    if (tfCorrectAnswer != 'True' && tfCorrectAnswer != 'False')
+    if (tfCorrectAnswer != 'True' && tfCorrectAnswer != 'False') {
       tfCorrectAnswer = 'True';
+    }
     // Subjective state
     final subjectiveAnswerController = TextEditingController(
       text: (qType == 'short_answer' ||
@@ -1582,8 +1584,9 @@ class _ExamPaperBuilderScreenState
                                       onChanged: (v) {
                                         setDialogState(() {
                                           qType = v!;
-                                          if (v != 'multi_correct')
+                                          if (v != 'multi_correct') {
                                             multiCorrectAnswers.clear();
+                                          }
                                           if (v != 'mcq') mcqCorrectAnswer = '';
                                         });
                                       },

@@ -1388,8 +1388,8 @@ class _ReticlePainter extends CustomPainter {
     const double length = 15.0;
 
     // Top-Left Corner
-    canvas.drawLine(const Offset(0, 0), Offset(length, 0), paint);
-    canvas.drawLine(const Offset(0, 0), Offset(0, length), paint);
+    canvas.drawLine(const Offset(0, 0), const Offset(length, 0), paint);
+    canvas.drawLine(const Offset(0, 0), const Offset(0, length), paint);
 
     // Top-Right Corner
     canvas.drawLine(
@@ -2147,8 +2147,9 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                 itemCount: logList.length,
                                 itemBuilder: (context, index) {
                                   final logItem = logList[index];
-                                  if (logItem is! Map)
+                                  if (logItem is! Map) {
                                     return const SizedBox.shrink();
+                                  }
                                   final timeStr =
                                       logItem['time']?.toString() ?? '';
                                   final eventStr =

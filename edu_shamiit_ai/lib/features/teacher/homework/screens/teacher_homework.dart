@@ -130,8 +130,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
           _classes = classesRes
               .map((c) {
                 final section = c.section.trim();
-                if (section.isEmpty || c.name.contains('-$section'))
+                if (section.isEmpty || c.name.contains('-$section')) {
                   return c.name;
+                }
                 return '${c.name}-$section';
               })
               .toSet()
@@ -400,8 +401,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                                 final st = hw.computedStatus.toLowerCase();
                                 if (option == 'Active') return st == 'active';
                                 if (option == 'Pending') return st == 'pending';
-                                if (option == 'Graded')
+                                if (option == 'Graded') {
                                   return st == 'completed';
+                                }
                                 return true;
                               },
                             ),
@@ -1188,15 +1190,17 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                                           .split('T')[0]
                                     });
                                 _loadAll();
-                                if (mounted)
+                                if (mounted) {
                                   _showSuccessDialog('Saved! 💾',
                                       'Assignment updated successfully.');
+                                }
                               } catch (e) {
-                                if (mounted)
+                                if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                           content: Text('Error: $e'),
                                           backgroundColor: _kError));
+                                }
                               }
                             },
                             style: ElevatedButton.styleFrom(

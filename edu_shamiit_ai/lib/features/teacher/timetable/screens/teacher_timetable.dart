@@ -54,8 +54,9 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
         _myClasses = myClassesList
             .map((c) {
               final section = c.section.trim();
-              if (section.isEmpty || c.name.contains('-$section'))
+              if (section.isEmpty || c.name.contains('-$section')) {
                 return c.name;
+              }
               return '${c.name}-$section';
             })
             .where((name) => name.isNotEmpty)

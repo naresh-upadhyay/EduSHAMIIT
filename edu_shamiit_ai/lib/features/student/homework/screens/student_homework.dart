@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
-import 'package:edu_shamiit_ai/shared/widgets/responsive_content.dart';
 import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';

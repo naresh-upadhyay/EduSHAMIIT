@@ -909,7 +909,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen>
   void _triggerCheatingWarning() async {
     if (!_proctorStreamsInitialized ||
         _isInitializingStreams ||
-        _isWarningDialogActive) return;
+        _isWarningDialogActive) {
+      return;
+    }
     if (_warningCount < _maxWarnings - 1) {
       setState(() {
         _isWarningDialogActive = true;
@@ -1070,9 +1072,10 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen>
   }
 
   int get _answeredCount => _studentAnswers.values.where((ans) {
-        if (ans is Map)
+        if (ans is Map) {
           return (ans['text'] != null && ans['text'].toString().isNotEmpty) ||
               ans['file_url'] != null;
+        }
         if (ans is List) return ans.isNotEmpty;
         if (ans is String) return ans.trim().isNotEmpty;
         return ans != null;

@@ -375,10 +375,12 @@ class _TeacherAchievementsScreenState
                                           ),
                                           validator: (value) {
                                             if (value == null ||
-                                                value.trim().isEmpty)
+                                                value.trim().isEmpty) {
                                               return 'XP is required';
-                                            if (int.tryParse(value) == null)
+                                            }
+                                            if (int.tryParse(value) == null) {
                                               return 'Must be an integer';
+                                            }
                                             return null;
                                           },
                                         ),
@@ -965,11 +967,13 @@ class _TeacherAchievementsScreenState
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty)
+                    if (value == null || value.trim().isEmpty) {
                       return 'Amount is required';
+                    }
                     final val = int.tryParse(value);
-                    if (val == null || val <= 0)
+                    if (val == null || val <= 0) {
                       return 'Must be a positive integer';
+                    }
                     if (val > 50) return 'Deduction cannot exceed 50 XP';
                     return null;
                   },
@@ -1141,7 +1145,7 @@ class _TeacherAchievementsScreenState
           Container(
             padding: EdgeInsets.fromLTRB(
                 16, Responsive.headerTopPadding(context), 16, 16),
-            decoration: BoxDecoration(gradient: headerColorGradient),
+            decoration: const BoxDecoration(gradient: headerColorGradient),
             child: Row(
               children: [
                 IconButton(

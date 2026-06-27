@@ -323,8 +323,9 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                               '${cls.subject} ${cls.teacher} ${cls.title ?? ""}',
                           mobileCardBuilder: (context, cls) {
                             if (cls.type == 'live') return _buildLiveCard(cls);
-                            if (cls.type == 'upcoming')
+                            if (cls.type == 'upcoming') {
                               return _buildUpcomingCard(cls);
+                            }
                             return _buildRecordedCard(cls);
                           },
                           disableVerticalScroll: true,
@@ -2032,8 +2033,9 @@ class _StudentLiveClassPlayerScreenState
 
           String getFileSizeString(int bytes) {
             if (bytes < 1024) return '$bytes B';
-            if (bytes < 1024 * 1024)
+            if (bytes < 1024 * 1024) {
               return '${(bytes / 1024).toStringAsFixed(1)} KB';
+            }
             return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
           }
 

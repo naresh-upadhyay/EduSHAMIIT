@@ -83,8 +83,9 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
           _classes = classes
               .map((c) {
                 final section = c.section.trim();
-                if (section.isEmpty || c.name.contains('-$section'))
+                if (section.isEmpty || c.name.contains('-$section')) {
                   return c.name;
+                }
                 return '${c.name}-$section';
               })
               .toSet()

@@ -245,8 +245,9 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                               filterFn: (item, option) {
                                 final catKey = option.toLowerCase();
                                 final nCat = item.category.toLowerCase();
-                                if (catKey == 'event')
+                                if (catKey == 'event') {
                                   return nCat == 'event' || nCat == 'events';
+                                }
                                 return nCat == catKey;
                               },
                             ),
