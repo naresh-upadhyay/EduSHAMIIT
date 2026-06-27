@@ -2,6 +2,11 @@ FROM livekit/egress:v1.8.4
 
 USER root
 
+# Disable Google Chrome repository to avoid GPG signature issues and redirect EOL Ubuntu Mantic repos to old-releases
+RUN rm -f /etc/apt/sources.list.d/* && \
+    sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list && \
+    sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+
 # Install Python 3 for health check web server
 RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
 
