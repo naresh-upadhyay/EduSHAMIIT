@@ -204,10 +204,17 @@ class AuthResponse:
     """Auth response wrapper."""
 
     def __init__(self, data: dict):
-        self.data = data
-        self.user = User(data.get("user", {}))
+        self.data = data or {}
+        # Handle cases where user data is nested or root level (e.g. email confirmation required)
+        if "user" in self.data:
+            self.user = User(self.data.get("user", {}))
+        elif "id" in self.data:
+            self.user = User(self.data)
+        else:
+            self.user = User({})
+            
         # Session data is at the top level of the response
-        self.session = Session(data)
+        self.session = Session(self.data)
 
 
 class User:
