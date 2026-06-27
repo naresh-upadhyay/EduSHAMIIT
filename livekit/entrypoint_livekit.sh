@@ -8,9 +8,16 @@ API_SECRET="${LIVEKIT_API_SECRET:-secretkey_edushamiit_livekit_2026_secure}"
 REDIS_HOST="redis"
 REDIS_PORT="6379"
 REDIS_PASSWORD="redis_password_2026"
+IS_TLS="false"
 
 # Parse Redis URL if provided
 if [ ! -z "$REDIS_URL" ]; then
+  case "$REDIS_URL" in
+    rediss://*)
+      IS_TLS="true"
+      ;;
+  esac
+
   # Strip prefix
   REDIS_CLEAN="${REDIS_URL#*://}"
   
@@ -72,6 +79,14 @@ else
 cat <<EOF >> /livekit.yaml
 redis:
   address: "${REDIS_HOST}:${REDIS_PORT}"
+EOF
+fi
+
+if [ "$IS_TLS" = "true" ]; then
+cat <<EOF >> /livekit.yaml
+  use_tls: true
+  tls:
+    enabled: true
 EOF
 fi
 
