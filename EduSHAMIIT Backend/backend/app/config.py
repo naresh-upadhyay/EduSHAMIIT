@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import Field, AliasChoices
+from pydantic import Field, AliasChoices, model_validator
 from typing import Optional
 
 
@@ -78,6 +78,36 @@ class Settings(BaseSettings):
     OTP_LENGTH: int = 6
     OTP_EXPIRATION_MINUTES: int = 15
     OTP_RATE_LIMIT_PER_HOUR: int = 3
+
+    @model_validator(mode="after")
+    def validate_and_autofill_supabase(self) -> 'Settings':
+        # Clean quotes and whitespaces from critical fields
+        for field in ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_JWT_SECRET", "DATABASE_URL"]:
+            val = getattr(self, field, None)
+            if isinstance(val, str):
+                cleaned = val.strip().strip("'\"")
+                setattr(self, field, cleaned)
+
+        # If SUPABASE_URL is empty or invalid, try to derive it from DATABASE_URL
+        if not self.SUPABASE_URL or not self.SUPABASE_URL.startswith(("http://", "https://")):
+            import urllib.parse
+            try:
+                parsed = urllib.parse.urlparse(self.DATABASE_URL)
+                hostname = parsed.hostname
+                if hostname and hostname.endswith(".supabase.co"):
+                    if hostname.startswith("db."):
+                        project_id = hostname.split(".")[1]
+                    else:
+                        project_id = hostname.split(".")[0]
+                    self.SUPABASE_URL = f"https://{project_id}.supabase.co"
+            except Exception:
+                pass
+
+        # Clean trailing slash if present
+        if self.SUPABASE_URL:
+            self.SUPABASE_URL = self.SUPABASE_URL.rstrip("/")
+            
+        return self
 
     class Config:
         env_file = "../.env"

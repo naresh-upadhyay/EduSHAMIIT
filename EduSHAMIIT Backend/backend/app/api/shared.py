@@ -309,7 +309,7 @@ async def upload_group_avatar(
         raise HTTPException(status_code=404, detail="Group not found")
         
     image_bytes = await avatar.read()
-    supabase_url = os.environ.get("SUPABASE_URL", "")
+    supabase_url = settings.SUPABASE_URL
     public_url_base = os.environ.get("PUBLIC_URL", supabase_url)
     
     content_type = avatar.content_type or "application/octet-stream"
@@ -323,7 +323,7 @@ async def upload_group_avatar(
     storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
     
     headers = {
-        "Authorization": f"Bearer {os.environ.get('SUPABASE_SERVICE_ROLE_KEY')}",
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
         "Content-Type": content_type
     }
     
@@ -603,7 +603,7 @@ async def upload_message_file(
     if len(file_bytes) == 0:
         raise HTTPException(status_code=400, detail="Empty file")
         
-    supabase_url = os.environ.get("SUPABASE_URL", "")
+    supabase_url = settings.SUPABASE_URL
     public_url_base = os.environ.get("PUBLIC_URL", supabase_url)
     
     content_type = file.content_type or "application/octet-stream"
@@ -620,7 +620,7 @@ async def upload_message_file(
     storage_url = f"{supabase_url}/storage/v1/object/{storage_path}"
     
     headers = {
-        "Authorization": f"Bearer {os.environ.get('SUPABASE_SERVICE_ROLE_KEY')}",
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
         "Content-Type": content_type
     }
     

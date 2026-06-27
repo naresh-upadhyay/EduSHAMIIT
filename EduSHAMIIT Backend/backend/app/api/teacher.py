@@ -2447,7 +2447,7 @@ async def download_salary_slip(
     import os
     from jose import jwt, JWTError
     try:
-        jwt_secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMIIT-jwt-secret-2026"))
+        jwt_secret = settings.SUPABASE_JWT_SECRET or settings.JWT_SECRET
         payload = jwt.decode(
             token_str,
             jwt_secret,

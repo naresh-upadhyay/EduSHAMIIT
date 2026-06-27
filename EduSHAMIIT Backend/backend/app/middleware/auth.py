@@ -2,6 +2,7 @@ from fastapi import HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 import os
+from app.config import settings
 import time
 from typing import Optional, Dict, Any, Callable
 from functools import wraps
@@ -46,7 +47,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
     # 2. Cache miss — decode JWT
     try:
-        jwt_secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMIIT-jwt-secret-2026"))
+        jwt_secret = settings.SUPABASE_JWT_SECRET or settings.JWT_SECRET
         payload = jwt.decode(
             token,
             jwt_secret,
@@ -108,7 +109,7 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
         }
     # 2. Cache miss — decode JWT
     try:
-        jwt_secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMIIT-jwt-secret-2026"))
+        jwt_secret = settings.SUPABASE_JWT_SECRET or settings.JWT_SECRET
         payload = jwt.decode(
             token,
             jwt_secret,

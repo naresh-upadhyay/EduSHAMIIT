@@ -22,7 +22,7 @@ import re
 
 router = APIRouter()
 
-JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", os.getenv("JWT_SECRET", "eduSHAMIIT-jwt-secret-2026"))
+JWT_SECRET = settings.SUPABASE_JWT_SECRET or settings.JWT_SECRET
 JWT_ALGORITHM = "HS256"
 
 
