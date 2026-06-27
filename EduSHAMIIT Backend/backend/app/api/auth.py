@@ -246,6 +246,11 @@ async def register(request: RegisterRequest):
     try:
         sb = get_supabase()
 
+        # Check if email already registered in profiles
+        existing = await sb.table("profiles").select("id").eq("email", request.email).maybe_single().aexecute()
+        if existing.data:
+            raise Exception("Email already exists")
+
         auth_response = await sb.auth().sign_up({
             "email": request.email,
             "password": request.password,
