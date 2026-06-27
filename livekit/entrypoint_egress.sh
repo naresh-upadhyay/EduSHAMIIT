@@ -11,9 +11,16 @@ API_SECRET="${LIVEKIT_API_SECRET:-secretkey_edushamiit_livekit_2026_secure}"
 REDIS_HOST="redis"
 REDIS_PORT="6379"
 REDIS_PASSWORD="redis_password_2026"
+IS_TLS="false"
 
 # Parse Redis URL if provided
 if [ ! -z "$REDIS_URL" ]; then
+  case "$REDIS_URL" in
+    rediss://*)
+      IS_TLS="true"
+      ;;
+  esac
+
   # Strip prefix
   REDIS_CLEAN="${REDIS_URL#*://}"
   
@@ -92,6 +99,14 @@ redis:
 EOF
 fi
 
+if [ "$IS_TLS" = "true" ]; then
+cat <<EOF >> /egress.yaml
+  use_tls: true
+  tls:
+    enabled: true
+EOF
+fi
+
 # Add S3 storage settings if configured
 if [ ! -z "$S3_BUCKET" ] || [ ! -z "$AWS_BUCKET" ]; then
 cat <<EOF >> /egress.yaml
@@ -106,4 +121,4 @@ EOF
 fi
 
 echo "Starting LiveKit Egress Service..."
-exec /egress --config /egress.yaml
+exec egress --config /egress.yaml
