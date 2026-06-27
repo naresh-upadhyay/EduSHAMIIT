@@ -47,7 +47,8 @@ class AzureGrid<T> extends StatefulWidget {
   final List<T> items;
   final List<AzureGridColumn<T>> columns;
   final Widget Function(BuildContext context, T item) mobileCardBuilder;
-  final List<Widget> Function(BuildContext context, List<T> selectedItems)? bulkActions;
+  final List<Widget> Function(BuildContext context, List<T> selectedItems)?
+      bulkActions;
   final List<AzureGridFilter<T>>? filters;
   final String Function(T item)? searchMatcher;
   final int defaultPageSize;
@@ -129,7 +130,9 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
       for (final filter in widget.filters!) {
         final selectedVal = _activeFilters[filter.label];
         if (selectedVal != null && selectedVal != 'All') {
-          results = results.where((item) => filter.filterFn(item, selectedVal)).toList();
+          results = results
+              .where((item) => filter.filterFn(item, selectedVal))
+              .toList();
         }
       }
     }
@@ -164,7 +167,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
 
     final startIndex = _currentPage * _pageSize;
     final endIndex = min(startIndex + _pageSize, totalItems);
-    final pagedItems = totalItems > 0 ? processed.sublist(startIndex, endIndex) : <T>[];
+    final pagedItems =
+        totalItems > 0 ? processed.sublist(startIndex, endIndex) : <T>[];
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -181,11 +185,12 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           // 1. Command Bar (Header + Search + Filters + Actions)
+          // 1. Command Bar (Header + Search + Filters + Actions)
           _buildCommandBar(context, isMobile),
 
           if (widget.loading)
-            const LinearProgressIndicator(minHeight: 2, backgroundColor: Colors.transparent),
+            const LinearProgressIndicator(
+                minHeight: 2, backgroundColor: Colors.transparent),
 
           const Divider(height: 1, thickness: 1),
 
@@ -213,7 +218,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
           const Divider(height: 1, thickness: 1),
 
           // 3. Pagination Controls (Footer)
-          _buildPaginationFooter(totalItems, startIndex, endIndex, totalPages, isDark),
+          _buildPaginationFooter(
+              totalItems, startIndex, endIndex, totalPages, isDark),
         ],
       ),
     );
@@ -224,7 +230,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final commandBg = isDark ? const Color(0xFF18181F) : const Color(0xFFF8F9FA);
+    final commandBg =
+        isDark ? const Color(0xFF18181F) : const Color(0xFFF8F9FA);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -256,11 +263,15 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                   if (_selectedItems.isNotEmpty) ...[
                     const SizedBox(width: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.15),
+                        color:
+                            theme.colorScheme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
+                        border: Border.all(
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         '${_selectedItems.length} selected',
@@ -287,7 +298,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                         widget.onRefresh!();
                       },
                     ),
-                  if (widget.extraCommandActions != null) ...widget.extraCommandActions!,
+                  if (widget.extraCommandActions != null)
+                    ...widget.extraCommandActions!,
                 ],
               ),
             ],
@@ -303,7 +315,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               // Extra Command Filters (e.g. API-backed dropdowns)
-              if (widget.extraCommandFilters != null) ...widget.extraCommandFilters!,
+              if (widget.extraCommandFilters != null)
+                ...widget.extraCommandFilters!,
               // Search Input Box
               if (widget.searchMatcher != null)
                 SizedBox(
@@ -320,11 +333,14 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                     style: GoogleFonts.dmSans(fontSize: 12),
                     decoration: InputDecoration(
                       hintText: 'Search...',
-                      hintStyle: GoogleFonts.dmSans(fontSize: 12, color: Colors.grey),
-                      prefixIcon: const Icon(Icons.search, size: 16, color: Colors.grey),
+                      hintStyle:
+                          GoogleFonts.dmSans(fontSize: 12, color: Colors.grey),
+                      prefixIcon: const Icon(Icons.search,
+                          size: 16, color: Colors.grey),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.close, size: 14, color: Colors.grey),
+                              icon: const Icon(Icons.close,
+                                  size: 14, color: Colors.grey),
                               padding: EdgeInsets.zero,
                               onPressed: () {
                                 setState(() {
@@ -335,20 +351,29 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                               },
                             )
                           : null,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0, horizontal: 8),
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF262633) : Colors.white,
+                      fillColor:
+                          isDark ? const Color(0xFF262633) : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF3A3A4A)
+                                : Colors.grey.shade300),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF3A3A4A)
+                                : Colors.grey.shade300),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+                        borderSide: BorderSide(
+                            color: theme.colorScheme.primary, width: 1.5),
                       ),
                     ),
                   ),
@@ -367,7 +392,9 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                       border: Border.all(
                         color: currentVal != 'All'
                             ? theme.colorScheme.primary
-                            : (isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                            : (isDark
+                                ? const Color(0xFF3A3A4A)
+                                : Colors.grey.shade300),
                       ),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -378,13 +405,17 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                           color: currentVal != 'All'
                               ? theme.colorScheme.primary
                               : (isDark ? Colors.white : Colors.black87),
-                          fontWeight: currentVal != 'All' ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: currentVal != 'All'
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
-                        dropdownColor: isDark ? const Color(0xFF262633) : Colors.white,
+                        dropdownColor:
+                            isDark ? const Color(0xFF262633) : Colors.white,
                         items: ['All', ...filter.options].map((opt) {
                           return DropdownMenuItem<String>(
                             value: opt,
-                            child: Text(opt == 'All' ? '${filter.label}: All' : opt),
+                            child: Text(
+                                opt == 'All' ? '${filter.label}: All' : opt),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -405,7 +436,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
 
               // Bulk Action Options
               if (_selectedItems.isNotEmpty && widget.bulkActions != null)
-                ...widget.bulkActions!(context, _selectedItems.toList()).map((action) {
+                ...widget.bulkActions!(context, _selectedItems.toList())
+                    .map((action) {
                   return SizedBox(
                     height: 32,
                     child: action,
@@ -419,18 +451,22 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
   }
 
   // ─── DESKTOP DATA TABLE BUILDER ───────────────────────────────────
-  Widget _buildDesktopGrid(List<T> pagedItems, BuildContext context, bool isDark) {
+  Widget _buildDesktopGrid(
+      List<T> pagedItems, BuildContext context, bool isDark) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewportWidth = constraints.maxWidth;
 
         // Calculate total column width
         double selectionWidth = widget.enableSelection ? 50.0 : 0.0;
-        double specifiedColumnsWidth = widget.columns.fold(0.0, (sum, col) => sum + col.width);
+        double specifiedColumnsWidth =
+            widget.columns.fold(0.0, (sum, col) => sum + col.width);
         double totalMinWidth = specifiedColumnsWidth + selectionWidth;
 
         // Proportional resizing if totalMinWidth is less than the viewport width
-        final double scale = totalMinWidth < viewportWidth ? (viewportWidth / totalMinWidth) : 1.0;
+        final double scale = totalMinWidth < viewportWidth
+            ? (viewportWidth / totalMinWidth)
+            : 1.0;
         final double finalSelectionWidth = selectionWidth * scale;
 
         return Scrollbar(
@@ -448,7 +484,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Table Header
-                    _buildTableHeader(pagedItems, finalSelectionWidth, scale, isDark),
+                    _buildTableHeader(
+                        pagedItems, finalSelectionWidth, scale, isDark),
 
                     const Divider(height: 1, thickness: 1),
 
@@ -497,7 +534,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
     );
   }
 
-  Widget _buildTableHeader(List<T> pagedItems, double selectionWidth, double scale, bool isDark) {
+  Widget _buildTableHeader(
+      List<T> pagedItems, double selectionWidth, double scale, bool isDark) {
     final headerBg = isDark ? const Color(0xFF22222E) : Colors.grey.shade50;
     final headerTextTheme = GoogleFonts.dmSans(
       fontSize: 12,
@@ -505,7 +543,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
       color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
     );
 
-    final isAllSelected = pagedItems.isNotEmpty && pagedItems.every((item) => _selectedItems.contains(item));
+    final isAllSelected = pagedItems.isNotEmpty &&
+        pagedItems.every((item) => _selectedItems.contains(item));
 
     return Container(
       color: headerBg,
@@ -558,12 +597,16 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                   const SizedBox(width: 4),
                   Icon(
                     isSorted
-                        ? (_sortAscending ? Icons.arrow_upward : Icons.arrow_downward)
+                        ? (_sortAscending
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward)
                         : Icons.swap_vert,
                     size: 14,
                     color: isSorted
                         ? Theme.of(context).colorScheme.primary
-                        : (isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                        : (isDark
+                            ? Colors.grey.shade600
+                            : Colors.grey.shade400),
                   ),
                 ],
               ],
@@ -586,7 +629,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                   });
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 4.0),
                   child: headerCell,
                 ),
               );
@@ -621,8 +665,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
     Color rowColor = Colors.transparent;
     if (isSelected) {
       rowColor = isDark
-          ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
-          : Theme.of(context).colorScheme.primary.withOpacity(0.06);
+          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
+          : Theme.of(context).colorScheme.primary.withValues(alpha: 0.06);
     } else if (isHovered) {
       rowColor = isDark ? const Color(0xFF252530) : Colors.grey.shade100;
     } else if (index % 2 != 0) {
@@ -682,7 +726,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
                           color: isDark ? Colors.grey.shade200 : Colors.black87,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.normal,
                         ),
                         overflow: TextOverflow.ellipsis,
                         child: col.cellBuilder(item),
@@ -702,7 +747,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
   Widget _buildMobileListView(List<T> pagedItems) {
     if (widget.disableVerticalScroll) {
       return Padding(
-        padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 80),
+        padding:
+            const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 80),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(pagedItems.length, (idx) {
@@ -739,7 +785,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
             }
 
             return Padding(
-              padding: EdgeInsets.only(bottom: idx == pagedItems.length - 1 ? 0 : 8),
+              padding:
+                  EdgeInsets.only(bottom: idx == pagedItems.length - 1 ? 0 : 8),
               child: GestureDetector(
                 onLongPress: () {
                   if (widget.enableSelection) {
@@ -816,8 +863,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
   }
 
   // ─── FOOTER & PAGINATION BUILDER ──────────────────────────────────
-  Widget _buildPaginationFooter(
-      int totalItems, int startIndex, int endIndex, int totalPages, bool isDark) {
+  Widget _buildPaginationFooter(int totalItems, int startIndex, int endIndex,
+      int totalPages, bool isDark) {
     final footerBg = isDark ? const Color(0xFF18181F) : const Color(0xFFF8F9FA);
 
     return Container(
@@ -849,7 +896,8 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
                     fontSize: 12,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
-                  dropdownColor: isDark ? const Color(0xFF262633) : Colors.white,
+                  dropdownColor:
+                      isDark ? const Color(0xFF262633) : Colors.white,
                   underline: const SizedBox(),
                   items: [5, 10, 25, 50, 100].map((size) {
                     return DropdownMenuItem<int>(
@@ -872,7 +920,9 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
 
           // Showing entries info
           Text(
-            totalItems == 0 ? 'Showing 0-0 of 0 items' : 'Showing ${startIndex + 1}-${endIndex} of $totalItems items',
+            totalItems == 0
+                ? 'Showing 0-0 of 0 items'
+                : 'Showing ${startIndex + 1}-$endIndex of $totalItems items',
             style: GoogleFonts.dmSans(
               fontSize: 12,
               color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -885,13 +935,17 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
             children: [
               IconButton(
                 icon: const Icon(Icons.first_page, size: 18),
-                onPressed: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
+                onPressed: _currentPage > 0
+                    ? () => setState(() => _currentPage = 0)
+                    : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_left, size: 18),
-                onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                onPressed: _currentPage > 0
+                    ? () => setState(() => _currentPage--)
+                    : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
@@ -905,13 +959,17 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right, size: 18),
-                onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
+                onPressed: _currentPage < totalPages - 1
+                    ? () => setState(() => _currentPage++)
+                    : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
               IconButton(
                 icon: const Icon(Icons.last_page, size: 18),
-                onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage = totalPages - 1) : null,
+                onPressed: _currentPage < totalPages - 1
+                    ? () => setState(() => _currentPage = totalPages - 1)
+                    : null,
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),

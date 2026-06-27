@@ -97,7 +97,8 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         compare: (a, b) => a.subject.compareTo(b.subject),
         cellBuilder: (cls) => Row(
           children: [
-            Text(cls.icon.isNotEmpty ? cls.icon : '📚', style: const TextStyle(fontSize: 14)),
+            Text(cls.icon.isNotEmpty ? cls.icon : '📚',
+                style: const TextStyle(fontSize: 14)),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -114,19 +115,23 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
         label: 'Title',
         width: 200.0,
         compare: (a, b) => (a.title ?? '').compareTo(b.title ?? ''),
-        cellBuilder: (cls) => Text(cls.title ?? 'Class Session', overflow: TextOverflow.ellipsis, maxLines: 1),
+        cellBuilder: (cls) => Text(cls.title ?? 'Class Session',
+            overflow: TextOverflow.ellipsis, maxLines: 1),
       ),
       AzureGridColumn<LiveClassModel>(
         label: 'Teacher',
         width: 140.0,
         compare: (a, b) => a.teacher.compareTo(b.teacher),
-        cellBuilder: (cls) => Text(cls.teacher, overflow: TextOverflow.ellipsis, maxLines: 1),
+        cellBuilder: (cls) =>
+            Text(cls.teacher, overflow: TextOverflow.ellipsis, maxLines: 1),
       ),
       AzureGridColumn<LiveClassModel>(
         label: 'Schedule / Date',
         width: 160.0,
-        compare: (a, b) => (a.time ?? a.date ?? '').compareTo(b.time ?? b.date ?? ''),
-        cellBuilder: (cls) => Text(cls.time ?? cls.date ?? 'N/A', overflow: TextOverflow.ellipsis, maxLines: 1),
+        compare: (a, b) =>
+            (a.time ?? a.date ?? '').compareTo(b.time ?? b.date ?? ''),
+        cellBuilder: (cls) => Text(cls.time ?? cls.date ?? 'N/A',
+            overflow: TextOverflow.ellipsis, maxLines: 1),
       ),
       AzureGridColumn<LiveClassModel>(
         label: 'Type',
@@ -158,7 +163,8 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
             ),
             child: Text(
               label,
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
+              style: TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.bold, color: fg),
             ),
           );
         },
@@ -181,9 +187,14 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFEF4444),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
                 ),
-                child: const Text('Join Room', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text('Join Room',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold)),
               ),
             );
           } else if (cls.type == 'recorded') {
@@ -194,13 +205,22 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF334155),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
                 ),
-                child: const Text('Play', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text('Play',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold)),
               ),
             );
           } else {
-            return Text(cls.timeUntil ?? 'Scheduled', style: const TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic));
+            return Text(cls.timeUntil ?? 'Scheduled',
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey,
+                    fontStyle: FontStyle.italic));
           }
         },
       ),
@@ -210,7 +230,8 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
       AzureGridFilter<LiveClassModel>(
         label: 'Type',
         options: const ['Live', 'Upcoming', 'Recorded'],
-        filterFn: (cls, option) => cls.type.toLowerCase() == option.toLowerCase(),
+        filterFn: (cls, option) =>
+            cls.type.toLowerCase() == option.toLowerCase(),
       ),
       AzureGridFilter<LiveClassModel>(
         label: 'Subject',
@@ -253,8 +274,9 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                   IconButton(
                     icon: const Icon(Icons.refresh, color: Colors.white),
                     tooltip: 'Refresh classes',
-                    onPressed: () =>
-                        ref.read(liveClassesProvider.notifier).loadLiveClasses(),
+                    onPressed: () => ref
+                        .read(liveClassesProvider.notifier)
+                        .loadLiveClasses(),
                   ),
                   const SizedBox(width: 8),
                   Container(
@@ -284,7 +306,8 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                 : liveClassesState.error != null
                     ? Padding(
                         padding: const EdgeInsets.symmetric(vertical: 40.0),
-                        child: Center(child: Text('Error: ${liveClassesState.error}')),
+                        child: Center(
+                            child: Text('Error: ${liveClassesState.error}')),
                       )
                     : Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
@@ -293,11 +316,15 @@ class _StudentLiveClassesState extends ConsumerState<StudentLiveClasses> {
                           items: allClasses,
                           columns: columns,
                           filters: filters,
-                          onRefresh: () => ref.read(liveClassesProvider.notifier).loadLiveClasses(),
-                          searchMatcher: (cls) => '${cls.subject} ${cls.teacher} ${cls.title ?? ""}',
+                          onRefresh: () => ref
+                              .read(liveClassesProvider.notifier)
+                              .loadLiveClasses(),
+                          searchMatcher: (cls) =>
+                              '${cls.subject} ${cls.teacher} ${cls.title ?? ""}',
                           mobileCardBuilder: (context, cls) {
                             if (cls.type == 'live') return _buildLiveCard(cls);
-                            if (cls.type == 'upcoming') return _buildUpcomingCard(cls);
+                            if (cls.type == 'upcoming')
+                              return _buildUpcomingCard(cls);
                             return _buildRecordedCard(cls);
                           },
                           disableVerticalScroll: true,
@@ -883,7 +910,8 @@ class _StudentLiveClassPlayerScreenState
   LiveClassModel? _localClassData;
   bool _isLoadingClassData = true;
 
-  String _activeTab = 'Overview'; // 'Overview', 'Chapters', 'Resources', 'Notes'
+  String _activeTab =
+      'Overview'; // 'Overview', 'Chapters', 'Resources', 'Notes'
 
   List<Map<String, dynamic>> _chapters = [];
   List<Map<String, dynamic>> _resources = [];
@@ -936,7 +964,9 @@ class _StudentLiveClassPlayerScreenState
 
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.get('/live-classes/${widget.classId}/playback-info', useCache: false);
+      final response = await apiService.get(
+          '/live-classes/${widget.classId}/playback-info',
+          useCache: false);
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'];
         if (mounted) {
@@ -949,7 +979,7 @@ class _StudentLiveClassPlayerScreenState
             _avgRating = (data['avg_rating'] as num?)?.toDouble() ?? 0.0;
             _userRating = data['user_rating'] ?? 0;
             _hasRated = data['has_rated'] ?? false;
-            
+
             // Map chapters
             final List<dynamic> chList = data['chapters'] ?? [];
             _chapters = chList.map((ch) {
@@ -958,12 +988,13 @@ class _StudentLiveClassPlayerScreenState
               final s = secs % 60;
               return {
                 'id': ch['id']?.toString() ?? '',
-                'time': '${m.toString().padLeft(2, "0")}:${s.toString().padLeft(2, "0")}',
+                'time':
+                    '${m.toString().padLeft(2, "0")}:${s.toString().padLeft(2, "0")}',
                 'seconds': secs,
                 'title': ch['title']?.toString() ?? ''
               };
             }).toList();
-            
+
             // Map resources
             final List<dynamic> resList = data['resources'] ?? [];
             _resources = resList.map((res) {
@@ -979,7 +1010,7 @@ class _StudentLiveClassPlayerScreenState
             final String nText = data['notes_text'] ?? '';
             _notesController.text = nText;
             _notesSaved = nText.isNotEmpty;
-            
+
             _isLoadingClassData = false;
             _showIntroOverlay = true;
           });
@@ -988,7 +1019,8 @@ class _StudentLiveClassPlayerScreenState
         }
       }
     } catch (e) {
-      debugPrint('[PlayerScreen] Failed to fetch from playback-info endpoint: $e');
+      debugPrint(
+          '[PlayerScreen] Failed to fetch from playback-info endpoint: $e');
     }
 
     // Fallback: check provider list
@@ -1057,60 +1089,64 @@ class _StudentLiveClassPlayerScreenState
   void _subscribeRealtimeComments() {
     try {
       final channelName = 'live-class-comments-${widget.classId}';
-      
+
       _commentsRealtimeChannel = Supabase.instance.client.channel(channelName);
-      
+
       _commentsRealtimeChannel!
           .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'live_class_comments',
-            callback: (payload) {
-              if (!mounted) return;
-              
-              if (payload.eventType == PostgresChangeEvent.delete) {
-                final oldRecord = payload.oldRecord;
-                final deletedId = oldRecord['id']?.toString();
-                if (deletedId != null) {
-                  // Check if this comment (or any reply) is in our local list of comments
-                  bool isLocal = false;
-                  for (var comment in _comments) {
-                    if (comment['id']?.toString() == deletedId) {
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'live_class_comments',
+        callback: (payload) {
+          if (!mounted) return;
+
+          if (payload.eventType == PostgresChangeEvent.delete) {
+            final oldRecord = payload.oldRecord;
+            final deletedId = oldRecord['id']?.toString();
+            if (deletedId != null) {
+              // Check if this comment (or any reply) is in our local list of comments
+              bool isLocal = false;
+              for (var comment in _comments) {
+                if (comment['id']?.toString() == deletedId) {
+                  isLocal = true;
+                  break;
+                }
+                final replies = comment['replies'] as List?;
+                if (replies != null) {
+                  for (var reply in replies) {
+                    if (reply is Map && reply['id']?.toString() == deletedId) {
                       isLocal = true;
                       break;
                     }
-                    final replies = comment['replies'] as List?;
-                    if (replies != null) {
-                      for (var reply in replies) {
-                        if (reply is Map && reply['id']?.toString() == deletedId) {
-                          isLocal = true;
-                          break;
-                        }
-                      }
-                    }
-                    if (isLocal) break;
-                  }
-                  
-                  if (isLocal) {
-                    debugPrint('[CommentsRealtime] Local comment/reply deleted. Refreshing comments.');
-                    _loadComments();
                   }
                 }
-              } else {
-                // For INSERT and UPDATE, the payload has the full record
-                final newRecord = payload.newRecord;
-                final recordClassId = newRecord['live_class_id']?.toString();
-                if (recordClassId != null && recordClassId == widget.classId) {
-                  debugPrint('[CommentsRealtime] Local comment/reply inserted/updated. Refreshing comments.');
-                  _loadComments();
-                }
+                if (isLocal) break;
               }
-            },
-          )
+
+              if (isLocal) {
+                debugPrint(
+                    '[CommentsRealtime] Local comment/reply deleted. Refreshing comments.');
+                _loadComments();
+              }
+            }
+          } else {
+            // For INSERT and UPDATE, the payload has the full record
+            final newRecord = payload.newRecord;
+            final recordClassId = newRecord['live_class_id']?.toString();
+            if (recordClassId != null && recordClassId == widget.classId) {
+              debugPrint(
+                  '[CommentsRealtime] Local comment/reply inserted/updated. Refreshing comments.');
+              _loadComments();
+            }
+          }
+        },
+      )
           .subscribe((status, [error]) {
-            debugPrint('[CommentsRealtime] Subscription status: $status, error: $error');
-          });
-      debugPrint('[CommentsRealtime] Registered subscription for channel: $channelName');
+        debugPrint(
+            '[CommentsRealtime] Subscription status: $status, error: $error');
+      });
+      debugPrint(
+          '[CommentsRealtime] Registered subscription for channel: $channelName');
     } catch (e) {
       debugPrint('[CommentsRealtime] Failed to subscribe: $e');
     }
@@ -1131,11 +1167,13 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _loadRelatedLectures() async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.get('/live-classes/${widget.classId}/related');
+      final response =
+          await apiService.get('/live-classes/${widget.classId}/related');
       if (response['success'] == true && response['data'] != null) {
         if (mounted) {
           setState(() {
-            _relatedLectures = List<Map<String, dynamic>>.from(response['data']);
+            _relatedLectures =
+                List<Map<String, dynamic>>.from(response['data']);
           });
         }
       }
@@ -1147,11 +1185,11 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _submitEditComment(String commentId) async {
     final text = _editCommentController.text.trim();
     if (text.isEmpty) return;
-    
+
     final success = await ref
         .read(liveClassesProvider.notifier)
         .editComment(widget.classId, commentId, text);
-        
+
     if (success) {
       setState(() {
         _editingCommentId = null;
@@ -1172,13 +1210,21 @@ class _StudentLiveClassPlayerScreenState
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF0F172A),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Text('Delete Comment', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to delete this comment? This action cannot be undone.', style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text('Delete Comment',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold)),
+          content: const Text(
+              'Are you sure you want to delete this comment? This action cannot be undone.',
+              style: TextStyle(color: Colors.white70, fontSize: 11.5)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white60, fontSize: 11)),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Colors.white60, fontSize: 11)),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -1191,7 +1237,8 @@ class _StudentLiveClassPlayerScreenState
                 } else {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Failed to delete comment.')),
+                      const SnackBar(
+                          content: Text('Failed to delete comment.')),
                     );
                   }
                 }
@@ -1199,9 +1246,11 @@ class _StudentLiveClassPlayerScreenState
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6)),
               ),
-              child: const Text('Delete', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              child: const Text('Delete',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -1251,8 +1300,12 @@ class _StudentLiveClassPlayerScreenState
   }
 
   Future<void> _updateRecordingDurationOnServer(int durationSec) async {
-    final currentDurationStr = _localClassData?.date?.split('·').skip(1).firstOrNull?.trim();
-    if (currentDurationStr == '1s' || currentDurationStr == '0s' || currentDurationStr == null || currentDurationStr.isEmpty) {
+    final currentDurationStr =
+        _localClassData?.date?.split('·').skip(1).firstOrNull?.trim();
+    if (currentDurationStr == '1s' ||
+        currentDurationStr == '0s' ||
+        currentDurationStr == null ||
+        currentDurationStr.isEmpty) {
       try {
         final apiService = ref.read(apiServiceProvider);
         final response = await apiService.post(
@@ -1260,11 +1313,13 @@ class _StudentLiveClassPlayerScreenState
           {'duration': durationSec},
         );
         if (response['success'] == true) {
-          debugPrint('[Player] Successfully updated database duration to $durationSec seconds');
+          debugPrint(
+              '[Player] Successfully updated database duration to $durationSec seconds');
           if (mounted) {
             setState(() {
               if (_localClassData != null) {
-                final datePart = _localClassData!.date?.split('·').firstOrNull?.trim() ?? '';
+                final datePart =
+                    _localClassData!.date?.split('·').firstOrNull?.trim() ?? '';
                 final h = durationSec ~/ 3600;
                 final m = (durationSec % 3600) ~/ 60;
                 final s = durationSec % 60;
@@ -1276,8 +1331,10 @@ class _StudentLiveClassPlayerScreenState
                 } else {
                   durationStr = '${s}s';
                 }
-                final newDateStr = datePart.isNotEmpty ? '$datePart · $durationStr' : durationStr;
-                
+                final newDateStr = datePart.isNotEmpty
+                    ? '$datePart · $durationStr'
+                    : durationStr;
+
                 _localClassData = LiveClassModel(
                   id: _localClassData!.id,
                   subject: _localClassData!.subject,
@@ -1394,7 +1451,8 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _toggleLike() async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.post('/live-classes/${widget.classId}/like', {});
+      final response =
+          await apiService.post('/live-classes/${widget.classId}/like', {});
       if (response['success'] == true) {
         setState(() {
           _likeCount = response['like_count'] ?? _likeCount;
@@ -1411,7 +1469,8 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _toggleDislike() async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.post('/live-classes/${widget.classId}/dislike', {});
+      final response =
+          await apiService.post('/live-classes/${widget.classId}/dislike', {});
       if (response['success'] == true) {
         setState(() {
           _likeCount = response['like_count'] ?? _likeCount;
@@ -1428,7 +1487,8 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _submitRating(int stars) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.post('/live-classes/${widget.classId}/rate', {'rating': stars});
+      final response = await apiService
+          .post('/live-classes/${widget.classId}/rate', {'rating': stars});
       if (response['success'] == true) {
         setState(() {
           _userRating = stars;
@@ -1437,13 +1497,15 @@ class _StudentLiveClassPlayerScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('⭐ Thank you for rating this lecture $stars stars!'),
+              content:
+                  Text('⭐ Thank you for rating this lecture $stars stars!'),
               backgroundColor: const Color(0xFFF59E0B),
             ),
           );
         }
         _loadClassDataAndComments();
-      } else if (response['status'] == 403 || response['detail']?.toString().contains('cannot rate') == true) {
+      } else if (response['status'] == 403 ||
+          response['detail']?.toString().contains('cannot rate') == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1462,7 +1524,8 @@ class _StudentLiveClassPlayerScreenState
     try {
       final apiService = ref.read(apiServiceProvider);
       final text = _notesController.text;
-      final response = await apiService.post('/live-classes/${widget.classId}/notes', {'notes_text': text});
+      final response = await apiService
+          .post('/live-classes/${widget.classId}/notes', {'notes_text': text});
       if (response['success'] == true) {
         setState(() {
           _notesSaved = true;
@@ -1482,13 +1545,14 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _updateOverview(String newTitle, String newDesc) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.put('/live-classes/${widget.classId}/overview', {
-        'title': newTitle,
-        'description': newDesc
-      });
+      final response = await apiService.put(
+          '/live-classes/${widget.classId}/overview',
+          {'title': newTitle, 'description': newDesc});
       if (response['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✓ Overview updated successfully!'), backgroundColor: Color(0xFF10B981)),
+          const SnackBar(
+              content: Text('✓ Overview updated successfully!'),
+              backgroundColor: Color(0xFF10B981)),
         );
         _loadClassDataAndComments();
       }
@@ -1521,10 +1585,9 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _addChapter(String title, int seconds) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.post('/live-classes/${widget.classId}/chapters', {
-        'title': title,
-        'time_seconds': seconds
-      });
+      final response = await apiService.post(
+          '/live-classes/${widget.classId}/chapters',
+          {'title': title, 'time_seconds': seconds});
       if (response['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1539,7 +1602,8 @@ class _StudentLiveClassPlayerScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to add chapter: ${response['detail'] ?? 'Unknown error'}'),
+              content: Text(
+                  'Failed to add chapter: ${response['detail'] ?? 'Unknown error'}'),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -1561,7 +1625,8 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _deleteChapter(String chapterId) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.delete('/live-classes/${widget.classId}/chapters/$chapterId');
+      final response = await apiService
+          .delete('/live-classes/${widget.classId}/chapters/$chapterId');
       if (response['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1576,7 +1641,8 @@ class _StudentLiveClassPlayerScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete chapter: ${response['detail'] ?? 'Unknown error'}'),
+              content: Text(
+                  'Failed to delete chapter: ${response['detail'] ?? 'Unknown error'}'),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -1595,14 +1661,13 @@ class _StudentLiveClassPlayerScreenState
     }
   }
 
-  Future<void> _addResource(String title, String fileUrl, {String sizeStr = '2.0 MB'}) async {
+  Future<void> _addResource(String title, String fileUrl,
+      {String sizeStr = '2.0 MB'}) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.post('/live-classes/${widget.classId}/resources', {
-        'title': title,
-        'file_url': fileUrl,
-        'file_size': sizeStr
-      });
+      final response = await apiService.post(
+          '/live-classes/${widget.classId}/resources',
+          {'title': title, 'file_url': fileUrl, 'file_size': sizeStr});
       if (response['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1617,7 +1682,8 @@ class _StudentLiveClassPlayerScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to add resource: ${response['detail'] ?? 'Unknown error'}'),
+              content: Text(
+                  'Failed to add resource: ${response['detail'] ?? 'Unknown error'}'),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -1639,7 +1705,8 @@ class _StudentLiveClassPlayerScreenState
   Future<void> _deleteResource(String resourceId) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.delete('/live-classes/${widget.classId}/resources/$resourceId');
+      final response = await apiService
+          .delete('/live-classes/${widget.classId}/resources/$resourceId');
       if (response['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1654,7 +1721,8 @@ class _StudentLiveClassPlayerScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete resource: ${response['detail'] ?? 'Unknown error'}'),
+              content: Text(
+                  'Failed to delete resource: ${response['detail'] ?? 'Unknown error'}'),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -1674,7 +1742,8 @@ class _StudentLiveClassPlayerScreenState
   }
 
   void _showEditOverviewDialog(LiveClassModel classData) {
-    final titleCtrl = TextEditingController(text: classData.title ?? classData.subject);
+    final titleCtrl =
+        TextEditingController(text: classData.title ?? classData.subject);
     final descCtrl = TextEditingController(text: classData.description ?? '');
     _setPointerEvents(false);
     showDialog(
@@ -1703,10 +1772,10 @@ class _StudentLiveClassPlayerScreenState
               // Header
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
                       colors: [Color(0xFF1E293B), Color(0xFF0F172A)]),
-                  borderRadius: const BorderRadius.only(
+                  borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
                   ),
@@ -1760,8 +1829,7 @@ class _StudentLiveClassPlayerScreenState
               ),
               // Footer
               Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -1922,9 +1990,9 @@ class _StudentLiveClassPlayerScreenState
 
   void _showAddResourceDialog() {
     final titleCtrl = TextEditingController();
-    final urlCtrl =
-        TextEditingController(text: '${AppConfig.baseUrl}/api/documents/download');
-    
+    final urlCtrl = TextEditingController(
+        text: '${AppConfig.baseUrl}/api/documents/download');
+
     // Picked file state
     Uint8List? pickedFileBytes;
     String pickedFileName = '';
@@ -1936,7 +2004,6 @@ class _StudentLiveClassPlayerScreenState
       barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
-          
           Future<void> pickLocalFile() async {
             try {
               final result = await FilePicker.platform.pickFiles(
@@ -1949,10 +2016,11 @@ class _StudentLiveClassPlayerScreenState
                   pickedFileBytes = result.files.single.bytes;
                   pickedFileName = result.files.single.name;
                   pickedFileSize = result.files.single.size;
-                  
+
                   // Auto-fill title if empty
                   if (titleCtrl.text.isEmpty) {
-                    titleCtrl.text = pickedFileName.replaceAll(RegExp(r'\.[^.]+$'), '');
+                    titleCtrl.text =
+                        pickedFileName.replaceAll(RegExp(r'\.[^.]+$'), '');
                   }
                   urlCtrl.text = pickedFileName;
                 });
@@ -1964,7 +2032,8 @@ class _StudentLiveClassPlayerScreenState
 
           String getFileSizeString(int bytes) {
             if (bytes < 1024) return '$bytes B';
-            if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+            if (bytes < 1024 * 1024)
+              return '${(bytes / 1024).toStringAsFixed(1)} KB';
             return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
           }
 
@@ -2001,7 +2070,8 @@ class _StudentLiveClassPlayerScreenState
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            color:
+                                const Color(0xFF10B981).withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.attach_file_rounded,
@@ -2033,7 +2103,7 @@ class _StudentLiveClassPlayerScreenState
                             label: 'Resource Name',
                             icon: Icons.description_rounded),
                         const SizedBox(height: 16),
-                        
+
                         // Local File Section
                         Container(
                           width: double.infinity,
@@ -2051,7 +2121,8 @@ class _StudentLiveClassPlayerScreenState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     'Local Document Upload',
@@ -2068,12 +2139,19 @@ class _StudentLiveClassPlayerScreenState
                                           pickedFileBytes = null;
                                           pickedFileName = '';
                                           pickedFileSize = 0;
-                                          urlCtrl.text = '${AppConfig.baseUrl}/api/documents/download';
+                                          urlCtrl.text =
+                                              '${AppConfig.baseUrl}/api/documents/download';
                                         });
                                       },
-                                      icon: const Icon(Icons.clear_rounded, size: 12, color: Colors.redAccent),
-                                      label: const Text('Clear', style: TextStyle(fontSize: 10, color: Colors.redAccent)),
-                                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                                      icon: const Icon(Icons.clear_rounded,
+                                          size: 12, color: Colors.redAccent),
+                                      label: const Text('Clear',
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.redAccent)),
+                                      style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: Size.zero),
                                     ),
                                 ],
                               ),
@@ -2081,43 +2159,56 @@ class _StudentLiveClassPlayerScreenState
                               if (pickedFileBytes == null)
                                 ElevatedButton.icon(
                                   onPressed: pickLocalFile,
-                                  icon: const Icon(Icons.upload_file_rounded, size: 14),
-                                  label: const Text('Choose File from Device', style: TextStyle(fontSize: 11)),
+                                  icon: const Icon(Icons.upload_file_rounded,
+                                      size: 14),
+                                  label: const Text('Choose File from Device',
+                                      style: TextStyle(fontSize: 11)),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    backgroundColor: const Color(0xFF10B981)
+                                        .withValues(alpha: 0.15),
                                     foregroundColor: const Color(0xFF10B981),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8)),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
                                   ),
                                 )
                               else
                                 Row(
                                   children: [
-                                    const Icon(Icons.insert_drive_file_rounded, color: Color(0xFF10B981), size: 20),
+                                    const Icon(Icons.insert_drive_file_rounded,
+                                        color: Color(0xFF10B981), size: 20),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             pickedFileName,
-                                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold),
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           Text(
                                             getFileSizeString(pickedFileSize),
-                                            style: const TextStyle(color: Colors.white38, fontSize: 9),
+                                            style: const TextStyle(
+                                                color: Colors.white38,
+                                                fontSize: 9),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 16),
+                                    const Icon(Icons.check_circle_rounded,
+                                        color: Color(0xFF10B981), size: 16),
                                   ],
                                 ),
                             ],
                           ),
                         ),
-                        
+
                         const SizedBox(height: 16),
                         if (pickedFileBytes == null)
                           _buildPremiumTextField(
@@ -2146,7 +2237,8 @@ class _StudentLiveClassPlayerScreenState
                             if (title.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('⚠️ Resource name cannot be empty'),
+                                  content:
+                                      Text('⚠️ Resource name cannot be empty'),
                                   backgroundColor: Color(0xFFDC2626),
                                 ),
                               );
@@ -2163,30 +2255,35 @@ class _StudentLiveClassPlayerScreenState
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Uploading file to storage...'),
+                                      content:
+                                          Text('Uploading file to storage...'),
                                       backgroundColor: Color(0xFF38BDF8),
                                     ),
                                   );
                                 }
 
                                 final apiService = ref.read(apiServiceProvider);
-                                final uploadRes = await apiService.multipartPostBytes(
+                                final uploadRes =
+                                    await apiService.multipartPostBytes(
                                   '/documents/upload',
                                   pickedFileBytes!,
                                   pickedFileName,
                                   'file',
                                   fields: {
                                     'title': title,
-                                    'description': 'Uploaded for Live Class session',
+                                    'description':
+                                        'Uploaded for Live Class session',
                                     'category': 'my_uploads',
                                   },
                                 );
 
-                                if (uploadRes['success'] == true && uploadRes['data']?['document'] != null) {
+                                if (uploadRes['success'] == true &&
+                                    uploadRes['data']?['document'] != null) {
                                   final doc = uploadRes['data']['document'];
                                   fileUrl = doc['file_url'] ?? '';
                                   final rawSize = doc['file_size'] as num?;
-                                  fileSizeStr = getFileSizeString(rawSize?.toInt() ?? pickedFileSize);
+                                  fileSizeStr = getFileSizeString(
+                                      rawSize?.toInt() ?? pickedFileSize);
                                 } else {
                                   throw 'Upload response failed';
                                 }
@@ -2206,7 +2303,8 @@ class _StudentLiveClassPlayerScreenState
                               if (fileUrl.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('⚠️ File URL / Download Link cannot be empty'),
+                                    content: Text(
+                                        '⚠️ File URL / Download Link cannot be empty'),
                                     backgroundColor: Color(0xFFDC2626),
                                   ),
                                 );
@@ -2252,11 +2350,15 @@ class _StudentLiveClassPlayerScreenState
             });
             try {
               final apiService = ref.read(apiServiceProvider);
-              final response = await apiService.get('/live-classes/school-users', query: {'search': q}, useCache: false);
+              final response = await apiService.get(
+                  '/live-classes/school-users',
+                  query: {'search': q},
+                  useCache: false);
               if (response['success'] == true && response['data'] != null) {
                 if (dialogCtx.mounted) {
                   setDialogState(() {
-                    searchList = List<Map<String, dynamic>>.from(response['data']);
+                    searchList =
+                        List<Map<String, dynamic>>.from(response['data']);
                     isSearching = false;
                   });
                 }
@@ -2304,7 +2406,8 @@ class _StudentLiveClassPlayerScreenState
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                            color:
+                                const Color(0xFF38BDF8).withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.share_rounded,
@@ -2335,10 +2438,10 @@ class _StudentLiveClassPlayerScreenState
                       style: const TextStyle(color: Colors.white, fontSize: 13),
                       decoration: InputDecoration(
                         hintText: 'Search school members...',
-                        hintStyle:
-                            const TextStyle(color: Colors.white24, fontSize: 12),
-                        prefixIcon:
-                            const Icon(Icons.search, color: Colors.white38, size: 18),
+                        hintStyle: const TextStyle(
+                            color: Colors.white24, fontSize: 12),
+                        prefixIcon: const Icon(Icons.search,
+                            color: Colors.white38, size: 18),
                         filled: true,
                         fillColor: const Color(0xFF1E293B),
                         contentPadding: const EdgeInsets.symmetric(
@@ -2419,8 +2522,7 @@ class _StudentLiveClassPlayerScreenState
                                               style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 13,
-                                                  fontWeight:
-                                                      FontWeight.bold),
+                                                  fontWeight: FontWeight.bold),
                                             ),
                                           ),
                                         ),
@@ -2449,15 +2551,19 @@ class _StudentLiveClassPlayerScreenState
                                             onTap: () async {
                                               Navigator.pop(ctx);
                                               try {
-                                                final apiService =
-                                                    ref.read(apiServiceProvider);
-                                                final res = await apiService.post(
+                                                final apiService = ref
+                                                    .read(apiServiceProvider);
+                                                final res =
+                                                    await apiService.post(
                                                   '/live-classes/${widget.classId}/share',
-                                                  {'shared_to_id': member['id']},
+                                                  {
+                                                    'shared_to_id': member['id']
+                                                  },
                                                 );
                                                 if (res['success'] == true) {
                                                   if (context.mounted) {
-                                                    ScaffoldMessenger.of(context)
+                                                    ScaffoldMessenger.of(
+                                                            context)
                                                         .showSnackBar(
                                                       SnackBar(
                                                         content: Text(
@@ -2485,16 +2591,20 @@ class _StudentLiveClassPlayerScreenState
                                               }
                                             },
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 14, vertical: 6),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 6),
                                               decoration: BoxDecoration(
                                                 color: const Color(0xFF38BDF8)
                                                     .withValues(alpha: 0.15),
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                                 border: Border.all(
-                                                    color: const Color(0xFF38BDF8)
-                                                        .withValues(alpha: 0.3)),
+                                                    color:
+                                                        const Color(0xFF38BDF8)
+                                                            .withValues(
+                                                                alpha: 0.3)),
                                               ),
                                               child: const Text(
                                                 'Share',
@@ -2535,7 +2645,6 @@ class _StudentLiveClassPlayerScreenState
       ),
     ).then((_) => _setPointerEvents(true));
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -3004,7 +3113,8 @@ class _StudentLiveClassPlayerScreenState
             if (isTeacher) ...[
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.edit_rounded, color: Color(0xFF38BDF8), size: 18),
+                icon: const Icon(Icons.edit_rounded,
+                    color: Color(0xFF38BDF8), size: 18),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () => _showEditOverviewDialog(classData),
@@ -3176,7 +3286,8 @@ class _StudentLiveClassPlayerScreenState
                     Clipboard.setData(ClipboardData(text: path));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('🔗 Playback share link copied to clipboard!'),
+                        content:
+                            Text('🔗 Playback share link copied to clipboard!'),
                         backgroundColor: Color(0xFF10B981),
                       ),
                     );
@@ -3253,7 +3364,8 @@ class _StudentLiveClassPlayerScreenState
                         iconSize: 24,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: _hasRated ? null : () => _submitRating(starValue),
+                        onPressed:
+                            _hasRated ? null : () => _submitRating(starValue),
                       );
                     }),
                   ),
@@ -3357,7 +3469,8 @@ class _StudentLiveClassPlayerScreenState
                         fontWeight: FontWeight.bold)),
                 if (isTeacher)
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF38BDF8), size: 20),
+                    icon: const Icon(Icons.add_circle_outline_rounded,
+                        color: Color(0xFF38BDF8), size: 20),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: _showAddChapterDialog,
@@ -3369,7 +3482,8 @@ class _StudentLiveClassPlayerScreenState
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(
-                  child: Text('No timeline chapters defined.', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  child: Text('No timeline chapters defined.',
+                      style: TextStyle(color: Colors.white38, fontSize: 11)),
                 ),
               )
             else
@@ -3383,10 +3497,11 @@ class _StudentLiveClassPlayerScreenState
                     child: ListTile(
                       dense: true,
                       leading: Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                            color:
+                                const Color(0xFFEF4444).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4)),
                         child: Text(
                           ch['time'],
@@ -3406,7 +3521,8 @@ class _StudentLiveClassPlayerScreenState
                         children: [
                           if (isTeacher)
                             IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 16),
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                  color: Colors.redAccent, size: 16),
                               onPressed: () => _deleteChapter(ch['id']),
                             ),
                           const Icon(Icons.play_circle_fill_rounded,
@@ -3434,7 +3550,8 @@ class _StudentLiveClassPlayerScreenState
                         fontWeight: FontWeight.bold)),
                 if (isTeacher)
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF38BDF8), size: 20),
+                    icon: const Icon(Icons.add_circle_outline_rounded,
+                        color: Color(0xFF38BDF8), size: 20),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: _showAddResourceDialog,
@@ -3446,7 +3563,8 @@ class _StudentLiveClassPlayerScreenState
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(
-                  child: Text('No resources available for download.', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  child: Text('No resources available for download.',
+                      style: TextStyle(color: Colors.white38, fontSize: 11)),
                 ),
               )
             else
@@ -3467,14 +3585,15 @@ class _StudentLiveClassPlayerScreenState
                               fontSize: 11,
                               fontWeight: FontWeight.bold)),
                       subtitle: Text(res['size']!,
-                          style:
-                              const TextStyle(color: Colors.white38, fontSize: 9)),
+                          style: const TextStyle(
+                              color: Colors.white38, fontSize: 9)),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (isTeacher) ...[
                             IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 16),
+                              icon: const Icon(Icons.delete_outline_rounded,
+                                  color: Colors.redAccent, size: 16),
                               onPressed: () => _deleteResource(res['id']),
                             ),
                             const SizedBox(width: 4),
@@ -3488,16 +3607,19 @@ class _StudentLiveClassPlayerScreenState
                         if (url != null && url.isNotEmpty) {
                           try {
                             final uri = Uri.parse(_fixStorageUrl(url));
-                            launchUrl(uri, mode: LaunchMode.externalApplication);
+                            launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
                           } catch (e) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Could not open resource: $e')),
+                              SnackBar(
+                                  content: Text('Could not open resource: $e')),
                             );
                           }
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                                content: Text('📥 Downloading ${res['title']}...'),
+                                content:
+                                    Text('📥 Downloading ${res['title']}...'),
                                 backgroundColor: const Color(0xFF38BDF8)),
                           );
                         }
@@ -3562,12 +3684,12 @@ class _StudentLiveClassPlayerScreenState
                   ElevatedButton.icon(
                     onPressed: _saveNotes,
                     icon: const Icon(Icons.save_rounded, size: 14),
-                    label:
-                        const Text('Save Notes', style: TextStyle(fontSize: 10)),
+                    label: const Text('Save Notes',
+                        style: TextStyle(fontSize: 10)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFEF4444),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                     ),
                   ),
                 ],
@@ -3581,8 +3703,10 @@ class _StudentLiveClassPlayerScreenState
                 classData.description!.isNotEmpty)
             ? classData.description!
             : 'Welcome to this recorded lecture session. In this session, we investigate deep curriculum concepts, go through live practice files, and check step-by-step calculations. Review resources and seek direct chapters to skip ahead.';
-        
-        final durationVal = classData.toJson().containsKey('duration') ? classData.toJson()['duration'] : null;
+
+        final durationVal = classData.toJson().containsKey('duration')
+            ? classData.toJson()['duration']
+            : null;
         String durationDisplay = "Recorded";
         if (durationVal != null) {
           final int totalSecs = (durationVal as num).toInt();
@@ -3597,7 +3721,9 @@ class _StudentLiveClassPlayerScreenState
             durationDisplay = '${s}s';
           }
         } else {
-          durationDisplay = classData.date?.split('·').skip(1).firstOrNull?.trim() ?? "Recorded";
+          durationDisplay =
+              classData.date?.split('·').skip(1).firstOrNull?.trim() ??
+                  "Recorded";
         }
 
         return Column(
@@ -3662,8 +3788,7 @@ class _StudentLiveClassPlayerScreenState
       style: const TextStyle(color: Colors.white, fontSize: 13),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle:
-            const TextStyle(color: Colors.white38, fontSize: 12),
+        labelStyle: const TextStyle(color: Colors.white38, fontSize: 12),
         prefixIcon: Icon(icon, color: Colors.white24, size: 18),
         filled: true,
         fillColor: const Color(0xFF1E293B),
@@ -3679,8 +3804,7 @@ class _StudentLiveClassPlayerScreenState
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
         ),
       ),
     );
@@ -3700,8 +3824,7 @@ class _StudentLiveClassPlayerScreenState
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             gradient: isPrimary
                 ? const LinearGradient(
@@ -3711,16 +3834,14 @@ class _StudentLiveClassPlayerScreenState
             borderRadius: BorderRadius.circular(10),
             border: isPrimary
                 ? null
-                : Border.all(
-                    color: Colors.white.withValues(alpha: 0.1)),
+                : Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
                 Icon(icon,
-                    color: isPrimary ? Colors.white : Colors.white54,
-                    size: 14),
+                    color: isPrimary ? Colors.white : Colors.white54, size: 14),
                 const SizedBox(width: 6),
               ],
               Text(
@@ -3764,8 +3885,8 @@ class _StudentLiveClassPlayerScreenState
                   color: const Color(0xFF1E293B),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.02)),
+                    side:
+                        BorderSide(color: Colors.white.withValues(alpha: 0.02)),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: ListTile(
@@ -3794,7 +3915,8 @@ class _StudentLiveClassPlayerScreenState
                     ),
                     subtitle: Text(
                       '${rec['teacher'] ?? "Teacher"} · ${rec['date'] ?? "Recorded"}',
-                      style: const TextStyle(color: Colors.white38, fontSize: 9),
+                      style:
+                          const TextStyle(color: Colors.white38, fontSize: 9),
                     ),
                     onTap: () {
                       final isTeacher =
@@ -3882,8 +4004,9 @@ class _StudentLiveClassPlayerScreenState
     final bool isOwner = currentUserId.isNotEmpty &&
         commentUserId.isNotEmpty &&
         currentUserId.toLowerCase() == commentUserId.toLowerCase();
-    
-    debugPrint('[CommentsTest] commentId: $commentId, currentUserId: $currentUserId, commentUserId: $commentUserId, isOwner: $isOwner, commentText: ${comment['text']}');
+
+    debugPrint(
+        '[CommentsTest] commentId: $commentId, currentUserId: $currentUserId, commentUserId: $commentUserId, isOwner: $isOwner, commentText: ${comment['text']}');
     final bool canDelete = isOwner;
     final bool canEdit = isOwner;
 
@@ -3943,21 +4066,25 @@ class _StudentLiveClassPlayerScreenState
                         const SizedBox(width: 8),
                         Text(
                           '${comment['time'] ?? 'Just now'}${comment['is_edited'] == true ? ' · edited' : ''}',
-                          style: const TextStyle(fontSize: 8, color: Colors.white24),
+                          style: const TextStyle(
+                              fontSize: 8, color: Colors.white24),
                         ),
                         if (canEdit || canDelete) ...[
                           const Spacer(),
                           PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert_rounded, size: 12, color: Colors.white38),
+                            icon: const Icon(Icons.more_vert_rounded,
+                                size: 12, color: Colors.white38),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(maxWidth: 100),
                             color: const Color(0xFF1E293B),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                             onSelected: (value) {
                               if (value == 'edit') {
                                 setState(() {
                                   _editingCommentId = commentId;
-                                  _editCommentController.text = comment['text'] ?? '';
+                                  _editCommentController.text =
+                                      comment['text'] ?? '';
                                 });
                               } else if (value == 'delete') {
                                 _showDeleteConfirmation(commentId);
@@ -3970,9 +4097,13 @@ class _StudentLiveClassPlayerScreenState
                                   height: 32,
                                   child: Row(
                                     children: [
-                                      Icon(Icons.edit_rounded, size: 12, color: Colors.white70),
+                                      Icon(Icons.edit_rounded,
+                                          size: 12, color: Colors.white70),
                                       SizedBox(width: 6),
-                                      Text('Edit', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                                      Text('Edit',
+                                          style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 10)),
                                     ],
                                   ),
                                 ),
@@ -3982,9 +4113,13 @@ class _StudentLiveClassPlayerScreenState
                                   height: 32,
                                   child: Row(
                                     children: [
-                                      Icon(Icons.delete_rounded, size: 12, color: Colors.redAccent),
+                                      Icon(Icons.delete_rounded,
+                                          size: 12, color: Colors.redAccent),
                                       SizedBox(width: 6),
-                                      Text('Delete', style: TextStyle(color: Colors.redAccent, fontSize: 10)),
+                                      Text('Delete',
+                                          style: TextStyle(
+                                              color: Colors.redAccent,
+                                              fontSize: 10)),
                                     ],
                                   ),
                                 ),
@@ -4002,24 +4137,29 @@ class _StudentLiveClassPlayerScreenState
                           children: [
                             TextField(
                               controller: _editCommentController,
-                              style: const TextStyle(color: Colors.white, fontSize: 10.5),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 10.5),
                               maxLines: null,
                               decoration: InputDecoration(
                                 fillColor: const Color(0xFF1E293B),
                                 filled: true,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 8),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Colors.white10),
+                                  borderSide:
+                                      const BorderSide(color: Colors.white10),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Colors.white10),
+                                  borderSide:
+                                      const BorderSide(color: Colors.white10),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFF38BDF8)),
                                 ),
                               ),
                             ),
@@ -4027,17 +4167,24 @@ class _StudentLiveClassPlayerScreenState
                             Row(
                               children: [
                                 ElevatedButton(
-                                  onPressed: () => _submitEditComment(commentId),
+                                  onPressed: () =>
+                                      _submitEditComment(commentId),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF38BDF8),
                                     foregroundColor: Colors.black,
                                     elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
                                     minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6)),
                                   ),
-                                  child: const Text('Save', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                  child: const Text('Save',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(width: 8),
                                 TextButton(
@@ -4048,11 +4195,14 @@ class _StudentLiveClassPlayerScreenState
                                   },
                                   style: TextButton.styleFrom(
                                     foregroundColor: Colors.white60,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
                                     minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
-                                  child: const Text('Cancel', style: TextStyle(fontSize: 9)),
+                                  child: const Text('Cancel',
+                                      style: TextStyle(fontSize: 9)),
                                 ),
                               ],
                             ),
@@ -4208,4 +4358,3 @@ class _StudentLiveClassPlayerScreenState
     super.dispose();
   }
 }
-

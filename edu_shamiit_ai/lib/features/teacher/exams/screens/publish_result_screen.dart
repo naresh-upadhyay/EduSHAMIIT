@@ -16,7 +16,8 @@ class PublishResultScreen extends ConsumerStatefulWidget {
   const PublishResultScreen({super.key, required this.examId});
 
   @override
-  ConsumerState<PublishResultScreen> createState() => _PublishResultScreenState();
+  ConsumerState<PublishResultScreen> createState() =>
+      _PublishResultScreenState();
 }
 
 class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
@@ -26,7 +27,7 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
   bool _isLoading = true;
   bool _isPublishing = false;
   String? _error;
-  
+
   String _examTitle = '';
   double _totalMarks = 100.0;
   double _passingMarks = 40.0;
@@ -77,12 +78,18 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
   }
 
   List<Map<String, dynamic>> _getProcessedGrades() {
-    final list = _submissions.where((s) => s['status'] == 'submitted' || s['status'] == 'graded').toList();
-    
+    final list = _submissions
+        .where((s) => s['status'] == 'submitted' || s['status'] == 'graded')
+        .toList();
+
     // Sort by score desc, putting null scores at the end
     list.sort((a, b) {
-      final aScore = a['score'] != null ? double.tryParse(a['score'].toString()) ?? -1.0 : -1.0;
-      final bScore = b['score'] != null ? double.tryParse(b['score'].toString()) ?? -1.0 : -1.0;
+      final aScore = a['score'] != null
+          ? double.tryParse(a['score'].toString()) ?? -1.0
+          : -1.0;
+      final bScore = b['score'] != null
+          ? double.tryParse(b['score'].toString()) ?? -1.0
+          : -1.0;
       return bScore.compareTo(aScore);
     });
 
@@ -92,26 +99,35 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
       final profile = sub['profiles'] as Map<String, dynamic>? ?? {};
       final name = profile['full_name']?.toString() ?? 'Student';
       final roll = profile['roll_number']?.toString() ?? '';
-      
-      final scoreVal = sub['score'] != null ? double.tryParse(sub['score'].toString()) : null;
-      
+
+      final scoreVal = sub['score'] != null
+          ? double.tryParse(sub['score'].toString())
+          : null;
+
       String gradeLetter = '—';
       bool isPass = false;
       String percentageStr = '—';
-      
+
       if (scoreVal != null) {
         final pct = (scoreVal / _totalMarks) * 100;
         percentageStr = '${pct.toStringAsFixed(1)}%';
         isPass = scoreVal >= _passingMarks;
-        if (pct >= 90) gradeLetter = 'A+';
-        else if (pct >= 80) gradeLetter = 'A';
-        else if (pct >= 70) gradeLetter = 'B+';
-        else if (pct >= 60) gradeLetter = 'B';
-        else if (pct >= 50) gradeLetter = 'C';
-        else if (pct >= 40) gradeLetter = 'D';
-        else gradeLetter = 'F';
+        if (pct >= 90) {
+          gradeLetter = 'A+';
+        } else if (pct >= 80)
+          gradeLetter = 'A';
+        else if (pct >= 70)
+          gradeLetter = 'B+';
+        else if (pct >= 60)
+          gradeLetter = 'B';
+        else if (pct >= 50)
+          gradeLetter = 'C';
+        else if (pct >= 40)
+          gradeLetter = 'D';
+        else
+          gradeLetter = 'F';
       }
-      
+
       processed.add({
         'rank': scoreVal != null ? i + 1 : null,
         'name': name,
@@ -132,7 +148,8 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🎉 Exam results successfully published and notified!'),
+            content:
+                Text('🎉 Exam results successfully published and notified!'),
             backgroundColor: _success,
           ),
         );
@@ -165,8 +182,9 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
       // Build CSV content
       final csvBuffer = StringBuffer();
       // Headers
-      csvBuffer.writeln('Rank,Roll No,Student Name,Score,Percentage,Grade,Status');
-      
+      csvBuffer
+          .writeln('Rank,Roll No,Student Name,Score,Percentage,Grade,Status');
+
       // Rows
       for (final item in processed) {
         final rank = item['rank'] != null ? '#${item['rank']}' : '—';
@@ -176,22 +194,24 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
         final percentage = item['percentage'] ?? '';
         final grade = item['grade'] ?? '';
         final status = item['status'] ?? '';
-        
+
         // Escape quotes if name has commas
         final escapedName = name.contains(',') ? '"$name"' : name;
-        
-        csvBuffer.writeln('$rank,$roll,$escapedName,$score,$percentage,$grade,$status');
+
+        csvBuffer.writeln(
+            '$rank,$roll,$escapedName,$score,$percentage,$grade,$status');
       }
 
       // Convert to UTF-8 bytes
       final bytes = utf8.encode(csvBuffer.toString());
-      
+
       // Get filename
-      final filename = 'Exam_Results_${_examTitle.replaceAll(RegExp(r'[^\w\s\-]'), '_')}.csv';
-      
+      final filename =
+          'Exam_Results_${_examTitle.replaceAll(RegExp(r'[^\w\s\-]'), '_')}.csv';
+
       // Trigger download
       getDownloadHelper().downloadBytes(bytes, filename);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('🎉 Results exported successfully as $filename'),
@@ -212,14 +232,18 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Publish Results?', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
+        title: const Text('Publish Results?',
+            style: TextStyle(
+                fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
         content: const Text(
           'This will make grades instantly visible on student portals and dispatch notifications to students & parents. Ranks will be finalized.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _primary, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(ctx);
               _publishResults();
@@ -234,7 +258,8 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
   @override
   Widget build(BuildContext context) {
     final totalSubs = _submissions.length;
-    final gradedSubs = _submissions.where((s) => s['status'] == 'graded').length;
+    final gradedSubs =
+        _submissions.where((s) => s['status'] == 'graded').length;
     final ungradedSubs = totalSubs - gradedSubs;
 
     return Scaffold(
@@ -276,7 +301,9 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                 width: 70,
                                 cellBuilder: (item) {
                                   final rank = item['rank'];
-                                  if (rank == null) return const Text('—', style: TextStyle(color: Colors.grey));
+                                  if (rank == null)
+                                    return const Text('—',
+                                        style: TextStyle(color: Colors.grey));
                                   return CircleAvatar(
                                     radius: 12,
                                     backgroundColor: rank == 1
@@ -289,7 +316,9 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
-                                        color: rank == 1 ? const Color(0xFFD97706) : Colors.black87,
+                                        color: rank == 1
+                                            ? const Color(0xFFD97706)
+                                            : Colors.black87,
                                       ),
                                     ),
                                   );
@@ -298,14 +327,17 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                               AzureGridColumn<Map<String, dynamic>>(
                                 label: 'Roll No',
                                 width: 80,
-                                cellBuilder: (item) => Text(item['roll'] ?? '—', style: const TextStyle(fontSize: 12)),
+                                cellBuilder: (item) => Text(item['roll'] ?? '—',
+                                    style: const TextStyle(fontSize: 12)),
                               ),
                               AzureGridColumn<Map<String, dynamic>>(
                                 label: 'Student Name',
                                 width: 180,
                                 cellBuilder: (item) => Text(
                                   item['name'],
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13),
                                 ),
                               ),
                               AzureGridColumn<Map<String, dynamic>>(
@@ -313,21 +345,27 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                 width: 90,
                                 cellBuilder: (item) => Text(
                                   '${item['score']} / ${_totalMarks.toInt()}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12),
                                 ),
                               ),
                               AzureGridColumn<Map<String, dynamic>>(
                                 label: 'Percentage',
                                 width: 90,
-                                cellBuilder: (item) => Text(item['percentage'], style: const TextStyle(fontSize: 12)),
+                                cellBuilder: (item) => Text(item['percentage'],
+                                    style: const TextStyle(fontSize: 12)),
                               ),
                               AzureGridColumn<Map<String, dynamic>>(
                                 label: 'Grade',
                                 width: 70,
                                 cellBuilder: (item) => Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: item['grade'] == 'F' ? _danger.withValues(alpha: 0.1) : _success.withValues(alpha: 0.1),
+                                    color: item['grade'] == 'F'
+                                        ? _danger.withValues(alpha: 0.1)
+                                        : _success.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -335,7 +373,9 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 11,
-                                      color: item['grade'] == 'F' ? _danger : _success,
+                                      color: item['grade'] == 'F'
+                                          ? _danger
+                                          : _success,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -349,7 +389,8 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                   final isPass = stat == 'PASS';
                                   final isFail = stat == 'FAIL';
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: isPass
                                           ? _success.withValues(alpha: 0.1)
@@ -363,7 +404,11 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                       style: TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
-                                        color: isPass ? _success : isFail ? _danger : _warning,
+                                        color: isPass
+                                            ? _success
+                                            : isFail
+                                                ? _danger
+                                                : _warning,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -371,8 +416,10 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                                 },
                               ),
                             ],
-                            mobileCardBuilder: (context, item) => _buildMobileCard(item),
-                            searchMatcher: (item) => '${item['name']} ${item['roll']}',
+                            mobileCardBuilder: (context, item) =>
+                                _buildMobileCard(item),
+                            searchMatcher: (item) =>
+                                '${item['name']} ${item['roll']}',
                           ),
                         ),
                       ),
@@ -394,7 +441,9 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
       child: Row(
         children: [
           Icon(
-            isComplete ? Icons.check_circle_outline_rounded : Icons.pending_actions_rounded,
+            isComplete
+                ? Icons.check_circle_outline_rounded
+                : Icons.pending_actions_rounded,
             color: isComplete ? _success : _warning,
             size: 24,
           ),
@@ -445,13 +494,17 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
             if (item['rank'] != null)
               CircleAvatar(
                 radius: 14,
-                backgroundColor: item['rank'] == 1 ? const Color(0xFFFEF3C7) : const Color(0xFFF1F5F9),
+                backgroundColor: item['rank'] == 1
+                    ? const Color(0xFFFEF3C7)
+                    : const Color(0xFFF1F5F9),
                 child: Text(
                   '#${item['rank']}',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: item['rank'] == 1 ? const Color(0xFFD97706) : Colors.grey.shade700,
+                    color: item['rank'] == 1
+                        ? const Color(0xFFD97706)
+                        : Colors.grey.shade700,
                   ),
                 ),
               )
@@ -464,7 +517,8 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                 children: [
                   Text(
                     item['name'],
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -479,7 +533,8 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: isPass
                         ? _success.withValues(alpha: 0.1)
@@ -493,7 +548,11 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
                     style: TextStyle(
                       fontSize: 8.5,
                       fontWeight: FontWeight.bold,
-                      color: isPass ? _success : isFail ? _danger : _warning,
+                      color: isPass
+                          ? _success
+                          : isFail
+                              ? _danger
+                              : _warning,
                     ),
                   ),
                 ),
@@ -532,23 +591,31 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 side: const BorderSide(color: _border),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: canPublish && !_isPublishing ? _showPublishConfirmDialog : null,
+              onPressed: canPublish && !_isPublishing
+                  ? _showPublishConfirmDialog
+                  : null,
               icon: _isPublishing
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.publish_rounded, size: 18),
               label: Text(_isPublishing ? 'Publishing...' : 'Publish & Notify'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
             ),
@@ -565,11 +632,13 @@ class _PublishResultScreenState extends ConsumerState<PublishResultScreen> {
         children: [
           const Icon(Icons.error_outline_rounded, color: _danger, size: 48),
           const SizedBox(height: 16),
-          Text(_error ?? 'An unexpected error occurred', style: const TextStyle(color: Colors.red)),
+          Text(_error ?? 'An unexpected error occurred',
+              style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _loadData,
-            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _primary, foregroundColor: Colors.white),
             child: const Text('Retry'),
           ),
         ],

@@ -27,7 +27,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
   final _venueController = TextEditingController(text: 'Online Portal');
   final _durationController = TextEditingController(text: '90');
   final _totalMarksController = TextEditingController(text: '100');
-  
+
   String _selectedSubject = 'Mathematics';
   String _selectedType = 'Unit Test';
   String _examType = 'online'; // 'online' or 'offline'
@@ -63,11 +63,11 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
         _apiService.getSubjects(allSubjects: true),
         _apiService.getMyClasses(),
       ]);
-      
+
       setState(() {
         _subjects = results[0] as List<TeacherSubject>;
         _classes = results[1] as List<TeacherMyClass>;
-        
+
         if (_subjects.isNotEmpty) {
           _selectedSubject = _subjects.first.name;
           _selectedSubjectId = _subjects.first.id;
@@ -75,7 +75,9 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
         if (_classes.isNotEmpty) {
           final first = _classes.first;
           final sec = first.section.trim();
-          final label = (sec.isEmpty || first.name.contains('-$sec')) ? first.name : '${first.name}-$sec';
+          final label = (sec.isEmpty || first.name.contains('-$sec'))
+              ? first.name
+              : '${first.name}-$sec';
           _selectedClasses = [label];
         } else {
           _selectedClasses = [];
@@ -98,29 +100,38 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
     try {
       final exams = await _apiService.getExams();
       final exam = exams.firstWhere((e) => e.id == widget.examId);
-      
+
       setState(() {
         _examNameController.text = exam.title;
         _descController.text = exam.syllabus ?? '';
         _syllabusController.text = exam.syllabus ?? '';
         _instructionsController.text = exam.instructions ?? '';
-        _durationController.text = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
+        _durationController.text =
+            exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
         _totalMarksController.text = exam.totalMarks.toString();
         _selectedSubject = exam.subject;
-        
+
         if (exam.class_.isNotEmpty) {
-          _selectedClasses = exam.class_.split(',').map((c) => c.trim()).toList();
+          _selectedClasses =
+              exam.class_.split(',').map((c) => c.trim()).toList();
         } else {
           _selectedClasses = [];
         }
-        
+
         String cat = exam.examCategory;
         if (cat.toLowerCase() == 'term') cat = 'Mid Term';
         if (cat.toLowerCase() == 'unit') cat = 'Unit Test';
         if (cat.toLowerCase() == 'quiz') cat = 'Practice Test';
         if (cat.toLowerCase() == 'final') cat = 'Final Exam';
-        
-        final allowedCategories = ['Practice Test', 'Weekly Test', 'Unit Test', 'Mock Test', 'Mid Term', 'Final Exam'];
+
+        final allowedCategories = [
+          'Practice Test',
+          'Weekly Test',
+          'Unit Test',
+          'Mock Test',
+          'Mid Term',
+          'Final Exam'
+        ];
         if (!allowedCategories.contains(cat)) {
           final match = allowedCategories.firstWhere(
             (c) => c.toLowerCase() == cat.toLowerCase(),
@@ -129,9 +140,10 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           cat = match;
         }
         _selectedType = cat;
-        _examType = exam.examType.toLowerCase() == 'online' ? 'online' : 'offline';
+        _examType =
+            exam.examType.toLowerCase() == 'online' ? 'online' : 'offline';
         _venueController.text = exam.roomNumber ?? 'Online Portal';
-        
+
         // Settings / Proctoring locks
         _negativeMarking = exam.negativeMarking;
         _shuffleQuestions = exam.shuffleQuestions;
@@ -144,10 +156,11 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
 
         // Find matching subject ID from the loaded subjects list
         if (_subjects.isNotEmpty) {
-          final match = _subjects.firstWhere((sub) => sub.name == exam.subject, orElse: () => _subjects.first);
+          final match = _subjects.firstWhere((sub) => sub.name == exam.subject,
+              orElse: () => _subjects.first);
           _selectedSubjectId = match.id;
         }
-        
+
         _isLoadingData = false;
       });
     } catch (e) {
@@ -170,8 +183,6 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
     }
     return 'new';
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -267,8 +278,8 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: isDone 
-                ? const Color(0xFF10B981) 
+            color: isDone
+                ? const Color(0xFF10B981)
                 : (isActive ? const Color(0xFF6366F1) : Colors.grey.shade100),
             shape: BoxShape.circle,
             border: Border.all(
@@ -294,7 +305,8 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           label,
           style: TextStyle(
             fontSize: 10,
-            fontWeight: isActive || isDone ? FontWeight.bold : FontWeight.normal,
+            fontWeight:
+                isActive || isDone ? FontWeight.bold : FontWeight.normal,
             color: isActive || isDone ? Colors.black87 : Colors.grey,
           ),
         ),
@@ -327,7 +339,8 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Exam Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        const Text('Exam Title',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
         const SizedBox(height: 6),
         TextFormField(
           controller: _examNameController,
@@ -338,8 +351,8 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           validator: (v) => v == null || v.isEmpty ? 'Title is required' : null,
         ),
         const SizedBox(height: 16),
-
-        const Text('Syllabus', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        const Text('Syllabus',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
         const SizedBox(height: 6),
         TextFormField(
           controller: _syllabusController,
@@ -350,29 +363,33 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           ),
         ),
         const SizedBox(height: 16),
-
-        const Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        const Text('Instructions',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
         const SizedBox(height: 6),
         TextFormField(
           controller: _instructionsController,
           maxLines: 2,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText: 'e.g. No calculator allowed, keep camera on.',
           ),
         ),
         if (widget.examId != null) ...[
           const SizedBox(height: 16),
-          const Text('Exam Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          const Text('Exam Status',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            value: _getDropdownValue(_status),
+            initialValue: _getDropdownValue(_status),
             decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             items: const [
               DropdownMenuItem(value: 'new', child: Text('New')),
-              DropdownMenuItem(value: 'in_progress', child: Text('In progress')),
-              DropdownMenuItem(value: 'scheduled', child: Text('Ready (Scheduled)')),
+              DropdownMenuItem(
+                  value: 'in_progress', child: Text('In progress')),
+              DropdownMenuItem(
+                  value: 'scheduled', child: Text('Ready (Scheduled)')),
               DropdownMenuItem(value: 'published', child: Text('Published')),
               DropdownMenuItem(value: 'completed', child: Text('Completed')),
             ],
@@ -393,19 +410,23 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
     // Dynamic subject lists or fallback
     final subjectNames = _subjects.map((s) => s.name).toSet().toList();
     if (subjectNames.isEmpty) {
-      subjectNames.addAll(['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English']);
+      subjectNames.addAll(
+          ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English']);
     }
     if (!subjectNames.contains(_selectedSubject)) {
       _selectedSubject = subjectNames.first;
     }
 
     // Dynamic class lists
-    final classNames = _classes.map((c) {
-      final section = c.section.trim();
-      if (section.isEmpty || c.name.contains('-$section')) return c.name;
-      return '${c.name}-$section';
-    }).toSet().toList();
-    
+    final classNames = _classes
+        .map((c) {
+          final section = c.section.trim();
+          if (section.isEmpty || c.name.contains('-$section')) return c.name;
+          return '${c.name}-$section';
+        })
+        .toSet()
+        .toList();
+
     // Ensure at least one class is selected
     if (_selectedClasses.isEmpty && classNames.isNotEmpty) {
       _selectedClasses = [classNames.first];
@@ -421,11 +442,15 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Subject',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: _selectedSubject,
-                    decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                    initialValue: _selectedSubject,
+                    decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12))),
                     items: subjectNames
                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
@@ -433,7 +458,9 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
                       setState(() {
                         _selectedSubject = v!;
                         if (_subjects.isNotEmpty) {
-                          final match = _subjects.firstWhere((sub) => sub.name == v, orElse: () => _subjects.first);
+                          final match = _subjects.firstWhere(
+                              (sub) => sub.name == v,
+                              orElse: () => _subjects.first);
                           _selectedSubjectId = match.id;
                         }
                       });
@@ -447,7 +474,9 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Target Classes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Target Classes',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
@@ -475,14 +504,18 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
                               }
                             });
                           },
-                          selectedColor: const Color(0xFF6366F1).withOpacity(0.2),
+                          selectedColor:
+                              const Color(0xFF6366F1).withValues(alpha: 0.2),
                           checkmarkColor: const Color(0xFF6366F1),
                           labelStyle: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: isSelected ? const Color(0xFF4338CA) : Colors.black87,
+                            color: isSelected
+                                ? const Color(0xFF4338CA)
+                                : Colors.black87,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 2),
                         );
                       }).toList(),
                     ),
@@ -493,20 +526,25 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           ],
         ),
         const SizedBox(height: 16),
-
         Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Duration (Mins)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Duration (Mins)',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _durationController,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                    validator: (v) => v == null || int.tryParse(v) == null ? 'Must be a valid integer' : null,
+                    decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12))),
+                    validator: (v) => v == null || int.tryParse(v) == null
+                        ? 'Must be a valid integer'
+                        : null,
                   ),
                 ],
               ),
@@ -516,13 +554,19 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Total Marks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Total Marks',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _totalMarksController,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                    validator: (v) => v == null || int.tryParse(v) == null ? 'Must be a valid integer' : null,
+                    decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12))),
+                    validator: (v) => v == null || int.tryParse(v) == null
+                        ? 'Must be a valid integer'
+                        : null,
                   ),
                 ],
               ),
@@ -530,21 +574,27 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           ],
         ),
         const SizedBox(height: 16),
-
         Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Exam Format', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Exam Format',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: _examType,
-                    decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                    initialValue: _examType,
+                    decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12))),
                     items: const [
-                      DropdownMenuItem(value: 'online', child: Text('🖥️ Online Exam')),
-                      DropdownMenuItem(value: 'offline', child: Text('📝 Offline Pen-Paper')),
+                      DropdownMenuItem(
+                          value: 'online', child: Text('🖥️ Online Exam')),
+                      DropdownMenuItem(
+                          value: 'offline',
+                          child: Text('📝 Offline Pen-Paper')),
                     ],
                     onChanged: (v) => setState(() {
                       _examType = v!;
@@ -563,12 +613,23 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Category',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
-                    value: _selectedType,
-                    decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-                    items: ['Practice Test', 'Weekly Test', 'Unit Test', 'Mock Test', 'Mid Term', 'Final Exam']
+                    initialValue: _selectedType,
+                    decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12))),
+                    items: [
+                      'Practice Test',
+                      'Weekly Test',
+                      'Unit Test',
+                      'Mock Test',
+                      'Mid Term',
+                      'Final Exam'
+                    ]
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
                     onChanged: (v) => setState(() => _selectedType = v!),
@@ -580,15 +641,19 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
         ),
         if (_examType == 'offline') ...[
           const SizedBox(height: 16),
-          const Text('Exam Location / Venue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          const Text('Exam Location / Venue',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 6),
           TextFormField(
             controller: _venueController,
             decoration: InputDecoration(
               hintText: 'e.g. Auditorium Hall, Room 10B',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            validator: (v) => _examType == 'offline' && (v == null || v.isEmpty) ? 'Venue is required for offline exams' : null,
+            validator: (v) => _examType == 'offline' && (v == null || v.isEmpty)
+                ? 'Venue is required for offline exams'
+                : null,
           ),
         ],
       ],
@@ -599,31 +664,66 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('AI Proctoring Locks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF4338CA))),
+        const Text('AI Proctoring Locks',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Color(0xFF4338CA))),
         const SizedBox(height: 12),
-        _buildToggleTile('Camera Permission Lock', 'Student must verify and stream face camera.', _cameraRequired, (v) => setState(() => _cameraRequired = v)),
-        _buildToggleTile('Microphone Sound Monitor', 'Monitor room noise parameters during exam.', _micRequired, (v) => setState(() => _micRequired = v)),
-        _buildToggleTile('Force Fullscreen Auto-Submit', 'Exiting fullscreen mode counts as proctor violation.', _autoSubmitOnTimer, (v) => setState(() => _autoSubmitOnTimer = v)),
-        
+        _buildToggleTile(
+            'Camera Permission Lock',
+            'Student must verify and stream face camera.',
+            _cameraRequired,
+            (v) => setState(() => _cameraRequired = v)),
+        _buildToggleTile(
+            'Microphone Sound Monitor',
+            'Monitor room noise parameters during exam.',
+            _micRequired,
+            (v) => setState(() => _micRequired = v)),
+        _buildToggleTile(
+            'Force Fullscreen Auto-Submit',
+            'Exiting fullscreen mode counts as proctor violation.',
+            _autoSubmitOnTimer,
+            (v) => setState(() => _autoSubmitOnTimer = v)),
         const Divider(height: 24),
-        const Text('Scoring & Presentation Settings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const Text('Scoring & Presentation Settings',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 12),
-        _buildToggleTile('Negative Marking', 'Deduct marks for incorrect answers.', _negativeMarking, (v) => setState(() => _negativeMarking = v)),
-        _buildToggleTile('Shuffle Question Sequences', 'Randomize order of questions per student.', _shuffleQuestions, (v) => setState(() => _shuffleQuestions = v)),
-        _buildToggleTile('Shuffle Option Choices', 'Randomize choices order per question.', _shuffleOptions, (v) => setState(() => _shuffleOptions = v)),
-        _buildToggleTile('Calculator Widget', 'Provide a floating calculator overlay.', _allowCalculator, (v) => setState(() => _allowCalculator = v)),
+        _buildToggleTile(
+            'Negative Marking',
+            'Deduct marks for incorrect answers.',
+            _negativeMarking,
+            (v) => setState(() => _negativeMarking = v)),
+        _buildToggleTile(
+            'Shuffle Question Sequences',
+            'Randomize order of questions per student.',
+            _shuffleQuestions,
+            (v) => setState(() => _shuffleQuestions = v)),
+        _buildToggleTile(
+            'Shuffle Option Choices',
+            'Randomize choices order per question.',
+            _shuffleOptions,
+            (v) => setState(() => _shuffleOptions = v)),
+        _buildToggleTile(
+            'Calculator Widget',
+            'Provide a floating calculator overlay.',
+            _allowCalculator,
+            (v) => setState(() => _allowCalculator = v)),
       ],
     );
   }
 
-  Widget _buildToggleTile(String title, String desc, bool val, ValueChanged<bool> onChanged) {
+  Widget _buildToggleTile(
+      String title, String desc, bool val, ValueChanged<bool> onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: SwitchListTile(
-        title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        subtitle: Text(desc, style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
+        title: Text(title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        subtitle: Text(desc,
+            style: const TextStyle(fontSize: 10.5, color: Colors.grey)),
         value: val,
-        activeColor: const Color(0xFF6366F1),
+        activeThumbColor: const Color(0xFF6366F1),
         contentPadding: EdgeInsets.zero,
         onChanged: onChanged,
       ),
@@ -646,35 +746,45 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF6366F1),
                 side: const BorderSide(color: Color(0xFF6366F1)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Back'),
             )
           else
             const SizedBox.shrink(),
-
           ElevatedButton(
-            onPressed: _isSaving 
-              ? null 
-              : () {
-                  if (_formKey.currentState!.validate()) {
-                    if (!isLast) {
-                      setState(() => _currentStep++);
-                    } else {
-                      _saveDraftAndNavigate();
+            onPressed: _isSaving
+                ? null
+                : () {
+                    if (_formKey.currentState!.validate()) {
+                      if (!isLast) {
+                        setState(() => _currentStep++);
+                      } else {
+                        _saveDraftAndNavigate();
+                      }
                     }
-                  }
-                },
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6366F1),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: _isSaving 
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(isLast ? (widget.examId != null ? 'Save Changes' : 'Save & Build Paper') : 'Next Step'),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : Text(isLast
+                    ? (widget.examId != null
+                        ? 'Save Changes'
+                        : 'Save & Build Paper')
+                    : 'Next Step'),
           ),
         ],
       ),
@@ -696,7 +806,8 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
         'total_marks': int.tryParse(_totalMarksController.text) ?? 100,
         'exam_type': _examType,
         'exam_category': _selectedType,
-        'venue': _examType == 'online' ? 'Online Portal' : _venueController.text,
+        'venue':
+            _examType == 'online' ? 'Online Portal' : _venueController.text,
         'subject': _selectedSubject,
         'class': _selectedClasses.join(', '),
         'target_classes': _selectedClasses,
@@ -712,7 +823,8 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
       if (widget.examId != null) {
         await _apiService.updateExam(widget.examId!, payload);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('🎉 Exam details updated successfully!')),
+          const SnackBar(
+              content: Text('🎉 Exam details updated successfully!')),
         );
         context.pushReplacement('/teacher/exams');
       } else {
@@ -725,7 +837,8 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           examType: _examType,
           examCategory: _selectedType,
           syllabus: _syllabusController.text,
-          roomNumber: _examType == 'online' ? 'Online Portal' : _venueController.text,
+          roomNumber:
+              _examType == 'online' ? 'Online Portal' : _venueController.text,
           status: 'draft',
           instructions: _instructionsController.text,
           negativeMarking: _negativeMarking,
@@ -736,11 +849,14 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           micRequired: _micRequired,
           autoSubmitOnTimer: _autoSubmitOnTimer,
         );
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('🎉 Exam configuration created! Proceeding to Paper Builder.')),
+          const SnackBar(
+              content: Text(
+                  '🎉 Exam configuration created! Proceeding to Paper Builder.')),
         );
-        context.pushReplacement('/teacher/exams/paper-builder?examId=${newExam.id}');
+        context.pushReplacement(
+            '/teacher/exams/paper-builder?examId=${newExam.id}');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -751,4 +867,5 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
         _isSaving = false;
       });
     }
-  }}
+  }
+}

@@ -167,8 +167,11 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen>
                         ),
                       ),
                       _GlassBtn(
-                        icon: _isStatsCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
-                        onTap: () => setState(() => _isStatsCollapsed = !_isStatsCollapsed),
+                        icon: _isStatsCollapsed
+                            ? Icons.keyboard_arrow_down
+                            : Icons.keyboard_arrow_up,
+                        onTap: () => setState(
+                            () => _isStatsCollapsed = !_isStatsCollapsed),
                       ),
                       const SizedBox(width: 8),
                       _GlassBtn(
@@ -359,8 +362,8 @@ class _StatCell extends StatelessWidget {
 
 // ─── Global helpers ───────────────────────────────────────────────────────────
 
-void _cancelOrDeleteLeaveHelper(
-    BuildContext context, WidgetRef ref, LeaveApplication leave, bool isPending) {
+void _cancelOrDeleteLeaveHelper(BuildContext context, WidgetRef ref,
+    LeaveApplication leave, bool isPending) {
   showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -388,9 +391,7 @@ void _cancelOrDeleteLeaveHelper(
                 .read(leaveProvider.notifier)
                 .cancelOrDeleteLeave(leave.id);
             if (success) {
-              ref
-                  .read(leaveProvider.notifier)
-                  .fetchLeaves(forceRefresh: true);
+              ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true);
             }
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -399,17 +400,16 @@ void _cancelOrDeleteLeaveHelper(
                         ? '✅ Leave cancelled successfully'
                         : '🗑️ Record deleted')
                     : '❌ Failed. Please try again.'),
-                backgroundColor: success
-                    ? const Color(0xFF059669)
-                    : const Color(0xFFDC2626),
+                backgroundColor:
+                    success ? const Color(0xFF059669) : const Color(0xFFDC2626),
               ));
             }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFDC2626),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           child: Text(isPending ? 'Cancel Leave' : 'Delete'),
         ),
@@ -418,7 +418,8 @@ void _cancelOrDeleteLeaveHelper(
   );
 }
 
-List<AzureGridColumn<LeaveApplication>> _buildLeaveGridColumns(BuildContext context, WidgetRef ref) {
+List<AzureGridColumn<LeaveApplication>> _buildLeaveGridColumns(
+    BuildContext context, WidgetRef ref) {
   return [
     AzureGridColumn<LeaveApplication>(
       label: 'Leave Type',
@@ -427,9 +428,11 @@ List<AzureGridColumn<LeaveApplication>> _buildLeaveGridColumns(BuildContext cont
       cellBuilder: (leave) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(_leaveIcon(leave.leaveType), style: const TextStyle(fontSize: 16)),
+          Text(_leaveIcon(leave.leaveType),
+              style: const TextStyle(fontSize: 16)),
           const SizedBox(width: 8),
-          Text(leave.leaveType, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(leave.leaveType,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     ),
@@ -442,14 +445,17 @@ List<AzureGridColumn<LeaveApplication>> _buildLeaveGridColumns(BuildContext cont
         return da.compareTo(db);
       },
       cellBuilder: (leave) {
-        final days = leave.durationDays ?? _calcDays(leave.startDate, leave.endDate);
-        return Text('$days days (${_fmtDate(leave.startDate)} → ${_fmtDate(leave.endDate)})');
+        final days =
+            leave.durationDays ?? _calcDays(leave.startDate, leave.endDate);
+        return Text(
+            '$days days (${_fmtDate(leave.startDate)} → ${_fmtDate(leave.endDate)})');
       },
     ),
     AzureGridColumn<LeaveApplication>(
       label: 'Reason',
       width: 220.0,
-      cellBuilder: (leave) => Text(leave.reason, overflow: TextOverflow.ellipsis),
+      cellBuilder: (leave) =>
+          Text(leave.reason, overflow: TextOverflow.ellipsis),
     ),
     AzureGridColumn<LeaveApplication>(
       label: 'Status',
@@ -486,11 +492,12 @@ List<AzureGridColumn<LeaveApplication>> _buildLeaveGridColumns(BuildContext cont
           decoration: BoxDecoration(
             color: statusBg,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: statusColor.withOpacity(0.3)),
+            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
           ),
           child: Text(
             statusLabel,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
           ),
         );
       },
@@ -501,18 +508,22 @@ List<AzureGridColumn<LeaveApplication>> _buildLeaveGridColumns(BuildContext cont
       cellBuilder: (leave) {
         final isPending = leave.status == 'pending';
         final isCancelable = isPending;
-        final isDeletable = leave.status == 'rejected' || leave.status == 'cancelled';
+        final isDeletable =
+            leave.status == 'rejected' || leave.status == 'cancelled';
         if (!isCancelable && !isDeletable) return const SizedBox();
         return SizedBox(
           height: 26,
           child: ElevatedButton(
-            onPressed: () => _cancelOrDeleteLeaveHelper(context, ref, leave, isPending),
+            onPressed: () =>
+                _cancelOrDeleteLeaveHelper(context, ref, leave, isPending),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4)),
             ),
-            child: Text(isPending ? 'Cancel' : 'Delete', style: const TextStyle(fontSize: 10, color: Colors.white)),
+            child: Text(isPending ? 'Cancel' : 'Delete',
+                style: const TextStyle(fontSize: 10, color: Colors.white)),
           ),
         );
       },
@@ -557,8 +568,10 @@ class _UpcomingTab extends ConsumerWidget {
           title: 'Upcoming Applications',
           items: upcoming,
           columns: _buildLeaveGridColumns(context, ref),
-          searchMatcher: (leave) => '${leave.leaveType} ${leave.reason} ${leave.status}',
-          onRefresh: () => ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
+          searchMatcher: (leave) =>
+              '${leave.leaveType} ${leave.reason} ${leave.status}',
+          onRefresh: () =>
+              ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
           mobileCardBuilder: (context, leave) => const SizedBox(),
           disableVerticalScroll: true,
         ),
@@ -569,7 +582,8 @@ class _UpcomingTab extends ConsumerWidget {
       onRefresh: () =>
           ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
       child: ListView(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
+        padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
         children: [
           if (upcoming.isEmpty)
             const _EmptyState(
@@ -621,8 +635,10 @@ class _PastTab extends ConsumerWidget {
           title: 'Past Applications History',
           items: past,
           columns: _buildLeaveGridColumns(context, ref),
-          searchMatcher: (leave) => '${leave.leaveType} ${leave.reason} ${leave.status}',
-          onRefresh: () => ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
+          searchMatcher: (leave) =>
+              '${leave.leaveType} ${leave.reason} ${leave.status}',
+          onRefresh: () =>
+              ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
           mobileCardBuilder: (context, leave) => const SizedBox(),
           disableVerticalScroll: true,
         ),
@@ -633,7 +649,8 @@ class _PastTab extends ConsumerWidget {
       onRefresh: () =>
           ref.read(leaveProvider.notifier).fetchLeaves(forceRefresh: true),
       child: ListView(
-        padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
+        padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
         children: [
           if (past.isEmpty)
             const _EmptyState(

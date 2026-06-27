@@ -3,15 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
-import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 
 class ExamSubmissionScreen extends ConsumerStatefulWidget {
   final String examId;
   final bool autoSubmitted;
-  const ExamSubmissionScreen({super.key, required this.examId, this.autoSubmitted = false});
+  const ExamSubmissionScreen(
+      {super.key, required this.examId, this.autoSubmitted = false});
 
   @override
-  ConsumerState<ExamSubmissionScreen> createState() => _ExamSubmissionScreenState();
+  ConsumerState<ExamSubmissionScreen> createState() =>
+      _ExamSubmissionScreenState();
 }
 
 class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
@@ -59,9 +60,7 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
                   )
                 ],
               ),
-              child: _isLoading 
-                ? _buildLoadingState() 
-                : _buildSuccessState(),
+              child: _isLoading ? _buildLoadingState() : _buildSuccessState(),
             ),
           ),
         ),
@@ -85,7 +84,7 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          widget.autoSubmitted 
+          widget.autoSubmitted
               ? 'Proctor limit reached. Auto-submitting answers...'
               : 'Uploading final answer sheets and locks...',
           style: const TextStyle(fontSize: 12, color: StudentColors.text2),
@@ -99,7 +98,8 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.check_circle_rounded, color: StudentColors.success, size: 64),
+        const Icon(Icons.check_circle_rounded,
+            color: StudentColors.success, size: 64),
         const SizedBox(height: 16),
         const Text(
           'Examination Submitted!',
@@ -112,9 +112,11 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          widget.autoSubmitted ? 'Auto-submitted by System Lock' : 'Manually submitted by Student',
+          widget.autoSubmitted
+              ? 'Auto-submitted by System Lock'
+              : 'Manually submitted by Student',
           style: TextStyle(
-            fontSize: 11, 
+            fontSize: 11,
             color: widget.autoSubmitted ? Colors.red : StudentColors.text3,
             fontWeight: FontWeight.bold,
           ),
@@ -131,13 +133,16 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
           ),
           child: Column(
             children: [
-              _buildReceiptRow('Receipt Code', _receiptToken, isMonospace: true),
+              _buildReceiptRow('Receipt Code', _receiptToken,
+                  isMonospace: true),
               const Divider(height: 20),
               _buildReceiptRow('Timestamp', _timestamp),
               const Divider(height: 20),
-              _buildReceiptRow('Lock Status', 'LOCKED & SEALED', valueColor: Colors.blue),
+              _buildReceiptRow('Lock Status', 'LOCKED & SEALED',
+                  valueColor: Colors.blue),
               const Divider(height: 20),
-              _buildReceiptRow('Evaluated Status', 'Pending Grading', valueColor: Colors.orange),
+              _buildReceiptRow('Evaluated Status', 'Pending Grading',
+                  valueColor: Colors.orange),
             ],
           ),
         ),
@@ -176,11 +181,13 @@ class _ExamSubmissionScreenState extends ConsumerState<ExamSubmissionScreen> {
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, {Color? valueColor, bool isMonospace = false}) {
+  Widget _buildReceiptRow(String label, String value,
+      {Color? valueColor, bool isMonospace = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11.5, color: StudentColors.text2)),
+        Text(label,
+            style: const TextStyle(fontSize: 11.5, color: StudentColors.text2)),
         Text(
           value,
           style: TextStyle(

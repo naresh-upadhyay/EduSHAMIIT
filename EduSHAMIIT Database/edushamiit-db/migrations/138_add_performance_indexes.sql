@@ -6,17 +6,17 @@
 -- Messages: fast unread count & recipient inbox queries
 DROP INDEX IF EXISTS idx_messages_receiver_filtered;
 CREATE INDEX IF NOT EXISTS idx_messages_receiver_filtered
-    ON messages(recipient_id, is_read, created_at DESC);
+    ON messages(receiver_id, is_read, created_at DESC);
 
 -- Notifications: fast unread count & user notification list
 DROP INDEX IF EXISTS idx_notifications_user_filtered;
 CREATE INDEX IF NOT EXISTS idx_notifications_user_filtered
     ON notifications(user_id, is_read, created_at DESC);
 
--- Exams: filtered by school + class + subject (common search pattern)
+-- Exams: filtered by school + subject (common search pattern)
 DROP INDEX IF EXISTS idx_exams_school_class_subject;
 CREATE INDEX IF NOT EXISTS idx_exams_school_class_subject
-    ON exams(school_id, class_id, subject_id);
+    ON exams(school_id, subject_id);
 
 -- Live classes: school + status + recency for dashboard
 DROP INDEX IF EXISTS idx_live_classes_school_status_time;
@@ -28,10 +28,10 @@ DROP INDEX IF EXISTS idx_ai_chat_session;
 CREATE INDEX IF NOT EXISTS idx_ai_chat_session
     ON ai_chat_history(user_id, session_id, created_at DESC);
 
--- Documents: school + folder hierarchy navigation
+-- Documents: school + user document navigation
 DROP INDEX IF EXISTS idx_documents_school_folder;
-CREATE INDEX IF NOT EXISTS idx_documents_school_folder
-    ON documents(school_id, folder_id);
+CREATE INDEX IF NOT EXISTS idx_documents_school_user
+    ON documents(school_id, user_id);
 
 -- XP Transactions: student activity timeline & totals
 DROP INDEX IF EXISTS idx_xp_transactions_student_time;
@@ -43,20 +43,19 @@ DROP INDEX IF EXISTS idx_profiles_id_school;
 CREATE INDEX IF NOT EXISTS idx_profiles_id_school
     ON profiles(id, school_id);
 
--- Call sessions: student call history
+-- Call sessions: call history by caller (use started_at instead of created_at)
 DROP INDEX IF EXISTS idx_call_sessions_student;
-CREATE INDEX IF NOT EXISTS idx_call_sessions_student
-    ON call_sessions(student_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_call_sessions_caller
+    ON call_sessions(caller_id, started_at DESC);
 
 -- Homework submissions: student submission history (for progress tracking)
 DROP INDEX IF EXISTS idx_homework_sub_student_time;
 CREATE INDEX IF NOT EXISTS idx_homework_sub_student_time
-    ON homework_submissions(student_id, created_at DESC);
+    ON homework_submissions(student_id, submitted_at DESC);
 
--- Course student progress: student progress tracking
+-- Course student progress: student progress tracking (table may not exist yet)
 DROP INDEX IF EXISTS idx_course_progress_student;
-CREATE INDEX IF NOT EXISTS idx_course_progress_student
-    ON course_student_progress(student_id, course_id);
+/* Index skipped: course_student_progress table does not exist in current schema */
 
 -- Payments: student payment history
 DROP INDEX IF EXISTS idx_payments_student_time;

@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_ai/core/config/app_config.dart';
-import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
@@ -14,20 +13,25 @@ import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 class IdentityVerificationScreen extends ConsumerStatefulWidget {
   final String examId;
   final String? passcode;
-  const IdentityVerificationScreen({super.key, required this.examId, this.passcode});
+  const IdentityVerificationScreen(
+      {super.key, required this.examId, this.passcode});
 
   @override
-  ConsumerState<IdentityVerificationScreen> createState() => _IdentityVerificationScreenState();
+  ConsumerState<IdentityVerificationScreen> createState() =>
+      _IdentityVerificationScreenState();
 }
 
-class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificationScreen> with SingleTickerProviderStateMixin {
+class _IdentityVerificationScreenState
+    extends ConsumerState<IdentityVerificationScreen>
+    with SingleTickerProviderStateMixin {
   bool _cameraChecked = false;
   bool _screenChecked = false;
   bool _micChecked = false;
   bool _networkChecked = false;
   bool _faceVerified = false;
   bool _isChecking = false;
-  String _statusText = 'Click "Begin Verification" to initialize proctoring controls.';
+  String _statusText =
+      'Click "Begin Verification" to initialize proctoring controls.';
   int _networkLatencyMs = 0;
 
   final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
@@ -45,7 +49,7 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
   void initState() {
     super.initState();
     _initRenderer();
-    
+
     _scannerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -100,7 +104,8 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
       if (mounted) {
         setState(() {
           final random = Random();
-          _waveformHeights = List.generate(10, (_) => 5.0 + random.nextDouble() * 35.0);
+          _waveformHeights =
+              List.generate(10, (_) => 5.0 + random.nextDouble() * 35.0);
         });
       }
     });
@@ -156,7 +161,8 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
 
       setState(() {
         _screenChecked = true;
-        _statusText = 'Screen share check passed. Checking microphone tracks...';
+        _statusText =
+            'Screen share check passed. Checking microphone tracks...';
       });
 
       // Start animations
@@ -179,31 +185,37 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
       await Future.delayed(const Duration(milliseconds: 1000));
       final stopwatch = Stopwatch()..start();
       try {
-        await http.get(Uri.parse('${AppConfig.apiBaseUrl}/health')).timeout(const Duration(seconds: 4));
+        await http
+            .get(Uri.parse('${AppConfig.apiBaseUrl}/health'))
+            .timeout(const Duration(seconds: 4));
         stopwatch.stop();
         _networkLatencyMs = stopwatch.elapsedMilliseconds;
       } catch (e) {
         stopwatch.stop();
-        _networkLatencyMs = stopwatch.elapsedMilliseconds > 0 ? stopwatch.elapsedMilliseconds : 65;
+        _networkLatencyMs = stopwatch.elapsedMilliseconds > 0
+            ? stopwatch.elapsedMilliseconds
+            : 65;
       }
 
       setState(() {
         _networkChecked = true;
-        _statusText = 'Network latency verified: ${_networkLatencyMs}ms. Running biometric face alignment...';
+        _statusText =
+            'Network latency verified: ${_networkLatencyMs}ms. Running biometric face alignment...';
       });
 
       // 4. Face verification simulation (animated scan)
       await Future.delayed(const Duration(milliseconds: 1800));
-      
+
       // Stop webcam and animations to free hardware resources
       _stopLocalStream();
       _scannerController.stop();
       _stopWaveformSimulation();
-      
+
       setState(() {
         _faceVerified = true;
         _isChecking = false;
-        _statusText = 'Identity verification checks passed successfully! Proceed to instructions.';
+        _statusText =
+            'Identity verification checks passed successfully! Proceed to instructions.';
       });
     } catch (e) {
       _stopLocalStream();
@@ -211,12 +223,15 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
       _stopWaveformSimulation();
       setState(() {
         _isChecking = false;
-        _statusText = 'Biometric check failed: ${e.toString().replaceAll("Exception: ", "")}';
+        _statusText =
+            'Biometric check failed: ${e.toString().replaceAll("Exception: ", "")}';
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Verification failed: ${e.toString().replaceAll("Exception: ", "")}', style: const TextStyle(color: Colors.white)),
+            content: Text(
+                'Verification failed: ${e.toString().replaceAll("Exception: ", "")}',
+                style: const TextStyle(color: Colors.white)),
             backgroundColor: Colors.red,
           ),
         );
@@ -242,7 +257,8 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => safeGoBack(context, '/student/exams/details/${widget.examId}'),
+          onPressed: () =>
+              safeGoBack(context, '/student/exams/details/${widget.examId}'),
         ),
       ),
       body: SafeArea(
@@ -272,9 +288,11 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                     color: Colors.black,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: _faceVerified 
-                          ? const Color(0xFF10B981) 
-                          : (_isChecking ? const Color(0xFF38BDF8) : const Color(0xFF334155)),
+                      color: _faceVerified
+                          ? const Color(0xFF10B981)
+                          : (_isChecking
+                              ? const Color(0xFF38BDF8)
+                              : const Color(0xFF334155)),
                       width: 2,
                     ),
                     boxShadow: [
@@ -293,13 +311,15 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                         if (_cameraChecked && _localStream != null)
                           RTCVideoView(
                             _localRenderer,
-                            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                            objectFit: RTCVideoViewObjectFit
+                                .RTCVideoViewObjectFitCover,
                           )
                         else if (_faceVerified)
                           const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 56),
+                              Icon(Icons.verified_user_rounded,
+                                  color: Color(0xFF10B981), size: 56),
                               SizedBox(height: 12),
                               Text(
                                 'BIOMETRIC ID MATCHED',
@@ -313,12 +333,14 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                             ],
                           )
                         else if (_isChecking && !_cameraChecked)
-                          const CircularProgressIndicator(color: Color(0xFF38BDF8))
+                          const CircularProgressIndicator(
+                              color: Color(0xFF38BDF8))
                         else
                           const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.videocam_off_rounded, color: Colors.white30, size: 56),
+                              Icon(Icons.videocam_off_rounded,
+                                  color: Colors.white30, size: 56),
                               SizedBox(height: 12),
                               Text(
                                 'WEBCAM OFFLINE',
@@ -360,10 +382,22 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
 
                         // Corner photo targets for premium biometric feel
                         if (_isChecking && !_faceVerified) ...[
-                          Positioned(top: 20, left: 20, child: _buildCornerTarget(true, true)),
-                          Positioned(top: 20, right: 20, child: _buildCornerTarget(true, false)),
-                          Positioned(bottom: 20, left: 20, child: _buildCornerTarget(false, true)),
-                          Positioned(bottom: 20, right: 20, child: _buildCornerTarget(false, false)),
+                          Positioned(
+                              top: 20,
+                              left: 20,
+                              child: _buildCornerTarget(true, true)),
+                          Positioned(
+                              top: 20,
+                              right: 20,
+                              child: _buildCornerTarget(true, false)),
+                          Positioned(
+                              bottom: 20,
+                              left: 20,
+                              child: _buildCornerTarget(false, true)),
+                          Positioned(
+                              bottom: 20,
+                              right: 20,
+                              child: _buildCornerTarget(false, false)),
                         ],
                       ],
                     ),
@@ -383,7 +417,8 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                 ),
                 child: Row(
                   children: [
-                    Text(_faceVerified ? '🟢' : (_isChecking ? '🔵' : '⚪'), style: const TextStyle(fontSize: 14)),
+                    Text(_faceVerified ? '🟢' : (_isChecking ? '🔵' : '⚪'),
+                        style: const TextStyle(fontSize: 14)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -424,30 +459,38 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                 ),
                 child: Column(
                   children: [
-                    _buildCheckRow('Camera Device Initialization', _cameraChecked),
+                    _buildCheckRow(
+                        'Camera Device Initialization', _cameraChecked),
                     const Divider(height: 24, color: Color(0xFF334155)),
-                    _buildCheckRow('Screen Share Permission Granted', _screenChecked),
+                    _buildCheckRow(
+                        'Screen Share Permission Granted', _screenChecked),
                     const Divider(height: 24, color: Color(0xFF334155)),
-                    
+
                     // Microphone Row with sound level waveform simulator
                     Row(
                       children: [
                         Icon(
-                          _micChecked ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
-                          color: _micChecked ? const Color(0xFF10B981) : const Color(0xFF475569),
+                          _micChecked
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_off_rounded,
+                          color: _micChecked
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFF475569),
                           size: 20,
                         ),
                         const SizedBox(width: 12),
                         const Text(
                           'Microphone input level',
-                          style: TextStyle(fontSize: 12.5, color: Colors.white70),
+                          style:
+                              TextStyle(fontSize: 12.5, color: Colors.white70),
                         ),
                         const SizedBox(width: 8),
                         if (_isChecking && _cameraChecked && !_micChecked)
                           Row(
                             children: _waveformHeights.map((h) {
                               return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 1),
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 1),
                                 width: 2.5,
                                 height: h,
                                 decoration: BoxDecoration(
@@ -463,21 +506,23 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: _micChecked ? const Color(0xFF10B981) : const Color(0xFF475569),
+                            color: _micChecked
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF475569),
                           ),
                         ),
                       ],
                     ),
                     const Divider(height: 24, color: Color(0xFF334155)),
-                    
+
                     _buildCheckRow(
-                      _networkChecked 
-                          ? 'Network Ping Check (${_networkLatencyMs}ms)' 
-                          : 'Network latency validation (<150ms)', 
-                      _networkChecked
-                    ),
+                        _networkChecked
+                            ? 'Network Ping Check (${_networkLatencyMs}ms)'
+                            : 'Network latency validation (<150ms)',
+                        _networkChecked),
                     const Divider(height: 24, color: Color(0xFF334155)),
-                    _buildCheckRow('Facial identification matched', _faceVerified),
+                    _buildCheckRow(
+                        'Facial identification matched', _faceVerified),
                   ],
                 ),
               ),
@@ -498,7 +543,9 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                       ),
                     ),
                     child: Text(
-                      _isChecking ? 'Verifying Hardware...' : 'Begin Verification Checks',
+                      _isChecking
+                          ? 'Verifying Hardware...'
+                          : 'Begin Verification Checks',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -511,10 +558,14 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      final query = widget.passcode != null ? '?passcode=${widget.passcode}' : '';
-                      context.push('/student/exams/instructions/${widget.examId}$query');
+                      final query = widget.passcode != null
+                          ? '?passcode=${widget.passcode}'
+                          : '';
+                      context.push(
+                          '/student/exams/instructions/${widget.examId}$query');
                     },
-                    icon: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                    icon: const Icon(Icons.arrow_forward_rounded,
+                        color: Colors.white, size: 18),
                     label: const Text('Proceed to Instructions'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
@@ -539,7 +590,9 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
     return Row(
       children: [
         Icon(
-          isPassed ? Icons.check_circle_rounded : Icons.radio_button_off_rounded,
+          isPassed
+              ? Icons.check_circle_rounded
+              : Icons.radio_button_off_rounded,
           color: isPassed ? const Color(0xFF10B981) : const Color(0xFF475569),
           size: 20,
         ),
@@ -570,10 +623,18 @@ class _IdentityVerificationScreenState extends ConsumerState<IdentityVerificatio
       height: 16,
       decoration: BoxDecoration(
         border: Border(
-          top: top ? const BorderSide(color: Color(0xFF06B6D4), width: 3) : BorderSide.none,
-          bottom: !top ? const BorderSide(color: Color(0xFF06B6D4), width: 3) : BorderSide.none,
-          left: left ? const BorderSide(color: Color(0xFF06B6D4), width: 3) : BorderSide.none,
-          right: !left ? const BorderSide(color: Color(0xFF06B6D4), width: 3) : BorderSide.none,
+          top: top
+              ? const BorderSide(color: Color(0xFF06B6D4), width: 3)
+              : BorderSide.none,
+          bottom: !top
+              ? const BorderSide(color: Color(0xFF06B6D4), width: 3)
+              : BorderSide.none,
+          left: left
+              ? const BorderSide(color: Color(0xFF06B6D4), width: 3)
+              : BorderSide.none,
+          right: !left
+              ? const BorderSide(color: Color(0xFF06B6D4), width: 3)
+              : BorderSide.none,
         ),
       ),
     );

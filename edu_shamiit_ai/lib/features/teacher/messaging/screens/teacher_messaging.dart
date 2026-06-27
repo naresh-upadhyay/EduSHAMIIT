@@ -165,10 +165,12 @@ class _TeacherMessagingState extends ConsumerState<TeacherMessaging> {
     // Filter conversations by category
     final filteredConversations = conversations.where((c) {
       if (_selectedCategory == 0) return true;
-      if (_selectedCategory == 1)
+      if (_selectedCategory == 1) {
         return c.type == 'direct' && c.role == 'teacher';
-      if (_selectedCategory == 2)
+      }
+      if (_selectedCategory == 2) {
         return c.type == 'direct' && c.role == 'student';
+      }
       if (_selectedCategory == 3) return c.type == 'group';
       return true;
     }).toList();
@@ -1098,10 +1100,11 @@ class _ChatDetailScreenState extends ConsumerState<_ChatDetailScreen>
       try {
         _sttAvailable = await _stt.initialize(
           onError: (e) {
-            if (mounted)
+            if (mounted) {
               setState(() {
                 _isListening = false;
               });
+            }
           },
           onStatus: (s) {
             if ((s == 'done' || s == 'notListening') &&
@@ -3260,18 +3263,21 @@ class _CreateGroupBottomSheetState
 
   List<Map<String, dynamic>> _getFilteredByRole(int tabIndex) {
     if (tabIndex == 0) return _filteredCandidates;
-    if (tabIndex == 1)
+    if (tabIndex == 1) {
       return _filteredCandidates.where((u) => u['role'] == 'student').toList();
-    if (tabIndex == 2)
+    }
+    if (tabIndex == 2) {
       return _filteredCandidates.where((u) => u['role'] == 'teacher').toList();
+    }
     if (tabIndex == 3) {
       return _filteredCandidates.where((u) {
         final role = (u['role'] as String? ?? '').toLowerCase();
         return role == 'hod' || role == 'principal' || role == 'admin';
       }).toList();
     }
-    if (tabIndex == 4)
+    if (tabIndex == 4) {
       return _filteredCandidates.where((u) => u['role'] == 'parent').toList();
+    }
     return _filteredCandidates;
   }
 

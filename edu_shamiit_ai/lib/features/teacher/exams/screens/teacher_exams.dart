@@ -18,7 +18,7 @@ class TeacherExams extends ConsumerStatefulWidget {
 
 class _TeacherExamsState extends ConsumerState<TeacherExams> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   List<TeacherExam> _allExams = [];
   List<String> _categories = [];
   bool _isLoading = true;
@@ -38,14 +38,18 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
 
     try {
       final exams = await _apiService.getExams();
-      
+
       // Sort exams in sorted order most recent first by default
       exams.sort((a, b) {
-        final dateA = a.createdAt ?? a.startTime ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateB = b.createdAt ?? b.startTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateA = a.createdAt ??
+            a.startTime ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final dateB = b.createdAt ??
+            b.startTime ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return dateB.compareTo(dateA);
       });
-      
+
       final Set<String> catSet = {};
       for (var e in exams) {
         if (e.examCategory.trim().isNotEmpty) {
@@ -118,19 +122,19 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     if (status == 'in_progress' || exam.questionMarksSum < exam.totalMarks) {
       return Colors.orange;
     }
-    
+
     // Fully built (100/100)
     if (exam.startTime == null) {
       return Colors.green;
     }
-    
+
     // Scheduled or published
     final now = DateTime.now();
     final start = exam.startTime!;
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
+
     if (now.isBefore(start)) {
       return Colors.blueAccent;
     } else if (now.isAfter(start) && now.isBefore(end)) {
@@ -148,19 +152,19 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     if (status == 'in_progress' || exam.questionMarksSum < exam.totalMarks) {
       return 'In progress (${exam.questionMarksSum}/${exam.totalMarks})';
     }
-    
+
     // Fully built (100/100)
     if (exam.startTime == null) {
       return 'Ready';
     }
-    
+
     // Scheduled or published
     final now = DateTime.now();
     final start = exam.startTime!;
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
+
     if (now.isBefore(start)) {
       return 'Scheduled';
     } else if (now.isAfter(start) && now.isBefore(end)) {
@@ -190,15 +194,17 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
+
     if (now.isBefore(start)) {
       return Icons.assignment_ind_outlined;
     }
-    
+
     if (now.isAfter(start) && now.isBefore(end)) {
-      return exam.examType.toLowerCase() == 'online' ? Icons.security_outlined : Icons.people_outline;
+      return exam.examType.toLowerCase() == 'online'
+          ? Icons.security_outlined
+          : Icons.people_outline;
     }
-    
+
     return Icons.check_circle_outline;
   }
 
@@ -222,15 +228,15 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
+
     if (now.isBefore(start)) {
       return 'Assign';
     }
-    
+
     if (now.isAfter(start) && now.isBefore(end)) {
       return exam.examType.toLowerCase() == 'online' ? 'Proctor' : 'Attendance';
     }
-    
+
     return 'Evaluate';
   }
 
@@ -254,15 +260,15 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
+
     if (now.isBefore(start)) {
       return const Color(0xFF0EA5E9);
     }
-    
+
     if (now.isAfter(start) && now.isBefore(end)) {
       return const Color(0xFFEF4444);
     }
-    
+
     return const Color(0xFF10B981);
   }
 
@@ -288,17 +294,17 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
+
     if (now.isBefore(start)) {
       context.push('/teacher/exams/assign/${exam.id}');
       return;
     }
-    
+
     if (now.isAfter(start) && now.isBefore(end)) {
       context.push('/teacher/exams/monitor/${exam.id}');
       return;
     }
-    
+
     context.push('/teacher/exams/evaluate/${exam.id}');
   }
 
@@ -355,9 +361,9 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Text(
               exam.examCategory.trim().isEmpty ? 'General' : exam.examCategory,
@@ -370,7 +376,6 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
           );
         },
       ),
-
       AzureGridColumn<TeacherExam>(
         label: 'Date & Time',
         width: 160.0,
@@ -396,9 +401,9 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Text(
               _getStatusLabel(exam),
@@ -419,8 +424,10 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
           final start = exam.startTime ?? exam.examDate;
           final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
           final durationMins = int.tryParse(digits) ?? 90;
-          final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-          final isCompleted = exam.status.toLowerCase() == 'completed' || now.isAfter(end);
+          final end =
+              exam.endTime ?? start.add(Duration(minutes: durationMins));
+          final isCompleted =
+              exam.status.toLowerCase() == 'completed' || now.isAfter(end);
           if (isCompleted) {
             return Text('${exam.joinedCount}/${exam.completedCount}');
           }
@@ -437,22 +444,28 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
               height: 24,
               child: ElevatedButton.icon(
                 onPressed: () => _navigateByStatus(exam),
-                icon: Icon(_getPrimaryActionIcon(exam), size: 10, color: Colors.white),
+                icon: Icon(_getPrimaryActionIcon(exam),
+                    size: 10, color: Colors.white),
                 label: Text(
                   _getPrimaryActionLabel(exam),
-                  style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _getPrimaryActionColor(exam),
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
                   elevation: 0,
                 ),
               ),
             ),
             const SizedBox(width: 6),
             IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 14, color: Colors.blue),
+              icon:
+                  const Icon(Icons.edit_outlined, size: 14, color: Colors.blue),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: () => context.push('/teacher/exams/edit/${exam.id}'),
@@ -460,7 +473,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
             ),
             const SizedBox(width: 6),
             IconButton(
-              icon: const Icon(Icons.more_vert_rounded, size: 14, color: Colors.grey),
+              icon: const Icon(Icons.more_vert_rounded,
+                  size: 14, color: Colors.grey),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: () => _showExamActionsMenu(exam),
@@ -480,7 +494,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
@@ -529,9 +544,11 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
                             const SizedBox(height: 16),
-                            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                            Text('Error: $_error',
+                                style: const TextStyle(color: Colors.red)),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadExams,
@@ -541,39 +558,58 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                         ),
                       )
                     : Padding(
-                        padding: const EdgeInsets.fromLTRB(12.0, 4.0, 12.0, 80.0),
+                        padding:
+                            const EdgeInsets.fromLTRB(12.0, 4.0, 12.0, 80.0),
                         child: AzureGrid<TeacherExam>(
                           title: 'Scheduled Exams',
                           items: _allExams,
                           extraCommandActions: [
                             IconButton(
-                              icon: const Icon(Icons.add, color: Color(0xFF6366F1)),
+                              icon: const Icon(Icons.add,
+                                  color: Color(0xFF6366F1)),
                               tooltip: 'Create Exam',
-                              onPressed: () => context.push('/teacher/exams/create'),
+                              onPressed: () =>
+                                  context.push('/teacher/exams/create'),
                             ),
                           ],
                           columns: _buildGridColumns(),
-                          searchMatcher: (exam) => '${exam.title} ${exam.subject} ${exam.class_} ${exam.examCategory}',
+                          searchMatcher: (exam) =>
+                              '${exam.title} ${exam.subject} ${exam.class_} ${exam.examCategory}',
                           filters: [
                             if (_categories.isNotEmpty)
                               AzureGridFilter<TeacherExam>(
                                 label: 'Category',
                                 options: _categories,
-                                filterFn: (exam, option) => exam.examCategory.trim().toLowerCase() == option.trim().toLowerCase(),
+                                filterFn: (exam, option) =>
+                                    exam.examCategory.trim().toLowerCase() ==
+                                    option.trim().toLowerCase(),
                               ),
                             AzureGridFilter<TeacherExam>(
                               label: 'Status',
-                              options: ['New', 'In Progress', 'Ready', 'Published', 'Completed'],
-                              filterFn: (exam, option) => exam.status.toLowerCase().replaceAll(' ', '_') == option.toLowerCase().replaceAll(' ', '_'),
+                              options: [
+                                'New',
+                                'In Progress',
+                                'Ready',
+                                'Published',
+                                'Completed'
+                              ],
+                              filterFn: (exam, option) =>
+                                  exam.status
+                                      .toLowerCase()
+                                      .replaceAll(' ', '_') ==
+                                  option.toLowerCase().replaceAll(' ', '_'),
                             ),
                             AzureGridFilter<TeacherExam>(
                               label: 'Mode',
                               options: ['Online', 'Offline'],
-                              filterFn: (exam, option) => exam.examType.toLowerCase() == option.toLowerCase(),
+                              filterFn: (exam, option) =>
+                                  exam.examType.toLowerCase() ==
+                                  option.toLowerCase(),
                             ),
                           ],
                           onRefresh: _loadExams,
-                          mobileCardBuilder: (context, exam) => _buildExamCard(exam),
+                          mobileCardBuilder: (context, exam) =>
+                              _buildExamCard(exam),
                         ),
                       ),
           ),
@@ -584,16 +620,17 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
 
   Widget _buildExamCard(TeacherExam exam) {
     final typeColor = _getTypeColor(exam.examCategory);
-    
+
     final now = DateTime.now();
     final start = exam.startTime ?? exam.examDate;
     final digits = exam.duration.replaceAll(RegExp(r'[^0-9]'), '');
     final durationMins = int.tryParse(digits) ?? 90;
     final end = exam.endTime ?? start.add(Duration(minutes: durationMins));
-    
+
     final isUpcoming = now.isBefore(start);
-    final isCompleted = exam.status.toLowerCase() == 'completed' || now.isAfter(end);
-    
+    final isCompleted =
+        exam.status.toLowerCase() == 'completed' || now.isAfter(end);
+
     return GestureDetector(
       onTap: () => _navigateByStatus(exam),
       child: Container(
@@ -602,11 +639,13 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isUpcoming ? typeColor.withOpacity(0.3) : const Color(0xFFE2E8F0),
+            color: isUpcoming
+                ? typeColor.withValues(alpha: 0.3)
+                : const Color(0xFFE2E8F0),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
             ),
           ],
@@ -633,7 +672,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: exam.examType.toLowerCase() == 'online'
                                   ? const Color(0xFFEEF2FF)
@@ -646,7 +686,9 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                               ),
                             ),
                             child: Text(
-                              exam.examType.toLowerCase() == 'online' ? '🖥️ Online' : '📝 Offline',
+                              exam.examType.toLowerCase() == 'online'
+                                  ? '🖥️ Online'
+                                  : '📝 Offline',
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
@@ -664,9 +706,10 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.1),
+                        color: typeColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -680,9 +723,10 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(exam).withOpacity(0.1),
+                        color: _getStatusColor(exam).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -706,7 +750,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
+                    const Icon(Icons.calendar_today,
+                        size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
                       _formatExamDateTime(exam),
@@ -739,25 +784,34 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.help_outline, size: 12, color: Colors.grey),
+                    const Icon(Icons.help_outline,
+                        size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
                       '${exam.questionCount} ${exam.questionCount == 1 ? "Question" : "Questions"}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
               ],
             ),
-            if ((exam.status.toLowerCase() == 'ready' || exam.status.toLowerCase() == 'scheduled') && exam.releaseTime != null) ...[
+            if ((exam.status.toLowerCase() == 'ready' ||
+                    exam.status.toLowerCase() == 'scheduled') &&
+                exam.releaseTime != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
                   const Icon(Icons.publish, size: 12, color: Colors.indigo),
                   const SizedBox(width: 4),
                   Text(
-                     'Publish release: ${_formatReleaseDateTime(exam.releaseTime!)}',
-                    style: const TextStyle(fontSize: 12, color: Colors.indigo, fontWeight: FontWeight.w600),
+                    'Publish release: ${_formatReleaseDateTime(exam.releaseTime!)}',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.indigo,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -766,11 +820,15 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.people_alt_outlined, size: 12, color: Colors.teal),
+                  const Icon(Icons.people_alt_outlined,
+                      size: 12, color: Colors.teal),
                   const SizedBox(width: 4),
                   Text(
                     'Joined: ${exam.joinedCount} • Completed: ${exam.completedCount}',
-                    style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.teal,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -797,9 +855,10 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 const Spacer(),
                 if (isCompleted)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -819,7 +878,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => _navigateByStatus(exam),
-                    icon: Icon(_getPrimaryActionIcon(exam), size: 14, color: Colors.white),
+                    icon: Icon(_getPrimaryActionIcon(exam),
+                        size: 14, color: Colors.white),
                     label: Text(
                       _getPrimaryActionLabel(exam),
                       style: const TextStyle(
@@ -841,8 +901,10 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  onPressed: () => context.push('/teacher/exams/edit/${exam.id}'),
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                  onPressed: () =>
+                      context.push('/teacher/exams/edit/${exam.id}'),
+                  icon: const Icon(Icons.edit_outlined,
+                      size: 18, color: Color(0xFF64748B)),
                   tooltip: 'Edit Details',
                   style: IconButton.styleFrom(
                     backgroundColor: const Color(0xFFF1F5F9),
@@ -855,7 +917,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 const SizedBox(width: 4),
                 IconButton(
                   onPressed: () => _showExamActionsMenu(exam),
-                  icon: const Icon(Icons.more_horiz_rounded, size: 18, color: Color(0xFF64748B)),
+                  icon: const Icon(Icons.more_horiz_rounded,
+                      size: 18, color: Color(0xFF64748B)),
                   tooltip: 'More Actions',
                   style: IconButton.styleFrom(
                     backgroundColor: const Color(0xFFF1F5F9),
@@ -912,7 +975,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
     );
   }
 
-  Widget _buildActionCard(String title, String emoji, Color bgColor, Color textColor, VoidCallback onTap) {
+  Widget _buildActionCard(String title, String emoji, Color bgColor,
+      Color textColor, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -921,7 +985,7 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: textColor.withOpacity(0.15)),
+          border: Border.all(color: textColor.withValues(alpha: 0.15)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -956,9 +1020,9 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -971,7 +1035,7 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                 fontFamily: AppFonts.heading,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: color.withOpacity(0.9),
+                color: color.withValues(alpha: 0.9),
               ),
               textAlign: TextAlign.center,
             ),
@@ -1002,13 +1066,19 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
             children: [
               Text(
                 exam.title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, fontFamily: AppFonts.heading),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    fontFamily: AppFonts.heading),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
               Text(
                 '${exam.subject} • Class ${exam.class_}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center,
               ),
               const Divider(height: 24),
@@ -1058,7 +1128,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                             color: Colors.green,
                             onTap: () {
                               Navigator.pop(context);
-                              context.push('/teacher/exams/evaluate/${exam.id}');
+                              context
+                                  .push('/teacher/exams/evaluate/${exam.id}');
                             },
                           ),
                           _buildGridActionItem(
@@ -1076,7 +1147,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                             color: Colors.purple,
                             onTap: () {
                               Navigator.pop(context);
-                              context.push('/teacher/exams/analytics/${exam.id}');
+                              context
+                                  .push('/teacher/exams/analytics/${exam.id}');
                             },
                           ),
                         ],
@@ -1088,12 +1160,17 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
                           borderRadius: BorderRadius.circular(16),
                           side: BorderSide(color: Colors.red.shade100),
                         ),
-                        leading: const Icon(Icons.delete_forever, color: Colors.red),
+                        leading:
+                            const Icon(Icons.delete_forever, color: Colors.red),
                         title: const Text(
                           'Delete Exam Settings',
-                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                          style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13),
                         ),
-                        trailing: const Icon(Icons.chevron_right, color: Colors.red),
+                        trailing:
+                            const Icon(Icons.chevron_right, color: Colors.red),
                         onTap: () {
                           Navigator.pop(context);
                           _confirmDeleteExam(exam);
@@ -1115,7 +1192,8 @@ class _TeacherExamsState extends ConsumerState<TeacherExams> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Exam'),
-        content: Text('Are you sure you want to delete "${exam.title}"? This will also remove any student submissions and proctoring sessions.'),
+        content: Text(
+            'Are you sure you want to delete "${exam.title}"? This will also remove any student submissions and proctoring sessions.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

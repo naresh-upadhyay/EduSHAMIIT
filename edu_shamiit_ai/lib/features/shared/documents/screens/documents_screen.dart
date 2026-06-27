@@ -30,8 +30,7 @@ const _kCatColors = {
   'school_notice': Color(0xFFEF4444),
 };
 
-Color _catColor(DocumentCategory cat) =>
-    _kCatColors[cat.value] ?? _kPrimary;
+Color _catColor(DocumentCategory cat) => _kCatColors[cat.value] ?? _kPrimary;
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
@@ -109,7 +108,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
           content: Text(next.successMessage!),
           backgroundColor: const Color(0xFF10B981),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
         ref.read(documentsProvider.notifier).clearMessages();
       }
@@ -118,7 +118,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
           content: Text(next.error!),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
         ref.read(documentsProvider.notifier).clearMessages();
       }
@@ -135,7 +136,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
               if (context.canPop()) {
                 context.pop();
               } else {
-                context.go(isTeacher ? '/teacher/dashboard' : '/student/dashboard');
+                context.go(
+                    isTeacher ? '/teacher/dashboard' : '/student/dashboard');
               }
             },
           ),
@@ -153,10 +155,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                     child: AzureGrid<DocumentModel>(
                       title: 'Documents Ledger',
                       items: state.documents,
-                      onRefresh: () => ref.read(documentsProvider.notifier).loadDocuments(),
+                      onRefresh: () =>
+                          ref.read(documentsProvider.notifier).loadDocuments(),
                       extraCommandActions: [
                         IconButton(
-                          icon: const Icon(Icons.upload_rounded, color: _kPrimary),
+                          icon: const Icon(Icons.upload_rounded,
+                              color: _kPrimary),
                           tooltip: 'Upload Document',
                           onPressed: _showUploadSheet,
                         ),
@@ -166,8 +170,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                       filters: [
                         AzureGridFilter<DocumentModel>(
                           label: 'Category',
-                          options: DocumentCategory.values.map((e) => e.label).toList(),
-                          filterFn: (item, option) => item.category.label == option,
+                          options: DocumentCategory.values
+                              .map((e) => e.label)
+                              .toList(),
+                          filterFn: (item, option) =>
+                              item.category.label == option,
                         ),
                       ],
                       columns: [
@@ -181,15 +188,19 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                             children: [
                               Text(
                                 item.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 12),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (item.description != null && item.description!.isNotEmpty) ...[
+                              if (item.description != null &&
+                                  item.description!.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(
                                   item.description!,
-                                  style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                                  style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 10),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -200,10 +211,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                         AzureGridColumn<DocumentModel>(
                           label: 'File Name',
                           width: 180,
-                          compare: (a, b) => (a.fileName ?? '').compareTo(b.fileName ?? ''),
+                          compare: (a, b) =>
+                              (a.fileName ?? '').compareTo(b.fileName ?? ''),
                           cellBuilder: (item) => Row(
                             children: [
-                              Icon(_fileIcon(item), size: 14, color: _catColor(item.category)),
+                              Icon(_fileIcon(item),
+                                  size: 14, color: _catColor(item.category)),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -218,11 +231,14 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                         AzureGridColumn<DocumentModel>(
                           label: 'Category',
                           width: 130,
-                          compare: (a, b) => a.category.label.compareTo(b.category.label),
+                          compare: (a, b) =>
+                              a.category.label.compareTo(b.category.label),
                           cellBuilder: (item) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: _catColor(item.category).withOpacity(0.1),
+                              color: _catColor(item.category)
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -238,14 +254,18 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                         AzureGridColumn<DocumentModel>(
                           label: 'Size',
                           width: 90,
-                          compare: (a, b) => a.fileSizeLabel.compareTo(b.fileSizeLabel),
-                          cellBuilder: (item) => Text(item.fileSizeLabel.isEmpty ? '-' : item.fileSizeLabel),
+                          compare: (a, b) =>
+                              a.fileSizeLabel.compareTo(b.fileSizeLabel),
+                          cellBuilder: (item) => Text(item.fileSizeLabel.isEmpty
+                              ? '-'
+                              : item.fileSizeLabel),
                         ),
                         AzureGridColumn<DocumentModel>(
                           label: 'Created At',
                           width: 120,
                           compare: (a, b) => a.createdAt.compareTo(b.createdAt),
-                          cellBuilder: (item) => Text(_formatDate(item.createdAt)),
+                          cellBuilder: (item) =>
+                              Text(_formatDate(item.createdAt)),
                         ),
                         AzureGridColumn<DocumentModel>(
                           label: 'Actions',
@@ -253,7 +273,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                           cellBuilder: (item) => Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.download_rounded, size: 16, color: _kPrimary),
+                                icon: const Icon(Icons.download_rounded,
+                                    size: 16, color: _kPrimary),
                                 onPressed: () => _downloadDocument(item),
                                 tooltip: 'Download',
                                 constraints: const BoxConstraints(),
@@ -261,7 +282,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                               ),
                               const SizedBox(width: 8),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                                icon: const Icon(Icons.delete_outline_rounded,
+                                    size: 16, color: Color(0xFFEF4444)),
                                 onPressed: () => _deleteDocument(item),
                                 tooltip: 'Delete',
                                 constraints: const BoxConstraints(),
@@ -288,7 +310,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                 children: [
                   CircularProgressIndicator(color: _kPrimary),
                   SizedBox(width: 16),
-                  Text('Uploading…', style: TextStyle(fontFamily: AppFonts.body)),
+                  Text('Uploading…',
+                      style: TextStyle(fontFamily: AppFonts.body)),
                 ],
               ),
             ),
@@ -300,15 +323,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
   Future<void> _downloadDocument(DocumentModel doc) async {
     try {
       final url = doc.fileUrl;
-      if (url != null && (url.contains('/live-classes/play/') || url.contains('/play/'))) {
+      if (url != null &&
+          (url.contains('/live-classes/play/') || url.contains('/play/'))) {
         final uri = Uri.parse(url);
         final pathSegments = uri.pathSegments;
         final classId = pathSegments.isNotEmpty ? pathSegments.last : '';
         if (classId.isNotEmpty) {
           final auth = ref.read(authProvider);
           final isTeacher = auth.role.value == 'teacher';
-          final targetRoute = isTeacher 
-              ? '/teacher/live-classes/play/$classId' 
+          final targetRoute = isTeacher
+              ? '/teacher/live-classes/play/$classId'
               : '/student/live-classes/play/$classId';
           context.go(targetRoute);
           return;
@@ -317,7 +341,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
       final downloadUrl = doc.isFileBacked
           ? doc.fileUrl!
           : '${AppConfig.apiBaseUrl}/documents/${doc.id}/download';
-      await getDownloadHelper().downloadFile(downloadUrl, doc.fileName ?? 'document');
+      await getDownloadHelper()
+          .downloadFile(downloadUrl, doc.fileName ?? 'document');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -335,7 +360,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Document?',
-            style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+            style: TextStyle(
+                fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
         content: Text('Are you sure you want to delete "${doc.title}"?',
             style: const TextStyle(fontFamily: AppFonts.body)),
         actions: [
@@ -346,7 +372,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
@@ -413,11 +440,11 @@ class _Header extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.folder_rounded,
-                color: Colors.white, size: 24),
+            child:
+                const Icon(Icons.folder_rounded, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -481,9 +508,8 @@ class _TabBar extends StatelessWidget {
         indicatorWeight: 3,
         dividerColor: _kBorder,
         tabs: tabs.map((cat) {
-          final count = cat == null
-              ? state.documents.length
-              : state.countFor(cat);
+          final count =
+              cat == null ? state.documents.length : state.countFor(cat);
           final label = cat == null ? '📁 All' : cat.label;
           return Tab(
             child: Row(
@@ -496,9 +522,7 @@ class _TabBar extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: cat == null
-                          ? _kPrimary
-                          : _catColor(cat),
+                      color: cat == null ? _kPrimary : _catColor(cat),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -597,8 +621,8 @@ class _DocumentCardState extends State<_DocumentCard>
     super.initState();
     _ctrl = AnimationController(
         duration: const Duration(milliseconds: 120), vsync: this);
-    _scaleAnim = Tween(begin: 1.0, end: 0.97).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _scaleAnim = Tween(begin: 1.0, end: 0.97)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -670,11 +694,11 @@ class _DocumentCardState extends State<_DocumentCard>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
                 ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     Container(
@@ -684,8 +708,7 @@ class _DocumentCardState extends State<_DocumentCard>
                         color: _accentColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(_fileIcon,
-                          color: _accentColor, size: 24),
+                      child: Icon(_fileIcon, color: _accentColor, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Column(
@@ -869,7 +892,7 @@ class _EmptyState extends StatelessWidget {
   final DocumentCategory? category;
   final VoidCallback onUpload;
 
-  const _EmptyState({this.category, required this.onUpload});
+  const _EmptyState({required this.onUpload}) : category = null;
 
   @override
   Widget build(BuildContext context) {
@@ -910,8 +933,7 @@ class _EmptyState extends StatelessWidget {
                 color: _kSubText,
                 height: 1.5),
           ),
-          if (category == null ||
-              category == DocumentCategory.myUploads) ...[
+          if (category == null || category == DocumentCategory.myUploads) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onUpload,
@@ -919,8 +941,8 @@ class _EmptyState extends StatelessWidget {
                 backgroundColor: _kPrimary,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
               icon: const Icon(Icons.upload_rounded,
                   color: Colors.white, size: 18),
@@ -943,7 +965,8 @@ class _EmptyState extends StatelessWidget {
 // ─── Upload bottom sheet ──────────────────────────────────────────────────────
 
 class _UploadSheet extends StatefulWidget {
-  final Future<void> Function(List<int> bytes, String filename, String title, String desc) onUpload;
+  final Future<void> Function(
+      List<int> bytes, String filename, String title, String desc) onUpload;
 
   const _UploadSheet({required this.onUpload});
 
@@ -969,8 +992,8 @@ class _UploadSheetState extends State<_UploadSheet> {
         _pickedBytes = result.files.single.bytes;
         _pickedFileName = result.files.single.name;
         if (_titleController.text.isEmpty) {
-          _titleController.text = result.files.single.name
-              .replaceAll(RegExp(r'\.[^.]+$'), '');
+          _titleController.text =
+              result.files.single.name.replaceAll(RegExp(r'\.[^.]+$'), '');
         }
       });
     }
@@ -1029,9 +1052,8 @@ class _UploadSheetState extends State<_UploadSheet> {
             child: Container(
               height: 80,
               decoration: BoxDecoration(
-                color: _pickedBytes != null
-                    ? const Color(0xFFEEF2FF)
-                    : _kSurface,
+                color:
+                    _pickedBytes != null ? const Color(0xFFEEF2FF) : _kSurface,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: _pickedBytes != null ? _kPrimary : _kBorder,
@@ -1059,8 +1081,7 @@ class _UploadSheetState extends State<_UploadSheet> {
                       style: TextStyle(
                         fontFamily: AppFonts.body,
                         fontSize: 14,
-                        color:
-                            _pickedBytes != null ? _kPrimary : _kSubText,
+                        color: _pickedBytes != null ? _kPrimary : _kSubText,
                         fontWeight: _pickedBytes != null
                             ? FontWeight.w600
                             : FontWeight.w400,
@@ -1095,8 +1116,7 @@ class _UploadSheetState extends State<_UploadSheet> {
                   : () async {
                       if (_titleController.text.trim().isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Please enter a title')),
+                          const SnackBar(content: Text('Please enter a title')),
                         );
                         return;
                       }
@@ -1157,8 +1177,7 @@ class _UploadSheetState extends State<_UploadSheet> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: _kPrimary, width: 2),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
   }
 }

@@ -14,7 +14,8 @@ class LiveMonitoringScreen extends ConsumerStatefulWidget {
   const LiveMonitoringScreen({super.key, required this.examId});
 
   @override
-  ConsumerState<LiveMonitoringScreen> createState() => _LiveMonitoringScreenState();
+  ConsumerState<LiveMonitoringScreen> createState() =>
+      _LiveMonitoringScreenState();
 }
 
 class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
@@ -47,12 +48,18 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
 
       final exam = await _apiService.getExam(widget.examId);
       _examDetails = exam;
-      _isOfflineExam = (exam['exam_type']?.toString().toLowerCase() == 'offline');
+      _isOfflineExam =
+          (exam['exam_type']?.toString().toLowerCase() == 'offline');
 
       if (_isOfflineExam) {
-        final attendanceData = await _apiService.getExamAttendance(widget.examId);
-        final studentsList = (attendanceData['data']?['students'] ?? attendanceData['students']) as List? ?? [];
-        _attendanceList = studentsList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        final attendanceData =
+            await _apiService.getExamAttendance(widget.examId);
+        final studentsList = (attendanceData['data']?['students'] ??
+                attendanceData['students']) as List? ??
+            [];
+        _attendanceList = studentsList
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
         _presentStudentIds = _attendanceList
             .where((s) => s['present'] == true)
             .map((s) => s['id'] as String)
@@ -110,11 +117,14 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
         widget.examId,
         sessionId,
         action: 'warn',
-        message: '⚠️ Proctor warning: tab-switch or suspicious movements detected.',
+        message:
+            '⚠️ Proctor warning: tab-switch or suspicious movements detected.',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Warning dispatched to $name.'), backgroundColor: Colors.orange),
+        SnackBar(
+            content: Text('Warning dispatched to $name.'),
+            backgroundColor: Colors.orange),
       );
       if (res['success'] == true && res['data'] != null) {
         final updatedSession = res['data'] as Map<String, dynamic>;
@@ -130,7 +140,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to warn $name: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Failed to warn $name: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -144,7 +156,10 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(pause ? 'Exam paused for $name.' : 'Exam resumed for $name.'), backgroundColor: Colors.blue),
+        SnackBar(
+            content: Text(
+                pause ? 'Exam paused for $name.' : 'Exam resumed for $name.'),
+            backgroundColor: Colors.blue),
       );
       if (res['success'] == true && res['data'] != null) {
         final updatedSession = res['data'] as Map<String, dynamic>;
@@ -165,7 +180,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     }
   }
 
-  Future<void> _extendTime(String sessionId, String name, {int extraMinutes = 15}) async {
+  Future<void> _extendTime(String sessionId, String name,
+      {int extraMinutes = 15}) async {
     try {
       final res = await _apiService.sendProctorAction(
         widget.examId,
@@ -175,7 +191,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Extended duration for $name by $extraMinutes mins.'), backgroundColor: Colors.green),
+        SnackBar(
+            content: Text('Extended duration for $name by $extraMinutes mins.'),
+            backgroundColor: Colors.green),
       );
       if (res['success'] == true && res['data'] != null) {
         final updatedSession = res['data'] as Map<String, dynamic>;
@@ -191,17 +209,20 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to extend time: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Failed to extend time: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
 
-  Future<void> _toggleForceCamera(String sessionId, String studentName, bool currentActive) async {
+  Future<void> _toggleForceCamera(
+      String sessionId, String studentName, bool currentActive) async {
     final newActive = !currentActive;
     try {
       final channelName = 'proctor_signal_$sessionId';
       final channel = Supabase.instance.client.channel(channelName);
-      
+
       channel.subscribe((status, [error]) {
         if (status == RealtimeSubscribeStatus.subscribed) {
           channel.sendBroadcastMessage(
@@ -223,7 +244,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(newActive ? 'Camera forced ON for $studentName.' : 'Camera forced OFF for $studentName.'),
+          content: Text(newActive
+              ? 'Camera forced ON for $studentName.'
+              : 'Camera forced OFF for $studentName.'),
           backgroundColor: Colors.teal,
         ),
       );
@@ -247,12 +270,13 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     }
   }
 
-  Future<void> _toggleForceMic(String sessionId, String studentName, bool currentActive) async {
+  Future<void> _toggleForceMic(
+      String sessionId, String studentName, bool currentActive) async {
     final newActive = !currentActive;
     try {
       final channelName = 'proctor_signal_$sessionId';
       final channel = Supabase.instance.client.channel(channelName);
-      
+
       channel.subscribe((status, [error]) {
         if (status == RealtimeSubscribeStatus.subscribed) {
           channel.sendBroadcastMessage(
@@ -274,7 +298,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(newActive ? 'Microphone forced ON for $studentName.' : 'Microphone forced OFF for $studentName.'),
+          content: Text(newActive
+              ? 'Microphone forced ON for $studentName.'
+              : 'Microphone forced OFF for $studentName.'),
           backgroundColor: Colors.teal,
         ),
       );
@@ -307,7 +333,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Extend Time for $studentName',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -353,7 +380,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                 _extendTime(sessionId, studentName, extraMinutes: val);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid positive number.'), backgroundColor: Colors.red),
+                  const SnackBar(
+                      content: Text('Please enter a valid positive number.'),
+                      backgroundColor: Colors.red),
                 );
               }
             },
@@ -373,7 +402,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Forced exam submission for $name.'), backgroundColor: Colors.blueGrey),
+        SnackBar(
+            content: Text('Forced exam submission for $name.'),
+            backgroundColor: Colors.blueGrey),
       );
       if (res['success'] == true && res['data'] != null) {
         final updatedSession = res['data'] as Map<String, dynamic>;
@@ -389,7 +420,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Failed to submit: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -403,7 +435,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$name has been suspended.'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('$name has been suspended.'),
+            backgroundColor: Colors.red),
       );
       if (res['success'] == true && res['data'] != null) {
         final updatedSession = res['data'] as Map<String, dynamic>;
@@ -419,7 +453,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to suspend: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Failed to suspend: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -433,7 +469,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Exam reopened for $name. They can now rejoin.'), backgroundColor: Colors.green),
+        SnackBar(
+            content: Text('Exam reopened for $name. They can now rejoin.'),
+            backgroundColor: Colors.green),
       );
       if (res['success'] == true && res['data'] != null) {
         final updatedSession = res['data'] as Map<String, dynamic>;
@@ -449,7 +487,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to reopen exam: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Failed to reopen exam: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -498,7 +538,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                        Text('Error: $_error',
+                            style: const TextStyle(color: Colors.red)),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () {
@@ -519,7 +560,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                         ? const Center(
                             child: Text(
                               'No students are currently active in this exam.',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey),
                             ),
                           )
                         : Column(
@@ -528,7 +571,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                               Expanded(
                                 child: GridView.builder(
                                   padding: const EdgeInsets.all(16),
-                                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: Responsive.value<int>(
                                       context,
                                       mobile: 1,
@@ -541,7 +585,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                                   ),
                                   itemCount: _sessions.length,
                                   itemBuilder: (context, index) {
-                                    return _buildStudentProctorCard(_sessions[index]);
+                                    return _buildStudentProctorCard(
+                                        _sessions[index]);
                                   },
                                 ),
                               ),
@@ -552,9 +597,13 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
   }
 
   Widget _buildProctorOverviewBar() {
-    final activeCount = _sessions.where((s) => s['status'] == 'active' || s['status'] == 'online').length;
-    final warningCount = _sessions.where((s) => (s['warnings_count'] as int? ?? 0) > 0).length;
-    final disconnectedCount = _sessions.where((s) => s['is_online'] == false).length;
+    final activeCount = _sessions
+        .where((s) => s['status'] == 'active' || s['status'] == 'online')
+        .length;
+    final warningCount =
+        _sessions.where((s) => (s['warnings_count'] as int? ?? 0) > 0).length;
+    final disconnectedCount =
+        _sessions.where((s) => s['is_online'] == false).length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -576,10 +625,16 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
   Widget _buildSummaryChip(String label, String value, Color color) {
     return Row(
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 6),
-        Text('$label: ', style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
-        Text(value, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+        Text('$label: ',
+            style: const TextStyle(fontSize: 11.5, color: Colors.grey)),
+        Text(value,
+            style:
+                const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -588,7 +643,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     final warnings = session['warnings_count'] as int? ?? 0;
     final isPaused = session['is_paused'] as bool? ?? false;
     final status = session['status'] as String? ?? 'active';
-    
+
     // Check dynamic last ping online latency state
     bool isOnline = session['is_online'] as bool? ?? false;
     final lastPingStr = session['last_ping'] as String?;
@@ -602,7 +657,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
 
     final profile = session['profiles'] as Map<String, dynamic>? ?? {};
     final studentName = profile['full_name'] as String? ?? 'Student';
-    
+
     Color statusColor = Colors.green;
     if (!isOnline) {
       statusColor = Colors.grey;
@@ -617,11 +672,11 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: status == 'suspended' 
-              ? Colors.red 
-              : warnings > 0 
-                  ? Colors.red.shade200 
-                  : Colors.grey.shade200, 
+          color: status == 'suspended'
+              ? Colors.red
+              : warnings > 0
+                  ? Colors.red.shade200
+                  : Colors.grey.shade200,
           width: warnings > 0 ? 2.0 : 1.0,
         ),
       ),
@@ -632,64 +687,88 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
           children: [
             Row(
               children: [
-                Container(width: 10, height: 10, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
+                Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                        color: statusColor, shape: BoxShape.circle)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     studentName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-
-            _buildProctorDetailRow('Question Status', session['active_question'] != null ? 'Active' : 'N/A'),
-            _buildProctorDetailRow('Extra duration', '${session['extra_minutes'] ?? 0} Mins'),
-            _buildProctorDetailRow('Warnings', '$warnings / 5', valueColor: warnings > 0 ? Colors.red : null),
-            _buildProctorDetailRow('Connection', isOnline ? 'Online' : 'Offline', valueColor: isOnline ? Colors.green : Colors.red),
-            _buildProctorDetailRow('Status', status.toUpperCase(), valueColor: status == 'suspended' ? Colors.red : null),
-            
+            _buildProctorDetailRow('Question Status',
+                session['active_question'] != null ? 'Active' : 'N/A'),
+            _buildProctorDetailRow(
+                'Extra duration', '${session['extra_minutes'] ?? 0} Mins'),
+            _buildProctorDetailRow('Warnings', '$warnings / 5',
+                valueColor: warnings > 0 ? Colors.red : null),
+            _buildProctorDetailRow(
+                'Connection', isOnline ? 'Online' : 'Offline',
+                valueColor: isOnline ? Colors.green : Colors.red),
+            _buildProctorDetailRow('Status', status.toUpperCase(),
+                valueColor: status == 'suspended' ? Colors.red : null),
             const Divider(),
-            
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildControlIconButton(
-                  icon: (session['camera_active'] as bool? ?? true) ? Icons.videocam : Icons.videocam_off,
+                  icon: (session['camera_active'] as bool? ?? true)
+                      ? Icons.videocam
+                      : Icons.videocam_off,
                   isActive: session['camera_active'] as bool? ?? true,
-                  onTap: () => _toggleForceCamera(session['id'], studentName, session['camera_active'] as bool? ?? true),
-                  tooltip: (session['camera_active'] as bool? ?? true) ? 'Camera active. Tap to force OFF.' : 'Camera muted. Tap to force ON.',
+                  onTap: () => _toggleForceCamera(session['id'], studentName,
+                      session['camera_active'] as bool? ?? true),
+                  tooltip: (session['camera_active'] as bool? ?? true)
+                      ? 'Camera active. Tap to force OFF.'
+                      : 'Camera muted. Tap to force ON.',
                 ),
                 _buildControlIconButton(
-                  icon: (session['mic_active'] as bool? ?? true) ? Icons.mic : Icons.mic_off,
+                  icon: (session['mic_active'] as bool? ?? true)
+                      ? Icons.mic
+                      : Icons.mic_off,
                   isActive: session['mic_active'] as bool? ?? true,
-                  onTap: () => _toggleForceMic(session['id'], studentName, session['mic_active'] as bool? ?? true),
-                  tooltip: (session['mic_active'] as bool? ?? true) ? 'Mic active. Tap to force OFF.' : 'Mic muted. Tap to force ON.',
+                  onTap: () => _toggleForceMic(session['id'], studentName,
+                      session['mic_active'] as bool? ?? true),
+                  tooltip: (session['mic_active'] as bool? ?? true)
+                      ? 'Mic active. Tap to force OFF.'
+                      : 'Mic muted. Tap to force ON.',
                 ),
                 _buildControlIconButton(
                   icon: isPaused ? Icons.play_arrow : Icons.pause,
                   isActive: !isPaused,
-                  onTap: () => _pauseSession(session['id'], studentName, !isPaused),
-                  tooltip: isPaused ? 'Exam paused. Tap to resume.' : 'Exam active. Tap to pause.',
+                  onTap: () =>
+                      _pauseSession(session['id'], studentName, !isPaused),
+                  tooltip: isPaused
+                      ? 'Exam paused. Tap to resume.'
+                      : 'Exam active. Tap to pause.',
                 ),
               ],
             ),
             const Spacer(),
-
             if (status == 'completed' || status == 'suspended') ...[
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _reopenSession(session['id'], studentName),
-                  icon: const Icon(Icons.refresh, size: 14, color: Colors.white),
-                  label: const Text('Reopen Exam Session', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  icon:
+                      const Icon(Icons.refresh, size: 14, color: Colors.white),
+                  label: const Text('Reopen Exam Session',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ),
@@ -697,19 +776,28 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: isOnline ? () => _showProctorFeedDialog(session, studentName) : null,
-                  icon: const Icon(Icons.videocam, size: 14, color: Colors.white),
+                  onPressed: isOnline
+                      ? () => _showProctorFeedDialog(session, studentName)
+                      : null,
+                  icon:
+                      const Icon(Icons.videocam, size: 14, color: Colors.white),
                   label: Text(
-                    isOnline ? 'View Live Proctor Feed' : 'Student Offline / Feed Unavailable',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    isOnline
+                        ? 'View Live Proctor Feed'
+                        : 'Student Offline / Feed Unavailable',
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isOnline ? const Color(0xFFEF4444) : Colors.grey.shade400,
+                    backgroundColor: isOnline
+                        ? const Color(0xFFEF4444)
+                        : Colors.grey.shade400,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.grey.shade300,
                     disabledForegroundColor: Colors.grey.shade600,
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ),
@@ -723,7 +811,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
                       child: const Text('Warn', style: TextStyle(fontSize: 11)),
                     ),
@@ -731,14 +820,17 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _showStudentActionsDrawer(session, studentName),
+                      onPressed: () =>
+                          _showStudentActionsDrawer(session, studentName),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0F172A),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text('Actions', style: TextStyle(fontSize: 11)),
+                      child:
+                          const Text('Actions', style: TextStyle(fontSize: 11)),
                     ),
                   ),
                 ],
@@ -750,7 +842,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     );
   }
 
-  void _showProctorFeedDialog(Map<String, dynamic> session, String studentName) {
+  void _showProctorFeedDialog(
+      Map<String, dynamic> session, String studentName) {
     showDialog(
       context: context,
       builder: (context) => _ProctorFeedDialog(
@@ -769,7 +862,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     );
   }
 
-  Widget _buildProctorDetailRow(String label, String value, {Color? valueColor}) {
+  Widget _buildProctorDetailRow(String label, String value,
+      {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
@@ -788,7 +882,6 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       ),
     );
   }
-
 
   Widget _buildControlIconButton({
     required IconData icon,
@@ -830,7 +923,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     );
   }
 
-  void _showStudentActionsDrawer(Map<String, dynamic> session, String studentName) {
+  void _showStudentActionsDrawer(
+      Map<String, dynamic> session, String studentName) {
     final sessionId = session['id'] as String;
     final isPaused = session['is_paused'] as bool? ?? false;
 
@@ -854,8 +948,10 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: Icon(isPaused ? Icons.play_arrow : Icons.pause, color: Colors.orange),
-              title: Text(isPaused ? 'Resume Exam Session' : 'Pause Exam Session'),
+              leading: Icon(isPaused ? Icons.play_arrow : Icons.pause,
+                  color: Colors.orange),
+              title:
+                  Text(isPaused ? 'Resume Exam Session' : 'Pause Exam Session'),
               onTap: () {
                 Navigator.pop(context);
                 _pauseSession(sessionId, studentName, !isPaused);
@@ -905,7 +1001,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       final cls = (student['class'] ?? '').toString().toLowerCase();
       final roll = (student['roll_number'] ?? '').toString().toLowerCase();
       final query = _searchQuery.toLowerCase();
-      return name.contains(query) || cls.contains(query) || roll.contains(query);
+      return name.contains(query) ||
+          cls.contains(query) ||
+          roll.contains(query);
     }).toList();
 
     final total = _attendanceList.length;
@@ -919,11 +1017,16 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
           color: Colors.white,
           child: Row(
             children: [
-              Expanded(child: _buildSummaryCard('Total Students', '$total', Colors.blue)),
+              Expanded(
+                  child: _buildSummaryCard(
+                      'Total Students', '$total', Colors.blue)),
               const SizedBox(width: 12),
-              Expanded(child: _buildSummaryCard('Present', '$present', Colors.green)),
+              Expanded(
+                  child:
+                      _buildSummaryCard('Present', '$present', Colors.green)),
               const SizedBox(width: 12),
-              Expanded(child: _buildSummaryCard('Absent', '$absent', Colors.red)),
+              Expanded(
+                  child: _buildSummaryCard('Absent', '$absent', Colors.red)),
             ],
           ),
         ),
@@ -957,17 +1060,22 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                      const Icon(Icons.people_outline,
+                          size: 48, color: Colors.grey),
                       const SizedBox(height: 12),
                       Text(
-                        _searchQuery.isEmpty ? 'No students assigned to this exam.' : 'No students matching search criteria.',
-                        style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                        _searchQuery.isEmpty
+                            ? 'No students assigned to this exam.'
+                            : 'No students matching search criteria.',
+                        style: const TextStyle(
+                            color: Colors.grey, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   itemCount: filtered.length,
                   itemBuilder: (context, idx) {
                     final student = filtered[idx];
@@ -977,17 +1085,20 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isPresent ? Colors.green.withOpacity(0.3) : const Color(0xFFE2E8F0),
+                          color: isPresent
+                              ? Colors.green.withValues(alpha: 0.3)
+                              : const Color(0xFFE2E8F0),
                           width: isPresent ? 1.5 : 1,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
+                            color: Colors.black.withValues(alpha: 0.02),
                             blurRadius: 6,
                           ),
                         ],
@@ -995,10 +1106,14 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                       child: Row(
                         children: [
                           CircleAvatar(
-                            backgroundColor: isPresent ? Colors.green.withOpacity(0.1) : Colors.indigo.withOpacity(0.05),
+                            backgroundColor: isPresent
+                                ? Colors.green.withValues(alpha: 0.1)
+                                : Colors.indigo.withValues(alpha: 0.05),
                             radius: 20,
                             child: Text(
-                              (student['full_name'] ?? 'S').substring(0, 1).toUpperCase(),
+                              (student['full_name'] ?? 'S')
+                                  .substring(0, 1)
+                                  .toUpperCase(),
                               style: TextStyle(
                                 color: isPresent ? Colors.green : Colors.indigo,
                                 fontWeight: FontWeight.bold,
@@ -1025,14 +1140,20 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                                     ),
                                     if (isGraded)
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: Colors.green.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: Colors.green
+                                              .withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: const Text(
                                           'Graded',
-                                          style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold),
+                                          style: TextStyle(
+                                              color: Colors.green,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold),
                                         ),
                                       ),
                                   ],
@@ -1040,7 +1161,8 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   'Class: ${student['class'] ?? "N/A"} • Roll: ${student['roll_number'] ?? "—"}',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey[600]),
                                 ),
                               ],
                             ),
@@ -1048,7 +1170,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                           const SizedBox(width: 16),
                           Switch(
                             value: isPresent,
-                            activeColor: Colors.green,
+                            activeThumbColor: Colors.green,
                             onChanged: isGraded
                                 ? null
                                 : (val) {
@@ -1075,7 +1197,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
@@ -1098,11 +1220,13 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
                     )
                   : const Text(
                       'Save Attendance',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
             ),
           ),
@@ -1115,9 +1239,9 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
+        color: color.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Column(
         children: [
@@ -1136,7 +1260,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -1183,7 +1307,8 @@ class _FaceReticleOverlay extends StatefulWidget {
   State<_FaceReticleOverlay> createState() => _FaceReticleOverlayState();
 }
 
-class _FaceReticleOverlayState extends State<_FaceReticleOverlay> with SingleTickerProviderStateMixin {
+class _FaceReticleOverlayState extends State<_FaceReticleOverlay>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -1234,7 +1359,7 @@ class _FaceReticleOverlayState extends State<_FaceReticleOverlay> with SingleTic
                   color: Colors.teal.shade300,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.teal.shade300.withOpacity(0.8),
+                      color: Colors.teal.shade300.withValues(alpha: 0.8),
                       blurRadius: 4,
                       spreadRadius: 1,
                     )
@@ -1260,23 +1385,27 @@ class _ReticlePainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
-    final double length = 15.0;
+    const double length = 15.0;
 
     // Top-Left Corner
     canvas.drawLine(const Offset(0, 0), Offset(length, 0), paint);
     canvas.drawLine(const Offset(0, 0), Offset(0, length), paint);
 
     // Top-Right Corner
-    canvas.drawLine(Offset(size.width, 0), Offset(size.width - length, 0), paint);
+    canvas.drawLine(
+        Offset(size.width, 0), Offset(size.width - length, 0), paint);
     canvas.drawLine(Offset(size.width, 0), Offset(size.width, length), paint);
 
     // Bottom-Left Corner
     canvas.drawLine(Offset(0, size.height), Offset(length, size.height), paint);
-    canvas.drawLine(Offset(0, size.height), Offset(0, size.height - length), paint);
+    canvas.drawLine(
+        Offset(0, size.height), Offset(0, size.height - length), paint);
 
     // Bottom-Right Corner
-    canvas.drawLine(Offset(size.width, size.height), Offset(size.width - length, size.height), paint);
-    canvas.drawLine(Offset(size.width, size.height), Offset(size.width, size.height - length), paint);
+    canvas.drawLine(Offset(size.width, size.height),
+        Offset(size.width - length, size.height), paint);
+    canvas.drawLine(Offset(size.width, size.height),
+        Offset(size.width, size.height - length), paint);
   }
 
   @override
@@ -1303,7 +1432,8 @@ class _MicEqualizerMeterState extends State<_MicEqualizerMeter> {
       _timer = Timer.periodic(const Duration(milliseconds: 180), (timer) {
         if (widget.isOnline && mounted) {
           setState(() {
-            _heights = List.generate(15, (index) => _random.nextDouble() * 24 + 4);
+            _heights =
+                List.generate(15, (index) => _random.nextDouble() * 24 + 4);
           });
         }
       });
@@ -1330,7 +1460,9 @@ class _MicEqualizerMeterState extends State<_MicEqualizerMeter> {
           margin: const EdgeInsets.symmetric(horizontal: 1.5),
           decoration: BoxDecoration(
             color: widget.isOnline
-                ? (height > 20 ? Colors.redAccent : (height > 12 ? Colors.orangeAccent : Colors.greenAccent))
+                ? (height > 20
+                    ? Colors.redAccent
+                    : (height > 12 ? Colors.orangeAccent : Colors.greenAccent))
                 : Colors.grey.shade600,
             borderRadius: BorderRadius.circular(2),
           ),
@@ -1346,12 +1478,16 @@ class _ProctorFeedDialog extends StatefulWidget {
   final String studentName;
   final List<Map<String, dynamic>> Function() getSessions;
   final Future<void> Function(String sessionId, String studentName) onWarn;
-  final Future<void> Function(String sessionId, String studentName, bool pause) onPause;
-  final Future<void> Function(String sessionId, String studentName, {int extraMinutes}) onExtend;
+  final Future<void> Function(String sessionId, String studentName, bool pause)
+      onPause;
+  final Future<void> Function(String sessionId, String studentName,
+      {int extraMinutes}) onExtend;
   final Future<void> Function(String sessionId, String studentName) onSuspend;
   final Future<void> Function(String sessionId, String studentName) onReopen;
-  final Future<void> Function(String sessionId, String studentName, bool currentActive) onToggleCamera;
-  final Future<void> Function(String sessionId, String studentName, bool currentActive) onToggleMic;
+  final Future<void> Function(
+      String sessionId, String studentName, bool currentActive) onToggleCamera;
+  final Future<void> Function(
+      String sessionId, String studentName, bool currentActive) onToggleMic;
 
   const _ProctorFeedDialog({
     required this.examId,
@@ -1397,9 +1533,9 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
   Future<void> _setupSignaling() async {
     final channelName = 'proctor_signal_${widget.sessionId}';
     debugPrint('[TeacherProctor] Subscribing to $channelName');
-    
+
     _signalingChannel = Supabase.instance.client.channel(channelName);
-    
+
     _signalingChannel!.subscribe((status, [error]) {
       debugPrint('[TeacherProctor] Supabase signaling status: $status');
       if (status == RealtimeSubscribeStatus.subscribed) {
@@ -1443,25 +1579,28 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
         sfuUrl = sfuUrl.replaceFirst('https://', 'wss://');
       }
 
-      debugPrint('[TeacherProctor] Connecting to LiveKit: $sfuUrl, Room: $roomName');
+      debugPrint(
+          '[TeacherProctor] Connecting to LiveKit: $sfuUrl, Room: $roomName');
 
       _proctorRoom = Room();
-      
+
       _roomListener = _proctorRoom!.createListener();
       _roomListener!.on<RoomEvent>((event) {
         debugPrint('[TeacherProctor] RoomEvent: $event');
-        if (event is TrackSubscribedEvent || event is TrackUnsubscribedEvent || 
-            event is ParticipantConnectedEvent || event is ParticipantDisconnectedEvent) {
+        if (event is TrackSubscribedEvent ||
+            event is TrackUnsubscribedEvent ||
+            event is ParticipantConnectedEvent ||
+            event is ParticipantDisconnectedEvent) {
           _updateTracks();
         }
       });
 
       await _proctorRoom!.connect(sfuUrl, token);
-      
+
       setState(() {
         _isConnecting = false;
       });
-      
+
       _updateTracks();
       _sendConnectRequest();
     } catch (e) {
@@ -1477,18 +1616,18 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
 
   void _updateTracks() {
     if (_proctorRoom == null) return;
-    
+
     VideoTrack? newCameraTrack;
     VideoTrack? newScreenTrack;
-    
+
     for (final participant in _proctorRoom!.remoteParticipants.values) {
       for (final pub in participant.videoTrackPublications) {
         if (pub.subscribed && pub.track is VideoTrack) {
-          final isCamera = pub.source == TrackSource.camera || 
-                           pub.name.toLowerCase().contains('camera');
-          final isScreen = pub.source == TrackSource.screenShareVideo || 
-                           pub.name.toLowerCase().contains('screen');
-          
+          final isCamera = pub.source == TrackSource.camera ||
+              pub.name.toLowerCase().contains('camera');
+          final isScreen = pub.source == TrackSource.screenShareVideo ||
+              pub.name.toLowerCase().contains('screen');
+
           if (isCamera) {
             newCameraTrack = pub.track as VideoTrack;
           } else if (isScreen) {
@@ -1497,7 +1636,7 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
         }
       }
     }
-    
+
     if (mounted) {
       setState(() {
         _cameraTrack = newCameraTrack;
@@ -1515,7 +1654,8 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Extend Time for ${widget.studentName}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1558,11 +1698,14 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
               final val = int.tryParse(controller.text);
               if (val != null && val > 0) {
                 Navigator.pop(context);
-                await widget.onExtend(widget.sessionId, widget.studentName, extraMinutes: val);
+                await widget.onExtend(widget.sessionId, widget.studentName,
+                    extraMinutes: val);
                 setState(() {});
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid positive number.'), backgroundColor: Colors.red),
+                  const SnackBar(
+                      content: Text('Please enter a valid positive number.'),
+                      backgroundColor: Colors.red),
                 );
               }
             },
@@ -1585,32 +1728,37 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
     }
     if (_signalingChannel != null) {
       try {
-        _signalingChannel!.sendBroadcastMessage(event: 'disconnect_request', payload: {});
+        _signalingChannel!
+            .sendBroadcastMessage(event: 'disconnect_request', payload: {});
         Supabase.instance.client.removeChannel(_signalingChannel!);
       } catch (_) {}
     }
     super.dispose();
   }
 
-  Widget _buildLogLine(String time, String text, {bool isWarning = false, bool isInfo = false, bool isError = false}) {
+  Widget _buildLogLine(String time, String text,
+      {bool isWarning = false, bool isInfo = false, bool isError = false}) {
     Color col = Colors.grey.shade400;
     if (isWarning) col = Colors.orange.shade400;
     if (isInfo) col = Colors.teal.shade300;
     if (isError) col = Colors.red.shade400;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$time - ', style: const TextStyle(color: Colors.grey, fontSize: 10, fontFamily: 'Courier')),
+          Text('$time - ',
+              style: const TextStyle(
+                  color: Colors.grey, fontSize: 10, fontFamily: 'Courier')),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
                 color: col,
                 fontSize: 10,
-                fontWeight: isWarning || isError ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    isWarning || isError ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -1622,9 +1770,9 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
   @override
   Widget build(BuildContext context) {
     final session = widget.getSessions().firstWhere(
-      (s) => s['id'] == widget.sessionId,
-      orElse: () => <String, dynamic>{},
-    );
+          (s) => s['id'] == widget.sessionId,
+          orElse: () => <String, dynamic>{},
+        );
 
     if (session.isEmpty) {
       return Dialog(
@@ -1632,7 +1780,8 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
         backgroundColor: const Color(0xFF0F172A),
         child: const Padding(
           padding: EdgeInsets.all(24),
-          child: Text('Session not found', style: TextStyle(color: Colors.white)),
+          child:
+              Text('Session not found', style: TextStyle(color: Colors.white)),
         ),
       );
     }
@@ -1671,16 +1820,16 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: isOnline ? Colors.green : Colors.red,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isOnline ? Colors.green : Colors.red).withOpacity(0.5),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          )
-                        ]
-                      ),
+                          color: isOnline ? Colors.green : Colors.red,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isOnline ? Colors.green : Colors.red)
+                                  .withValues(alpha: 0.5),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            )
+                          ]),
                     ),
                     const SizedBox(width: 12),
                     Column(
@@ -1696,7 +1845,9 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                           ),
                         ),
                         Text(
-                          isOnline ? '🔴 Feed Live • Streaming at 1080p' : '⚪ Feed Terminated • Student Offline',
+                          isOnline
+                              ? '🔴 Feed Live • Streaming at 1080p'
+                              : '⚪ Feed Terminated • Student Offline',
                           style: TextStyle(
                             color: Colors.grey.shade400,
                             fontSize: 11,
@@ -1713,7 +1864,6 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
               ],
             ),
             const Divider(color: Color(0xFF1E293B), height: 32),
-            
             Expanded(
               child: SingleChildScrollView(
                 child: Wrap(
@@ -1721,26 +1871,31 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                   runSpacing: 20,
                   alignment: WrapAlignment.center,
                   children: [
-                    Container(
+                    SizedBox(
                       width: 300,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('CAM 01 - STUDENT VIEW', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                          const Text('CAM 01 - STUDENT VIEW',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Container(
                             height: 200,
                             decoration: BoxDecoration(
                               color: const Color(0xFF020617),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF1E293B)),
+                              border:
+                                  Border.all(color: const Color(0xFF1E293B)),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(16),
                               child: Stack(
                                 children: [
                                   Center(
-                                    child: isOnline 
+                                    child: isOnline
                                         ? (_cameraTrack != null
                                             ? VideoTrackRenderer(
                                                 _cameraTrack!,
@@ -1751,16 +1906,24 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                                 children: [
                                                   const _FaceReticleOverlay(),
                                                   Column(
-                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
                                                     children: [
-                                                      Icon(Icons.face, size: 64, color: Colors.teal.shade300),
-                                                      const SizedBox(height: 12),
+                                                      Icon(Icons.face,
+                                                          size: 64,
+                                                          color: Colors
+                                                              .teal.shade300),
+                                                      const SizedBox(
+                                                          height: 12),
                                                       Text(
                                                         'FACE FOCUS LOCKED',
                                                         style: TextStyle(
-                                                          color: Colors.teal.shade300,
+                                                          color: Colors
+                                                              .teal.shade300,
                                                           fontSize: 11,
-                                                          fontWeight: FontWeight.bold,
+                                                          fontWeight:
+                                                              FontWeight.bold,
                                                         ),
                                                       ),
                                                     ],
@@ -1768,9 +1931,11 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                                 ],
                                               ))
                                         : Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
-                                              const Icon(Icons.videocam_off, size: 64, color: Colors.grey),
+                                              const Icon(Icons.videocam_off,
+                                                  size: 64, color: Colors.grey),
                                               const SizedBox(height: 12),
                                               Text(
                                                 'FEED LOST',
@@ -1789,19 +1954,26 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                         top: 12,
                                         right: 12,
                                         child: IconButton(
-                                          icon: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                          icon: const Icon(
+                                              Icons.fullscreen_rounded,
+                                              color: Colors.white,
+                                              size: 20),
                                           style: IconButton.styleFrom(
-                                            backgroundColor: Colors.black.withOpacity(0.6),
+                                            backgroundColor: Colors.black
+                                                .withValues(alpha: 0.6),
                                             padding: const EdgeInsets.all(4),
                                             minimumSize: Size.zero,
-                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
                                           ),
                                           onPressed: () {
                                             showDialog(
                                               context: context,
-                                              builder: (context) => _FullScreenVideoDialog(
+                                              builder: (context) =>
+                                                  _FullScreenVideoDialog(
                                                 track: _cameraTrack!,
-                                                title: '${widget.studentName} - CAM 01',
+                                                title:
+                                                    '${widget.studentName} - CAM 01',
                                                 fit: VideoViewFit.cover,
                                               ),
                                             );
@@ -1812,16 +1984,25 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                       top: 12,
                                       left: 12,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: Colors.red.withOpacity(0.8),
-                                          borderRadius: BorderRadius.circular(4),
+                                          color:
+                                              Colors.red.withValues(alpha: 0.8),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: const Row(
                                           children: [
-                                            Icon(Icons.fiber_manual_record, color: Colors.white, size: 10),
+                                            Icon(Icons.fiber_manual_record,
+                                                color: Colors.white, size: 10),
                                             SizedBox(width: 4),
-                                            Text('REC', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                            Text('REC',
+                                                style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 9,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
                                           ],
                                         ),
                                       ),
@@ -1830,8 +2011,13 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                       bottom: 12,
                                       right: 12,
                                       child: Text(
-                                        DateTime.now().toIso8601String().substring(11, 19),
-                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'Courier'),
+                                        DateTime.now()
+                                            .toIso8601String()
+                                            .substring(11, 19),
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontFamily: 'Courier'),
                                       ),
                                     ),
                                   ],
@@ -1839,20 +2025,23 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                               ),
                             ),
                           ),
-                          
                           const SizedBox(height: 16),
-                          
-                          const Text('SCR 02 - EXAM TERMINAL', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                          const Text('SCR 02 - EXAM TERMINAL',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Container(
                             height: 120,
                             decoration: BoxDecoration(
                               color: const Color(0xFF020617),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF1E293B)),
+                              border:
+                                  Border.all(color: const Color(0xFF1E293B)),
                             ),
                             child: Center(
-                              child: isOnline 
+                              child: isOnline
                                   ? (_screenTrack != null
                                       ? Stack(
                                           children: [
@@ -1866,19 +2055,28 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                               top: 8,
                                               right: 8,
                                               child: IconButton(
-                                                icon: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                                                icon: const Icon(
+                                                    Icons.fullscreen_rounded,
+                                                    color: Colors.white,
+                                                    size: 20),
                                                 style: IconButton.styleFrom(
-                                                  backgroundColor: Colors.black.withOpacity(0.6),
-                                                  padding: const EdgeInsets.all(4),
+                                                  backgroundColor: Colors.black
+                                                      .withValues(alpha: 0.6),
+                                                  padding:
+                                                      const EdgeInsets.all(4),
                                                   minimumSize: Size.zero,
-                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
                                                 ),
                                                 onPressed: () {
                                                   showDialog(
                                                     context: context,
-                                                    builder: (context) => _FullScreenVideoDialog(
+                                                    builder: (context) =>
+                                                        _FullScreenVideoDialog(
                                                       track: _screenTrack!,
-                                                      title: '${widget.studentName} - SCR 02',
+                                                      title:
+                                                          '${widget.studentName} - SCR 02',
                                                       fit: VideoViewFit.contain,
                                                     ),
                                                   );
@@ -1888,9 +2086,11 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                           ],
                                         )
                                       : const Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
-                                            Icon(Icons.screenshot, size: 36, color: Colors.blue),
+                                            Icon(Icons.screenshot,
+                                                size: 36, color: Colors.blue),
                                             SizedBox(height: 8),
                                             Text(
                                               'ACTIVE EXAM PAGE OPEN',
@@ -1902,19 +2102,24 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                             ),
                                           ],
                                         ))
-                                  : const Text('SCREEN DISCONNECTED', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                                  : const Text('SCREEN DISCONNECTED',
+                                      style: TextStyle(
+                                          color: Colors.grey, fontSize: 10)),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    
-                    Container(
+                    SizedBox(
                       width: 300,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('REAL-TIME PROCTOR LOGS', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                          const Text('REAL-TIME PROCTOR LOGS',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Container(
                             height: 160,
@@ -1922,86 +2127,107 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF020617),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF1E293B)),
+                              border:
+                                  Border.all(color: const Color(0xFF1E293B)),
                             ),
-                            child: Builder(
-                              builder: (context) {
-                                final rawLogs = session['proctor_logs'];
-                                List<dynamic> logList = [];
-                                if (rawLogs is List) {
-                                  logList = rawLogs;
-                                }
-                                if (logList.isEmpty) {
-                                  return const Center(
-                                    child: Text('No logs available.', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                                  );
-                                }
-                                return ListView.builder(
-                                  itemCount: logList.length,
-                                  itemBuilder: (context, index) {
-                                    final logItem = logList[index];
-                                    if (logItem is! Map) return const SizedBox.shrink();
-                                    final timeStr = logItem['time']?.toString() ?? '';
-                                    final eventStr = logItem['event']?.toString() ?? '';
-                                    final severity = logItem['severity']?.toString() ?? 'info';
-                                    return _buildLogLine(
-                                      timeStr,
-                                      eventStr,
-                                      isWarning: severity == 'warning',
-                                      isInfo: severity == 'info',
-                                      isError: severity == 'error',
-                                    );
-                                  },
+                            child: Builder(builder: (context) {
+                              final rawLogs = session['proctor_logs'];
+                              List<dynamic> logList = [];
+                              if (rawLogs is List) {
+                                logList = rawLogs;
+                              }
+                              if (logList.isEmpty) {
+                                return const Center(
+                                  child: Text('No logs available.',
+                                      style: TextStyle(
+                                          color: Colors.grey, fontSize: 10)),
                                 );
                               }
-                            ),
+                              return ListView.builder(
+                                itemCount: logList.length,
+                                itemBuilder: (context, index) {
+                                  final logItem = logList[index];
+                                  if (logItem is! Map)
+                                    return const SizedBox.shrink();
+                                  final timeStr =
+                                      logItem['time']?.toString() ?? '';
+                                  final eventStr =
+                                      logItem['event']?.toString() ?? '';
+                                  final severity =
+                                      logItem['severity']?.toString() ?? 'info';
+                                  return _buildLogLine(
+                                    timeStr,
+                                    eventStr,
+                                    isWarning: severity == 'warning',
+                                    isInfo: severity == 'info',
+                                    isError: severity == 'error',
+                                  );
+                                },
+                              );
+                            }),
                           ),
-                          
                           const SizedBox(height: 16),
-                          
-                          const Text('AUDIO MONITORING (MIC)', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                          const Text('AUDIO MONITORING (MIC)',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
                               color: const Color(0xFF020617),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF1E293B)),
+                              border:
+                                  Border.all(color: const Color(0xFF1E293B)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.mic, color: Colors.green, size: 18),
+                                const Icon(Icons.mic,
+                                    color: Colors.green, size: 18),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Container(
                                     height: 30,
                                     alignment: Alignment.centerLeft,
-                                    child: _MicEqualizerMeter(isOnline: isOnline),
+                                    child:
+                                        _MicEqualizerMeter(isOnline: isOnline),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
                                   isOnline ? '32 dB' : '0 dB',
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
                           ),
-                          
                           const SizedBox(height: 20),
-                          
-                          const Text('CONSOLE CONTROLS', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+                          const Text('CONSOLE CONTROLS',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 10),
-                          if (status == 'completed' || status == 'suspended') ...[
+                          if (status == 'completed' ||
+                              status == 'suspended') ...[
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
                                 onPressed: () async {
-                                  await widget.onReopen(widget.sessionId, widget.studentName);
+                                  await widget.onReopen(
+                                      widget.sessionId, widget.studentName);
                                   setState(() {});
                                 },
-                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-                                child: const Text('Reopen Exam Session', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF10B981)),
+                                child: const Text('Reopen Exam Session',
+                                    style: TextStyle(
+                                        fontSize: 11, color: Colors.white)),
                               ),
                             ),
                           ] else ...[
@@ -2010,26 +2236,33 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: () async {
-                                      await widget.onWarn(widget.sessionId, widget.studentName);
+                                      await widget.onWarn(
+                                          widget.sessionId, widget.studentName);
                                       setState(() {});
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.orange.shade800,
                                     ),
-                                    child: const Text('Warn', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                    child: const Text('Warn',
+                                        style: TextStyle(
+                                            fontSize: 11, color: Colors.white)),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: () async {
-                                      await widget.onPause(widget.sessionId, widget.studentName, !isPaused);
+                                      await widget.onPause(widget.sessionId,
+                                          widget.studentName, !isPaused);
                                       setState(() {});
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: isPaused ? Colors.green : Colors.red,
+                                      backgroundColor:
+                                          isPaused ? Colors.green : Colors.red,
                                     ),
-                                    child: Text(isPaused ? 'Resume' : 'Pause', style: const TextStyle(fontSize: 11, color: Colors.white)),
+                                    child: Text(isPaused ? 'Resume' : 'Pause',
+                                        style: const TextStyle(
+                                            fontSize: 11, color: Colors.white)),
                                   ),
                                 ),
                               ],
@@ -2040,21 +2273,37 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                 Expanded(
                                   child: ElevatedButton.icon(
                                     onPressed: () async {
-                                      final camActive = session['camera_active'] as bool? ?? true;
-                                      await widget.onToggleCamera(widget.sessionId, widget.studentName, camActive);
+                                      final camActive =
+                                          session['camera_active'] as bool? ??
+                                              true;
+                                      await widget.onToggleCamera(
+                                          widget.sessionId,
+                                          widget.studentName,
+                                          camActive);
                                       setState(() {});
                                     },
                                     icon: Icon(
-                                      (session['camera_active'] as bool? ?? true) ? Icons.videocam : Icons.videocam_off,
+                                      (session['camera_active'] as bool? ??
+                                              true)
+                                          ? Icons.videocam
+                                          : Icons.videocam_off,
                                       size: 14,
                                       color: Colors.white,
                                     ),
                                     label: Text(
-                                      (session['camera_active'] as bool? ?? true) ? 'Cam: ON' : 'Cam: OFF',
-                                      style: const TextStyle(fontSize: 11, color: Colors.white),
+                                      (session['camera_active'] as bool? ??
+                                              true)
+                                          ? 'Cam: ON'
+                                          : 'Cam: OFF',
+                                      style: const TextStyle(
+                                          fontSize: 11, color: Colors.white),
                                     ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: (session['camera_active'] as bool? ?? true) ? Colors.green.shade800 : Colors.red.shade900,
+                                      backgroundColor:
+                                          (session['camera_active'] as bool? ??
+                                                  true)
+                                              ? Colors.green.shade800
+                                              : Colors.red.shade900,
                                     ),
                                   ),
                                 ),
@@ -2062,21 +2311,33 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                 Expanded(
                                   child: ElevatedButton.icon(
                                     onPressed: () async {
-                                      final micActive = session['mic_active'] as bool? ?? true;
-                                      await widget.onToggleMic(widget.sessionId, widget.studentName, micActive);
+                                      final micActive =
+                                          session['mic_active'] as bool? ??
+                                              true;
+                                      await widget.onToggleMic(widget.sessionId,
+                                          widget.studentName, micActive);
                                       setState(() {});
                                     },
                                     icon: Icon(
-                                      (session['mic_active'] as bool? ?? true) ? Icons.mic : Icons.mic_off,
+                                      (session['mic_active'] as bool? ?? true)
+                                          ? Icons.mic
+                                          : Icons.mic_off,
                                       size: 14,
                                       color: Colors.white,
                                     ),
                                     label: Text(
-                                      (session['mic_active'] as bool? ?? true) ? 'Mic: ON' : 'Mic: OFF',
-                                      style: const TextStyle(fontSize: 11, color: Colors.white),
+                                      (session['mic_active'] as bool? ?? true)
+                                          ? 'Mic: ON'
+                                          : 'Mic: OFF',
+                                      style: const TextStyle(
+                                          fontSize: 11, color: Colors.white),
                                     ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: (session['mic_active'] as bool? ?? true) ? Colors.green.shade800 : Colors.red.shade900,
+                                      backgroundColor:
+                                          (session['mic_active'] as bool? ??
+                                                  true)
+                                              ? Colors.green.shade800
+                                              : Colors.red.shade900,
                                     ),
                                   ),
                                 ),
@@ -2090,19 +2351,27 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                     onPressed: () async {
                                       _showFeedCustomTimeExtensionDialog();
                                     },
-                                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF334155)),
-                                    child: const Text('Extend Time', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF334155)),
+                                    child: const Text('Extend Time',
+                                        style: TextStyle(
+                                            fontSize: 11, color: Colors.white)),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: ElevatedButton(
                                     onPressed: () async {
-                                      await widget.onSuspend(widget.sessionId, widget.studentName);
+                                      await widget.onSuspend(
+                                          widget.sessionId, widget.studentName);
                                       Navigator.pop(context);
                                     },
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade900),
-                                    child: const Text('Suspend', style: TextStyle(fontSize: 11, color: Colors.white)),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red.shade900),
+                                    child: const Text('Suspend',
+                                        style: TextStyle(
+                                            fontSize: 11, color: Colors.white)),
                                   ),
                                 ),
                               ],
@@ -2168,7 +2437,8 @@ class _FullScreenVideoDialog extends StatelessWidget {
             top: 20,
             right: 20,
             child: IconButton(
-              icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+              icon: const Icon(Icons.close_rounded,
+                  color: Colors.white, size: 28),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.black54,
                 padding: const EdgeInsets.all(8),

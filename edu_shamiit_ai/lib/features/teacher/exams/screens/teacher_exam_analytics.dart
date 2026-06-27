@@ -11,12 +11,14 @@ class TeacherExamAnalyticsScreen extends ConsumerStatefulWidget {
   const TeacherExamAnalyticsScreen({super.key, required this.examId});
 
   @override
-  ConsumerState<TeacherExamAnalyticsScreen> createState() => _TeacherExamAnalyticsScreenState();
+  ConsumerState<TeacherExamAnalyticsScreen> createState() =>
+      _TeacherExamAnalyticsScreenState();
 }
 
-class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalyticsScreen> {
+class _TeacherExamAnalyticsScreenState
+    extends ConsumerState<TeacherExamAnalyticsScreen> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   bool _isLoading = true;
   String? _error;
   Map<String, dynamic>? _analytics;
@@ -88,7 +90,9 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
                 ? _buildErrorWidget()
                 : SingleChildScrollView(
                     padding: const EdgeInsets.all(20.0),
-                    child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+                    child: isDesktop
+                        ? _buildDesktopLayout()
+                        : _buildMobileLayout(),
                   ),
       ),
     );
@@ -156,7 +160,7 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
   Widget _buildStatsCardsGrid() {
     final stats = _analytics?['stats'] as Map<String, dynamic>? ?? {};
     final totalMarks = _analytics?['total_marks'] ?? 100.0;
-    
+
     final avg = (stats['avg_score'] ?? 0.0) as num;
     final highest = (stats['highest_score'] ?? 0.0) as num;
     final lowest = (stats['lowest_score'] ?? 0.0) as num;
@@ -204,7 +208,8 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
     );
   }
 
-  Widget _buildStatCard(String label, String value, String subtitle, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String label, String value, String subtitle, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -228,7 +233,10 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey),
               ),
               Icon(icon, size: 18, color: color),
             ],
@@ -238,12 +246,16 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
             children: [
               Text(
                 value,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 9.5, color: color, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 9.5, color: color, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -253,18 +265,19 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
   }
 
   Widget _buildGradeDistributionCard() {
-    final gradeDist = _analytics?['grade_distribution'] as Map<String, dynamic>? ?? {};
+    final gradeDist =
+        _analytics?['grade_distribution'] as Map<String, dynamic>? ?? {};
     final total = gradeDist.values.fold(0, (sum, val) => sum + (val as int));
-    
+
     // Grades palette
     final colors = {
       'A+': const Color(0xFF10B981), // Green
-      'A': const Color(0xFF34D399),  // Light Green
+      'A': const Color(0xFF34D399), // Light Green
       'B+': const Color(0xFF3B82F6), // Blue
-      'B': const Color(0xFF60A5FA),  // Light Blue
-      'C': const Color(0xFFF59E0B),  // Orange
-      'D': const Color(0xFFFB923C),  // Light Orange
-      'F': const Color(0xFFEF4444),  // Red
+      'B': const Color(0xFF60A5FA), // Light Blue
+      'C': const Color(0xFFF59E0B), // Orange
+      'D': const Color(0xFFFB923C), // Light Orange
+      'F': const Color(0xFFEF4444), // Red
     };
 
     return Container(
@@ -279,14 +292,18 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
         children: [
           const Text(
             'Grade Distribution',
-            style: TextStyle(fontFamily: AppFonts.heading, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontFamily: AppFonts.heading,
+                fontSize: 14,
+                fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
           if (total == 0)
             const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('No grades data available', style: TextStyle(color: Colors.grey)),
+                child: Text('No grades data available',
+                    style: TextStyle(color: Colors.grey)),
               ),
             )
           else ...[
@@ -327,7 +344,8 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
               runSpacing: 8,
               children: gradeDist.entries.map((e) {
                 final count = e.value as int;
-                final pct = total > 0 ? (count / total * 100).toStringAsFixed(1) : '0';
+                final pct =
+                    total > 0 ? (count / total * 100).toStringAsFixed(1) : '0';
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -342,7 +360,10 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
                     const SizedBox(width: 6),
                     Text(
                       '${e.key}: $count ($pct%)',
-                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Colors.black87),
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87),
                     ),
                   ],
                 );
@@ -355,8 +376,10 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
   }
 
   Widget _buildHistogramCard() {
-    final dist = _analytics?['score_distribution'] as Map<String, dynamic>? ?? {};
-    final maxVal = dist.values.fold(0, (maxVal, val) => val as int > maxVal ? val : maxVal);
+    final dist =
+        _analytics?['score_distribution'] as Map<String, dynamic>? ?? {};
+    final maxVal = dist.values
+        .fold(0, (maxVal, val) => val as int > maxVal ? val : maxVal);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -370,11 +393,16 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
         children: [
           const Text(
             'Score Distribution',
-            style: TextStyle(fontFamily: AppFonts.heading, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontFamily: AppFonts.heading,
+                fontSize: 14,
+                fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
           if (dist.isEmpty)
-            const Center(child: Text('No submissions graded yet', style: TextStyle(color: Colors.grey)))
+            const Center(
+                child: Text('No submissions graded yet',
+                    style: TextStyle(color: Colors.grey)))
           else ...[
             SizedBox(
               height: 160,
@@ -391,27 +419,34 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
                         if (val > 0)
                           Text(
                             '$val',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _primary),
+                            style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: _primary),
                           ),
                         const SizedBox(height: 4),
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           height: pct * 110 > 4.0 ? pct * 110 : 4.0,
                           margin: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
                               colors: [_primary, Color(0xFF818CF8)],
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
                             ),
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(4)),
                           ),
                         ),
                         const SizedBox(height: 6),
                         // Label (show only start of range for compactness)
                         Text(
                           e.key.replaceAll('%', ''),
-                          style: TextStyle(fontSize: 7.5, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 7.5,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -440,20 +475,27 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
         children: [
           const Text(
             'Question Performance Analysis',
-            style: TextStyle(fontFamily: AppFonts.heading, fontSize: 14, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontFamily: AppFonts.heading,
+                fontSize: 14,
+                fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           if (qStats.isEmpty)
-            const Text('No question statistics available', style: TextStyle(color: Colors.grey))
+            const Text('No question statistics available',
+                style: TextStyle(color: Colors.grey))
           else
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: qStats.length,
-              separatorBuilder: (_, __) => const Divider(height: 20, color: _border),
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 20, color: _border),
               itemBuilder: (context, idx) {
                 final q = qStats[idx] as Map<String, dynamic>;
-                final acc = q['accuracy'] != null ? (q['accuracy'] as num).toDouble() : null;
+                final acc = q['accuracy'] != null
+                    ? (q['accuracy'] as num).toDouble()
+                    : null;
                 final text = q['text'] ?? 'Question';
                 final marks = q['marks'] ?? 0;
                 final type = q['type'] ?? 'mcq';
@@ -461,14 +503,18 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
                 return Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: _primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         type.toString().toUpperCase(),
-                        style: const TextStyle(fontSize: 8.5, color: _primary, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            fontSize: 8.5,
+                            color: _primary,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -478,12 +524,15 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
                         children: [
                           Text(
                             text,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Text('Weight: $marks Marks', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                          Text('Weight: $marks Marks',
+                              style: const TextStyle(
+                                  fontSize: 10, color: Colors.grey)),
                         ],
                       ),
                     ),
@@ -508,7 +557,8 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
                         const SizedBox(height: 2),
                         Text(
                           acc == null ? 'Subjective' : 'Accuracy',
-                          style: TextStyle(fontSize: 8.5, color: Colors.grey.shade500),
+                          style: TextStyle(
+                              fontSize: 8.5, color: Colors.grey.shade500),
                         ),
                       ],
                     ),
@@ -539,7 +589,10 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
           children: [
             const Text(
               'Student Standings',
-              style: TextStyle(fontFamily: AppFonts.heading, fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             const TabBar(
@@ -594,7 +647,9 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
           contentPadding: EdgeInsets.zero,
           leading: CircleAvatar(
             radius: 16,
-            backgroundColor: isTop ? _success.withValues(alpha: 0.1) : _danger.withValues(alpha: 0.1),
+            backgroundColor: isTop
+                ? _success.withValues(alpha: 0.1)
+                : _danger.withValues(alpha: 0.1),
             child: Text(
               '${idx + 1}',
               style: TextStyle(
@@ -618,11 +673,15 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
             children: [
               Text(
                 '$score Marks',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
               Text(
                 'Grade $grade ($pct%)',
-                style: TextStyle(fontSize: 9.5, color: isTop ? _success : _danger, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 9.5,
+                    color: isTop ? _success : _danger,
+                    fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -638,7 +697,8 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
           child: ElevatedButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Downloading PDF analytics report...')),
+                const SnackBar(
+                    content: Text('Downloading PDF analytics report...')),
               );
             },
             icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
@@ -665,11 +725,13 @@ class _TeacherExamAnalyticsScreenState extends ConsumerState<TeacherExamAnalytic
         children: [
           const Icon(Icons.error_outline_rounded, color: _danger, size: 48),
           const SizedBox(height: 16),
-          Text(_error ?? 'An unexpected error occurred', style: const TextStyle(color: Colors.red)),
+          Text(_error ?? 'An unexpected error occurred',
+              style: const TextStyle(color: Colors.red)),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _loadData,
-            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _primary, foregroundColor: Colors.white),
             child: const Text('Retry'),
           ),
         ],

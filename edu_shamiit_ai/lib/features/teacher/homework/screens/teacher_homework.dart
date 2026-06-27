@@ -59,7 +59,16 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
   String _selectedClass = '';
   String _selectedSubject = 'Mathematics';
   List<String> _classes = [];
-  List<String> _subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Computer Science'];
+  List<String> _subjects = [
+    'Mathematics',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'English',
+    'History',
+    'Geography',
+    'Computer Science'
+  ];
   DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
   String _activeStatusFilter = 'All';
   String _activeActionStateFilter = 'All';
@@ -79,7 +88,10 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
   }
 
   Future<void> _loadAll() async {
-    setState(() { _isLoading = true; _error = null; });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final results = await Future.wait([
         _apiService.getHomeworkAssignments(status: 'active'),
@@ -94,9 +106,15 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         _graded = results[2] as List<TeacherHomeworkAssignment>;
 
         final allMap = <String, TeacherHomeworkAssignment>{};
-        for (var hw in _active) { allMap[hw.id] = hw; }
-        for (var hw in _submissions) { allMap[hw.id] = hw; }
-        for (var hw in _graded) { allMap[hw.id] = hw; }
+        for (var hw in _active) {
+          allMap[hw.id] = hw;
+        }
+        for (var hw in _submissions) {
+          allMap[hw.id] = hw;
+        }
+        for (var hw in _graded) {
+          allMap[hw.id] = hw;
+        }
         _allHomework = allMap.values.toList();
         _allHomework.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -109,11 +127,15 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         }
         final classesRes = results[4] as List<TeacherMyClass>;
         if (classesRes.isNotEmpty) {
-          _classes = classesRes.map((c) {
-            final section = c.section.trim();
-            if (section.isEmpty || c.name.contains('-$section')) return c.name;
-            return '${c.name}-$section';
-          }).toSet().toList();
+          _classes = classesRes
+              .map((c) {
+                final section = c.section.trim();
+                if (section.isEmpty || c.name.contains('-$section'))
+                  return c.name;
+                return '${c.name}-$section';
+              })
+              .toSet()
+              .toList();
           if (!_classes.contains(_selectedClass)) {
             _selectedClass = _classes.first;
           }
@@ -121,7 +143,10 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() { _error = e.toString(); _isLoading = false; });
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
@@ -147,7 +172,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
     return _kSuccess;
   }
 
-  HomeworkActionButtonState _getActionButtonState(TeacherHomeworkAssignment hw) {
+  HomeworkActionButtonState _getActionButtonState(
+      TeacherHomeworkAssignment hw) {
     if (hw.submittedCount == 0) {
       return const HomeworkActionButtonState(
         label: 'Awaiting Submissions',
@@ -217,7 +243,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         label: 'Submissions',
         width: 110.0,
         compare: (a, b) => a.submissionRate.compareTo(b.submissionRate),
-        cellBuilder: (hw) => Text('${hw.submittedCount}/${hw.totalCount} (${hw.submissionRate.toInt()}%)'),
+        cellBuilder: (hw) => Text(
+            '${hw.submittedCount}/${hw.totalCount} (${hw.submissionRate.toInt()}%)'),
       ),
       AzureGridColumn<TeacherHomeworkAssignment>(
         label: 'Due Date',
@@ -225,7 +252,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         compare: (a, b) => a.dueDate.compareTo(b.dueDate),
         cellBuilder: (hw) {
           final color = _dueColor(hw);
-          final daysStr = hw.isOverdue ? 'Overdue' : 'Due in ${hw.dueDate.difference(DateTime.now()).inDays}d';
+          final daysStr = hw.isOverdue
+              ? 'Overdue'
+              : 'Due in ${hw.dueDate.difference(DateTime.now()).inDays}d';
           return Text(
             '${hw.dueDate.day}/${hw.dueDate.month}/${hw.dueDate.year} ($daysStr)',
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
@@ -259,9 +288,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Text(
               label,
@@ -285,19 +314,26 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
               SizedBox(
                 height: 24,
                 child: ElevatedButton(
-                  onPressed: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
+                  onPressed: () =>
+                      context.push('/teacher/submissions?homework_id=${hw.id}'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: btnState.backgroundColor,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4)),
                     elevation: 0,
                   ),
-                  child: Text(btnState.label, style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: Text(btnState.label,
+                      style: const TextStyle(
+                          fontSize: 9,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 6),
               IconButton(
-                icon: const Icon(Icons.alarm_rounded, size: 14, color: _kWarning),
+                icon:
+                    const Icon(Icons.alarm_rounded, size: 14, color: _kWarning),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () => _showReminderDialog(hw),
@@ -305,7 +341,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
               ),
               const SizedBox(width: 6),
               IconButton(
-                icon: const Icon(Icons.more_vert_rounded, size: 14, color: Colors.grey),
+                icon: const Icon(Icons.more_vert_rounded,
+                    size: 14, color: Colors.grey),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () => _showEditSheet(hw),
@@ -331,16 +368,20 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                 : _error != null
                     ? _buildError()
                     : Padding(
-                        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
+                        padding:
+                            const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 80.0),
                         child: AzureGrid<TeacherHomeworkAssignment>(
                           title: 'Homework List',
                           items: _allHomework,
                           columns: _buildHomeworkColumns(),
-                          mobileCardBuilder: (context, hw) => _buildActiveCard(hw),
-                          searchMatcher: (hw) => '${hw.title} ${hw.subject} ${hw.class_} ${hw.computedStatus}',
+                          mobileCardBuilder: (context, hw) =>
+                              _buildActiveCard(hw),
+                          searchMatcher: (hw) =>
+                              '${hw.title} ${hw.subject} ${hw.class_} ${hw.computedStatus}',
                           onRefresh: _loadAll,
                           enableSelection: true,
-                          bulkActions: (context, selected) => _buildBulkActions(context, selected),
+                          bulkActions: (context, selected) =>
+                              _buildBulkActions(context, selected),
                           onFilterChanged: (label, val) {
                             setState(() {
                               if (label == 'Status') {
@@ -359,7 +400,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                                 final st = hw.computedStatus.toLowerCase();
                                 if (option == 'Active') return st == 'active';
                                 if (option == 'Pending') return st == 'pending';
-                                if (option == 'Graded') return st == 'completed';
+                                if (option == 'Graded')
+                                  return st == 'completed';
                                 return true;
                               },
                             ),
@@ -382,10 +424,14 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                                   return hw.submittedCount > 0 && pending > 0;
                                 }
                                 if (option == 'Waiting for Submissions') {
-                                  return hw.submittedCount > 0 && pending == 0 && hw.submittedCount < hw.totalCount;
+                                  return hw.submittedCount > 0 &&
+                                      pending == 0 &&
+                                      hw.submittedCount < hw.totalCount;
                                 }
                                 if (option == 'All Graded') {
-                                  return hw.submittedCount > 0 && pending == 0 && hw.submittedCount == hw.totalCount;
+                                  return hw.submittedCount > 0 &&
+                                      pending == 0 &&
+                                      hw.submittedCount == hw.totalCount;
                                 }
                                 return true;
                               },
@@ -411,7 +457,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                           ],
                           extraCommandActions: [
                             IconButton(
-                              icon: const Icon(Icons.add_rounded, color: _kPink),
+                              icon:
+                                  const Icon(Icons.add_rounded, color: _kPink),
                               tooltip: 'Create Homework',
                               onPressed: _showCreateModal,
                             ),
@@ -426,7 +473,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
 
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.fromLTRB(8, Responsive.headerTopPadding(context), 16, 12),
+      padding:
+          EdgeInsets.fromLTRB(8, Responsive.headerTopPadding(context), 16, 12),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [_kPink, Color(0xFFDB2777)],
@@ -437,7 +485,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.white, size: 20),
             onPressed: () => safeGoBack(context, '/teacher/dashboard'),
           ),
           const Expanded(
@@ -453,7 +502,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
           ),
           IconButton(
             onPressed: _loadAll,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
+            icon: const Icon(Icons.refresh_rounded,
+                color: Colors.white, size: 20),
           ),
           IconButton(
             onPressed: _showCreateModal,
@@ -470,7 +520,11 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
     final icon = _subjectIcon(hw.subject);
     final pct = hw.submissionRate;
     final st = hw.computedStatus.toLowerCase();
-    final statusLabel = st == 'active' ? 'ACTIVE' : st == 'pending' ? 'PENDING' : 'GRADED';
+    final statusLabel = st == 'active'
+        ? 'ACTIVE'
+        : st == 'pending'
+            ? 'PENDING'
+            : 'GRADED';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -478,7 +532,12 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         color: _kSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border(left: BorderSide(color: color, width: 4)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -489,14 +548,19 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '$icon ${hw.class_} · ${hw.subject} · $statusLabel',
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color, fontFamily: AppFonts.heading),
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                        fontFamily: AppFonts.heading),
                   ),
                 ),
                 Text(
@@ -506,7 +570,12 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
               ],
             ),
             const SizedBox(height: 6),
-            Text(hw.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _kText, fontFamily: AppFonts.heading)),
+            Text(hw.title,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _kText,
+                    fontFamily: AppFonts.heading)),
             const SizedBox(height: 4),
             Text(
               hw.description,
@@ -528,22 +597,29 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
             Row(
               children: [
                 Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final btnState = _getActionButtonState(hw);
-                      return _buildBtn(
-                        label: btnState.label,
-                        bg: btnState.backgroundColor,
-                        fg: btnState.textColor,
-                        onTap: () => context.push('/teacher/submissions?homework_id=${hw.id}'),
-                      );
-                    }
-                  ),
+                  child: Builder(builder: (context) {
+                    final btnState = _getActionButtonState(hw);
+                    return _buildBtn(
+                      label: btnState.label,
+                      bg: btnState.backgroundColor,
+                      fg: btnState.textColor,
+                      onTap: () => context
+                          .push('/teacher/submissions?homework_id=${hw.id}'),
+                    );
+                  }),
                 ),
                 const SizedBox(width: 6),
-                _buildIconBtn(icon: '⏰', bg: _kPinkLight, fg: _kPink, onTap: () => _showReminderDialog(hw)),
+                _buildIconBtn(
+                    icon: '⏰',
+                    bg: _kPinkLight,
+                    fg: _kPink,
+                    onTap: () => _showReminderDialog(hw)),
                 const SizedBox(width: 6),
-                _buildIconBtn(icon: '⋯', bg: _kPinkLight, fg: _kPink, onTap: () => _showEditSheet(hw)),
+                _buildIconBtn(
+                    icon: '⋯',
+                    bg: _kPinkLight,
+                    fg: _kPink,
+                    onTap: () => _showEditSheet(hw)),
               ],
             ),
           ],
@@ -570,17 +646,68 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2))),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: _kBorder, borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 16),
-              Text(hw.title, textAlign: TextAlign.center, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 14, fontWeight: FontWeight.w800, color: _kText)),
+              Text(hw.title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: _kText)),
               const SizedBox(height: 4),
-              Text('${hw.class_} · ${hw.subject}', style: const TextStyle(fontSize: 11, color: _kText3)),
+              Text('${hw.class_} · ${hw.subject}',
+                  style: const TextStyle(fontSize: 11, color: _kText3)),
               const SizedBox(height: 20),
-              _buildSheetOption(emoji: '📋', label: 'Review Submissions', sublabel: '${hw.submittedCount} submitted', color: _kPink, onTap: () { Navigator.pop(context); context.push('/teacher/submissions?homework_id=${hw.id}'); }),
-              _buildSheetOption(emoji: '✏️', label: 'Edit Assignment Details', sublabel: 'Change title, dates, marks', color: const Color(0xFF7C3AED), onTap: () { Navigator.pop(context); _showEditAssignmentModal(hw); }),
-              _buildSheetOption(emoji: '🔔', label: 'Send Reminder', sublabel: 'Notify students who haven\'t submitted', color: const Color(0xFFD97706), onTap: () { Navigator.pop(context); _showReminderDialog(hw); }),
-              _buildSheetOption(emoji: '📊', label: 'View Analytics', sublabel: 'Submission trends and performance', color: const Color(0xFF0EA5E9), onTap: () { Navigator.pop(context); _showAnalytics(hw); }),
-              _buildSheetOption(emoji: '🗑️', label: 'Delete Assignment', sublabel: 'This action cannot be undone', color: _kError, onTap: () { Navigator.pop(context); _confirmDelete(hw); }),
+              _buildSheetOption(
+                  emoji: '📋',
+                  label: 'Review Submissions',
+                  sublabel: '${hw.submittedCount} submitted',
+                  color: _kPink,
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/teacher/submissions?homework_id=${hw.id}');
+                  }),
+              _buildSheetOption(
+                  emoji: '✏️',
+                  label: 'Edit Assignment Details',
+                  sublabel: 'Change title, dates, marks',
+                  color: const Color(0xFF7C3AED),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showEditAssignmentModal(hw);
+                  }),
+              _buildSheetOption(
+                  emoji: '🔔',
+                  label: 'Send Reminder',
+                  sublabel: 'Notify students who haven\'t submitted',
+                  color: const Color(0xFFD97706),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showReminderDialog(hw);
+                  }),
+              _buildSheetOption(
+                  emoji: '📊',
+                  label: 'View Analytics',
+                  sublabel: 'Submission trends and performance',
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showAnalytics(hw);
+                  }),
+              _buildSheetOption(
+                  emoji: '🗑️',
+                  label: 'Delete Assignment',
+                  sublabel: 'This action cannot be undone',
+                  color: _kError,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _confirmDelete(hw);
+                  }),
             ],
           ),
         ),
@@ -588,7 +715,12 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
     );
   }
 
-  Widget _buildSheetOption({required String emoji, required String label, required String sublabel, required Color color, required VoidCallback onTap}) {
+  Widget _buildSheetOption(
+      {required String emoji,
+      required String label,
+      required String sublabel,
+      required Color color,
+      required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -596,28 +728,39 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.15)),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
             Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Center(
+                  child: Text(emoji, style: const TextStyle(fontSize: 18))),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color, fontFamily: AppFonts.heading)),
-                  Text(sublabel, style: const TextStyle(fontSize: 10, color: _kText3)),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                          fontFamily: AppFonts.heading)),
+                  Text(sublabel,
+                      style: const TextStyle(fontSize: 10, color: _kText3)),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.5), size: 18),
+            Icon(Icons.chevron_right_rounded,
+                color: color.withValues(alpha: 0.5), size: 18),
           ],
         ),
       ),
@@ -632,226 +775,298 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
     _selectedSubject = _subjects.isNotEmpty ? _subjects.first : 'Mathematics';
     _dueDate = DateTime.now().add(const Duration(days: 3));
 
-    String? _attachmentUrl;
-    String? _attachmentName;
-    bool _isUploadingAttachment = false;
+    String? attachmentUrl;
+    String? attachmentName;
+    bool isUploadingAttachment = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: StatefulBuilder(builder: (ctx, setS) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 16),
-                const Center(child: Text('📝 Create Assignment', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.w800, color: _kText))),
-                const SizedBox(height: 16),
-                _buildLabel('Title'),
-                _buildInput(_titleCtrl, 'Assignment title...'),
-                _buildLabel('Class'),
-                _buildDropdown(
-                  value: _selectedClass,
-                  items: _classes,
-                  onChanged: (v) => setS(() => _selectedClass = v!),
-                ),
-                _buildLabel('Subject'),
-                _buildDropdown(
-                  value: _selectedSubject,
-                  items: _subjects,
-                  onChanged: (v) => setS(() => _selectedSubject = v!),
-                ),
-                _buildLabel('Due Date'),
-                InkWell(
-                  onTap: () async {
-                    final d = await showDatePicker(
-                      context: context,
-                      initialDate: _dueDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (d != null) setS(() => _dueDate = d);
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kBorder),
-                    ),
-                    child: Row(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: StatefulBuilder(
+            builder: (ctx, setS) => Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.calendar_today_outlined, size: 14, color: _kText2),
-                        const SizedBox(width: 8),
-                        Text('${_dueDate.day}/${_dueDate.month}/${_dueDate.year}', style: const TextStyle(fontSize: 13, color: _kText)),
+                        Center(
+                            child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                    color: _kBorder,
+                                    borderRadius: BorderRadius.circular(2)))),
+                        const SizedBox(height: 16),
+                        const Center(
+                            child: Text('📝 Create Assignment',
+                                style: TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: _kText))),
+                        const SizedBox(height: 16),
+                        _buildLabel('Title'),
+                        _buildInput(_titleCtrl, 'Assignment title...'),
+                        _buildLabel('Class'),
+                        _buildDropdown(
+                          value: _selectedClass,
+                          items: _classes,
+                          onChanged: (v) => setS(() => _selectedClass = v!),
+                        ),
+                        _buildLabel('Subject'),
+                        _buildDropdown(
+                          value: _selectedSubject,
+                          items: _subjects,
+                          onChanged: (v) => setS(() => _selectedSubject = v!),
+                        ),
+                        _buildLabel('Due Date'),
+                        InkWell(
+                          onTap: () async {
+                            final d = await showDatePicker(
+                              context: context,
+                              initialDate: _dueDate,
+                              firstDate: DateTime.now(),
+                              lastDate:
+                                  DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (d != null) setS(() => _dueDate = d);
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _kBorder),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today_outlined,
+                                    size: 14, color: _kText2),
+                                const SizedBox(width: 8),
+                                Text(
+                                    '${_dueDate.day}/${_dueDate.month}/${_dueDate.year}',
+                                    style: const TextStyle(
+                                        fontSize: 13, color: _kText)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        _buildLabel('Max Marks'),
+                        _buildInput(_marksCtrl, '25',
+                            type: TextInputType.number),
+                        _buildLabel('Instructions'),
+                        _buildInput(
+                            _descCtrl, 'Write instructions for students...',
+                            maxLines: 3),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: isUploadingAttachment
+                              ? null
+                              : () async {
+                                  final result =
+                                      await FilePicker.platform.pickFiles(
+                                    type: FileType.any,
+                                    allowMultiple: false,
+                                    withData: true,
+                                  );
+                                  if (result != null &&
+                                      result.files.single.bytes != null) {
+                                    final file = result.files.single;
+                                    setS(() {
+                                      isUploadingAttachment = true;
+                                      attachmentName = file.name;
+                                    });
+                                    try {
+                                      final response =
+                                          await ApiService().multipartPostBytes(
+                                        '/documents/upload',
+                                        file.bytes!,
+                                        file.name,
+                                        'file',
+                                        fields: {
+                                          'title': file.name,
+                                          'category': 'homework_instruction',
+                                          'description':
+                                              'Homework instructions/guidelines',
+                                        },
+                                      );
+                                      if (response['success'] == true) {
+                                        final doc = response['data']['document']
+                                            as Map<String, dynamic>;
+                                        setS(() {
+                                          attachmentUrl =
+                                              doc['file_url'] as String;
+                                        });
+                                      } else {
+                                        throw Exception(response['detail'] ??
+                                            'Upload failed');
+                                      }
+                                    } catch (e) {
+                                      setS(() {
+                                        attachmentUrl = null;
+                                        attachmentName = null;
+                                      });
+                                      if (ctx.mounted) {
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          SnackBar(
+                                              content:
+                                                  Text('Failed to upload: $e'),
+                                              backgroundColor: _kError),
+                                        );
+                                      }
+                                    } finally {
+                                      setS(() {
+                                        isUploadingAttachment = false;
+                                      });
+                                    }
+                                  }
+                                },
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: _kBorder, width: 1.5),
+                              borderRadius: BorderRadius.circular(14),
+                              color: const Color(0xFFF8FAFC),
+                            ),
+                            child: isUploadingAttachment
+                                ? const Column(
+                                    children: [
+                                      SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                            color: _kPink, strokeWidth: 2),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text('Uploading attachment...',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: _kText)),
+                                    ],
+                                  )
+                                : attachmentUrl != null
+                                    ? Row(
+                                        children: [
+                                          const Text('📎',
+                                              style: TextStyle(fontSize: 24)),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                    attachmentName ??
+                                                        'File Attached',
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: _kText),
+                                                    overflow:
+                                                        TextOverflow.ellipsis),
+                                                const Text('Upload complete ✅',
+                                                    style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: _kSuccess)),
+                                              ],
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.cancel,
+                                                color: _kError, size: 20),
+                                            onPressed: () {
+                                              setS(() {
+                                                attachmentUrl = null;
+                                                attachmentName = null;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      )
+                                    : const Column(
+                                        children: [
+                                          Text('📎',
+                                              style: TextStyle(fontSize: 24)),
+                                          SizedBox(height: 4),
+                                          Text('Attach Files (optional)',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _kText)),
+                                          Text('PDF, DOC, JPG up to 10MB',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: _kText3)),
+                                        ],
+                                      ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () =>
+                                _createHomework(ctx, attachmentUrl),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _kPink,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            child: const Text('📤 Assign to Class',
+                                style: TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kPink,
+                              side: const BorderSide(color: _kPink),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: const Text('Cancel',
+                                style: TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                _buildLabel('Max Marks'),
-                _buildInput(_marksCtrl, '25', type: TextInputType.number),
-                _buildLabel('Instructions'),
-                _buildInput(_descCtrl, 'Write instructions for students...', maxLines: 3),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: _isUploadingAttachment
-                      ? null
-                      : () async {
-                          final result = await FilePicker.platform.pickFiles(
-                            type: FileType.any,
-                            allowMultiple: false,
-                            withData: true,
-                          );
-                          if (result != null && result.files.single.bytes != null) {
-                            final file = result.files.single;
-                            setS(() {
-                              _isUploadingAttachment = true;
-                              _attachmentName = file.name;
-                            });
-                            try {
-                              final response = await ApiService().multipartPostBytes(
-                                '/documents/upload',
-                                file.bytes!,
-                                file.name,
-                                'file',
-                                fields: {
-                                  'title': file.name,
-                                  'category': 'homework_instruction',
-                                  'description': 'Homework instructions/guidelines',
-                                },
-                              );
-                              if (response['success'] == true) {
-                                final doc = response['data']['document'] as Map<String, dynamic>;
-                                setS(() {
-                                  _attachmentUrl = doc['file_url'] as String;
-                                });
-                              } else {
-                                throw Exception(response['detail'] ?? 'Upload failed');
-                              }
-                            } catch (e) {
-                              setS(() {
-                                _attachmentUrl = null;
-                                _attachmentName = null;
-                              });
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(content: Text('Failed to upload: $e'), backgroundColor: _kError),
-                                );
-                              }
-                            } finally {
-                              setS(() {
-                                _isUploadingAttachment = false;
-                              });
-                            }
-                          }
-                        },
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: _kBorder, width: 1.5),
-                      borderRadius: BorderRadius.circular(14),
-                      color: const Color(0xFFF8FAFC),
-                    ),
-                    child: _isUploadingAttachment
-                        ? const Column(
-                            children: [
-                              SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(color: _kPink, strokeWidth: 2),
-                              ),
-                              SizedBox(height: 8),
-                              Text('Uploading attachment...', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kText)),
-                            ],
-                          )
-                        : _attachmentUrl != null
-                            ? Row(
-                                children: [
-                                  const Text('📎', style: TextStyle(fontSize: 24)),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(_attachmentName ?? 'File Attached', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _kText), overflow: TextOverflow.ellipsis),
-                                        const Text('Upload complete ✅', style: TextStyle(fontSize: 10, color: _kSuccess)),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.cancel, color: _kError, size: 20),
-                                    onPressed: () {
-                                      setS(() {
-                                        _attachmentUrl = null;
-                                        _attachmentName = null;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              )
-                            : const Column(
-                                children: [
-                                  Text('📎', style: TextStyle(fontSize: 24)),
-                                  SizedBox(height: 4),
-                                  Text('Attach Files (optional)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kText)),
-                                  Text('PDF, DOC, JPG up to 10MB', style: TextStyle(fontSize: 10, color: _kText3)),
-                                ],
-                              ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _createHomework(ctx, _attachmentUrl),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kPink,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    child: const Text('📤 Assign to Class', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 15, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _kPink,
-                      side: const BorderSide(color: _kPink),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: const Text('Cancel', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        )),
+                )),
       ),
     );
   }
 
   Future<void> _createHomework(BuildContext ctx, String? attachmentUrl) async {
     if (_titleCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Please enter a title'), backgroundColor: _kError));
+      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+          content: Text('Please enter a title'), backgroundColor: _kError));
       return;
     }
     final messenger = ScaffoldMessenger.of(ctx);
@@ -869,11 +1084,13 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       );
       _loadAll();
       if (mounted) {
-        _showSuccessDialog('Assignment Created! 🎉', '${_titleCtrl.text} has been assigned to $_selectedClass. Students will be notified.');
+        _showSuccessDialog('Assignment Created! 🎉',
+            '${_titleCtrl.text} has been assigned to $_selectedClass. Students will be notified.');
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _kError));
+        messenger.showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: _kError));
       }
     }
   }
@@ -889,64 +1106,135 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: StatefulBuilder(builder: (ctx, setS) => Container(
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 16),
-                const Center(child: Text('✏️ Edit Assignment', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.w800, color: _kText))),
-                const SizedBox(height: 16),
-                _buildLabel('Title'),
-                _buildInput(_titleCtrl, 'Assignment title...'),
-                _buildLabel('Max Marks'),
-                _buildInput(_marksCtrl, '25', type: TextInputType.number),
-                _buildLabel('Due Date'),
-                InkWell(
-                  onTap: () async {
-                    final d = await showDatePicker(context: context, initialDate: editDue, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
-                    if (d != null) setS(() => editDue = d);
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _kBorder)),
-                    child: Row(children: [
-                      const Icon(Icons.calendar_today_outlined, size: 14, color: _kText2),
-                      const SizedBox(width: 8),
-                      Text('${editDue.day}/${editDue.month}/${editDue.year}', style: const TextStyle(fontSize: 13, color: _kText)),
-                    ]),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: StatefulBuilder(
+            builder: (ctx, setS) => Container(
+                  decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(24))),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                            child: Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                    color: _kBorder,
+                                    borderRadius: BorderRadius.circular(2)))),
+                        const SizedBox(height: 16),
+                        const Center(
+                            child: Text('✏️ Edit Assignment',
+                                style: TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: _kText))),
+                        const SizedBox(height: 16),
+                        _buildLabel('Title'),
+                        _buildInput(_titleCtrl, 'Assignment title...'),
+                        _buildLabel('Max Marks'),
+                        _buildInput(_marksCtrl, '25',
+                            type: TextInputType.number),
+                        _buildLabel('Due Date'),
+                        InkWell(
+                          onTap: () async {
+                            final d = await showDatePicker(
+                                context: context,
+                                initialDate: editDue,
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now()
+                                    .add(const Duration(days: 365)));
+                            if (d != null) setS(() => editDue = d);
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _kBorder)),
+                            child: Row(children: [
+                              const Icon(Icons.calendar_today_outlined,
+                                  size: 14, color: _kText2),
+                              const SizedBox(width: 8),
+                              Text(
+                                  '${editDue.day}/${editDue.month}/${editDue.year}',
+                                  style: const TextStyle(
+                                      fontSize: 13, color: _kText)),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              try {
+                                await _apiService.updateHomework(
+                                    homeworkId: hw.id,
+                                    updates: {
+                                      'title': _titleCtrl.text.trim(),
+                                      'max_marks':
+                                          int.tryParse(_marksCtrl.text),
+                                      'due_date': editDue
+                                          .toIso8601String()
+                                          .split('T')[0]
+                                    });
+                                _loadAll();
+                                if (mounted)
+                                  _showSuccessDialog('Saved! 💾',
+                                      'Assignment updated successfully.');
+                              } catch (e) {
+                                if (mounted)
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text('Error: $e'),
+                                          backgroundColor: _kError));
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: _kPink,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                elevation: 0),
+                            child: const Text('💾 Save Changes',
+                                style: TextStyle(
+                                    fontFamily: AppFonts.heading,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                style: OutlinedButton.styleFrom(
+                                    foregroundColor: _kPink,
+                                    side: const BorderSide(color: _kPink),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14))),
+                                child: const Text('Cancel',
+                                    style: TextStyle(
+                                        fontFamily: AppFonts.heading,
+                                        fontWeight: FontWeight.w700)))),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      try {
-                        await _apiService.updateHomework(homeworkId: hw.id, updates: {'title': _titleCtrl.text.trim(), 'max_marks': int.tryParse(_marksCtrl.text), 'due_date': editDue.toIso8601String().split('T')[0]});
-                        _loadAll();
-                        if (mounted) _showSuccessDialog('Saved! 💾', 'Assignment updated successfully.');
-                      } catch (e) {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: _kError));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: _kPink, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
-                    child: const Text('💾 Save Changes', style: TextStyle(fontFamily: AppFonts.heading, fontSize: 15, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(ctx), style: OutlinedButton.styleFrom(foregroundColor: _kPink, side: const BorderSide(color: _kPink), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: const Text('Cancel', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)))),
-              ],
-            ),
-          ),
-        )),
+                )),
       ),
     );
   }
@@ -959,12 +1247,17 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Column(
             children: [
               Text('🔔', style: TextStyle(fontSize: 40)),
               SizedBox(height: 4),
-              Text('Send Reminder?', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kPink)),
+              Text('Send Reminder?',
+                  style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontWeight: FontWeight.w800,
+                      color: _kPink)),
             ],
           ),
           content: isSending
@@ -973,7 +1266,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                   children: [
                     CircularProgressIndicator(color: _kPink),
                     SizedBox(height: 12),
-                    Text('Sending reminders...', style: TextStyle(fontSize: 12, color: _kText2)),
+                    Text('Sending reminders...',
+                        style: TextStyle(fontSize: 12, color: _kText2)),
                   ],
                 )
               : Text(
@@ -986,7 +1280,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
               : [
                   TextButton(
                     onPressed: () => Navigator.pop(dialogCtx),
-                    child: const Text('Cancel', style: TextStyle(color: _kText3)),
+                    child:
+                        const Text('Cancel', style: TextStyle(color: _kText3)),
                   ),
                   ElevatedButton(
                     onPressed: () async {
@@ -1021,9 +1316,13 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _kPink,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('📤 Send Reminder', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+                    child: const Text('📤 Send Reminder',
+                        style: TextStyle(
+                            fontFamily: AppFonts.heading,
+                            fontWeight: FontWeight.w700)),
                   ),
                 ],
         ),
@@ -1036,31 +1335,54 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: _kBorder, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
-            Text('📊 ${hw.title}', style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.w800, color: _kText)),
+            Text('📊 ${hw.title}',
+                style: const TextStyle(
+                    fontFamily: AppFonts.heading,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: _kText)),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildStatBox('${hw.submittedCount}', 'Submitted', _kSuccess),
-                _buildStatBox('${hw.totalCount - hw.submittedCount}', 'Pending', _kWarning),
+                _buildStatBox('${hw.totalCount - hw.submittedCount}', 'Pending',
+                    _kWarning),
                 _buildStatBox('${hw.submissionRate.toInt()}%', 'Rate', _kPink),
-                _buildStatBox('${hw.maxMarks ?? 25}', 'Max Marks', const Color(0xFF7C3AED)),
+                _buildStatBox('${hw.maxMarks ?? 25}', 'Max Marks',
+                    const Color(0xFF7C3AED)),
               ],
             ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () { Navigator.pop(context); context.push('/teacher/submissions?homework_id=${hw.id}'); },
-                style: ElevatedButton.styleFrom(backgroundColor: _kPink, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                child: const Text('View All Submissions', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/teacher/submissions?homework_id=${hw.id}');
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _kPink,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14))),
+                child: const Text('View All Submissions',
+                    style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontWeight: FontWeight.w700)),
               ),
             ),
           ],
@@ -1072,12 +1394,21 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
   Widget _buildStatBox(String value, String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          Text(value, style: TextStyle(fontFamily: AppFonts.heading, fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+          Text(value,
+              style: TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: color)),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 9, color: _kText3, fontWeight: FontWeight.w600)),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 9, color: _kText3, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -1088,8 +1419,14 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Assignment?', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kError)),
-        content: Text('Are you sure you want to delete "${hw.title}"? This action cannot be undone.', style: const TextStyle(fontSize: 12, color: _kText2)),
+        title: const Text('Delete Assignment?',
+            style: TextStyle(
+                fontFamily: AppFonts.heading,
+                fontWeight: FontWeight.w800,
+                color: _kError)),
+        content: Text(
+            'Are you sure you want to delete "${hw.title}"? This action cannot be undone.',
+            style: const TextStyle(fontSize: 12, color: _kText2)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
@@ -1103,13 +1440,16 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                 _loadAll();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Assignment deleted'), backgroundColor: _kSuccess),
+                    const SnackBar(
+                        content: Text('Assignment deleted'),
+                        backgroundColor: _kSuccess),
                   );
                 }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: _kError),
+                    SnackBar(
+                        content: Text('Error: $e'), backgroundColor: _kError),
                   );
                 }
               }
@@ -1117,9 +1457,12 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
             style: ElevatedButton.styleFrom(
               backgroundColor: _kError,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('🗑️ Delete', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+            child: const Text('🗑️ Delete',
+                style: TextStyle(
+                    fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -1134,15 +1477,29 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         title: Column(children: [
           const Text('✅', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 8),
-          Text(title, style: const TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kSuccess), textAlign: TextAlign.center),
+          Text(title,
+              style: const TextStyle(
+                  fontFamily: AppFonts.heading,
+                  fontWeight: FontWeight.w800,
+                  color: _kSuccess),
+              textAlign: TextAlign.center),
         ]),
-        content: Text(message, style: const TextStyle(fontSize: 12, color: _kText2), textAlign: TextAlign.center),
+        content: Text(message,
+            style: const TextStyle(fontSize: 12, color: _kText2),
+            textAlign: TextAlign.center),
         actions: [
           Center(
             child: ElevatedButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              style: ElevatedButton.styleFrom(backgroundColor: _kPink, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              child: const Text('Done', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPink,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+              child: const Text('Done',
+                  style: TextStyle(
+                      fontFamily: AppFonts.heading,
+                      fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -1157,20 +1514,28 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         children: [
           const Text('⚠️', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 12),
-          Text(_error ?? 'Something went wrong', style: const TextStyle(color: _kError, fontSize: 13)),
+          Text(_error ?? 'Something went wrong',
+              style: const TextStyle(color: _kError, fontSize: 13)),
           const SizedBox(height: 12),
-          ElevatedButton(onPressed: _loadAll, style: ElevatedButton.styleFrom(backgroundColor: _kPink, foregroundColor: Colors.white), child: const Text('Retry')),
+          ElevatedButton(
+              onPressed: _loadAll,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPink, foregroundColor: Colors.white),
+              child: const Text('Retry')),
         ],
       ),
     );
   }
 
   Widget _buildLabel(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(text, style: const TextStyle(fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
-  );
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 11, color: _kText3, fontWeight: FontWeight.w700)),
+      );
 
-  Widget _buildInput(TextEditingController ctrl, String hint, {TextInputType type = TextInputType.text, int maxLines = 1}) {
+  Widget _buildInput(TextEditingController ctrl, String hint,
+      {TextInputType type = TextInputType.text, int maxLines = 1}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: TextField(
@@ -1183,18 +1548,29 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
           hintStyle: const TextStyle(color: _kText3, fontSize: 13),
           filled: true,
           fillColor: const Color(0xFFF8FAFC),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBorder)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kPink, width: 1.5)),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _kBorder)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _kBorder)),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _kPink, width: 1.5)),
           contentPadding: const EdgeInsets.all(12),
         ),
       ),
     );
   }
 
-  Widget _buildDropdown({required String value, required List<String> items, required void Function(String?) onChanged}) {
-    final effectiveItems = items.isEmpty ? [value.isEmpty ? 'N/A' : value] : items;
-    final effectiveValue = value.isEmpty ? (items.isNotEmpty ? items.first : 'N/A') : value;
+  Widget _buildDropdown(
+      {required String value,
+      required List<String> items,
+      required void Function(String?) onChanged}) {
+    final effectiveItems =
+        items.isEmpty ? [value.isEmpty ? 'N/A' : value] : items;
+    final effectiveValue =
+        value.isEmpty ? (items.isNotEmpty ? items.first : 'N/A') : value;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1209,46 +1585,73 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         isExpanded: true,
         underline: const SizedBox(),
         style: const TextStyle(fontSize: 13, color: _kText),
-        items: effectiveItems.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        items: effectiveItems
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
         onChanged: items.isEmpty ? null : onChanged,
       ),
     );
   }
 
-  Widget _buildBtn({required String label, required Color bg, required Color fg, required VoidCallback onTap}) {
+  Widget _buildBtn(
+      {required String label,
+      required Color bg,
+      required Color fg,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-        child: Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg, fontFamily: AppFonts.heading)),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+        child: Text(label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: fg,
+                fontFamily: AppFonts.heading)),
       ),
     );
   }
 
-  Widget _buildIconBtn({required String icon, required Color bg, required Color fg, required VoidCallback onTap}) {
+  Widget _buildIconBtn(
+      {required String icon,
+      required Color bg,
+      required Color fg,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-        child: Center(child: Text(icon, style: TextStyle(fontSize: 14, color: fg))),
+        width: 36,
+        height: 36,
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+        child: Center(
+            child: Text(icon, style: TextStyle(fontSize: 14, color: fg))),
       ),
     );
   }
 
-  List<Widget> _buildBulkActions(BuildContext context, List<TeacherHomeworkAssignment> selected) {
+  List<Widget> _buildBulkActions(
+      BuildContext context, List<TeacherHomeworkAssignment> selected) {
     return [
       SizedBox(
         height: 32,
         child: ElevatedButton.icon(
-          icon: const Icon(Icons.notifications_active_rounded, size: 14, color: Colors.white),
-          label: const Text('Send Targeted Notifications', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+          icon: const Icon(Icons.notifications_active_rounded,
+              size: 14, color: Colors.white),
+          label: const Text('Send Targeted Notifications',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold)),
           onPressed: () => _showBulkNotificationDialog(selected),
           style: ElevatedButton.styleFrom(
             backgroundColor: _kPink,
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
             elevation: 0,
           ),
         ),
@@ -1273,9 +1676,11 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
         _activeActionStateFilter == 'Waiting for Submissions' ||
         _activeStatusFilter == 'Active') {
       initialMode = 'reminder';
-    } else if (_activeActionStateFilter == 'All Graded' || _activeStatusFilter == 'Graded') {
+    } else if (_activeActionStateFilter == 'All Graded' ||
+        _activeStatusFilter == 'Graded') {
       initialMode = 'graded';
-    } else if (_activeActionStateFilter == 'Pending Grade' || _activeStatusFilter == 'Pending') {
+    } else if (_activeActionStateFilter == 'Pending Grade' ||
+        _activeStatusFilter == 'Pending') {
       isPendingState = true;
     } else {
       if (totalReminders > 0) {
@@ -1298,7 +1703,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
               children: [
                 CircularProgressIndicator(color: _kPink),
                 SizedBox(height: 12),
-                Text('Sending notifications...', style: TextStyle(fontSize: 12, color: _kText2)),
+                Text('Sending notifications...',
+                    style: TextStyle(fontSize: 12, color: _kText2)),
               ],
             );
           } else if (isPendingState) {
@@ -1309,9 +1715,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _kWarning.withOpacity(0.1),
+                    color: _kWarning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _kWarning.withOpacity(0.3)),
+                    border: Border.all(color: _kWarning.withValues(alpha: 0.3)),
                   ),
                   child: const Row(
                     children: [
@@ -1320,7 +1726,10 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                       Expanded(
                         child: Text(
                           'Evaluation Phase Active',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _kWarning),
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: _kWarning),
                         ),
                       ),
                     ],
@@ -1341,7 +1750,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
               children: [
                 Text(
                   'Select the targeted notification group for the ${selected.length} selected assignments:',
-                  style: const TextStyle(fontSize: 12, color: _kText, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 12, color: _kText, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 InkWell(
@@ -1353,7 +1763,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: initialMode == 'reminder' ? _kPink.withOpacity(0.05) : Colors.transparent,
+                      color: initialMode == 'reminder'
+                          ? _kPink.withValues(alpha: 0.05)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: initialMode == 'reminder' ? _kPink : _kBorder,
@@ -1373,7 +1785,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: initialMode == 'reminder' ? _kPink : _kText,
+                                  color: initialMode == 'reminder'
+                                      ? _kPink
+                                      : _kText,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -1406,7 +1820,9 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: initialMode == 'graded' ? _kPink.withOpacity(0.05) : Colors.transparent,
+                      color: initialMode == 'graded'
+                          ? _kPink.withValues(alpha: 0.05)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: initialMode == 'graded' ? _kPink : _kBorder,
@@ -1426,7 +1842,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: initialMode == 'graded' ? _kPink : _kText,
+                                  color:
+                                      initialMode == 'graded' ? _kPink : _kText,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -1454,12 +1871,19 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
           }
 
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: const Column(
               children: [
                 Text('🔔', style: TextStyle(fontSize: 40)),
                 SizedBox(height: 4),
-                Text('Targeted Notifications', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w800, color: _kPink, fontSize: 16), textAlign: TextAlign.center),
+                Text('Targeted Notifications',
+                    style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontWeight: FontWeight.w800,
+                        color: _kPink,
+                        fontSize: 16),
+                    textAlign: TextAlign.center),
               ],
             ),
             content: content,
@@ -1468,7 +1892,8 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                 : [
                     TextButton(
                       onPressed: () => Navigator.pop(dialogCtx),
-                      child: const Text('Cancel', style: TextStyle(color: _kText3)),
+                      child: const Text('Cancel',
+                          style: TextStyle(color: _kText3)),
                     ),
                     if (!isPendingState)
                       ElevatedButton(
@@ -1477,13 +1902,16 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                             isSending = true;
                           });
                           try {
-                            final result = await _apiService.sendBulkHomeworkNotifications(homeworkIds, mode: initialMode);
+                            final result = await _apiService
+                                .sendBulkHomeworkNotifications(homeworkIds,
+                                    mode: initialMode);
                             if (dialogCtx.mounted) {
                               Navigator.pop(dialogCtx);
                               _loadAll();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('📤 Success! Sent ${result['reminders_sent']} reminders and ${result['grades_sent']} grade notifications.'),
+                                  content: Text(
+                                      '📤 Success! Sent ${result['reminders_sent']} reminders and ${result['grades_sent']} grade notifications.'),
                                   backgroundColor: _kSuccess,
                                 ),
                               );
@@ -1505,9 +1933,13 @@ class _TeacherHomeworkState extends ConsumerState<TeacherHomework> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _kPink,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Send Notifications', style: TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.w700)),
+                        child: const Text('Send Notifications',
+                            style: TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontWeight: FontWeight.w700)),
                       ),
                   ],
           );

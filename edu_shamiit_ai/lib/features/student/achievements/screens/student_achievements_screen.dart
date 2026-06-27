@@ -13,13 +13,15 @@ class StudentAchievements extends ConsumerStatefulWidget {
   const StudentAchievements({super.key});
 
   @override
-  ConsumerState<StudentAchievements> createState() => _StudentAchievementsState();
+  ConsumerState<StudentAchievements> createState() =>
+      _StudentAchievementsState();
 }
 
-class _StudentAchievementsState extends ConsumerState<StudentAchievements> with SingleTickerProviderStateMixin {
+class _StudentAchievementsState extends ConsumerState<StudentAchievements>
+    with SingleTickerProviderStateMixin {
   final StudentApiService _apiService = StudentApiService();
   late TabController _tabController;
-  
+
   StudentAchievementsDashboard? _dashboard;
   bool _isLoading = true;
   String _errorMessage = '';
@@ -82,7 +84,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
 
   void _onTabChanged() {
     if (_selectedTabIndex == 1) {
-      final currentList = _selectedLeaderboardTab == 0 ? _classLeaderboard : _schoolLeaderboard;
+      final currentList =
+          _selectedLeaderboardTab == 0 ? _classLeaderboard : _schoolLeaderboard;
       if (currentList.isEmpty) {
         _loadLeaderboard();
       }
@@ -190,11 +193,14 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? StudentColors.darkBackground : StudentColors.background;
-    final cardColor = isDark ? StudentColors.darkSurface : StudentColors.surface;
+    final bgColor =
+        isDark ? StudentColors.darkBackground : StudentColors.background;
+    final cardColor =
+        isDark ? StudentColors.darkSurface : StudentColors.surface;
     final textColor = isDark ? StudentColors.darkText : StudentColors.text;
     final subTextColor = isDark ? StudentColors.darkText2 : StudentColors.text2;
-    final borderColor = isDark ? StudentColors.darkBorder : StudentColors.border;
+    final borderColor =
+        isDark ? StudentColors.darkBorder : StudentColors.border;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -203,11 +209,16 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(StudentColors.primary)),
+                  CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(StudentColors.primary)),
                   SizedBox(height: 16),
                   Text(
                     'Loading your achievements...',
-                    style: TextStyle(fontFamily: AppFonts.heading, fontSize: 14, color: StudentColors.text3),
+                    style: TextStyle(
+                        fontFamily: AppFonts.heading,
+                        fontSize: 14,
+                        color: StudentColors.text3),
                   ),
                 ],
               ),
@@ -223,22 +234,29 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                         const SizedBox(height: 16),
                         Text(
                           'Failed to load Achievements',
-                          style: TextStyle(fontFamily: AppFonts.heading, fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                          style: TextStyle(
+                              fontFamily: AppFonts.heading,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: textColor),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           _errorMessage,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12, color: StudentColors.text3),
+                          style: const TextStyle(
+                              fontSize: 12, color: StudentColors.text3),
                         ),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: _loadDashboard,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: StudentColors.primary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                          child: const Text('Retry',
+                              style: TextStyle(color: Colors.white)),
                         ),
                       ],
                     ),
@@ -259,9 +277,11 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                           child: Column(
                             children: [
-                              _buildXPCard(cardColor, textColor, subTextColor, isDark),
+                              _buildXPCard(
+                                  cardColor, textColor, subTextColor, isDark),
                               const SizedBox(height: 12),
-                              _buildQuickRanks(cardColor, textColor, subTextColor, isDark),
+                              _buildQuickRanks(
+                                  cardColor, textColor, subTextColor, isDark),
                               const SizedBox(height: 8),
                             ],
                           ),
@@ -278,25 +298,36 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                               Tab(text: '📊 Leaderboard'),
                               Tab(text: '📜 XP Ledger'),
                             ],
-                            labelColor: isDark ? Colors.white : StudentColors.primary,
+                            labelColor:
+                                isDark ? Colors.white : StudentColors.primary,
                             unselectedLabelColor: StudentColors.text3,
                             indicatorColor: StudentColors.primary,
                             indicatorWeight: 3.0,
-                            labelStyle: const TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.bold, fontSize: 13),
-                            unselectedLabelStyle: const TextStyle(fontFamily: AppFonts.heading, fontWeight: FontWeight.normal, fontSize: 13),
+                            labelStyle: const TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13),
+                            unselectedLabelStyle: const TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontWeight: FontWeight.normal,
+                                fontSize: 13),
                           ),
                         ),
 
                         // Tab content displayed inline
                         Padding(
-                          padding: EdgeInsets.fromLTRB(16, 12, 16, Responsive.isMobile(context) ? 80.0 : 16.0),
+                          padding: EdgeInsets.fromLTRB(16, 12, 16,
+                              Responsive.isMobile(context) ? 80.0 : 16.0),
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 200),
                             child: _selectedTabIndex == 0
-                                ? _buildBadgesTab(cardColor, textColor, subTextColor, borderColor, isDark)
+                                ? _buildBadgesTab(cardColor, textColor,
+                                    subTextColor, borderColor, isDark)
                                 : _selectedTabIndex == 1
-                                    ? _buildLeaderboardTab(cardColor, textColor, subTextColor, borderColor, isDark)
-                                    : _buildXpHistoryTab(cardColor, textColor, subTextColor, borderColor, isDark),
+                                    ? _buildLeaderboardTab(cardColor, textColor,
+                                        subTextColor, borderColor, isDark)
+                                    : _buildXpHistoryTab(cardColor, textColor,
+                                        subTextColor, borderColor, isDark),
                           ),
                         ),
                       ],
@@ -308,7 +339,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
 
   Widget _buildHeader(BuildContext context, bool isDark) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 20),
+      padding:
+          EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF6366F1), Color(0xFF4F46E5), Color(0xFF3730A3)],
@@ -347,11 +379,13 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
               const SizedBox(width: 8),
               if (_dashboard != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3), width: 1.5),
                   ),
                   child: Row(
                     children: [
@@ -376,7 +410,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
     );
   }
 
-  Widget _buildXPCard(Color cardColor, Color textColor, Color subTextColor, bool isDark) {
+  Widget _buildXPCard(
+      Color cardColor, Color textColor, Color subTextColor, bool isDark) {
     final xp = _dashboard?.xpPoints ?? 0;
     final level = (xp / 1000).floor() + 1;
     final prevLevelXp = (level - 1) * 1000;
@@ -393,12 +428,14 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: StudentColors.primary.withValues(alpha: isDark ? 0.15 : 0.08),
+            color:
+                StudentColors.primary.withValues(alpha: isDark ? 0.15 : 0.08),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: StudentColors.primary.withValues(alpha: 0.15)),
+        border:
+            Border.all(color: StudentColors.primary.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +457,9 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    xp.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},'),
+                    xp.toString().replaceAllMapped(
+                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                        (Match m) => '${m[1]},'),
                     style: TextStyle(
                       fontFamily: AppFonts.heading,
                       fontSize: 40,
@@ -481,11 +520,17 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
             children: [
               Text(
                 'Level Progression',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: textColor),
               ),
               Text(
-                '${xpInCurrentLevel}/1000 XP',
-                style: TextStyle(fontSize: 11, color: subTextColor, fontWeight: FontWeight.w600),
+                '$xpInCurrentLevel/1000 XP',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: subTextColor,
+                    fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -495,7 +540,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
             child: Container(
               height: 12,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                color:
+                    isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
@@ -523,8 +569,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 ),
               ),
               Text(
-                '🎯 ${xpNeededForNextLevel} XP to Level ${level + 1}',
-                style: TextStyle(
+                '🎯 $xpNeededForNextLevel XP to Level ${level + 1}',
+                style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: StudentColors.primary,
@@ -537,11 +583,12 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
     );
   }
 
-  Widget _buildQuickRanks(Color cardColor, Color textColor, Color subTextColor, bool isDark) {
+  Widget _buildQuickRanks(
+      Color cardColor, Color textColor, Color subTextColor, bool isDark) {
     final classRank = _dashboard?.classRank ?? 1;
     final schoolRank = _dashboard?.schoolRank ?? 1;
 
-    String _getRankSuffix(int rank) {
+    String getRankSuffix(int rank) {
       if (rank >= 11 && rank <= 13) return 'th';
       switch (rank % 10) {
         case 1:
@@ -555,14 +602,17 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
       }
     }
 
-    Widget _buildRankBox(String title, int rank, String icon, Color accentColor) {
+    Widget buildRankBox(
+        String title, int rank, String icon, Color accentColor) {
       return Expanded(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: StudentColors.border.withValues(alpha: isDark ? 0.1 : 0.5)),
+            border: Border.all(
+                color:
+                    StudentColors.border.withValues(alpha: isDark ? 0.1 : 0.5)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -573,7 +623,10 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                   const SizedBox(width: 6),
                   Text(
                     title,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: subTextColor),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: subTextColor),
                   ),
                 ],
               ),
@@ -592,7 +645,7 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                     ),
                   ),
                   Text(
-                    _getRankSuffix(rank),
+                    getRankSuffix(rank),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -601,7 +654,11 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                   ),
                   const Spacer(),
                   Text(
-                    rank == 1 ? '👑 Leader' : rank <= 3 ? '🥉 Podium' : 'Ranked',
+                    rank == 1
+                        ? '👑 Leader'
+                        : rank <= 3
+                            ? '🥉 Podium'
+                            : 'Ranked',
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
@@ -618,9 +675,9 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
 
     return Row(
       children: [
-        _buildRankBox('Class Rank', classRank, '🏫', const Color(0xFF6366F1)),
+        buildRankBox('Class Rank', classRank, '🏫', const Color(0xFF6366F1)),
         const SizedBox(width: 12),
-        _buildRankBox('School Rank', schoolRank, '🌐', const Color(0xFF06B6D4)),
+        buildRankBox('School Rank', schoolRank, '🌐', const Color(0xFF06B6D4)),
       ],
     );
   }
@@ -628,7 +685,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
   // ============================================
   // BADGES TAB
   // ============================================
-  Widget _buildBadgesTab(Color cardColor, Color textColor, Color subTextColor, Color borderColor, bool isDark) {
+  Widget _buildBadgesTab(Color cardColor, Color textColor, Color subTextColor,
+      Color borderColor, bool isDark) {
     final unlocked = _dashboard?.unlockedAchievements ?? [];
     final locked = _dashboard?.lockedAchievements ?? [];
 
@@ -649,16 +707,17 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _buildFilterPill('all', 'All Badges (${unlocked.length + locked.length})', isDark),
+              _buildFilterPill('all',
+                  'All Badges (${unlocked.length + locked.length})', isDark),
               const SizedBox(width: 8),
-              _buildFilterPill('unlocked', 'Unlocked (${unlocked.length})', isDark),
+              _buildFilterPill(
+                  'unlocked', 'Unlocked (${unlocked.length})', isDark),
               const SizedBox(width: 8),
               _buildFilterPill('locked', 'Locked (${locked.length})', isDark),
             ],
           ),
         ),
         const SizedBox(height: 16),
-
         if (displayList.isEmpty)
           Center(
             child: Padding(
@@ -692,7 +751,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
             itemCount: displayList.length,
             itemBuilder: (context, index) {
               final achievement = displayList[index];
-              return _buildAchievementGridCard(achievement, cardColor, textColor, subTextColor, isDark);
+              return _buildAchievementGridCard(
+                  achievement, cardColor, textColor, subTextColor, isDark);
             },
           ),
       ],
@@ -727,13 +787,15 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
     );
   }
 
-  Widget _buildAchievementGridCard(Achievement achievement, Color cardColor, Color textColor, Color subTextColor, bool isDark) {
+  Widget _buildAchievementGridCard(Achievement achievement, Color cardColor,
+      Color textColor, Color subTextColor, bool isDark) {
     final rarityGradient = _getRarityGradient(achievement.rarity);
     final rarityColor = _getRarityColor(achievement.rarity);
     final isLocked = achievement.isLocked;
 
     return GestureDetector(
-      onTap: () => _showAchievementDetailSheet(achievement, rarityGradient, rarityColor),
+      onTap: () =>
+          _showAchievementDetailSheet(achievement, rarityGradient, rarityColor),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -747,7 +809,9 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
           ),
           boxShadow: [
             BoxShadow(
-              color: isLocked ? Colors.transparent : rarityColor.withValues(alpha: 0.06),
+              color: isLocked
+                  ? Colors.transparent
+                  : rarityColor.withValues(alpha: 0.06),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -763,7 +827,10 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                   width: 58,
                   height: 58,
                   decoration: BoxDecoration(
-                    color: isLocked ? const Color(0xFFF1F5F9).withValues(alpha: isDark ? 0.1 : 1.0) : Colors.transparent,
+                    color: isLocked
+                        ? const Color(0xFFF1F5F9)
+                            .withValues(alpha: isDark ? 0.1 : 1.0)
+                        : Colors.transparent,
                     gradient: isLocked ? null : rarityGradient,
                     shape: BoxShape.circle,
                     boxShadow: isLocked
@@ -829,7 +896,9 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 borderRadius: BorderRadius.circular(4),
                 child: Container(
                   height: 4,
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFF1F5F9),
                   child: FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: achievement.progress / 100.0,
@@ -850,7 +919,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
               ),
             ] else ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: rarityColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -886,7 +956,11 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
         },
         child: Container(
           decoration: BoxDecoration(
-            color: isSelected ? (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF334155) : Colors.white) : Colors.transparent,
+            color: isSelected
+                ? (Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF334155)
+                    : Colors.white)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           alignment: Alignment.center,
@@ -903,8 +977,10 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
     );
   }
 
-  Widget _buildLeaderboardTab(Color cardColor, Color textColor, Color subTextColor, Color borderColor, bool isDark) {
-    final entries = _selectedLeaderboardTab == 0 ? _classLeaderboard : _schoolLeaderboard;
+  Widget _buildLeaderboardTab(Color cardColor, Color textColor,
+      Color subTextColor, Color borderColor, bool isDark) {
+    final entries =
+        _selectedLeaderboardTab == 0 ? _classLeaderboard : _schoolLeaderboard;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -925,7 +1001,6 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
           ),
         ),
         const SizedBox(height: 16),
-
         if (_isLoadingLeaderboard && entries.isEmpty)
           const Center(
             child: Padding(
@@ -942,7 +1017,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 children: [
                   const Text('⚠️', style: TextStyle(fontSize: 24)),
                   const SizedBox(height: 8),
-                  Text('Failed to load: $_leaderboardError', style: TextStyle(color: textColor, fontSize: 13)),
+                  Text('Failed to load: $_leaderboardError',
+                      style: TextStyle(color: textColor, fontSize: 13)),
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: _loadLeaderboard,
@@ -954,228 +1030,268 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
           )
         else
           AzureGrid<LeaderboardEntry>(
-            title: _selectedLeaderboardTab == 0 ? 'Class Leaderboard' : 'School Leaderboard',
+            title: _selectedLeaderboardTab == 0
+                ? 'Class Leaderboard'
+                : 'School Leaderboard',
             items: entries,
             disableVerticalScroll: true,
-                      searchMatcher: (entry) => entry.fullName,
-                      filters: _selectedLeaderboardTab == 1
-                          ? [
-                              AzureGridFilter<LeaderboardEntry>(
-                                label: 'Class',
-                                options: entries.map((e) => e.className).toSet().toList()..removeWhere((e) => e.isEmpty)..sort(),
-                                filterFn: (entry, option) => entry.className == option,
-                              )
-                            ]
-                          : null,
-                      columns: [
-                        AzureGridColumn<LeaderboardEntry>(
-                          label: 'Rank',
-                          width: 80.0,
-                          compare: (a, b) => a.rank.compareTo(b.rank),
-                          cellBuilder: (entry) {
-                            if (entry.rank == 1) {
-                              return const Text('🥇', style: TextStyle(fontSize: 18));
-                            } else if (entry.rank == 2) {
-                              return const Text('🥈', style: TextStyle(fontSize: 18));
-                            } else if (entry.rank == 3) {
-                              return const Text('🥉', style: TextStyle(fontSize: 18));
-                            } else {
-                              return Text(entry.rank.toString(), style: const TextStyle(fontWeight: FontWeight.bold));
-                            }
-                          },
+            searchMatcher: (entry) => entry.fullName,
+            filters: _selectedLeaderboardTab == 1
+                ? [
+                    AzureGridFilter<LeaderboardEntry>(
+                      label: 'Class',
+                      options: entries.map((e) => e.className).toSet().toList()
+                        ..removeWhere((e) => e.isEmpty)
+                        ..sort(),
+                      filterFn: (entry, option) => entry.className == option,
+                    )
+                  ]
+                : null,
+            columns: [
+              AzureGridColumn<LeaderboardEntry>(
+                label: 'Rank',
+                width: 80.0,
+                compare: (a, b) => a.rank.compareTo(b.rank),
+                cellBuilder: (entry) {
+                  if (entry.rank == 1) {
+                    return const Text('🥇', style: TextStyle(fontSize: 18));
+                  } else if (entry.rank == 2) {
+                    return const Text('🥈', style: TextStyle(fontSize: 18));
+                  } else if (entry.rank == 3) {
+                    return const Text('🥉', style: TextStyle(fontSize: 18));
+                  } else {
+                    return Text(entry.rank.toString(),
+                        style: const TextStyle(fontWeight: FontWeight.bold));
+                  }
+                },
+              ),
+              AzureGridColumn<LeaderboardEntry>(
+                label: 'Student',
+                width: 250.0,
+                compare: (a, b) => a.fullName.compareTo(b.fullName),
+                cellBuilder: (entry) {
+                  final myProfileState = ref.watch(profileProvider);
+                  final myStudentId = myProfileState.profile?.id ?? '';
+                  final isMe = entry.studentId == myStudentId;
+                  return Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                          ),
+                          shape: BoxShape.circle,
                         ),
-                        AzureGridColumn<LeaderboardEntry>(
-                          label: 'Student',
-                          width: 250.0,
-                          compare: (a, b) => a.fullName.compareTo(b.fullName),
-                          cellBuilder: (entry) {
-                            final myProfileState = ref.watch(profileProvider);
-                            final myStudentId = myProfileState.profile?.id ?? '';
-                            final isMe = entry.studentId == myStudentId;
-                            return Row(
-                              children: [
-                                Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                                    ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    entry.fullName.isNotEmpty ? entry.fullName[0].toUpperCase() : 'S',
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    entry.fullName + (isMe ? ' (You)' : ''),
-                                    style: TextStyle(
-                                      fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
-                                      color: isMe ? StudentColors.primary : null,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                        alignment: Alignment.center,
+                        child: Text(
+                          entry.fullName.isNotEmpty
+                              ? entry.fullName[0].toUpperCase()
+                              : 'S',
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
-                        AzureGridColumn<LeaderboardEntry>(
-                          label: 'Class',
-                          width: 100.0,
-                          compare: (a, b) => a.className.compareTo(b.className),
-                          cellBuilder: (entry) => Text(entry.className.isEmpty ? '-' : entry.className),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          entry.fullName + (isMe ? ' (You)' : ''),
+                          style: TextStyle(
+                            fontWeight:
+                                isMe ? FontWeight.bold : FontWeight.normal,
+                            color: isMe ? StudentColors.primary : null,
+                          ),
                         ),
-                        AzureGridColumn<LeaderboardEntry>(
-                          label: 'Streak',
-                          width: 100.0,
-                          compare: (a, b) => a.learningStreak.compareTo(b.learningStreak),
-                          cellBuilder: (entry) {
-                            if (entry.learningStreak > 0) {
-                              return Text('🔥 ${entry.learningStreak}d', style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold));
-                            }
-                            return const Text('-');
-                          },
-                        ),
-                        AzureGridColumn<LeaderboardEntry>(
-                          label: 'XP',
-                          width: 100.0,
-                          compare: (a, b) => a.xpPoints.compareTo(b.xpPoints),
-                          cellBuilder: (entry) {
-                            return Text('${entry.xpPoints} XP', style: const TextStyle(fontWeight: FontWeight.bold));
-                          },
-                        ),
-                      ],
-                      mobileCardBuilder: (context, entry) {
-                        final myProfileState = ref.watch(profileProvider);
-                        final myStudentId = myProfileState.profile?.id ?? '';
-                        final isMe = entry.studentId == myStudentId;
-                        Widget rankWidget;
-                        if (entry.rank == 1) {
-                          rankWidget = const Text('🥇', style: TextStyle(fontSize: 20));
-                        } else if (entry.rank == 2) {
-                          rankWidget = const Text('🥈', style: TextStyle(fontSize: 20));
-                        } else if (entry.rank == 3) {
-                          rankWidget = const Text('🥉', style: TextStyle(fontSize: 20));
-                        } else {
-                          rankWidget = Container(
-                            width: 24,
-                            height: 24,
+                      ),
+                    ],
+                  );
+                },
+              ),
+              AzureGridColumn<LeaderboardEntry>(
+                label: 'Class',
+                width: 100.0,
+                compare: (a, b) => a.className.compareTo(b.className),
+                cellBuilder: (entry) =>
+                    Text(entry.className.isEmpty ? '-' : entry.className),
+              ),
+              AzureGridColumn<LeaderboardEntry>(
+                label: 'Streak',
+                width: 100.0,
+                compare: (a, b) => a.learningStreak.compareTo(b.learningStreak),
+                cellBuilder: (entry) {
+                  if (entry.learningStreak > 0) {
+                    return Text('🔥 ${entry.learningStreak}d',
+                        style: const TextStyle(
+                            color: Color(0xFFF59E0B),
+                            fontWeight: FontWeight.bold));
+                  }
+                  return const Text('-');
+                },
+              ),
+              AzureGridColumn<LeaderboardEntry>(
+                label: 'XP',
+                width: 100.0,
+                compare: (a, b) => a.xpPoints.compareTo(b.xpPoints),
+                cellBuilder: (entry) {
+                  return Text('${entry.xpPoints} XP',
+                      style: const TextStyle(fontWeight: FontWeight.bold));
+                },
+              ),
+            ],
+            mobileCardBuilder: (context, entry) {
+              final myProfileState = ref.watch(profileProvider);
+              final myStudentId = myProfileState.profile?.id ?? '';
+              final isMe = entry.studentId == myStudentId;
+              Widget rankWidget;
+              if (entry.rank == 1) {
+                rankWidget = const Text('🥇', style: TextStyle(fontSize: 20));
+              } else if (entry.rank == 2) {
+                rankWidget = const Text('🥈', style: TextStyle(fontSize: 20));
+              } else if (entry.rank == 3) {
+                rankWidget = const Text('🥉', style: TextStyle(fontSize: 20));
+              } else {
+                rankWidget = Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    entry.rank.toString(),
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: subTextColor),
+                  ),
+                );
+              }
+
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isMe
+                      ? StudentColors.primary
+                          .withValues(alpha: isDark ? 0.2 : 0.05)
+                      : cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isMe
+                        ? StudentColors.primary.withValues(alpha: 0.4)
+                        : borderColor.withValues(alpha: isDark ? 0.1 : 0.5),
+                    width: isMe ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(width: 32, child: Center(child: rankWidget)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                              gradient: LinearGradient(
+                                colors: [
+                                  StudentColors.primary.withValues(alpha: 0.6),
+                                  StudentColors.accent.withValues(alpha: 0.6),
+                                ],
+                              ),
                               shape: BoxShape.circle,
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              entry.rank.toString(),
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: subTextColor),
-                            ),
-                          );
-                        }
-
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isMe
-                                ? StudentColors.primary.withValues(alpha: isDark ? 0.2 : 0.05)
-                                : cardColor,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isMe
-                                  ? StudentColors.primary.withValues(alpha: 0.4)
-                                  : borderColor.withValues(alpha: isDark ? 0.1 : 0.5),
-                              width: isMe ? 1.5 : 1,
+                              entry.fullName.isNotEmpty
+                                  ? entry.fullName[0].toUpperCase()
+                                  : 'S',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white),
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              SizedBox(width: 32, child: Center(child: rankWidget)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 30,
-                                      height: 30,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            StudentColors.primary.withValues(alpha: 0.6),
-                                            StudentColors.accent.withValues(alpha: 0.6),
-                                          ],
-                                        ),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        entry.fullName.isNotEmpty ? entry.fullName[0].toUpperCase() : 'S',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            entry.fullName + (isMe ? ' (You)' : ''),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: isMe ? FontWeight.bold : FontWeight.w600,
-                                              color: isMe ? StudentColors.primary : textColor,
-                                            ),
-                                          ),
-                                          if (entry.className.isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              'Class: ${entry.className}',
-                                              style: TextStyle(fontSize: 10, color: subTextColor),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (entry.learningStreak > 0)
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  '🔥 ${entry.learningStreak}d',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
-                                )
-                              else
-                                const Text('-', style: TextStyle(fontSize: 11, color: StudentColors.text3)),
-                              const SizedBox(width: 16),
-                              SizedBox(
-                                width: 60,
-                                child: Text(
-                                  '${entry.xpPoints} XP',
-                                  textAlign: TextAlign.right,
+                                  entry.fullName + (isMe ? ' (You)' : ''),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontFamily: AppFonts.heading,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                    color: isMe ? StudentColors.primary : textColor,
+                                    fontSize: 13,
+                                    fontWeight: isMe
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
+                                    color: isMe
+                                        ? StudentColors.primary
+                                        : textColor,
                                   ),
                                 ),
-                              ),
-                            ],
+                                if (entry.className.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Class: ${entry.className}',
+                                    style: TextStyle(
+                                        fontSize: 10, color: subTextColor),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
+                    if (entry.learningStreak > 0)
+                      Text(
+                        '🔥 ${entry.learningStreak}d',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF59E0B)),
+                      )
+                    else
+                      const Text('-',
+                          style: TextStyle(
+                              fontSize: 11, color: StudentColors.text3)),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: 60,
+                      child: Text(
+                        '${entry.xpPoints} XP',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontFamily: AppFonts.heading,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: isMe ? StudentColors.primary : textColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
       ],
     );
   }
 
-  Widget _buildXpHistoryTab(Color cardColor, Color textColor, Color subTextColor, Color borderColor, bool isDark) {
+  Widget _buildXpHistoryTab(Color cardColor, Color textColor,
+      Color subTextColor, Color borderColor, bool isDark) {
     if (_isLoadingXpHistory && _xpHistory.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: StudentColors.primary));
+      return const Center(
+          child: CircularProgressIndicator(color: StudentColors.primary));
     }
 
     if (_xpHistoryError.isNotEmpty && _xpHistory.isEmpty) {
@@ -1185,7 +1301,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
           children: [
             const Text('⚠️', style: TextStyle(fontSize: 24)),
             const SizedBox(height: 8),
-            Text('Failed to load history: $_xpHistoryError', style: TextStyle(color: textColor, fontSize: 13)),
+            Text('Failed to load history: $_xpHistoryError',
+                style: TextStyle(color: textColor, fontSize: 13)),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: _loadXpHistory,
@@ -1198,11 +1315,12 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
 
     if (_xpHistory.isEmpty) {
       return const Center(
-        child: Text('No XP transactions found.', style: TextStyle(fontSize: 13, color: StudentColors.text3)),
+        child: Text('No XP transactions found.',
+            style: TextStyle(fontSize: 13, color: StudentColors.text3)),
       );
     }
 
-    String _getSourceEmoji(String source) {
+    String getSourceEmoji(String source) {
       switch (source.toLowerCase()) {
         case 'exam':
           return '📝';
@@ -1231,8 +1349,13 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
       filters: [
         AzureGridFilter<XpTransaction>(
           label: 'Type',
-          options: _xpHistory.map((tx) => tx.sourceType.replaceAll('_', ' ').toUpperCase()).toSet().toList()..sort(),
-          filterFn: (tx, option) => tx.sourceType.replaceAll('_', ' ').toUpperCase() == option,
+          options: _xpHistory
+              .map((tx) => tx.sourceType.replaceAll('_', ' ').toUpperCase())
+              .toSet()
+              .toList()
+            ..sort(),
+          filterFn: (tx, option) =>
+              tx.sourceType.replaceAll('_', ' ').toUpperCase() == option,
         ),
       ],
       columns: [
@@ -1243,7 +1366,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
           cellBuilder: (tx) {
             return Row(
               children: [
-                Text(_getSourceEmoji(tx.sourceType), style: const TextStyle(fontSize: 16)),
+                Text(getSourceEmoji(tx.sourceType),
+                    style: const TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -1263,7 +1387,10 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: (tx.amount < 0 ? StudentColors.error : StudentColors.success).withValues(alpha: 0.1),
+                color: (tx.amount < 0
+                        ? StudentColors.error
+                        : StudentColors.success)
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -1271,7 +1398,9 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: tx.amount < 0 ? StudentColors.error : StudentColors.success,
+                  color: tx.amount < 0
+                      ? StudentColors.error
+                      : StudentColors.success,
                 ),
               ),
             );
@@ -1282,7 +1411,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
           width: 120.0,
           compare: (a, b) => a.createdAt.compareTo(b.createdAt),
           cellBuilder: (tx) {
-            final formattedDate = '${tx.createdAt.day}/${tx.createdAt.month}/${tx.createdAt.year}';
+            final formattedDate =
+                '${tx.createdAt.day}/${tx.createdAt.month}/${tx.createdAt.year}';
             return Text(formattedDate);
           },
         ),
@@ -1306,15 +1436,18 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
       mobileCardBuilder: (context, tx) {
         final isPenalty = tx.amount < 0;
         final sign = isPenalty ? '' : '+';
-        final amountColor = isPenalty ? StudentColors.error : StudentColors.success;
-        final formattedDate = '${tx.createdAt.day}/${tx.createdAt.month}/${tx.createdAt.year}';
+        final amountColor =
+            isPenalty ? StudentColors.error : StudentColors.success;
+        final formattedDate =
+            '${tx.createdAt.day}/${tx.createdAt.month}/${tx.createdAt.year}';
 
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor.withValues(alpha: isDark ? 0.1 : 0.5)),
+            border: Border.all(
+                color: borderColor.withValues(alpha: isDark ? 0.1 : 0.5)),
           ),
           child: Row(
             children: [
@@ -1329,7 +1462,7 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  _getSourceEmoji(tx.sourceType),
+                  getSourceEmoji(tx.sourceType),
                   style: const TextStyle(fontSize: 18),
                 ),
               ),
@@ -1340,12 +1473,18 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                   children: [
                     Text(
                       tx.description,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: textColor),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${tx.sourceType.replaceAll('_', ' ').toUpperCase()} · $formattedDate',
-                      style: const TextStyle(fontSize: 9, color: StudentColors.text3, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          fontSize: 9,
+                          color: StudentColors.text3,
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -1369,7 +1508,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
   // ============================================
   // DETAILED MODAL BOTTOM SHEET
   // ============================================
-  void _showAchievementDetailSheet(Achievement achievement, LinearGradient gradient, Color rarityColor) {
+  void _showAchievementDetailSheet(
+      Achievement achievement, LinearGradient gradient, Color rarityColor) {
     final formattedDate = achievement.earnedAt != null
         ? '${achievement.earnedAt!.day}/${achievement.earnedAt!.month}/${achievement.earnedAt!.year}'
         : null;
@@ -1380,9 +1520,11 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
       backgroundColor: Colors.transparent,
       builder: (context) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final sheetColor = isDark ? StudentColors.darkSurface : StudentColors.surface;
+        final sheetColor =
+            isDark ? StudentColors.darkSurface : StudentColors.surface;
         final txtColor = isDark ? StudentColors.darkText : StudentColors.text;
-        final subTxtColor = isDark ? StudentColors.darkText2 : StudentColors.text2;
+        final subTxtColor =
+            isDark ? StudentColors.darkText2 : StudentColors.text2;
 
         return Container(
           decoration: BoxDecoration(
@@ -1398,7 +1540,9 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                  color: isDark
+                      ? const Color(0xFF475569)
+                      : const Color(0xFFCBD5E1),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1410,7 +1554,10 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 height: 84,
                 decoration: BoxDecoration(
                   gradient: achievement.isLocked ? null : gradient,
-                  color: achievement.isLocked ? const Color(0xFFF1F5F9).withValues(alpha: isDark ? 0.1 : 1) : null,
+                  color: achievement.isLocked
+                      ? const Color(0xFFF1F5F9)
+                          .withValues(alpha: isDark ? 0.1 : 1)
+                      : null,
                   shape: BoxShape.circle,
                   boxShadow: achievement.isLocked
                       ? null
@@ -1443,7 +1590,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: rarityColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -1475,14 +1623,21 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                 children: [
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 10),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         children: [
-                          const Text('🏆 XP Reward', style: TextStyle(fontSize: 10, color: StudentColors.text3, fontWeight: FontWeight.bold)),
+                          const Text('🏆 XP Reward',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: StudentColors.text3,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
                           Text(
                             '+${achievement.xpReward} XP',
@@ -1500,16 +1655,22 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                   const SizedBox(width: 12),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 10),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         children: [
                           Text(
                             achievement.isLocked ? '⚡ Status' : '📅 Earned',
-                            style: const TextStyle(fontSize: 10, color: StudentColors.text3, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 10,
+                                color: StudentColors.text3,
+                                fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -1520,7 +1681,9 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                               fontFamily: AppFonts.heading,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: achievement.isLocked ? Colors.grey : StudentColors.success,
+                              color: achievement.isLocked
+                                  ? Colors.grey
+                                  : StudentColors.success,
                             ),
                           ),
                         ],
@@ -1540,7 +1703,8 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: StudentColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                   child: const Text(
                     'Got it!',
@@ -1561,5 +1725,3 @@ class _StudentAchievementsState extends ConsumerState<StudentAchievements> with 
     );
   }
 }
-
-

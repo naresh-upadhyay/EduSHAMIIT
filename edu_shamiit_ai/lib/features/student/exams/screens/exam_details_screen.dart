@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
-import 'package:edu_shamiit_ai/core/utils/responsive.dart';
 import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
@@ -51,9 +50,23 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
     if (rawTimeStr == null) return 'TBD';
     try {
       final dt = DateTime.parse(rawTimeStr).toLocal();
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
       final String period = dt.hour >= 12 ? 'PM' : 'AM';
-      final int hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+      final int hour =
+          dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
       final String minutes = dt.minute.toString().padLeft(2, '0');
       return '${months[dt.month - 1]} ${dt.day.toString().padLeft(2, '0')}, ${dt.year} at $hour:$minutes $period';
     } catch (_) {
@@ -71,15 +84,20 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
     }
     // Dynamic fallbacks based on proctoring config
     final list = <String>[];
-    list.add('Ensure you have a stable high-speed internet connection before beginning.');
+    list.add(
+        'Ensure you have a stable high-speed internet connection before beginning.');
     if (camera) {
-      list.add('Keep your face in focus of the web camera at all times. The proctoring system flags suspicious movements.');
+      list.add(
+          'Keep your face in focus of the web camera at all times. The proctoring system flags suspicious movements.');
     }
     if (mic) {
-      list.add('Ensure you are in a quiet room. Ambient sound and background voices will be recorded and analyzed.');
+      list.add(
+          'Ensure you are in a quiet room. Ambient sound and background voices will be recorded and analyzed.');
     }
-    list.add('Leaving the exam screen or switching tabs will trigger security warnings. 5 warnings result in auto-submission.');
-    list.add('Ensure you have physical rough sheets. You will need to upload your subjective answers in image/PDF format.');
+    list.add(
+        'Leaving the exam screen or switching tabs will trigger security warnings. 5 warnings result in auto-submission.');
+    list.add(
+        'Ensure you have physical rough sheets. You will need to upload your subjective answers in image/PDF format.');
     return list;
   }
 
@@ -95,12 +113,14 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
               title: const Row(
                 children: [
-                  Icon(Icons.lock_outline_rounded, color: Color(0xFF134E4A), size: 24),
+                  Icon(Icons.lock_outline_rounded,
+                      color: Color(0xFF134E4A), size: 24),
                   SizedBox(width: 10),
                   Text(
                     'Passcode Required',
@@ -130,13 +150,23 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                     controller: passcodeController,
                     obscureText: true,
                     autofocus: true,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5),
                     decoration: InputDecoration(
                       labelText: 'Exam Passcode',
-                      labelStyle: const TextStyle(color: Color(0xFF134E4A), fontSize: 13, fontWeight: FontWeight.w600),
+                      labelStyle: const TextStyle(
+                          color: Color(0xFF134E4A),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600),
                       hintText: 'Enter access code',
-                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13, letterSpacing: 0),
-                      prefixIcon: const Icon(Icons.key_rounded, color: Color(0xFF134E4A), size: 18),
+                      hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                          letterSpacing: 0),
+                      prefixIcon: const Icon(Icons.key_rounded,
+                          color: Color(0xFF134E4A), size: 18),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -147,7 +177,8 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF134E4A), width: 1.5),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF134E4A), width: 1.5),
                       ),
                     ),
                   ),
@@ -155,12 +186,16 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.error_outline_rounded, color: Colors.red, size: 16),
+                        const Icon(Icons.error_outline_rounded,
+                            color: Colors.red, size: 16),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             dialogError!,
-                            style: const TextStyle(color: Colors.red, fontSize: 11.5, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
                       ],
@@ -171,8 +206,10 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
               actions: [
                 TextButton(
                   onPressed: isVerifying ? null : () => Navigator.pop(context),
-                  style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
-                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF64748B)),
+                  child: const Text('Cancel',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 ElevatedButton(
                   onPressed: isVerifying
@@ -190,16 +227,19 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                             dialogError = null;
                           });
                           try {
-                            final res = await _apiService.verifyExamPasscode(widget.examId, code);
+                            final res = await _apiService.verifyExamPasscode(
+                                widget.examId, code);
                             if (res['success'] == true) {
                               if (context.mounted) {
                                 Navigator.pop(context); // Close dialog
-                                context.push('/student/exams/verify/${widget.examId}?passcode=$code');
+                                context.push(
+                                    '/student/exams/verify/${widget.examId}?passcode=$code');
                               }
                             } else {
                               setDialogState(() {
                                 isVerifying = false;
-                                dialogError = res['message'] ?? 'Incorrect passcode. Try again.';
+                                dialogError = res['message'] ??
+                                    'Incorrect passcode. Try again.';
                               });
                             }
                           } catch (e) {
@@ -212,12 +252,19 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF134E4A),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                   child: isVerifying
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Unlock & Join', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Unlock & Join',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -244,7 +291,11 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
       return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
-          title: Text('Exam Guidelines'.tr(ref), style: const TextStyle(color: Colors.white, fontFamily: AppFonts.heading, fontWeight: FontWeight.bold)),
+          title: Text('Exam Guidelines'.tr(ref),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: AppFonts.heading,
+                  fontWeight: FontWeight.bold)),
           backgroundColor: const Color(0xFF134E4A),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -257,17 +308,23 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                const Icon(Icons.error_outline,
+                    size: 48, color: Colors.redAccent),
                 const SizedBox(height: 16),
                 Text(
                   'Failed to load exam details: $_error',
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _loadExamDetails,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF134E4A), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF134E4A),
+                      foregroundColor: Colors.white),
                   child: const Text('Retry'),
                 ),
               ],
@@ -283,12 +340,17 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
     final submission = dataPayload['submission'] as Map<String, dynamic>?;
 
     final title = exam['title'] ?? 'Online Examination';
-    final subject = (exam['subjects'] as Map<String, dynamic>?)?['name'] ?? exam['subject'] ?? 'General';
-    final teacherName = (exam['profiles'] as Map<String, dynamic>?)?['full_name'] ?? 'Course Instructor';
+    final subject = (exam['subjects'] as Map<String, dynamic>?)?['name'] ??
+        exam['subject'] ??
+        'General';
+    final teacherName =
+        (exam['profiles'] as Map<String, dynamic>?)?['full_name'] ??
+            'Course Instructor';
     final durationMins = exam['duration_minutes'] ?? 90;
     final totalMarks = exam['total_marks'] ?? 100;
     final passingMarks = exam['passing_marks'] ?? 40;
-    final isOnline = (exam['exam_type'] ?? 'online').toString().toLowerCase() == 'online';
+    final isOnline =
+        (exam['exam_type'] ?? 'online').toString().toLowerCase() == 'online';
     final venue = exam['venue'] ?? (isOnline ? 'Online Portal' : 'Classroom');
     final hasPasscode = exam['has_passcode'] as bool? ?? false;
 
@@ -296,8 +358,10 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
     final camera = exam['camera_required'] as bool? ?? true;
     final mic = exam['mic_required'] as bool? ?? true;
 
-    final startTimeStr = _formatExamDateTime(exam['start_time']?.toString() ?? exam['exam_date']?.toString());
-    final instructionLines = _getInstructions(exam['instructions'] as String?, camera, mic);
+    final startTimeStr = _formatExamDateTime(
+        exam['start_time']?.toString() ?? exam['exam_date']?.toString());
+    final instructionLines =
+        _getInstructions(exam['instructions'] as String?, camera, mic);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -349,7 +413,8 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
@@ -366,15 +431,19 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                         if (hasPasscode) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.amberAccent.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.amberAccent.withValues(alpha: 0.4)),
+                              border: Border.all(
+                                  color: Colors.amberAccent
+                                      .withValues(alpha: 0.4)),
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.lock_rounded, color: Colors.amberAccent, size: 10),
+                                Icon(Icons.lock_rounded,
+                                    color: Colors.amberAccent, size: 10),
                                 SizedBox(width: 4),
                                 Text(
                                   'Passcode Locked',
@@ -440,17 +509,23 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                   children: [
                     _buildDetailRow('Subject', subject, Icons.book_outlined),
                     const Divider(height: 24),
-                    _buildDetailRow('Duration', '$durationMins Minutes', Icons.hourglass_top),
+                    _buildDetailRow('Duration', '$durationMins Minutes',
+                        Icons.hourglass_top),
                     const Divider(height: 24),
-                    _buildDetailRow('Total Questions', '${questions.length}', Icons.quiz_outlined),
+                    _buildDetailRow('Total Questions', '${questions.length}',
+                        Icons.quiz_outlined),
                     const Divider(height: 24),
-                    _buildDetailRow('Total Marks', '$totalMarks Marks', Icons.stars_outlined),
+                    _buildDetailRow('Total Marks', '$totalMarks Marks',
+                        Icons.stars_outlined),
                     const Divider(height: 24),
-                    _buildDetailRow('Passing Marks', '$passingMarks Marks', Icons.verified_user_outlined),
+                    _buildDetailRow('Passing Marks', '$passingMarks Marks',
+                        Icons.verified_user_outlined),
                     const Divider(height: 24),
-                    _buildDetailRow('Venue / Mode', venue, Icons.location_on_outlined),
+                    _buildDetailRow(
+                        'Venue / Mode', venue, Icons.location_on_outlined),
                     const Divider(height: 24),
-                    _buildDetailRow('Start Time', startTimeStr, Icons.play_circle_outline),
+                    _buildDetailRow(
+                        'Start Time', startTimeStr, Icons.play_circle_outline),
                   ],
                 ),
               ),
@@ -510,7 +585,8 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Downloading PDF guidelines...')),
+                          const SnackBar(
+                              content: Text('Downloading PDF guidelines...')),
                         );
                       },
                       icon: const Icon(Icons.download, size: 16),
@@ -528,18 +604,23 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: submission != null && (submission['status'] == 'submitted' || submission['status'] == 'graded')
+                      onPressed: submission != null &&
+                              (submission['status'] == 'submitted' ||
+                                  submission['status'] == 'graded')
                           ? null
                           : () {
                               if (isOnline) {
                                 if (hasPasscode) {
                                   _showPasscodeDialog(context, isOnline);
                                 } else {
-                                  context.push('/student/exams/verify/${widget.examId}');
+                                  context.push(
+                                      '/student/exams/verify/${widget.examId}');
                                 }
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('This is an offline exam. Please report to the classroom venue.')),
+                                  const SnackBar(
+                                      content: Text(
+                                          'This is an offline exam. Please report to the classroom venue.')),
                                 );
                               }
                             },
@@ -553,11 +634,17 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
                         elevation: 2,
                       ),
                       child: Text(
-                        submission != null && (submission['status'] == 'submitted' || submission['status'] == 'graded')
+                        submission != null &&
+                                (submission['status'] == 'submitted' ||
+                                    submission['status'] == 'graded')
                             ? 'Submitted'
-                            : (((submission != null && submission['status'] == 'active') || dataPayload['session'] != null)
+                            : (((submission != null &&
+                                        submission['status'] == 'active') ||
+                                    dataPayload['session'] != null)
                                 ? 'Resume Exam'
-                                : (hasPasscode ? 'Unlock & Join' : 'Start Exam')),
+                                : (hasPasscode
+                                    ? 'Unlock & Join'
+                                    : 'Start Exam')),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -575,7 +662,8 @@ class _ExamDetailsScreenState extends ConsumerState<ExamDetailsScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, IconData icon, {Color? valueColor}) {
+  Widget _buildDetailRow(String label, String value, IconData icon,
+      {Color? valueColor}) {
     return Row(
       children: [
         Icon(icon, color: const Color(0xFF134E4A), size: 20),

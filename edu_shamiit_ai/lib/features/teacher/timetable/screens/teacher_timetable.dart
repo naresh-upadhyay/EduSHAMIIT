@@ -54,7 +54,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
         _myClasses = myClassesList
             .map((c) {
               final section = c.section.trim();
-              if (section.isEmpty || c.name.contains('-$section')) return c.name;
+              if (section.isEmpty || c.name.contains('-$section'))
+                return c.name;
               return '${c.name}-$section';
             })
             .where((name) => name.isNotEmpty)
@@ -254,7 +255,8 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                     ),
                     const SizedBox(width: 4),
                     IconButton(
-                      icon: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+                      icon: const Icon(Icons.add_rounded,
+                          color: Colors.white, size: 22),
                       tooltip: 'Schedule',
                       onPressed: _showScheduleModal,
                     ),
@@ -472,7 +474,6 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
           ),
         ],
       ),
-
     );
   }
 
@@ -1141,8 +1142,9 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                           );
                         },
                       );
-                      if (date != null)
+                      if (date != null) {
                         setModalState(() => selectedModalDate = date);
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -1186,8 +1188,9 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                               onTap: () async {
                                 final time = await showTimePicker(
                                     context: context, initialTime: startTime);
-                                if (time != null)
+                                if (time != null) {
                                   setModalState(() => startTime = time);
+                                }
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(12),
@@ -1218,8 +1221,9 @@ class _TeacherTimetableState extends ConsumerState<TeacherTimetable> {
                               onTap: () async {
                                 final time = await showTimePicker(
                                     context: context, initialTime: endTime);
-                                if (time != null)
+                                if (time != null) {
                                   setModalState(() => endTime = time);
+                                }
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(12),

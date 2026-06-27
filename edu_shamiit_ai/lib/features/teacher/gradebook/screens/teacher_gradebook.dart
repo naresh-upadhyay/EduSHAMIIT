@@ -60,7 +60,8 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
       setState(() {
         _subjects = subjects;
         final subjectNames = subjects.map((s) => s.name).toSet().toList();
-        if (_selectedSubject != 'All' && !subjectNames.contains(_selectedSubject)) {
+        if (_selectedSubject != 'All' &&
+            !subjectNames.contains(_selectedSubject)) {
           _selectedSubject = 'All';
         }
       });
@@ -79,11 +80,15 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
 
       setState(() {
         if (classes.isNotEmpty) {
-          _classes = classes.map((c) {
-            final section = c.section.trim();
-            if (section.isEmpty || c.name.contains('-$section')) return c.name;
-            return '${c.name}-$section';
-          }).toSet().toList();
+          _classes = classes
+              .map((c) {
+                final section = c.section.trim();
+                if (section.isEmpty || c.name.contains('-$section'))
+                  return c.name;
+                return '${c.name}-$section';
+              })
+              .toSet()
+              .toList();
           _selectedClass = _classes.first;
         }
       });
@@ -117,9 +122,12 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
       );
 
       setState(() {
-        _gradebookRows = List<Map<String, dynamic>>.from(data['gradebook'] ?? []);
-        _homeworkList = List<Map<String, dynamic>>.from(data['homework_list'] ?? []);
-        _submissions = List<Map<String, dynamic>>.from(data['homework_submissions'] ?? []);
+        _gradebookRows =
+            List<Map<String, dynamic>>.from(data['gradebook'] ?? []);
+        _homeworkList =
+            List<Map<String, dynamic>>.from(data['homework_list'] ?? []);
+        _submissions =
+            List<Map<String, dynamic>>.from(data['homework_submissions'] ?? []);
         _isLoading = false;
       });
     } catch (e) {
@@ -132,7 +140,11 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
 
   double get _averageMarks {
     if (_gradebookRows.isEmpty) return 0.0;
-    return _gradebookRows.fold<double>(0.0, (sum, r) => sum + (double.tryParse(r['average'].toString()) ?? 0.0)) / _gradebookRows.length;
+    return _gradebookRows.fold<double>(
+            0.0,
+            (sum, r) =>
+                sum + (double.tryParse(r['average'].toString()) ?? 0.0)) /
+        _gradebookRows.length;
   }
 
   String get _averageGrade {
@@ -145,7 +157,6 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
     if (avg >= 40) return 'D';
     return 'F';
   }
-
 
   Color _avatarColor(String name) {
     final colors = [
@@ -164,25 +175,36 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
       AzureGridColumn<Map<String, dynamic>>(
         label: 'Roll No',
         width: 80.0,
-        compare: (a, b) => (a['roll_number'] ?? '').toString().compareTo((b['roll_number'] ?? '').toString()),
-        cellBuilder: (r) => Text((r['roll_number'] ?? '-').toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
+        compare: (a, b) => (a['roll_number'] ?? '')
+            .toString()
+            .compareTo((b['roll_number'] ?? '').toString()),
+        cellBuilder: (r) => Text((r['roll_number'] ?? '-').toString(),
+            style: const TextStyle(fontWeight: FontWeight.w600)),
       ),
       AzureGridColumn<Map<String, dynamic>>(
         label: 'Student Name',
         width: 200.0,
-        compare: (a, b) => (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString()),
+        compare: (a, b) => (a['name'] ?? '')
+            .toString()
+            .compareTo((b['name'] ?? '').toString()),
         cellBuilder: (r) {
           final name = r['name'] ?? 'Student';
           final initials = name.trim().isEmpty
               ? '?'
-              : name.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase();
+              : name
+                  .trim()
+                  .split(RegExp(r'\s+'))
+                  .map((n) => n.isNotEmpty ? n[0] : '')
+                  .take(2)
+                  .join()
+                  .toUpperCase();
           return Row(
             children: [
               Container(
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: _avatarColor(name).withOpacity(0.15),
+                  color: _avatarColor(name).withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -200,7 +222,8 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
               Expanded(
                 child: Text(
                   name,
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: _kText),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: _kText),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -221,19 +244,22 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
       AzureGridColumn<Map<String, dynamic>>(
         label: 'Overall Grade',
         width: 110.0,
-        compare: (a, b) => (a['grade'] ?? '').toString().compareTo((b['grade'] ?? '').toString()),
+        compare: (a, b) => (a['grade'] ?? '')
+            .toString()
+            .compareTo((b['grade'] ?? '').toString()),
         cellBuilder: (r) {
           final g = r['grade'] ?? 'F';
           final color = _getGradeColor(g);
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               g,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.bold, color: color),
             ),
           );
         },
@@ -249,17 +275,33 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isUp ? Icons.trending_up : isDown ? Icons.trending_down : Icons.remove_rounded,
+                isUp
+                    ? Icons.trending_up
+                    : isDown
+                        ? Icons.trending_down
+                        : Icons.remove_rounded,
                 size: 14,
-                color: isUp ? _kSuccess : isDown ? _kDanger : _kText3,
+                color: isUp
+                    ? _kSuccess
+                    : isDown
+                        ? _kDanger
+                        : _kText3,
               ),
               const SizedBox(width: 4),
               Text(
-                isUp ? 'Improving' : isDown ? 'Declining' : 'Stable',
+                isUp
+                    ? 'Improving'
+                    : isDown
+                        ? 'Declining'
+                        : 'Stable',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isUp ? _kSuccess : isDown ? _kDanger : _kText2,
+                  color: isUp
+                      ? _kSuccess
+                      : isDown
+                          ? _kDanger
+                          : _kText2,
                 ),
               ),
             ],
@@ -274,7 +316,9 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: count > 0 ? _kWarning.withOpacity(0.1) : Colors.grey.withOpacity(0.05),
+              color: count > 0
+                  ? _kWarning.withValues(alpha: 0.1)
+                  : Colors.grey.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -299,10 +343,15 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kPrimary,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
                 elevation: 0,
               ),
-              child: const Text('Grade & Review', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('Grade & Review',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold)),
             ),
           );
         },
@@ -312,7 +361,8 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
 
   @override
   Widget build(BuildContext context) {
-    final pendingCount = _gradebookRows.fold<int>(0, (sum, r) => sum + (int.tryParse(r['pending_count'].toString()) ?? 0));
+    final pendingCount = _gradebookRows.fold<int>(0,
+        (sum, r) => sum + (int.tryParse(r['pending_count'].toString()) ?? 0));
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -320,7 +370,8 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
         children: [
           // Premium Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context), 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context), 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [_kPrimary, _kSecondary],
@@ -363,7 +414,8 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
                     : _buildStatsHeader(pendingCount),
                 extraCommandFilters: [
                   if (_classes.isNotEmpty)
-                    _buildTableToolbarDropdown('Class', _selectedClass, _classes, (value) async {
+                    _buildTableToolbarDropdown(
+                        'Class', _selectedClass, _classes, (value) async {
                       setState(() {
                         _selectedClass = value!;
                         _isLoading = true;
@@ -373,7 +425,8 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
                     }),
                 ],
                 columns: _buildGridColumns(),
-                searchMatcher: (r) => '${r['name']} ${r['roll_number']} ${r['grade']}',
+                searchMatcher: (r) =>
+                    '${r['name']} ${r['roll_number']} ${r['grade']}',
                 onRefresh: _loadGradebookData,
                 mobileCardBuilder: (context, r) => _buildMobileRosterTile(r),
               ),
@@ -424,13 +477,23 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Expanded(child: _buildStatChip('Average Score', '${_averageMarks.toStringAsFixed(1)}%', _kPrimary)),
+          Expanded(
+              child: _buildStatChip('Average Score',
+                  '${_averageMarks.toStringAsFixed(1)}%', _kPrimary)),
           const SizedBox(width: 8),
-          Expanded(child: _buildStatChip('Overall Grade', _averageGrade, _getGradeColor(_averageGrade))),
+          Expanded(
+              child: _buildStatChip('Overall Grade', _averageGrade,
+                  _getGradeColor(_averageGrade))),
           const SizedBox(width: 8),
-          Expanded(child: _buildStatChip('Roster Size', '${_gradebookRows.length} Students', Colors.purple)),
+          Expanded(
+              child: _buildStatChip('Roster Size',
+                  '${_gradebookRows.length} Students', Colors.purple)),
           const SizedBox(width: 8),
-          Expanded(child: _buildStatChip('Pending Tasks', '$pendingCount Needing Grade', pendingCount > 0 ? _kWarning : _kSuccess)),
+          Expanded(
+              child: _buildStatChip(
+                  'Pending Tasks',
+                  '$pendingCount Needing Grade',
+                  pendingCount > 0 ? _kWarning : _kSuccess)),
         ],
       ),
     );
@@ -440,7 +503,7 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      color: _kDanger.withOpacity(0.1),
+      color: _kDanger.withValues(alpha: 0.1),
       child: Row(
         children: [
           const Icon(Icons.error_outline, color: _kDanger, size: 20),
@@ -448,7 +511,8 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
           Expanded(
             child: Text(
               _error ?? 'An unexpected error occurred.',
-              style: const TextStyle(color: _kDanger, fontSize: 12, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  color: _kDanger, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
           IconButton(
@@ -460,14 +524,13 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
     );
   }
 
-
   Widget _buildStatChip(String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -496,7 +559,13 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
     final color = _getGradeColor(g);
     final initials = name.trim().isEmpty
         ? '?'
-        : name.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase();
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((n) => n.isNotEmpty ? n[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase();
     final count = int.tryParse(r['pending_count'].toString()) ?? 0;
 
     return Container(
@@ -513,13 +582,16 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: _avatarColor(name).withOpacity(0.15),
+              color: _avatarColor(name).withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 initials,
-                style: TextStyle(color: _avatarColor(name), fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(
+                    color: _avatarColor(name),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13),
               ),
             ),
           ),
@@ -528,9 +600,12 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text('Roll No: ${r['roll_number']} · Avg: ${r['average']}%', style: const TextStyle(color: _kText2, fontSize: 11)),
+                Text('Roll No: ${r['roll_number']} · Avg: ${r['average']}%',
+                    style: const TextStyle(color: _kText2, fontSize: 11)),
               ],
             ),
           ),
@@ -539,21 +614,33 @@ class _TeacherGradebookState extends ConsumerState<TeacherGradebook> {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text(g, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: color)),
+                decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4)),
+                child: Text(g,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: color)),
               ),
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: () => _openGradingPanel(r),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: count > 0 ? _kWarning.withOpacity(0.15) : _kPrimary.withOpacity(0.1),
+                    color: count > 0
+                        ? _kWarning.withValues(alpha: 0.15)
+                        : _kPrimary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     count > 0 ? 'Grade ($count)' : 'Review',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: count > 0 ? _kWarning : _kPrimary),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: count > 0 ? _kWarning : _kPrimary),
                   ),
                 ),
               ),
@@ -601,7 +688,8 @@ class _GradingDetailsSheet extends StatefulWidget {
   State<_GradingDetailsSheet> createState() => _GradingDetailsSheetState();
 }
 
-class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleTickerProviderStateMixin {
+class _GradingDetailsSheetState extends State<_GradingDetailsSheet>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TeacherApiService _apiService = TeacherApiService();
 
@@ -650,10 +738,17 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
     final name = widget.student['name'] ?? 'Student';
     final initials = name.trim().isEmpty
         ? '?'
-        : name.trim().split(RegExp(r'\s+')).map((n) => n.isNotEmpty ? n[0] : '').take(2).join().toUpperCase();
+        : name
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map((n) => n.isNotEmpty ? n[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase();
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         height: MediaQuery.of(context).size.height * 0.8,
         decoration: const BoxDecoration(
@@ -663,7 +758,11 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
         child: Column(
           children: [
             const SizedBox(height: 12),
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: _kBorder, borderRadius: BorderRadius.circular(2))),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: _kBorder, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
 
             // Roster header info
@@ -673,25 +772,41 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: _kPrimary.withOpacity(0.1),
-                    child: Text(initials, style: const TextStyle(fontWeight: FontWeight.bold, color: _kPrimary)),
+                    backgroundColor: _kPrimary.withValues(alpha: 0.1),
+                    child: Text(initials,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: _kPrimary)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name, style: const TextStyle(fontFamily: AppFonts.heading, fontSize: 16, fontWeight: FontWeight.w800, color: _kText)),
-                        Text('Roll Number: ${widget.student['roll_number']} · Avg: ${widget.student['average']}%', style: const TextStyle(fontSize: 12, color: _kText2)),
+                        Text(name,
+                            style: const TextStyle(
+                                fontFamily: AppFonts.heading,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: _kText)),
+                        Text(
+                            'Roll Number: ${widget.student['roll_number']} · Avg: ${widget.student['average']}%',
+                            style:
+                                const TextStyle(fontSize: 12, color: _kText2)),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: _kPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: _kPrimary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8)),
                     child: Text(
                       'Grade ${widget.student['grade']}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: _kPrimary, fontSize: 12),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _kPrimary,
+                          fontSize: 12),
                     ),
                   ),
                 ],
@@ -706,7 +821,8 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
               unselectedLabelColor: _kText3,
               indicatorColor: _kPrimary,
               indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontFamily: AppFonts.heading),
+              labelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold, fontFamily: AppFonts.heading),
               tabs: const [
                 Tab(text: 'Homework Assignments'),
                 Tab(text: 'Exam Grades'),
@@ -732,7 +848,9 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
   Widget _buildHomeworkTab() {
     final hwList = _studentHomeworks;
     if (hwList.isEmpty) {
-      return const Center(child: Text('No homework assignments assigned to this class.', style: TextStyle(fontStyle: FontStyle.italic, color: _kText3)));
+      return const Center(
+          child: Text('No homework assignments assigned to this class.',
+              style: TextStyle(fontStyle: FontStyle.italic, color: _kText3)));
     }
 
     return ListView.builder(
@@ -743,8 +861,10 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
         final hw = item['homework'] as Map<String, dynamic>;
         final sub = item['submission'] as Map<String, dynamic>?;
 
-        final status = (sub?['status'] ?? 'not_submitted').toString().toLowerCase();
-        final maxMarks = double.tryParse(hw['max_marks']?.toString() ?? '25.0') ?? 25.0;
+        final status =
+            (sub?['status'] ?? 'not_submitted').toString().toLowerCase();
+        final maxMarks =
+            double.tryParse(hw['max_marks']?.toString() ?? '25.0') ?? 25.0;
 
         Widget subStatusBadge;
         Color statusColor = _kText3;
@@ -763,10 +883,13 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
 
         subStatusBadge = Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+          decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6)),
           child: Text(
             statusLabel,
-            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: statusColor),
+            style: TextStyle(
+                fontSize: 9, fontWeight: FontWeight.bold, color: statusColor),
           ),
         );
 
@@ -779,7 +902,10 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: _kBorder),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8)],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02), blurRadius: 8)
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -790,7 +916,10 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                   Expanded(
                     child: Text(
                       hw['title'] ?? 'Homework Assignment',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _kText),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: _kText),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -802,19 +931,27 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                 'Max Marks: ${maxMarks.toInt()} · Due: ${hw['due_date']}',
                 style: const TextStyle(fontSize: 11, color: _kText2),
               ),
-              if (sub != null && sub['submission_text'] != null && sub['submission_text'].toString().isNotEmpty) ...[
+              if (sub != null &&
+                  sub['submission_text'] != null &&
+                  sub['submission_text'].toString().isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   width: double.infinity,
-                  decoration: BoxDecoration(color: _kBg, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                      color: _kBg, borderRadius: BorderRadius.circular(8)),
                   child: Text(
                     'Notes: "${sub['submission_text']}"',
-                    style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: _kText2),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        color: _kText2),
                   ),
                 ),
               ],
-              if (sub != null && sub['teacher_remarks'] != null && sub['teacher_remarks'].toString().isNotEmpty) ...[
+              if (sub != null &&
+                  sub['teacher_remarks'] != null &&
+                  sub['teacher_remarks'].toString().isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
                   'Remarks: ${sub['teacher_remarks']}',
@@ -838,8 +975,10 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                           hintText: 'Marks...',
                           labelText: 'Score',
                           errorText: _gradingError,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
                         ),
                       ),
                     ),
@@ -851,8 +990,10 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                         decoration: InputDecoration(
                           hintText: 'Remarks (optional)...',
                           labelText: 'Feedback',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
                         ),
                       ),
                     ),
@@ -863,30 +1004,45 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => setState(() => _editingSubmissionId = null),
-                      child: const Text('Cancel', style: TextStyle(color: _kText3, fontWeight: FontWeight.bold)),
+                      onPressed: () =>
+                          setState(() => _editingSubmissionId = null),
+                      child: const Text('Cancel',
+                          style: TextStyle(
+                              color: _kText3, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: _isSubmitting ? null : () => _submitHomeworkReturn(sub!['id']),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => _submitHomeworkReturn(sub['id']),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.purple,
                         foregroundColor: Colors.white,
                         elevation: 0,
                       ),
-                      child: const Text('Return Revision', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: const Text('Return Revision',
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: _isSubmitting ? null : () => _submitHomeworkGrade(sub!['id'], maxMarks),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => _submitHomeworkGrade(sub['id'], maxMarks),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _kSuccess,
                         foregroundColor: Colors.white,
                         elevation: 0,
                       ),
                       child: _isSubmitting
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Save Grade', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Text('Save Grade',
+                              style: TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -900,14 +1056,22 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                       onPressed: () {
                         setState(() {
                           _editingSubmissionId = sub!['id'];
-                          _marksController.text = sub['marks']?.toString() ?? '';
-                          _remarksController.text = sub['teacher_remarks'] ?? '';
+                          _marksController.text =
+                              sub['marks']?.toString() ?? '';
+                          _remarksController.text =
+                              sub['teacher_remarks'] ?? '';
                           _gradingError = null;
                         });
                       },
-                      icon: const Icon(Icons.edit_note, size: 16, color: Colors.white),
-                      label: const Text('Grade Submission', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                      style: ElevatedButton.styleFrom(backgroundColor: _kSecondary, elevation: 0),
+                      icon: const Icon(Icons.edit_note,
+                          size: 16, color: Colors.white),
+                      label: const Text('Grade Submission',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _kSecondary, elevation: 0),
                     ),
                   ),
                 ] else if (status == 'graded') ...[
@@ -918,13 +1082,19 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                       onPressed: () {
                         setState(() {
                           _editingSubmissionId = sub!['id'];
-                          _marksController.text = sub['marks']?.toString() ?? '';
-                          _remarksController.text = sub['teacher_remarks'] ?? '';
+                          _marksController.text =
+                              sub['marks']?.toString() ?? '';
+                          _remarksController.text =
+                              sub['teacher_remarks'] ?? '';
                           _gradingError = null;
                         });
                       },
                       icon: const Icon(Icons.edit, size: 14, color: _kPrimary),
-                      label: const Text('Edit Grade', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _kPrimary)),
+                      label: const Text('Edit Grade',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: _kPrimary)),
                     ),
                   ),
                 ],
@@ -939,7 +1109,9 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
   Widget _buildExamsTab() {
     final exams = _studentExams;
     if (exams.isEmpty) {
-      return const Center(child: Text('No exam grades found for this selection.', style: TextStyle(fontStyle: FontStyle.italic, color: _kText3)));
+      return const Center(
+          child: Text('No exam grades found for this selection.',
+              style: TextStyle(fontStyle: FontStyle.italic, color: _kText3)));
     }
 
     return ListView.builder(
@@ -947,8 +1119,10 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
       itemCount: exams.length,
       itemBuilder: (context, index) {
         final exam = exams[index];
-        final marks = double.tryParse(exam['marks_obtained']?.toString() ?? '0.0') ?? 0.0;
-        final total = int.tryParse(exam['total_marks']?.toString() ?? '100') ?? 100;
+        final marks =
+            double.tryParse(exam['marks_obtained']?.toString() ?? '0.0') ?? 0.0;
+        final total =
+            int.tryParse(exam['total_marks']?.toString() ?? '100') ?? 100;
         final pct = total > 0 ? (marks / total * 100) : 0.0;
         final g = exam['grade'] ?? 'F';
         final color = _getGradeColor(g);
@@ -967,13 +1141,16 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
                   child: Text(
                     g,
-                    style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                        fontSize: 13),
                   ),
                 ),
               ),
@@ -984,7 +1161,10 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                   children: [
                     Text(
                       exam['exam_title'] ?? exam['exam_type'] ?? 'Exam',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _kText),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: _kText),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -999,7 +1179,11 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
                   ],
                 ),
               ),
-              const Text('Reported', style: TextStyle(fontSize: 10, color: _kText3, fontWeight: FontWeight.bold)),
+              const Text('Reported',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: _kText3,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
         );
@@ -1007,14 +1191,16 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
     );
   }
 
-  Future<void> _submitHomeworkGrade(String submissionId, double maxMarks) async {
+  Future<void> _submitHomeworkGrade(
+      String submissionId, double maxMarks) async {
     final parsed = double.tryParse(_marksController.text);
     if (parsed == null) {
       setState(() => _gradingError = 'Please enter a valid number');
       return;
     }
     if (parsed < 0 || parsed > maxMarks) {
-      setState(() => _gradingError = 'Score must be between 0 and ${maxMarks.toInt()}');
+      setState(() =>
+          _gradingError = 'Score must be between 0 and ${maxMarks.toInt()}');
       return;
     }
 
@@ -1027,19 +1213,24 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
       await _apiService.gradeSubmission(
         submissionId: submissionId,
         marks: parsed,
-        feedback: _remarksController.text.trim().isEmpty ? null : _remarksController.text,
+        feedback: _remarksController.text.trim().isEmpty
+            ? null
+            : _remarksController.text,
       );
 
       widget.onGraded();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Grade submitted successfully!'), backgroundColor: _kSuccess),
+          const SnackBar(
+              content: Text('✅ Grade submitted successfully!'),
+              backgroundColor: _kSuccess),
         );
         setState(() {
           _editingSubmissionId = null;
           _isSubmitting = false;
         });
-        Navigator.pop(context); // Close the sheet to force refresh dashboard stats
+        Navigator.pop(
+            context); // Close the sheet to force refresh dashboard stats
       }
     } catch (e) {
       setState(() {
@@ -1057,13 +1248,17 @@ class _GradingDetailsSheetState extends State<_GradingDetailsSheet> with SingleT
     try {
       await _apiService.returnSubmission(
         submissionId: submissionId,
-        feedback: _remarksController.text.trim().isEmpty ? null : _remarksController.text,
+        feedback: _remarksController.text.trim().isEmpty
+            ? null
+            : _remarksController.text,
       );
 
       widget.onGraded();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('↩️ Homework returned for revision!'), backgroundColor: Colors.purple),
+          const SnackBar(
+              content: Text('↩️ Homework returned for revision!'),
+              backgroundColor: Colors.purple),
         );
         setState(() {
           _editingSubmissionId = null;
@@ -1094,4 +1289,3 @@ Color _getGradeColor(String grade) {
       return _kDanger;
   }
 }
-

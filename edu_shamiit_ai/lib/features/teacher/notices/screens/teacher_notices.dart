@@ -24,7 +24,7 @@ class TeacherNotices extends ConsumerStatefulWidget {
 class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
   final TeacherApiService _apiService = TeacherApiService();
   final TextEditingController _searchController = TextEditingController();
-  
+
   String _selectedTab = 'all'; // 'all', 'my', 'school', 'draft'
   List<TeacherNotice> _notices = [];
   bool _isLoading = true;
@@ -102,15 +102,20 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
     final currentUserId = authState.userData?['id'] as String? ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBEB), // Cream notices background from mockup
+      backgroundColor:
+          const Color(0xFFFFFBEB), // Cream notices background from mockup
       body: Column(
         children: [
           // Header styled with linear gradient matching mockup
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context) + 8, 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context) + 8, 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF92400E), Color(0xFFD97706)], // Amber theme notices header
+                colors: [
+                  Color(0xFF92400E),
+                  Color(0xFFD97706)
+                ], // Amber theme notices header
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -122,7 +127,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => safeGoBack(context, '/teacher/dashboard'),
+                      onPressed: () =>
+                          safeGoBack(context, '/teacher/dashboard'),
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -147,9 +153,10 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                     GestureDetector(
                       onTap: () => _openNoticeEditor(context, currentUserId),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text(
@@ -196,9 +203,11 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const Icon(Icons.error_outline,
+                                  size: 48, color: Colors.red),
                               const SizedBox(height: 12),
-                              Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+                              Text('Error: $_error',
+                                  style: const TextStyle(color: Colors.red)),
                               const SizedBox(height: 12),
                               ElevatedButton(
                                 onPressed: _loadNotices,
@@ -228,9 +237,15 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                             ),
                             AzureGridFilter<TeacherNotice>(
                               label: 'Type',
-                              options: const ['Event', 'Announcement', 'Holiday', 'General'],
+                              options: const [
+                                'Event',
+                                'Announcement',
+                                'Holiday',
+                                'General'
+                              ],
                               filterFn: (item, option) =>
-                                  item.noticeType.toLowerCase() == option.toLowerCase(),
+                                  item.noticeType.toLowerCase() ==
+                                  option.toLowerCase(),
                             ),
                           ],
                           columns: [
@@ -244,14 +259,18 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                                 children: [
                                   Text(
                                     item.title,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     item.content,
-                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                                    style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 10),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -261,20 +280,26 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                             AzureGridColumn<TeacherNotice>(
                               label: 'Type & Urgency',
                               width: 140,
-                              compare: (a, b) => a.noticeType.compareTo(b.noticeType),
+                              compare: (a, b) =>
+                                  a.noticeType.compareTo(b.noticeType),
                               cellBuilder: (item) {
-                                final borderCol = _getNoticeColor(item, currentUserId);
-                                final bgCol = _getNoticeBgColor(item, currentUserId);
+                                final borderCol =
+                                    _getNoticeColor(item, currentUserId);
+                                final bgCol =
+                                    _getNoticeBgColor(item, currentUserId);
                                 return Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: bgCol,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        item.isUrgent ? '🚨 URGENT' : item.noticeType.toUpperCase(),
+                                        item.isUrgent
+                                            ? '🚨 URGENT'
+                                            : item.noticeType.toUpperCase(),
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w700,
@@ -289,27 +314,35 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                             AzureGridColumn<TeacherNotice>(
                               label: 'Created By',
                               width: 120,
-                              compare: (a, b) => (a.createdByName ?? '').compareTo(b.createdByName ?? ''),
-                              cellBuilder: (item) => Text(item.createdByName ?? 'Teacher'),
+                              compare: (a, b) => (a.createdByName ?? '')
+                                  .compareTo(b.createdByName ?? ''),
+                              cellBuilder: (item) =>
+                                  Text(item.createdByName ?? 'Teacher'),
                             ),
                             AzureGridColumn<TeacherNotice>(
                               label: 'Publish Date / Status',
                               width: 180,
-                              compare: (a, b) => a.publishDate.compareTo(b.publishDate),
-                              cellBuilder: (item) => Text(_formatNoticeDate(item)),
+                              compare: (a, b) =>
+                                  a.publishDate.compareTo(b.publishDate),
+                              cellBuilder: (item) =>
+                                  Text(_formatNoticeDate(item)),
                             ),
                             AzureGridColumn<TeacherNotice>(
                               label: 'Attachment',
                               width: 110,
                               cellBuilder: (item) {
-                                if (item.attachmentUrl == null || item.attachmentUrl!.isEmpty) {
+                                if (item.attachmentUrl == null ||
+                                    item.attachmentUrl!.isEmpty) {
                                   return const Text('-');
                                 }
                                 return IconButton(
-                                  icon: const Icon(Icons.attachment, size: 16, color: Color(0xFFD97706)),
+                                  icon: const Icon(Icons.attachment,
+                                      size: 16, color: Color(0xFFD97706)),
                                   onPressed: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Downloading ${item.attachmentUrl!.split('/').last} ...')),
+                                      SnackBar(
+                                          content: Text(
+                                              'Downloading ${item.attachmentUrl!.split('/').last} ...')),
                                     );
                                     getDownloadHelper().downloadFile(
                                       item.attachmentUrl!,
@@ -326,21 +359,28 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                               label: 'Actions',
                               width: 130,
                               cellBuilder: (item) {
-                                final isMyNotice = item.createdBy == currentUserId;
+                                final isMyNotice =
+                                    item.createdBy == currentUserId;
                                 return Row(
                                   children: [
                                     TextButton(
                                       onPressed: () => _viewNoticeDetails(item),
-                                      child: const Text('View', style: TextStyle(fontSize: 11, color: Color(0xFFD97706))),
+                                      child: const Text('View',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFFD97706))),
                                     ),
                                     if (isMyNotice || item.status == 'draft')
                                       PopupMenuButton<String>(
-                                        icon: const Icon(Icons.more_vert, size: 16, color: Color(0xFF64748B)),
+                                        icon: const Icon(Icons.more_vert,
+                                            size: 16, color: Color(0xFF64748B)),
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         onSelected: (value) {
                                           if (value == 'edit') {
-                                            _openNoticeEditor(context, currentUserId, notice: item);
+                                            _openNoticeEditor(
+                                                context, currentUserId,
+                                                notice: item);
                                           } else if (value == 'delete') {
                                             _confirmDeleteNotice(item);
                                           }
@@ -352,7 +392,9 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                                               children: [
                                                 Icon(Icons.edit, size: 14),
                                                 SizedBox(width: 6),
-                                                Text('Edit Notice', style: TextStyle(fontSize: 11)),
+                                                Text('Edit Notice',
+                                                    style: TextStyle(
+                                                        fontSize: 11)),
                                               ],
                                             ),
                                           ),
@@ -360,9 +402,14 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                                             value: 'delete',
                                             child: Row(
                                               children: [
-                                                Icon(Icons.delete, size: 14, color: Colors.red),
+                                                Icon(Icons.delete,
+                                                    size: 14,
+                                                    color: Colors.red),
                                                 SizedBox(width: 6),
-                                                Text('Delete Notice', style: TextStyle(color: Colors.red, fontSize: 11)),
+                                                Text('Delete Notice',
+                                                    style: TextStyle(
+                                                        color: Colors.red,
+                                                        fontSize: 11)),
                                               ],
                                             ),
                                           ),
@@ -373,7 +420,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                               },
                             ),
                           ],
-                          mobileCardBuilder: (context, item) => _buildNoticeCard(item, currentUserId),
+                          mobileCardBuilder: (context, item) =>
+                              _buildNoticeCard(item, currentUserId),
                         ),
                       ),
           ),
@@ -396,7 +444,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFD97706) : const Color(0xFFFEF3C7),
+            color:
+                isSelected ? const Color(0xFFD97706) : const Color(0xFFFEF3C7),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -448,13 +497,16 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: bgCol,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        notice.isUrgent ? '🚨 URGENT' : notice.noticeType.toUpperCase(),
+                        notice.isUrgent
+                            ? '🚨 URGENT'
+                            : notice.noticeType.toUpperCase(),
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -465,11 +517,14 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                     if (notice.noticeType.toLowerCase() == 'event') ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF3C7),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                          border: Border.all(
+                              color: const Color(0xFFF59E0B)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           '👥 ${notice.registrationCount} Registered',
@@ -484,7 +539,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                     if (notice.status == 'scheduled') ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF7ED),
                           borderRadius: BorderRadius.circular(6),
@@ -505,7 +561,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: () => _openNoticeEditor(context, currentUserId, notice: notice),
+                        onTap: () => _openNoticeEditor(context, currentUserId,
+                            notice: notice),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4.0),
                           child: Text('✏️', style: TextStyle(fontSize: 14)),
@@ -555,7 +612,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                     color: Colors.grey,
                   ),
                 ),
-                if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty)
+                if (notice.attachmentUrl != null &&
+                    notice.attachmentUrl!.isNotEmpty)
                   const Text('📎', style: TextStyle(fontSize: 12)),
               ],
             ),
@@ -571,7 +629,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * (notice.noticeType.toLowerCase() == 'event' ? 0.82 : 0.70),
+        height: MediaQuery.of(context).size.height *
+            (notice.noticeType.toLowerCase() == 'event' ? 0.82 : 0.70),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -580,7 +639,12 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2))),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -589,17 +653,24 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: notice.isUrgent ? const Color(0xFFFEF2F2) : const Color(0xFFEEF2FF),
+                        color: notice.isUrgent
+                            ? const Color(0xFFFEF2F2)
+                            : const Color(0xFFEEF2FF),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        notice.isUrgent ? '🚨 URGENT' : notice.noticeType.toUpperCase(),
+                        notice.isUrgent
+                            ? '🚨 URGENT'
+                            : notice.noticeType.toUpperCase(),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: notice.isUrgent ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                          color: notice.isUrgent
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF4F46E5),
                         ),
                       ),
                     ),
@@ -631,23 +702,28 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                          const Icon(Icons.calendar_today,
+                              size: 16, color: Colors.grey),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _formatNoticeDate(notice),
-                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.grey),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty) ...[
+                    if (notice.attachmentUrl != null &&
+                        notice.attachmentUrl!.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       GestureDetector(
                         onTap: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Downloading ${notice.attachmentUrl!.split('/').last} ...')),
+                            SnackBar(
+                                content: Text(
+                                    'Downloading ${notice.attachmentUrl!.split('/').last} ...')),
                           );
                           getDownloadHelper().downloadFile(
                             notice.attachmentUrl!,
@@ -662,7 +738,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.attachment, color: Color(0xFFD97706)),
+                              const Icon(Icons.attachment,
+                                  color: Color(0xFFD97706)),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -670,21 +747,27 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                                   children: [
                                     Text(
                                       notice.attachmentUrl!.split('/').last,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600),
                                     ),
                                     const SizedBox(height: 2),
                                     const Text(
                                       'Tap to download attachment',
-                                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                                      style: TextStyle(
+                                          fontSize: 10, color: Colors.grey),
                                     ),
                                   ],
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.download, color: Color(0xFFD97706)),
+                                icon: const Icon(Icons.download,
+                                    color: Color(0xFFD97706)),
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Downloading ${notice.attachmentUrl!.split('/').last} ...')),
+                                    SnackBar(
+                                        content: Text(
+                                            'Downloading ${notice.attachmentUrl!.split('/').last} ...')),
                                   );
                                   getDownloadHelper().downloadFile(
                                     notice.attachmentUrl!,
@@ -712,31 +795,36 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                               color: Color(0xFF0F172A),
                             ),
                           ),
-                          const Icon(Icons.people_outline, size: 18, color: Color(0xFFD97706)),
+                          const Icon(Icons.people_outline,
+                              size: 18, color: Color(0xFFD97706)),
                         ],
                       ),
                       const SizedBox(height: 12),
                       FutureBuilder<List<Map<String, dynamic>>>(
                         future: _apiService.getNoticeRegistrations(notice.id),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(16.0),
                                 child: SizedBox(
                                   width: 24,
                                   height: 24,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 ),
                               ),
                             );
                           }
                           if (snapshot.hasError) {
                             return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
                               child: Text(
                                 'Error loading registrants: ${snapshot.error}',
-                                style: const TextStyle(color: Colors.red, fontSize: 12),
+                                style: const TextStyle(
+                                    color: Colors.red, fontSize: 12),
                               ),
                             );
                           }
@@ -762,13 +850,15 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                             itemCount: registrants.length,
                             itemBuilder: (context, idx) {
                               final r = registrants[idx];
-                              final name = r['full_name']?.toString() ?? 'Unknown Student';
+                              final name = r['full_name']?.toString() ??
+                                  'Unknown Student';
                               final roll = r['roll_number']?.toString() ?? '';
                               final avatar = r['avatar_url']?.toString() ?? '';
                               final studentId = r['id']?.toString() ?? '';
 
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 6.0),
                                 child: Row(
                                   children: [
                                     CircleAvatar(
@@ -779,7 +869,9 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                                           : null,
                                       child: avatar.isEmpty
                                           ? Text(
-                                              name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                                              name.isNotEmpty
+                                                  ? name[0].toUpperCase()
+                                                  : 'S',
                                               style: const TextStyle(
                                                 fontSize: 11,
                                                 color: Color(0xFFD97706),
@@ -791,7 +883,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             name,
@@ -821,7 +914,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                                         ),
                                         onPressed: () {
                                           Navigator.pop(context);
-                                          context.push('/teacher/messaging?chat_id=$studentId');
+                                          context.push(
+                                              '/teacher/messaging?chat_id=$studentId');
                                         },
                                         tooltip: 'Send message',
                                         constraints: const BoxConstraints(),
@@ -848,9 +942,12 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD97706),
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  child: const Text('Close',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
                 ),
               ),
             ),
@@ -880,7 +977,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
                 final success = await _apiService.deleteNotice(notice.id);
                 if (success) {
                   scaffoldMessenger.showSnackBar(
-                    const SnackBar(content: Text('Notice deleted successfully')),
+                    const SnackBar(
+                        content: Text('Notice deleted successfully')),
                   );
                   _loadNotices();
                 } else {
@@ -900,7 +998,8 @@ class _TeacherNoticesState extends ConsumerState<TeacherNotices> {
     );
   }
 
-  void _openNoticeEditor(BuildContext context, String currentUserId, {TeacherNotice? notice}) {
+  void _openNoticeEditor(BuildContext context, String currentUserId,
+      {TeacherNotice? notice}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -954,16 +1053,20 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.notice?.title ?? '');
-    _contentController = TextEditingController(text: widget.notice?.content ?? '');
+    _contentController =
+        TextEditingController(text: widget.notice?.content ?? '');
     _category = widget.notice?.noticeType ?? 'General';
     // capitalize category to match database constraint
     if (_category.isNotEmpty) {
       _category = _category[0].toUpperCase() + _category.substring(1);
     }
-    if (_category != 'Urgent' && _category != 'General' && _category != 'Event' && _category != 'Academic') {
+    if (_category != 'Urgent' &&
+        _category != 'General' &&
+        _category != 'Event' &&
+        _category != 'Academic') {
       _category = 'General';
     }
-    
+
     if (widget.notice != null) {
       _targetAudience = widget.notice!.targetAudience ?? 'all';
       if (_targetAudience != 'all' && _targetAudience != 'class') {
@@ -971,8 +1074,8 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
         _selectedClasses = [_targetAudience];
         _targetAudience = 'class';
       } else {
-        _selectedClasses = widget.notice!.targetClasses != null 
-            ? List<String>.from(widget.notice!.targetClasses!) 
+        _selectedClasses = widget.notice!.targetClasses != null
+            ? List<String>.from(widget.notice!.targetClasses!)
             : [];
       }
     } else {
@@ -1028,7 +1131,8 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
     if (!mounted) return;
 
     setState(() {
-      _scheduledDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _scheduledDateTime =
+          DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
   }
 
@@ -1041,7 +1145,7 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
     if (result != null && result.files.single.bytes != null) {
       final bytes = result.files.single.bytes!;
       final filename = result.files.single.name;
-      
+
       setState(() => _isSaving = true);
       try {
         final response = await ApiService().multipartPostBytes(
@@ -1063,7 +1167,9 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
           });
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$filename Attached Successfully ✅', style: const TextStyle(color: Colors.greenAccent))),
+            SnackBar(
+                content: Text('$filename Attached Successfully ✅',
+                    style: const TextStyle(color: Colors.greenAccent))),
           );
         } else {
           throw Exception(response['detail'] ?? 'Upload failed');
@@ -1083,8 +1189,9 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
 
   Future<void> _save(String status) async {
     if (!_formKey.currentState!.validate()) return;
-    
-    final finalStatus = _isScheduled && status == 'published' ? 'scheduled' : status;
+
+    final finalStatus =
+        _isScheduled && status == 'published' ? 'scheduled' : status;
     if (finalStatus == 'scheduled' && _scheduledDateTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select schedule date and time')),
@@ -1094,7 +1201,8 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
 
     if (_targetAudience == 'class' && _selectedClasses.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one targeted class')),
+        const SnackBar(
+            content: Text('Please select at least one targeted class')),
       );
       return;
     }
@@ -1111,7 +1219,9 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
           category: _category,
           status: finalStatus,
           isUrgent: _isUrgent,
-          scheduledAt: finalStatus == 'scheduled' ? _scheduledDateTime?.toIso8601String() : null,
+          scheduledAt: finalStatus == 'scheduled'
+              ? _scheduledDateTime?.toIso8601String()
+              : null,
           targetAudience: _targetAudience,
           attachmentUrl: _attachmentUrl,
           targetClasses: _targetAudience == 'class' ? _selectedClasses : null,
@@ -1123,7 +1233,9 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
           category: _category,
           status: finalStatus,
           isUrgent: _isUrgent,
-          scheduledAt: finalStatus == 'scheduled' ? _scheduledDateTime?.toIso8601String() : null,
+          scheduledAt: finalStatus == 'scheduled'
+              ? _scheduledDateTime?.toIso8601String()
+              : null,
           targetAudience: _targetAudience,
           attachmentUrl: _attachmentUrl,
           targetClasses: _targetAudience == 'class' ? _selectedClasses : null,
@@ -1135,7 +1247,9 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
         if (!mounted) return;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Notice ${widget.notice != null ? "updated" : "created"} successfully')),
+          SnackBar(
+              content: Text(
+                  'Notice ${widget.notice != null ? "updated" : "created"} successfully')),
         );
       } else {
         throw Exception('Failed to save notice');
@@ -1155,7 +1269,8 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final filteredClasses = _availableClasses
-        .where((c) => c.name.toLowerCase().contains(_classSearchQuery.toLowerCase()))
+        .where((c) =>
+            c.name.toLowerCase().contains(_classSearchQuery.toLowerCase()))
         .toList();
 
     return Container(
@@ -1164,14 +1279,20 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      padding: EdgeInsets.fromLTRB(
+          20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
-              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2))),
             ),
             const SizedBox(height: 12),
             Text(
@@ -1182,40 +1303,58 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
             Expanded(
               child: ListView(
                 children: [
-                  const Text('Title', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('Title',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey)),
                   const SizedBox(height: 4),
                   TextFormField(
                     controller: _titleController,
                     decoration: const InputDecoration(
                       hintText: 'Notice title...',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Title is required' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Title is required'
+                        : null,
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Category', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('Category',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey)),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<String>(
                     initialValue: _category,
                     items: const [
-                      DropdownMenuItem(value: 'General', child: Text('General')),
+                      DropdownMenuItem(
+                          value: 'General', child: Text('General')),
                       DropdownMenuItem(value: 'Urgent', child: Text('Urgent')),
                       DropdownMenuItem(value: 'Event', child: Text('Event')),
-                      DropdownMenuItem(value: 'Academic', child: Text('Academic')),
+                      DropdownMenuItem(
+                          value: 'Academic', child: Text('Academic')),
                     ],
                     onChanged: (val) {
                       if (val != null) setState(() => _category = val);
                     },
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Target Audience', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('Target Audience',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey)),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -1271,7 +1410,8 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                         hintText: 'Search classes...',
                         prefixIcon: const Icon(Icons.search, size: 16),
                         border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                         suffixIcon: _classSearchController.text.isNotEmpty
                             ? GestureDetector(
                                 onTap: () {
@@ -1295,7 +1435,12 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                         children: filteredClasses.map((c) {
                           final isSelected = _selectedClasses.contains(c.name);
                           return FilterChip(
-                            label: Text(c.name, style: TextStyle(fontSize: 12, color: isSelected ? const Color(0xFF92400E) : Colors.black87)),
+                            label: Text(c.name,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: isSelected
+                                        ? const Color(0xFF92400E)
+                                        : Colors.black87)),
                             selected: isSelected,
                             onSelected: (val) {
                               setState(() {
@@ -1314,13 +1459,21 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                       if (filteredClasses.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text('No classes found', style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
+                          child: Text('No classes found',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic)),
                         ),
                     ],
                   ],
                   const SizedBox(height: 12),
 
-                  const Text('Content', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('Content',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey)),
                   const SizedBox(height: 4),
                   TextFormField(
                     controller: _contentController,
@@ -1330,13 +1483,19 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.all(12),
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'Content is required' : null,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Content is required'
+                        : null,
                   ),
                   const SizedBox(height: 12),
 
                   // Urgent checkbox
                   CheckboxListTile(
-                    title: const Text('Mark as Urgent 🚨', style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w700)),
+                    title: const Text('Mark as Urgent 🚨',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w700)),
                     value: _isUrgent,
                     onChanged: (val) {
                       if (val != null) setState(() => _isUrgent = val);
@@ -1349,7 +1508,9 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('📅 Schedule for later', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      const Text('📅 Schedule for later',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
                       Switch(
                         value: _isScheduled,
                         onChanged: (val) {
@@ -1383,22 +1544,27 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                        border: Border.all(
+                            color: Colors.grey.shade300,
+                            style: BorderStyle.solid),
                         borderRadius: BorderRadius.circular(12),
                         color: Colors.grey.shade50,
                       ),
                       child: Column(
                         children: [
-                          const Icon(Icons.attachment, size: 24, color: Colors.grey),
+                          const Icon(Icons.attachment,
+                              size: 24, color: Colors.grey),
                           const SizedBox(height: 8),
                           Text(
-                            _attachmentUrl != null 
-                                ? '${_attachmentUrl!.split("/").last} Attached ✅' 
+                            _attachmentUrl != null
+                                ? '${_attachmentUrl!.split("/").last} Attached ✅'
                                 : 'Attach Files (optional)',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: _attachmentUrl != null ? Colors.green : Colors.black87,
+                              color: _attachmentUrl != null
+                                  ? Colors.green
+                                  : Colors.black87,
                             ),
                           ),
                           const Text(
@@ -1425,9 +1591,13 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFD97706),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('📤 Publish', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: const Text('📤 Publish',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1438,10 +1608,12 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
                         backgroundColor: const Color(0xFFF1F5F9),
                         foregroundColor: const Color(0xFF334155),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
                         elevation: 0,
                       ),
-                      child: const Text('💾 Save Draft', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('💾 Save Draft',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -1451,7 +1623,8 @@ class _NoticeEditorSheetState extends State<NoticeEditorSheet> {
               width: double.infinity,
               child: TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                child:
+                    const Text('Cancel', style: TextStyle(color: Colors.grey)),
               ),
             ),
           ],

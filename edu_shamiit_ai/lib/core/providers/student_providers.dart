@@ -1229,7 +1229,9 @@ class MessagingNotifier extends StateNotifier<MessagingState> {
       if (id == null ||
           senderId == null ||
           content == null ||
-          createdAtStr == null) return;
+          createdAtStr == null) {
+        return;
+      }
 
       // Avoid duplicates (our own send already optimistically refreshes)
       if (state.chatHistory.any((m) => m.id == id)) return;

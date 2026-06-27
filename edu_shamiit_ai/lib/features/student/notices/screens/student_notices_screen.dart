@@ -22,8 +22,14 @@ class StudentNotices extends ConsumerStatefulWidget {
 class _StudentNoticesState extends ConsumerState<StudentNotices> {
   final StudentApiService _apiService = StudentApiService();
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCategory = 'All';
-  final List<String> _categories = ['All', 'Urgent', 'General', 'Event', 'Academic'];
+  final String _selectedCategory = 'All';
+  final List<String> _categories = [
+    'All',
+    'Urgent',
+    'General',
+    'Event',
+    'Academic'
+  ];
   List<Notice> _allNotices = [];
   bool _isLoading = true;
   String? _error;
@@ -88,7 +94,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
     return result;
   }
 
-  int get _urgentCount => _allNotices.where((n) => n.category.toLowerCase() == 'urgent').length;
+  int get _urgentCount =>
+      _allNotices.where((n) => n.category.toLowerCase() == 'urgent').length;
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -139,7 +146,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
         children: [
           // Header
           Container(
-            padding: EdgeInsets.fromLTRB(16, Responsive.headerTopPadding(context) + 8, 16, 16),
+            padding: EdgeInsets.fromLTRB(
+                16, Responsive.headerTopPadding(context) + 8, 16, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF92400E), Color(0xFFD97706)],
@@ -172,7 +180,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                 if (_urgentCount > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: StudentColors.error,
                       borderRadius: BorderRadius.circular(12),
@@ -202,9 +211,11 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const Icon(Icons.error_outline,
+                                  size: 48, color: Colors.red),
                               const SizedBox(height: 12),
-                              const Text('Failed to load notices', style: TextStyle(color: Colors.red)),
+                              const Text('Failed to load notices',
+                                  style: TextStyle(color: Colors.red)),
                               const SizedBox(height: 12),
                               ElevatedButton(
                                 onPressed: _loadNotices,
@@ -225,11 +236,17 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                           filters: [
                             AzureGridFilter<Notice>(
                               label: 'Category',
-                              options: const ['Urgent', 'General', 'Event', 'Academic'],
+                              options: const [
+                                'Urgent',
+                                'General',
+                                'Event',
+                                'Academic'
+                              ],
                               filterFn: (item, option) {
                                 final catKey = option.toLowerCase();
                                 final nCat = item.category.toLowerCase();
-                                if (catKey == 'event') return nCat == 'event' || nCat == 'events';
+                                if (catKey == 'event')
+                                  return nCat == 'event' || nCat == 'events';
                                 return nCat == catKey;
                               },
                             ),
@@ -245,14 +262,18 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                 children: [
                                   Text(
                                     item.title,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     item.content,
-                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+                                    style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 10),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -262,14 +283,17 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                             AzureGridColumn<Notice>(
                               label: 'Category',
                               width: 130,
-                              compare: (a, b) => a.category.compareTo(b.category),
+                              compare: (a, b) =>
+                                  a.category.compareTo(b.category),
                               cellBuilder: (item) {
-                                final color = _getColorForCategory(item.category);
+                                final color =
+                                    _getColorForCategory(item.category);
                                 final label = _getCategoryLabel(item.category);
                                 return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: color.withOpacity(0.1),
+                                    color: color.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -286,27 +310,35 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                             AzureGridColumn<Notice>(
                               label: 'Published At',
                               width: 140,
-                              compare: (a, b) => a.createdAt.compareTo(b.createdAt),
-                              cellBuilder: (item) => Text(_formatDate(item.createdAt)),
+                              compare: (a, b) =>
+                                  a.createdAt.compareTo(b.createdAt),
+                              cellBuilder: (item) =>
+                                  Text(_formatDate(item.createdAt)),
                             ),
                             AzureGridColumn<Notice>(
                               label: 'Author',
                               width: 130,
-                              compare: (a, b) => (a.authorName ?? '').compareTo(b.authorName ?? ''),
-                              cellBuilder: (item) => Text(item.authorName ?? 'School'),
+                              compare: (a, b) => (a.authorName ?? '')
+                                  .compareTo(b.authorName ?? ''),
+                              cellBuilder: (item) =>
+                                  Text(item.authorName ?? 'School'),
                             ),
                             AzureGridColumn<Notice>(
                               label: 'Attachment',
                               width: 110,
                               cellBuilder: (item) {
-                                if (item.attachmentUrl == null || item.attachmentUrl!.isEmpty) {
+                                if (item.attachmentUrl == null ||
+                                    item.attachmentUrl!.isEmpty) {
                                   return const Text('-');
                                 }
                                 return IconButton(
-                                  icon: const Icon(Icons.attachment, size: 16, color: Color(0xFFD97706)),
+                                  icon: const Icon(Icons.attachment,
+                                      size: 16, color: Color(0xFFD97706)),
                                   onPressed: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Downloading ${item.attachmentUrl!.split('/').last} ...')),
+                                      SnackBar(
+                                          content: Text(
+                                              'Downloading ${item.attachmentUrl!.split('/').last} ...')),
                                     );
                                     getDownloadHelper().downloadFile(
                                       item.attachmentUrl!,
@@ -323,40 +355,64 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                               label: 'Actions',
                               width: 160,
                               cellBuilder: (item) {
-                                final isEvent = item.category.toLowerCase() == 'event' || item.category.toLowerCase() == 'events';
+                                final isEvent =
+                                    item.category.toLowerCase() == 'event' ||
+                                        item.category.toLowerCase() == 'events';
                                 final isRegistered = item.registered;
 
                                 return Row(
                                   children: [
                                     TextButton(
                                       onPressed: () => _showNoticeDetail(item),
-                                      child: const Text('View', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      child: const Text('View',
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold)),
                                     ),
                                     if (isEvent) ...[
                                       const SizedBox(width: 4),
                                       isRegistered
-                                          ? const Text('✓ Registered', style: TextStyle(fontSize: 10, color: Color(0xFF065F46), fontWeight: FontWeight.bold))
+                                          ? const Text('✓ Registered',
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Color(0xFF065F46),
+                                                  fontWeight: FontWeight.bold))
                                           : TextButton(
                                               onPressed: () async {
                                                 try {
-                                                  final ok = await _apiService.registerForNotice(item.id);
+                                                  final ok = await _apiService
+                                                      .registerForNotice(
+                                                          item.id);
                                                   if (ok) {
                                                     if (mounted) {
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        const SnackBar(content: Text('Registered for Event Successfully! 🎉')),
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        const SnackBar(
+                                                            content: Text(
+                                                                'Registered for Event Successfully! 🎉')),
                                                       );
                                                       _loadNotices();
                                                     }
                                                   }
                                                 } catch (e) {
                                                   if (mounted) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(content: Text('Error: $e')),
+                                                    ScaffoldMessenger.of(
+                                                            context)
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                          content: Text(
+                                                              'Error: $e')),
                                                     );
                                                   }
                                                 }
                                               },
-                                              child: const Text('Register', style: TextStyle(fontSize: 10, color: Color(0xFFD97706), fontWeight: FontWeight.bold)),
+                                              child: const Text('Register',
+                                                  style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Color(0xFFD97706),
+                                                      fontWeight:
+                                                          FontWeight.bold)),
                                             ),
                                     ],
                                   ],
@@ -364,7 +420,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                               },
                             ),
                           ],
-                          mobileCardBuilder: (context, item) => _buildNoticeCard(item),
+                          mobileCardBuilder: (context, item) =>
+                              _buildNoticeCard(item),
                         ),
                       ),
           ),
@@ -404,7 +461,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -418,12 +476,16 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                     ),
                   ),
                 ),
-                if (notice.category.toLowerCase() == 'event' || notice.category.toLowerCase() == 'events') ...[
+                if (notice.category.toLowerCase() == 'event' ||
+                    notice.category.toLowerCase() == 'events') ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: notice.registered ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7),
+                      color: notice.registered
+                          ? const Color(0xFFD1FAE5)
+                          : const Color(0xFFFEF3C7),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -431,13 +493,16 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w700,
-                        color: notice.registered ? const Color(0xFF065F46) : const Color(0xFFD97706),
+                        color: notice.registered
+                            ? const Color(0xFF065F46)
+                            : const Color(0xFFD97706),
                       ),
                     ),
                   ),
                 ],
                 const Spacer(),
-                if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty)
+                if (notice.attachmentUrl != null &&
+                    notice.attachmentUrl!.isNotEmpty)
                   const Text('📎', style: TextStyle(fontSize: 12)),
               ],
             ),
@@ -521,7 +586,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
@@ -563,7 +629,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, size: 16, color: StudentColors.text3),
+                          const Icon(Icons.calendar_today,
+                              size: 16, color: StudentColors.text3),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -577,14 +644,16 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                         ],
                       ),
                     ),
-                    if (notice.attachmentUrl != null && notice.attachmentUrl!.isNotEmpty) ...[
+                    if (notice.attachmentUrl != null &&
+                        notice.attachmentUrl!.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       GestureDetector(
                         onTap: () {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Downloading ${notice.attachmentUrl!.split('/').last}...'),
+                              content: Text(
+                                  'Downloading ${notice.attachmentUrl!.split('/').last}...'),
                             ),
                           );
                           getDownloadHelper().downloadFile(
@@ -600,7 +669,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.attachment, color: StudentColors.primary),
+                              const Icon(Icons.attachment,
+                                  color: StudentColors.primary),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -625,12 +695,14 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.download, color: StudentColors.primary),
+                                icon: const Icon(Icons.download,
+                                    color: StudentColors.primary),
                                 onPressed: () {
                                   Navigator.pop(context);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Downloading ${notice.attachmentUrl!.split('/').last}...'),
+                                      content: Text(
+                                          'Downloading ${notice.attachmentUrl!.split('/').last}...'),
                                     ),
                                   );
                                   getDownloadHelper().downloadFile(
@@ -652,7 +724,8 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
               padding: const EdgeInsets.all(20),
               child: StatefulBuilder(
                 builder: (context, setModalState) {
-                  final isEvent = notice.category.toLowerCase() == 'event' || notice.category.toLowerCase() == 'events';
+                  final isEvent = notice.category.toLowerCase() == 'event' ||
+                      notice.category.toLowerCase() == 'events';
                   final isRegistered = notice.registered;
 
                   return Column(
@@ -668,11 +741,15 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                       _isLoading = true;
                                     });
                                     try {
-                                      final ok = await _apiService.registerForNotice(notice.id);
+                                      final ok = await _apiService
+                                          .registerForNotice(notice.id);
                                       if (ok) {
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Registered for Event Successfully! 🎉')),
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    'Registered for Event Successfully! 🎉')),
                                           );
                                           Navigator.pop(context);
                                           _loadNotices();
@@ -682,14 +759,17 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                       }
                                     } catch (e) {
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(content: Text('Error: $e')),
                                         );
                                       }
                                     }
                                   },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: isRegistered ? const Color(0xFF10B981) : const Color(0xFFD97706),
+                              backgroundColor: isRegistered
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFD97706),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
@@ -698,10 +778,17 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(isRegistered ? Icons.check_circle : Icons.event_available, color: Colors.white, size: 18),
+                                Icon(
+                                    isRegistered
+                                        ? Icons.check_circle
+                                        : Icons.event_available,
+                                    color: Colors.white,
+                                    size: 18),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isRegistered ? 'Registered' : 'Register for Event',
+                                  isRegistered
+                                      ? 'Registered'
+                                      : 'Register for Event',
                                   style: const TextStyle(
                                     fontFamily: AppFonts.heading,
                                     fontSize: 15,

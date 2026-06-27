@@ -21,10 +21,12 @@ class LiveExamTakingScreen extends ConsumerStatefulWidget {
   const LiveExamTakingScreen({super.key, required this.examId, this.passcode});
 
   @override
-  ConsumerState<LiveExamTakingScreen> createState() => _LiveExamTakingScreenState();
+  ConsumerState<LiveExamTakingScreen> createState() =>
+      _LiveExamTakingScreenState();
 }
 
-class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> with WidgetsBindingObserver {
+class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen>
+    with WidgetsBindingObserver {
   // LiveKit Proctor Stream State
   LocalVideoTrack? _cameraTrack;
   LocalAudioTrack? _micTrack;
@@ -34,14 +36,14 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   bool _isInitializingStreams = false;
   String? _proctorStreamsError;
   RealtimeChannel? _proctorSignalingChannel;
-  int _pausedSecondsOffset = 0;
+  final int _pausedSecondsOffset = 0;
   String? _sessionId;
   DateTime? _sessionStartedAt;
   List<dynamic> _proctorLogs = [];
 
   // Timer settings
   late Timer _examTimer;
-  int _elapsedSeconds = 0;
+  final int _elapsedSeconds = 0;
   int _secondsRemaining = 90 * 60;
   int _baseDurationMinutes = 90;
   late Timer _autoSaveTimer;
@@ -50,10 +52,11 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
 
   // Active state
   int _currentQuestionIndex = 0;
-  final Map<int, dynamic> _studentAnswers = {}; // Index -> String/List or Map (subjective)
+  final Map<int, dynamic> _studentAnswers =
+      {}; // Index -> String/List or Map (subjective)
   final Map<int, bool> _markedForReview = {};
   final Map<int, TextEditingController> _questionControllers = {};
-  
+
   // Proctoring warnings count
   int _warningCount = 0;
   final int _maxWarnings = 5;
@@ -71,13 +74,14 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   List<Map<String, dynamic>> _questions = [];
   Map<String, dynamic>? _examData;
   final StudentApiService _apiService = StudentApiService();
-  
+
   // File Upload State
   bool _isUploadingFile = false;
   bool _isSubmitting = false;
 
   // Notifications
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
@@ -93,24 +97,29 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   }
 
   Future<void> _initNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
     try {
       await _localNotifications.initialize(initializationSettings);
     } catch (_) {}
   }
 
   Future<void> _showNotification(String title, String body) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
       'proctor_alerts',
       'Proctor Alerts',
       channelDescription: 'Alerts sent by the AI proctoring system',
       importance: Importance.max,
       priority: Priority.high,
     );
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
     try {
-      await _localNotifications.show(101, title, body, platformChannelSpecifics);
+      await _localNotifications.show(
+          101, title, body, platformChannelSpecifics);
     } catch (_) {}
   }
 
@@ -120,25 +129,26 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       _error = null;
     });
     try {
-      await _apiService.startOnlineExamSession(widget.examId, passcode: widget.passcode);
+      await _apiService.startOnlineExamSession(widget.examId,
+          passcode: widget.passcode);
       final response = await _apiService.getOnlineExamDetails(widget.examId);
       final exam = response['data']['exam'] as Map<String, dynamic>;
       final questionsList = (response['data']['questions'] as List)
           .map((q) => Map<String, dynamic>.from(q as Map))
           .toList();
-      
+
       final mappedQuestions = questionsList.map((q) {
         String uiType = q['question_type'] ?? 'mcq';
         if (uiType == 'single_select') uiType = 'mcq';
         if (uiType == 'multi_select') uiType = 'multi_correct';
         if (uiType == 'fill_in_the_blank') uiType = 'fill_blank';
         if (uiType == 'assertion_reason') uiType = 'mcq';
-        
+
         List<String> options = [];
         if (q['options'] != null) {
           options = List<String>.from(q['options'] as List);
         }
-        
+
         return {
           'id': q['id'],
           'type': uiType,
@@ -149,21 +159,25 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       }).toList();
 
       final session = response['data']['session'] as Map<String, dynamic>?;
-      final submission = response['data']['submission'] as Map<String, dynamic>?;
-      final Map<String, dynamic> savedAnswers = (submission != null && submission['answers'] != null)
-          ? Map<String, dynamic>.from(submission['answers'] as Map)
-          : {};
+      final submission =
+          response['data']['submission'] as Map<String, dynamic>?;
+      final Map<String, dynamic> savedAnswers =
+          (submission != null && submission['answers'] != null)
+              ? Map<String, dynamic>.from(submission['answers'] as Map)
+              : {};
 
       // Initialize Text Controllers and restore saved answers
       for (int i = 0; i < mappedQuestions.length; i++) {
         final q = mappedQuestions[i];
         final qId = q['id']?.toString();
         final qType = q['type'] as String;
-        
-        if (qType == 'fill_blank' || qType == 'numerical' || qType == 'subjective') {
+
+        if (qType == 'fill_blank' ||
+            qType == 'numerical' ||
+            qType == 'subjective') {
           _questionControllers[i] = TextEditingController();
         }
-        
+
         if (qId != null && savedAnswers.containsKey(qId)) {
           final savedAns = savedAnswers[qId];
           if (qType == 'subjective') {
@@ -179,9 +193,11 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             _questionControllers[i]!.text = savedAns?.toString() ?? '';
           } else if (qType == 'multi_correct') {
             if (savedAns is List) {
-              _studentAnswers[i] = List<String>.from(savedAns.map((e) => e.toString()));
+              _studentAnswers[i] =
+                  List<String>.from(savedAns.map((e) => e.toString()));
             } else if (savedAns is String) {
-              _studentAnswers[i] = savedAns.split(', ').where((s) => s.isNotEmpty).toList();
+              _studentAnswers[i] =
+                  savedAns.split(', ').where((s) => s.isNotEmpty).toList();
             } else {
               _studentAnswers[i] = savedAns;
             }
@@ -190,13 +206,13 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           }
         }
       }
-      
+
       if (mounted) {
         setState(() {
           _examData = exam;
           _questions = mappedQuestions;
           _baseDurationMinutes = exam['duration_minutes'] as int? ?? 90;
-          
+
           if (session != null) {
             _sessionId = session['id']?.toString();
             _isPaused = session['is_paused'] as bool? ?? false;
@@ -224,7 +240,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         _updateCountdown();
         _startCountdown();
         _startAutoSave();
-        _proctorSyncTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+        _proctorSyncTimer =
+            Timer.periodic(const Duration(seconds: 3), (timer) async {
           await _syncProctorSession();
         });
       }
@@ -244,7 +261,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     _examTimer.cancel();
     _autoSaveTimer.cancel();
     _proctorSyncTimer?.cancel();
-    _questionControllers.values.forEach((controller) => controller.dispose());
+    for (var controller in _questionControllers.values) {
+      controller.dispose();
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -253,7 +272,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_proctorStreamsInitialized || _isInitializingStreams) return;
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
       _triggerCheatingWarning();
     }
   }
@@ -280,12 +300,15 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       if (log is Map) {
         if (log.containsKey('paused_at_iso')) {
           try {
-            lastPauseTime = DateTime.parse(log['paused_at_iso'].toString()).toUtc();
+            lastPauseTime =
+                DateTime.parse(log['paused_at_iso'].toString()).toUtc();
           } catch (_) {}
         } else if (log.containsKey('resumed_at_iso') && lastPauseTime != null) {
           try {
-            final resumeTime = DateTime.parse(log['resumed_at_iso'].toString()).toUtc();
-            totalPausedSeconds += resumeTime.difference(lastPauseTime).inSeconds;
+            final resumeTime =
+                DateTime.parse(log['resumed_at_iso'].toString()).toUtc();
+            totalPausedSeconds +=
+                resumeTime.difference(lastPauseTime).inSeconds;
             lastPauseTime = null;
           } catch (_) {}
         }
@@ -296,9 +319,11 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     int activeElapsed = 0;
     if (_isPaused) {
       final freezeTime = lastPauseTime ?? now;
-      activeElapsed = freezeTime.difference(_sessionStartedAt!).inSeconds - totalPausedSeconds;
+      activeElapsed = freezeTime.difference(_sessionStartedAt!).inSeconds -
+          totalPausedSeconds;
     } else {
-      activeElapsed = now.difference(_sessionStartedAt!).inSeconds - totalPausedSeconds;
+      activeElapsed =
+          now.difference(_sessionStartedAt!).inSeconds - totalPausedSeconds;
     }
 
     if (activeElapsed < 0) activeElapsed = 0;
@@ -350,7 +375,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         if (mounted) {
           setState(() {
             _proctorStreamsInitialized = false;
-            _proctorStreamsError = 'Screen sharing was stopped. Re-enable to resume your exam.';
+            _proctorStreamsError =
+                'Screen sharing was stopped. Re-enable to resume your exam.';
           });
           _triggerCheatingWarning();
         }
@@ -404,29 +430,35 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     _proctorSignalingChannel = Supabase.instance.client.channel(channelName);
 
     _proctorSignalingChannel!
-        .onBroadcast(event: 'connect_request', callback: (payload) {
-          debugPrint('[ProctorSignaling] Received connect_request: $payload');
-          _handleConnectRequest();
-        })
-        .onBroadcast(event: 'disconnect_request', callback: (payload) {
-          debugPrint('[ProctorSignaling] Received disconnect_request: $payload');
-          _handleDisconnectRequest();
-        })
-        .onBroadcast(event: 'force_camera', callback: (payload) {
-          debugPrint('[ProctorSignaling] Received force_camera: $payload');
-          if (payload is Map) {
-            _handleForceCamera(payload['enabled'] == true);
-          }
-        })
-        .onBroadcast(event: 'force_mic', callback: (payload) {
-          debugPrint('[ProctorSignaling] Received force_mic: $payload');
-          if (payload is Map) {
-            _handleForceMic(payload['enabled'] == true);
-          }
-        })
+        .onBroadcast(
+            event: 'connect_request',
+            callback: (payload) {
+              debugPrint(
+                  '[ProctorSignaling] Received connect_request: $payload');
+              _handleConnectRequest();
+            })
+        .onBroadcast(
+            event: 'disconnect_request',
+            callback: (payload) {
+              debugPrint(
+                  '[ProctorSignaling] Received disconnect_request: $payload');
+              _handleDisconnectRequest();
+            })
+        .onBroadcast(
+            event: 'force_camera',
+            callback: (payload) {
+              debugPrint('[ProctorSignaling] Received force_camera: $payload');
+              _handleForceCamera(payload['enabled'] == true);
+            })
+        .onBroadcast(
+            event: 'force_mic',
+            callback: (payload) {
+              debugPrint('[ProctorSignaling] Received force_mic: $payload');
+              _handleForceMic(payload['enabled'] == true);
+            })
         .subscribe((status, [error]) {
-          debugPrint('[ProctorSignaling] Subscribe status: $status, error: $error');
-        });
+      debugPrint('[ProctorSignaling] Subscribe status: $status, error: $error');
+    });
   }
 
   Future<void> _handleConnectRequest() async {
@@ -456,16 +488,21 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         sfuUrl = sfuUrl.replaceFirst('https://', 'wss://');
       }
 
-      debugPrint('[ProctorSignaling] Connecting to LiveKit: $sfuUrl, Room: $roomName');
+      debugPrint(
+          '[ProctorSignaling] Connecting to LiveKit: $sfuUrl, Room: $roomName');
 
       _proctorRoom = Room();
-      
+
       final listener = _proctorRoom!.createListener();
       listener.on<RoomEvent>((event) {
         if (event is RoomDisconnectedEvent) {
-          debugPrint('[ProctorRoom] Received RoomDisconnectedEvent. Retrying connection in 3 seconds...');
+          debugPrint(
+              '[ProctorRoom] Received RoomDisconnectedEvent. Retrying connection in 3 seconds...');
           Future.delayed(const Duration(seconds: 3), () {
-            if (mounted && _proctorRoom != null && _proctorRoom!.connectionState == lk.ConnectionState.disconnected) {
+            if (mounted &&
+                _proctorRoom != null &&
+                _proctorRoom!.connectionState ==
+                    lk.ConnectionState.disconnected) {
               _handleConnectRequest();
             }
           });
@@ -502,7 +539,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         );
       }
 
-      debugPrint('[ProctorSignaling] Successfully published tracks to LiveKit room');
+      debugPrint(
+          '[ProctorSignaling] Successfully published tracks to LiveKit room');
     } catch (e) {
       debugPrint('[ProctorSignaling] Error in handle connect request: $e');
     }
@@ -513,7 +551,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       if (_proctorRoom != null) {
         await _proctorRoom!.disconnect();
         _proctorRoom = null;
-        debugPrint('[ProctorSignaling] Disconnected from LiveKit room due to teacher request');
+        debugPrint(
+            '[ProctorSignaling] Disconnected from LiveKit room due to teacher request');
       }
     } catch (e) {
       debugPrint('[ProctorSignaling] Error disconnecting room: $e');
@@ -661,14 +700,18 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
 
     // Call submit
     final success = await _submitAnswersToBackend(isAutoSave: false);
-    
+
     // Close the loading dialog
     if (mounted) {
       Navigator.of(context, rootNavigator: true).pop();
     }
 
     if (success) {
-      _showNotification('Exam Submitted', isAuto ? 'Your exam answers were submitted automatically.' : 'Your exam answers have been locked and submitted.');
+      _showNotification(
+          'Exam Submitted',
+          isAuto
+              ? 'Your exam answers were submitted automatically.'
+              : 'Your exam answers have been locked and submitted.');
       if (mounted) {
         context.go('/student/exams/submit/${widget.examId}?auto=$isAuto');
       }
@@ -680,7 +723,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           barrierDismissible: false,
           builder: (context) => AlertDialog(
             title: const Text('⚠️ Submission Failed'),
-            content: const Text('We could not submit your exam answers. Please check your internet connection and try again.'),
+            content: const Text(
+                'We could not submit your exam answers. Please check your internet connection and try again.'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -712,7 +756,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     _autoSaveTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
       if (_isPaused) return;
       _submitAnswersToBackend(isAutoSave: true);
-      
+
       if (mounted) {
         setState(() {
           _showAutoSavedText = true;
@@ -730,21 +774,24 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
 
   Future<void> _syncProctorSession() async {
     // Auto-reconnect fail-safe check
-    if (_sessionId != null && _proctorRoom != null && 
+    if (_sessionId != null &&
+        _proctorRoom != null &&
         _proctorRoom!.connectionState == lk.ConnectionState.disconnected) {
-      debugPrint('[ProctorRoom] syncProctorSession detected disconnected state. Reconnecting...');
+      debugPrint(
+          '[ProctorRoom] syncProctorSession detected disconnected state. Reconnecting...');
       _handleConnectRequest();
     }
 
     try {
-      final currentQ = _questions.isNotEmpty && _currentQuestionIndex < _questions.length
-          ? _questions[_currentQuestionIndex]
-          : null;
+      final currentQ =
+          _questions.isNotEmpty && _currentQuestionIndex < _questions.length
+              ? _questions[_currentQuestionIndex]
+              : null;
       final qId = currentQ?['id']?.toString();
-      
+
       final cameraActive = _cameraTrack != null && !_cameraTrack!.muted;
       final micActive = _micTrack != null && !_micTrack!.muted;
-      
+
       final res = await _apiService.pingOnlineExamSession(
         widget.examId,
         warningsCount: _warningCount,
@@ -753,7 +800,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         cameraActive: cameraActive,
         micActive: micActive,
       );
-      
+
       if (res['success'] == true && res['data'] != null) {
         final data = res['data'] as Map<String, dynamic>;
         final isPaused = data['is_paused'] as bool? ?? false;
@@ -761,7 +808,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         final teacherMsg = data['teacher_message'] as String?;
         final status = data['status'] as String? ?? 'active';
         final serverWarnings = data['warnings_count'] as int? ?? 0;
-        
+
         if (mounted) {
           setState(() {
             _isPaused = isPaused;
@@ -784,7 +831,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             }
           });
           _updateCountdown();
-          
+
           if (serverWarnings > _warningCount) {
             setState(() {
               _warningCount = serverWarnings;
@@ -793,13 +840,14 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               _examTimer.cancel();
               _autoSaveTimer.cancel();
               _proctorSyncTimer?.cancel();
-              _showNotification('⚠️ Exam Terminated', 'Limit of $_maxWarnings proctor warnings exceeded.');
+              _showNotification('⚠️ Exam Terminated',
+                  'Limit of $_maxWarnings proctor warnings exceeded.');
               _autoSubmitExam();
             } else {
               _showNotification(
-                '⚠️ Proctor Warning $_warningCount/$_maxWarnings',
-                teacherMsg ?? 'You have received a warning from the proctor.'
-              );
+                  '⚠️ Proctor Warning $_warningCount/$_maxWarnings',
+                  teacherMsg ??
+                      'You have received a warning from the proctor.');
               if (mounted && !_isWarningDialogActive) {
                 setState(() {
                   _isWarningDialogActive = true;
@@ -808,11 +856,17 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                   context: context,
                   barrierDismissible: false,
                   builder: (context) => AlertDialog(
-                    title: Text('⚠️ Proctor Warning $_warningCount/$_maxWarnings', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                    content: Text(teacherMsg ?? 'You have received a warning from the proctor.\n\nWarning: Reaching $_maxWarnings warnings will result in auto-submission.'),
+                    title: Text(
+                        '⚠️ Proctor Warning $_warningCount/$_maxWarnings',
+                        style: const TextStyle(
+                            color: Colors.red, fontWeight: FontWeight.bold)),
+                    content: Text(teacherMsg ??
+                        'You have received a warning from the proctor.\n\nWarning: Reaching $_maxWarnings warnings will result in auto-submission.'),
                     actions: [
                       ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white),
                         onPressed: () {
                           Navigator.pop(context);
                           Future.delayed(const Duration(seconds: 2), () {
@@ -831,7 +885,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               }
             }
           }
-          
+
           if (status == 'suspended') {
             _examTimer.cancel();
             _autoSaveTimer.cancel();
@@ -841,7 +895,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             _examTimer.cancel();
             _autoSaveTimer.cancel();
             _proctorSyncTimer?.cancel();
-            _showNotification('Exam Completed', 'Your exam session was completed.');
+            _showNotification(
+                'Exam Completed', 'Your exam session was completed.');
             if (mounted) {
               context.go('/student/exams/submit/${widget.examId}?auto=true');
             }
@@ -852,18 +907,18 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   }
 
   void _triggerCheatingWarning() async {
-    if (!_proctorStreamsInitialized || _isInitializingStreams || _isWarningDialogActive) return;
+    if (!_proctorStreamsInitialized ||
+        _isInitializingStreams ||
+        _isWarningDialogActive) return;
     if (_warningCount < _maxWarnings - 1) {
       setState(() {
         _isWarningDialogActive = true;
         _warningCount++;
       });
-      
-      _showNotification(
-        '⚠️ Proctor Warning $_warningCount/$_maxWarnings',
-        'Focus loss detected! Do not switch tabs or minimize the window.'
-      );
-      
+
+      _showNotification('⚠️ Proctor Warning $_warningCount/$_maxWarnings',
+          'Focus loss detected! Do not switch tabs or minimize the window.');
+
       await _apiService.pingOnlineExamSession(
         widget.examId,
         warningsCount: _warningCount,
@@ -876,11 +931,15 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            title: Text('⚠️ Proctor Warning $_warningCount/$_maxWarnings', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            content: Text('Focus loss detected! Switching tabs, minimizing windows, or taking screenshots is prohibited.\n\nWarning: Reaching $_maxWarnings warnings will result in auto-submission.'),
+            title: Text('⚠️ Proctor Warning $_warningCount/$_maxWarnings',
+                style: const TextStyle(
+                    color: Colors.red, fontWeight: FontWeight.bold)),
+            content: Text(
+                'Focus loss detected! Switching tabs, minimizing windows, or taking screenshots is prohibited.\n\nWarning: Reaching $_maxWarnings warnings will result in auto-submission.'),
             actions: [
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red, foregroundColor: Colors.white),
                 onPressed: () {
                   Navigator.pop(context);
                   Future.delayed(const Duration(seconds: 2), () {
@@ -921,8 +980,10 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('🚨 Exam Suspended', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-        content: Text(_teacherMessage ?? 'You have been suspended from this exam by the proctor.'),
+        title: const Text('🚨 Exam Suspended',
+            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        content: Text(_teacherMessage ??
+            'You have been suspended from this exam by the proctor.'),
         actions: [
           ElevatedButton(
             onPressed: () {
@@ -950,7 +1011,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
         withData: true,
       );
-      
+
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
         final bytes = file.bytes;
@@ -960,10 +1021,10 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             filename: file.name,
             contentType: 'application/octet-stream',
           );
-          
+
           if (response['success'] == true && response['data'] != null) {
             final fileUrl = response['data']['url'] as String;
-            
+
             final currentAns = _studentAnswers[_currentQuestionIndex];
             String textVal = '';
             if (currentAns is Map) {
@@ -971,7 +1032,7 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             } else if (currentAns is String) {
               textVal = currentAns;
             }
-            
+
             setState(() {
               _studentAnswers[_currentQuestionIndex] = {
                 'text': textVal,
@@ -979,16 +1040,19 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                 'filename': file.name
               };
             });
-            
+
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('File uploaded successfully!'), backgroundColor: Colors.green),
+              const SnackBar(
+                  content: Text('File uploaded successfully!'),
+                  backgroundColor: Colors.green),
             );
           }
         }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Upload failed: $e'), backgroundColor: Colors.red),
       );
     } finally {
       setState(() {
@@ -1006,7 +1070,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
   }
 
   int get _answeredCount => _studentAnswers.values.where((ans) {
-        if (ans is Map) return (ans['text'] != null && ans['text'].toString().isNotEmpty) || ans['file_url'] != null;
+        if (ans is Map)
+          return (ans['text'] != null && ans['text'].toString().isNotEmpty) ||
+              ans['file_url'] != null;
         if (ans is List) return ans.isNotEmpty;
         if (ans is String) return ans.trim().isNotEmpty;
         return ans != null;
@@ -1066,7 +1132,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.security, size: 64, color: Colors.blueAccent),
+                    const Icon(Icons.security,
+                        size: 64, color: Colors.blueAccent),
                     const SizedBox(height: 24),
                     const Text(
                       'Secure Proctoring Setup',
@@ -1082,17 +1149,21 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                       _proctorStreamsError ??
                           'To ensure exam integrity, please share your screen, microphone, and webcam. You must share your entire screen/application window to begin.',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13, height: 1.5),
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.videocam, color: Colors.white),
-                      label: const Text('Begin Exam Session', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: const Text('Begin Exam Session',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
                       ),
                       onPressed: _initProctorStreams,
                     ),
@@ -1141,7 +1212,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                                 width: 220,
                                 decoration: const BoxDecoration(
                                   color: Colors.white,
-                                  border: Border(left: BorderSide(color: StudentColors.border)),
+                                  border: Border(
+                                      left: BorderSide(
+                                          color: StudentColors.border)),
                                 ),
                                 child: _buildQuestionPalette(),
                               )
@@ -1151,27 +1224,34 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                     if (_isPaused)
                       Positioned.fill(
                         child: Container(
-                          color: Colors.black.withOpacity(0.85),
+                          color: Colors.black.withValues(alpha: 0.85),
                           child: Center(
                             child: Card(
                               margin: const EdgeInsets.all(24),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24)),
                               child: Padding(
                                 padding: const EdgeInsets.all(32),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.pause_circle_filled, size: 64, color: Colors.orange),
+                                    const Icon(Icons.pause_circle_filled,
+                                        size: 64, color: Colors.orange),
                                     const SizedBox(height: 16),
                                     const Text(
                                       'EXAM PAUSED BY PROCTOR',
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 1.2),
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          letterSpacing: 1.2),
                                     ),
                                     const SizedBox(height: 12),
                                     Text(
-                                      _teacherMessage ?? 'Your exam has been temporarily paused by the proctor. Please wait for further instructions.',
+                                      _teacherMessage ??
+                                          'Your exam has been temporarily paused by the proctor. Please wait for further instructions.',
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 14, color: Colors.black54),
+                                      style: const TextStyle(
+                                          fontSize: 14, color: Colors.black54),
                                     ),
                                   ],
                                 ),
@@ -1252,9 +1332,11 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.cloud_done_outlined, size: 12, color: Colors.greenAccent),
+                  Icon(Icons.cloud_done_outlined,
+                      size: 12, color: Colors.greenAccent),
                   SizedBox(width: 4),
-                  Text('Auto-saved', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                  Text('Auto-saved',
+                      style: TextStyle(fontSize: 10, color: Colors.white70)),
                 ],
               ),
             ),
@@ -1265,13 +1347,16 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.2),
+                color: Colors.red.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.red),
               ),
               child: Text(
                 'Warnings: $_warningCount/$_maxWarnings',
-                style: const TextStyle(fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold),
               ),
             ),
 
@@ -1279,13 +1364,17 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: isCritical ? Colors.red.withOpacity(0.2) : Colors.white10,
+              color: isCritical
+                  ? Colors.red.withValues(alpha: 0.2)
+                  : Colors.white10,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: isCritical ? Colors.red : Colors.white24),
+              border:
+                  Border.all(color: isCritical ? Colors.red : Colors.white24),
             ),
             child: Row(
               children: [
-                Icon(Icons.timer_outlined, size: 14, color: isCritical ? Colors.red : Colors.white),
+                Icon(Icons.timer_outlined,
+                    size: 14, color: isCritical ? Colors.red : Colors.white),
                 const SizedBox(width: 6),
                 Text(
                   _formatDuration(_secondsRemaining),
@@ -1325,7 +1414,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: StudentColors.primaryLight,
                         borderRadius: BorderRadius.circular(8),
@@ -1389,7 +1479,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         );
 
       case 'multi_correct':
-        final selectedList = (currentAns as List<dynamic>?)?.cast<String>() ?? [];
+        final selectedList =
+            (currentAns as List<dynamic>?)?.cast<String>() ?? [];
         return Column(
           children: (question['options'] as List<String>).map((opt) {
             final isSelected = selectedList.contains(opt);
@@ -1421,8 +1512,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       case 'fill_blank':
         final controller = _questionControllers[_currentQuestionIndex]!;
         if (controller.text != (currentAns as String? ?? '')) {
-          controller.text = currentAns as String? ?? '';
-          controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+          controller.text = currentAns ?? '';
+          controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length));
         }
         return Container(
           padding: const EdgeInsets.all(16),
@@ -1438,7 +1530,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             },
             decoration: InputDecoration(
               hintText: 'Type your answer...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         );
@@ -1446,8 +1539,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       case 'numerical':
         final controller = _questionControllers[_currentQuestionIndex]!;
         if (controller.text != (currentAns as String? ?? '')) {
-          controller.text = currentAns as String? ?? '';
-          controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+          controller.text = currentAns ?? '';
+          controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length));
         }
         return Container(
           padding: const EdgeInsets.all(16),
@@ -1464,7 +1558,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             },
             decoration: InputDecoration(
               hintText: 'Enter numerical value...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               prefixIcon: const Icon(Icons.calculate_outlined),
             ),
           ),
@@ -1485,7 +1580,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
         final controller = _questionControllers[_currentQuestionIndex]!;
         if (controller.text != textVal) {
           controller.text = textVal;
-          controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+          controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: controller.text.length));
         }
 
         return Column(
@@ -1500,7 +1596,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Write your summary below:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const Text('Write your summary below:',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   TextField(
                     controller: controller,
@@ -1514,7 +1612,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                     },
                     decoration: InputDecoration(
                       hintText: 'Type your explanation summary here...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ],
@@ -1531,17 +1630,21 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Attach scan files (Handwritten sheets):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const Text('Attach scan files (Handwritten sheets):',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   if (fileUrl != null) ...[
                     Row(
                       children: [
-                        const Icon(Icons.description, color: Colors.green, size: 24),
+                        const Icon(Icons.description,
+                            color: Colors.green, size: 24),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             filename ?? 'Uploaded File',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1568,9 +1671,11 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                       else
                         OutlinedButton.icon(
                           onPressed: _pickAndUploadFile,
-                          icon: const Icon(Icons.upload_file_outlined, size: 16),
+                          icon:
+                              const Icon(Icons.upload_file_outlined, size: 16),
                           label: const Text('Upload PDF/Image'),
-                          style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF134E4A)),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF134E4A)),
                         ),
                     ],
                   ),
@@ -1585,7 +1690,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
     }
   }
 
-  Widget _buildOptionRow(String label, bool isSelected, VoidCallback onTap, {bool isMulti = false}) {
+  Widget _buildOptionRow(String label, bool isSelected, VoidCallback onTap,
+      {bool isMulti = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -1607,15 +1713,20 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: isSelected ? StudentColors.primary : Colors.transparent,
+                  color:
+                      isSelected ? StudentColors.primary : Colors.transparent,
                   shape: isMulti ? BoxShape.rectangle : BoxShape.circle,
                   borderRadius: isMulti ? BorderRadius.circular(4) : null,
                   border: Border.all(
-                    color: isSelected ? StudentColors.primary : Colors.grey.shade400,
+                    color: isSelected
+                        ? StudentColors.primary
+                        : Colors.grey.shade400,
                     width: 2,
                   ),
                 ),
-                child: isSelected ? const Icon(Icons.check, size: 12, color: Colors.white) : null,
+                child: isSelected
+                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1623,8 +1734,10 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                   label,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? StudentColors.primary : StudentColors.text,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    color:
+                        isSelected ? StudentColors.primary : StudentColors.text,
                   ),
                 ),
               ),
@@ -1646,7 +1759,10 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           ),
           child: const Text(
             'Question Navigator',
-            style: TextStyle(fontFamily: AppFonts.heading, fontSize: 13, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontFamily: AppFonts.heading,
+                fontSize: 13,
+                fontWeight: FontWeight.bold),
           ),
         ),
 
@@ -1704,7 +1820,9 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                   decoration: BoxDecoration(
                     color: bgColor,
                     borderRadius: BorderRadius.circular(8),
-                    border: isCurrent ? Border.all(color: StudentColors.primaryDeep, width: 2) : null,
+                    border: isCurrent
+                        ? Border.all(color: StudentColors.primaryDeep, width: 2)
+                        : null,
                   ),
                   child: Center(
                     child: Text(
@@ -1731,16 +1849,24 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total answered:', style: TextStyle(fontSize: 11, color: StudentColors.text2)),
-                  Text('$_answeredCount/${_questions.length}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  const Text('Total answered:',
+                      style:
+                          TextStyle(fontSize: 11, color: StudentColors.text2)),
+                  Text('$_answeredCount/${_questions.length}',
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Review list:', style: TextStyle(fontSize: 11, color: StudentColors.text2)),
-                  Text('$_reviewCount marked', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  const Text('Review list:',
+                      style:
+                          TextStyle(fontSize: 11, color: StudentColors.text2)),
+                  Text('$_reviewCount marked',
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
@@ -1762,7 +1888,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
           ),
         ),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontSize: 11, color: StudentColors.text2)),
+        Text(label,
+            style: const TextStyle(fontSize: 11, color: StudentColors.text2)),
       ],
     );
   }
@@ -1783,25 +1910,30 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-
           OutlinedButton.icon(
             onPressed: () {
               setState(() {
-                _markedForReview[_currentQuestionIndex] = !(_markedForReview[_currentQuestionIndex] ?? false);
+                _markedForReview[_currentQuestionIndex] =
+                    !(_markedForReview[_currentQuestionIndex] ?? false);
               });
             },
             icon: Icon(
-              _markedForReview[_currentQuestionIndex] == true ? Icons.flag : Icons.flag_outlined,
+              _markedForReview[_currentQuestionIndex] == true
+                  ? Icons.flag
+                  : Icons.flag_outlined,
               size: 14,
-              color: _markedForReview[_currentQuestionIndex] == true ? StudentColors.warning : StudentColors.text2,
+              color: _markedForReview[_currentQuestionIndex] == true
+                  ? StudentColors.warning
+                  : StudentColors.text2,
             ),
             label: const Text('Review'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: _markedForReview[_currentQuestionIndex] == true ? StudentColors.warning : StudentColors.text2,
+              foregroundColor: _markedForReview[_currentQuestionIndex] == true
+                  ? StudentColors.warning
+                  : StudentColors.text2,
             ),
           ),
           const Spacer(),
-
           TextButton(
             onPressed: () {
               setState(() {
@@ -1813,7 +1945,6 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
             },
             child: const Text('Clear'),
           ),
-
           IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
             onPressed: _currentQuestionIndex > 0
@@ -1824,7 +1955,6 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
                   }
                 : null,
           ),
-
           if (_currentQuestionIndex < _questions.length - 1)
             ElevatedButton(
               onPressed: () {
@@ -1857,7 +1987,8 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('🚨 Exit Exam?'),
-        content: const Text('Exiting the exam screen now will log a proctoring violation. If you must leave, click Submit Exam instead to save progress.'),
+        content: const Text(
+            'Exiting the exam screen now will log a proctoring violation. If you must leave, click Submit Exam instead to save progress.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1881,14 +2012,17 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen> wit
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Final Exam Submission'),
-        content: Text('Are you sure you want to finish and submit?\n\nAnswered: $_answeredCount/${_questions.length}\nReview Marked: $_reviewCount'),
+        content: Text(
+            'Are you sure you want to finish and submit?\n\nAnswered: $_answeredCount/${_questions.length}\nReview Marked: $_reviewCount'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: StudentColors.success, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: StudentColors.success,
+                foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context);
               _executeFinalSubmission(isAuto: false);

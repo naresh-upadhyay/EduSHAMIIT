@@ -2,35 +2,30 @@
 -- EduSHAMIIT — Shami Innovation and Technologies LLP
 
 -- Ensure prerequisite rows exist for foreign key constraints
-INSERT INTO schools (id, name, address, city, state, country, phone, email, website, status)
+-- (Use only columns that exist on the live Supabase schools table)
+INSERT INTO schools (id, name, address, phone)
 VALUES (
     '11111111-1111-1111-1111-111111111111',
     'Demo School',
     '123 Education Street',
-    'Demo City',
-    'Demo State',
-    'India',
-    '+91-1234567890',
-    'demo@school.com',
-    'https://demoschool.edu.in',
-    'active'
+    '+91-1234567890'
 ) ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO subjects (id, school_id, name, code, class, icon, description)
+INSERT INTO subjects (id, school_id, name, icon, class)
 VALUES
-    ('11c305b2-5cf6-4341-8050-1333acf8f815', '11111111-1111-1111-1111-111111111111', 'Physics', 'PHY10', '10A', '🔬', 'Physics for Class 10A'),
-    ('e1008873-1ccf-48f9-8ce0-110ff3bce421', '11111111-1111-1111-1111-111111111111', 'Mathematics', 'MATH10', '10A', '📐', 'Mathematics for Class 10A'),
-    ('de23de6c-0574-4501-80cb-5bd150d8eac9', '11111111-1111-1111-1111-111111111111', 'Chemistry', 'CHEM10', '10A', '🧪', 'Chemistry for Class 10A'),
-    ('5f45ac94-a452-42c4-bfa1-1538c2b0b1cb', '11111111-1111-1111-1111-111111111111', 'English', 'ENG10', '10A', '📖', 'English for Class 10A')
+    ('11c305b2-5cf6-4341-8050-1333acf8f815', '11111111-1111-1111-1111-111111111111', 'Physics', '🔬', '10A'),
+    ('e1008873-1ccf-48f9-8ce0-110ff3bce421', '11111111-1111-1111-1111-111111111111', 'Mathematics', '📐', '10A'),
+    ('de23de6c-0574-4501-80cb-5bd150d8eac9', '11111111-1111-1111-1111-111111111111', 'Chemistry', '🧪', '10A'),
+    ('5f45ac94-a452-42c4-bfa1-1538c2b0b1cb', '11111111-1111-1111-1111-111111111111', 'English', '📖', '10A')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO profiles (id, school_id, full_name, email, role, class, xp_points)
+INSERT INTO profiles (id, user_id, school_id, full_name, email, role, class, xp_points)
 VALUES
-    ('aa000001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Mrs. Priya Sharma', 'priya.sharma@demo.school.com', 'teacher', '10A', 5000),
-    ('aa000002-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Dr. Arjun Verma', 'arjun.verma@demo.school.com', 'teacher', '10A', 5200),
-    ('aa000003-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Ms. Preethi Gupta', 'preethi.gupta@demo.school.com', 'teacher', '10A', 4800),
-    ('aa000004-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'Dr. Suresh Mehta', 'suresh.mehta@demo.school.com', 'teacher', '10A', 5100),
-    ('073cf4b4-7678-4a9d-bca8-a186d4e3bf5e', '11111111-1111-1111-1111-111111111111', 'Naresh Upadhyay', 'naresh@demo.school.com', 'student', '10A', 3200)
+    ('aa000001-0000-0000-0000-000000000001', 'aa000001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'Mrs. Priya Sharma', 'priya.sharma@demo.school.com', 'teacher', '10A', 5000),
+    ('aa000002-0000-0000-0000-000000000002', 'aa000002-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111', 'Dr. Arjun Verma', 'arjun.verma@demo.school.com', 'teacher', '10A', 5200),
+    ('aa000003-0000-0000-0000-000000000003', 'aa000003-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'Ms. Preethi Gupta', 'preethi.gupta@demo.school.com', 'teacher', '10A', 4800),
+    ('aa000004-0000-0000-0000-000000000004', 'aa000004-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111', 'Dr. Suresh Mehta', 'suresh.mehta@demo.school.com', 'teacher', '10A', 5100),
+    ('073cf4b4-7678-4a9d-bca8-a186d4e3bf5e', '073cf4b4-7678-4a9d-bca8-a186d4e3bf5e', '11111111-1111-1111-1111-111111111111', 'Naresh Upadhyay', 'naresh@demo.school.com', 'student', '10A', 3200)
 ON CONFLICT (id) DO NOTHING;
 
 -- Delete any existing sample live classes and comments to ensure clean state

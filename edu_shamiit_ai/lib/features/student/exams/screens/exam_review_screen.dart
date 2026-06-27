@@ -46,7 +46,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
       if (mounted) {
         setState(() {
           _examTitle = data['exam_title']?.toString() ?? 'Answer Review';
-          _questions = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          _questions =
+              raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
           _isLoading = false;
         });
       }
@@ -62,39 +63,57 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'correct': return const Color(0xFF10B981);
-      case 'partial': return const Color(0xFFF59E0B);
-      case 'incorrect': return const Color(0xFFEF4444);
-      default: return const Color(0xFF64748B); // skipped
+      case 'correct':
+        return const Color(0xFF10B981);
+      case 'partial':
+        return const Color(0xFFF59E0B);
+      case 'incorrect':
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF64748B); // skipped
     }
   }
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'correct': return Icons.check_circle_rounded;
-      case 'partial': return Icons.remove_circle_rounded;
-      case 'incorrect': return Icons.cancel_rounded;
-      default: return Icons.radio_button_unchecked_rounded;
+      case 'correct':
+        return Icons.check_circle_rounded;
+      case 'partial':
+        return Icons.remove_circle_rounded;
+      case 'incorrect':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.radio_button_unchecked_rounded;
     }
   }
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'correct': return 'Correct';
-      case 'partial': return 'Partial';
-      case 'incorrect': return 'Incorrect';
-      default: return 'Skipped';
+      case 'correct':
+        return 'Correct';
+      case 'partial':
+        return 'Partial';
+      case 'incorrect':
+        return 'Incorrect';
+      default:
+        return 'Skipped';
     }
   }
 
   String _qTypeLabel(String type) {
     switch (type) {
-      case 'single_select': return 'MCQ · Single';
-      case 'multi_select': return 'MCQ · Multi';
-      case 'subjective': return 'Subjective';
-      case 'true_false': return 'True / False';
-      case 'fill_blank': return 'Fill in Blank';
-      default: return type.replaceAll('_', ' ');
+      case 'single_select':
+        return 'MCQ · Single';
+      case 'multi_select':
+        return 'MCQ · Multi';
+      case 'subjective':
+        return 'Subjective';
+      case 'true_false':
+        return 'True / False';
+      case 'fill_blank':
+        return 'Fill in Blank';
+      default:
+        return type.replaceAll('_', ' ');
     }
   }
 
@@ -116,9 +135,9 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: _bg,
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -126,7 +145,10 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
               SizedBox(height: 16),
               Text(
                 'Loading Review...',
-                style: TextStyle(color: Colors.white60, fontSize: 13, fontFamily: AppFonts.heading),
+                style: TextStyle(
+                    color: Colors.white60,
+                    fontSize: 13,
+                    fontFamily: AppFonts.heading),
               ),
             ],
           ),
@@ -143,7 +165,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.red, size: 48),
+                const Icon(Icons.error_outline_rounded,
+                    color: Colors.red, size: 48),
                 const SizedBox(height: 16),
                 Text(
                   _error!,
@@ -152,8 +175,10 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () => context.go('/student/exams/result/${widget.examId}'),
-                  style: ElevatedButton.styleFrom(backgroundColor: _teal, foregroundColor: Colors.white),
+                  onPressed: () =>
+                      context.go('/student/exams/result/${widget.examId}'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: _teal, foregroundColor: Colors.white),
                   child: const Text('Go Back'),
                 ),
               ],
@@ -168,7 +193,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
         backgroundColor: _bg,
         appBar: _buildAppBar(),
         body: const Center(
-          child: Text('No questions found for review.', style: TextStyle(color: Colors.white60)),
+          child: Text('No questions found for review.',
+              style: TextStyle(color: Colors.white60)),
         ),
       );
     }
@@ -239,15 +265,24 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
           ),
           const Text(
             'Answer Review Mode',
-            style: TextStyle(fontSize: 10, color: Colors.white38, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                fontSize: 10,
+                color: Colors.white38,
+                fontWeight: FontWeight.w500),
           ),
         ],
       ),
       actions: [
         // Summary chips
-        _buildSummaryChip(_questions.where((q) => q['status'] == 'correct').length, const Color(0xFF10B981)),
-        _buildSummaryChip(_questions.where((q) => q['status'] == 'incorrect').length, const Color(0xFFEF4444)),
-        _buildSummaryChip(_questions.where((q) => q['status'] == 'skipped').length, const Color(0xFF64748B)),
+        _buildSummaryChip(
+            _questions.where((q) => q['status'] == 'correct').length,
+            const Color(0xFF10B981)),
+        _buildSummaryChip(
+            _questions.where((q) => q['status'] == 'incorrect').length,
+            const Color(0xFFEF4444)),
+        _buildSummaryChip(
+            _questions.where((q) => q['status'] == 'skipped').length,
+            const Color(0xFF64748B)),
         const SizedBox(width: 8),
       ],
     );
@@ -264,7 +299,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
       ),
       child: Text(
         '$count',
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color),
+        style:
+            TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color),
       ),
     );
   }
@@ -298,7 +334,12 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                   width: isSelected ? 2 : 1,
                 ),
                 boxShadow: isSelected
-                    ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))]
+                    ? [
+                        BoxShadow(
+                            color: color.withValues(alpha: 0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2))
+                      ]
                     : null,
               ),
               child: Center(
@@ -318,7 +359,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
     );
   }
 
-  Widget _buildQuestionPanel(Map<String, dynamic> q, Color statusColor, String status) {
+  Widget _buildQuestionPanel(
+      Map<String, dynamic> q, Color statusColor, String status) {
     final qNum = q['number'] ?? (_currentIndex + 1);
     final questionText = q['question']?.toString() ?? '';
     final qType = q['type']?.toString() ?? '';
@@ -361,7 +403,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                   const Spacer(),
                   // Marks pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -381,7 +424,10 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
               // Type label
               Text(
                 'Q$qNum  ·  ${_qTypeLabel(qType)}',
-                style: const TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               // Question text
@@ -411,10 +457,10 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
 
             final isStudentChoice = studentAnswer != null &&
                 (studentAnswer.toUpperCase() == optText.toUpperCase() ||
-                 studentAnswer.toUpperCase() == optLetter);
+                    studentAnswer.toUpperCase() == optLetter);
             final isCorrectOption = correctAnswer != null &&
                 (correctAnswer.toUpperCase() == optText.toUpperCase() ||
-                 correctAnswer.toUpperCase() == optLetter);
+                    correctAnswer.toUpperCase() == optLetter);
 
             Color optBorder = Colors.white.withValues(alpha: 0.07);
             Color optBg = Colors.white.withValues(alpha: 0.04);
@@ -459,7 +505,9 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                     decoration: BoxDecoration(
                       color: isCorrectOption
                           ? const Color(0xFF10B981)
-                          : (isStudentChoice ? const Color(0xFFEF4444) : Colors.white.withValues(alpha: 0.1)),
+                          : (isStudentChoice
+                              ? const Color(0xFFEF4444)
+                              : Colors.white.withValues(alpha: 0.1)),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -468,7 +516,9 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
-                          color: (isCorrectOption || isStudentChoice) ? Colors.white : Colors.white38,
+                          color: (isCorrectOption || isStudentChoice)
+                              ? Colors.white
+                              : Colors.white38,
                         ),
                       ),
                     ),
@@ -479,12 +529,15 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                       optText,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: (isCorrectOption || isStudentChoice) ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: (isCorrectOption || isStudentChoice)
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                         color: optText0,
                       ),
                     ),
                   ),
-                  if (trailIcon != null) Icon(trailIcon, size: 18, color: trailColor),
+                  if (trailIcon != null)
+                    Icon(trailIcon, size: 18, color: trailColor),
                 ],
               ),
             );
@@ -500,7 +553,9 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
             text: studentAnswer ?? 'Not answered — question was skipped',
             color: status == 'correct'
                 ? const Color(0xFF10B981)
-                : (status == 'skipped' ? Colors.white38 : const Color(0xFFEF4444)),
+                : (status == 'skipped'
+                    ? Colors.white38
+                    : const Color(0xFFEF4444)),
             bg: status == 'correct'
                 ? const Color(0xFF064E3B).withValues(alpha: 0.4)
                 : (status == 'skipped'
@@ -508,7 +563,9 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                     : const Color(0xFF7F1D1D).withValues(alpha: 0.4)),
             border: status == 'correct'
                 ? const Color(0xFF10B981)
-                : (status == 'skipped' ? Colors.white12 : const Color(0xFFEF4444)),
+                : (status == 'skipped'
+                    ? Colors.white12
+                    : const Color(0xFFEF4444)),
             italic: studentAnswer == null,
           ),
           // Always show correct answer
@@ -526,24 +583,36 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
         ],
 
         // ── Always show correct answer for MCQ too if skipped ────────
-        if (options.isNotEmpty && status == 'skipped' && correctAnswer != null && correctAnswer.isNotEmpty) ...[
+        if (options.isNotEmpty &&
+            status == 'skipped' &&
+            correctAnswer != null &&
+            correctAnswer.isNotEmpty) ...[
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: const Color(0xFF064E3B).withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.5)),
+              border: Border.all(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.5)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.lightbulb_rounded, size: 14, color: Color(0xFF6EE7B7)),
+                const Icon(Icons.lightbulb_rounded,
+                    size: 14, color: Color(0xFF6EE7B7)),
                 const SizedBox(width: 8),
-                const Text('Correct Answer: ', style: TextStyle(fontSize: 11, color: Color(0xFF6EE7B7), fontWeight: FontWeight.w700)),
+                const Text('Correct Answer: ',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF6EE7B7),
+                        fontWeight: FontWeight.w700)),
                 Expanded(
                   child: Text(
                     correctAnswer,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF6EE7B7), fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6EE7B7),
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -559,12 +628,14 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF2D1B69).withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.5)),
+              border: Border.all(
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.5)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.rate_review_rounded, size: 15, color: Color(0xFFA78BFA)),
+                const Icon(Icons.rate_review_rounded,
+                    size: 15, color: Color(0xFFA78BFA)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -638,7 +709,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       decoration: BoxDecoration(
         color: _card,
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+        border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
       ),
       child: Row(
         children: [
@@ -655,7 +727,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                   foregroundColor: Colors.white70,
                   side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -691,11 +764,13 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   )
                 : ElevatedButton.icon(
-                    onPressed: () => context.go('/student/exams/result/${widget.examId}'),
+                    onPressed: () =>
+                        context.go('/student/exams/result/${widget.examId}'),
                     icon: const Icon(Icons.check_rounded, size: 16),
                     label: const Text('Done'),
                     style: ElevatedButton.styleFrom(
@@ -703,7 +778,8 @@ class _ExamReviewScreenState extends State<ExamReviewScreen> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
           ),

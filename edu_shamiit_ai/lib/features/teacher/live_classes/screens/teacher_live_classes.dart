@@ -21,7 +21,7 @@ class TeacherLiveClasses extends ConsumerStatefulWidget {
 class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
   final TeacherApiService _apiService = TeacherApiService();
 
-  String _selectedStatus = 'All';
+  final String _selectedStatus = 'All';
   final List<String> _statuses = ['All', 'Scheduled', 'Ongoing', 'Completed'];
   List<TeacherLiveClass> _liveClasses = [];
   bool _isLoading = true;
@@ -176,8 +176,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                   .where((c) => c.isNotEmpty)
                                   .toSet()
                                   .toList(),
-                              filterFn: (item, option) =>
-                                  item.class_ == option,
+                              filterFn: (item, option) => item.class_ == option,
                             ),
                             AzureGridFilter<TeacherLiveClass>(
                               label: 'Subject',
@@ -194,8 +193,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                             AzureGridColumn<TeacherLiveClass>(
                               label: 'Title & Subject',
                               width: 250,
-                              compare: (a, b) =>
-                                  a.title.compareTo(b.title),
+                              compare: (a, b) => a.title.compareTo(b.title),
                               cellBuilder: (item) => Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -225,8 +223,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                             AzureGridColumn<TeacherLiveClass>(
                               label: 'Class',
                               width: 100,
-                              compare: (a, b) =>
-                                  a.class_.compareTo(b.class_),
+                              compare: (a, b) => a.class_.compareTo(b.class_),
                               cellBuilder: (item) => Text(item.class_),
                             ),
                             AzureGridColumn<TeacherLiveClass>(
@@ -246,8 +243,8 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                               width: 90,
                               compare: (a, b) => (a.durationMinutes ?? 0)
                                   .compareTo(b.durationMinutes ?? 0),
-                              cellBuilder: (item) => Text(
-                                  '${item.durationMinutes ?? 60} mins'),
+                              cellBuilder: (item) =>
+                                  Text('${item.durationMinutes ?? 60} mins'),
                             ),
                             AzureGridColumn<TeacherLiveClass>(
                               label: 'Platform',
@@ -260,8 +257,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                             AzureGridColumn<TeacherLiveClass>(
                               label: 'Status',
                               width: 120,
-                              compare: (a, b) =>
-                                  a.status.compareTo(b.status),
+                              compare: (a, b) => a.status.compareTo(b.status),
                               cellBuilder: (item) {
                                 final statusLower = item.status.toLowerCase();
                                 final isLive = statusLower == 'ongoing' ||
@@ -277,7 +273,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
                                           color: const Color(0xFFEF4444)
-                                              .withOpacity(0.3)),
+                                              .withValues(alpha: 0.3)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -436,8 +432,7 @@ class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
                                             value: 'watch',
                                             child: Row(
                                               children: [
-                                                Icon(
-                                                    Icons.play_circle_outline,
+                                                Icon(Icons.play_circle_outline,
                                                     size: 14),
                                                 SizedBox(width: 6),
                                                 Text('Watch Recording',

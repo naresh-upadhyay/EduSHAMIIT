@@ -3,20 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_ai/core/constants/student_colors.dart';
 import 'package:edu_shamiit_ai/core/constants/app_fonts.dart';
-import 'package:edu_shamiit_ai/core/utils/l10n.dart';
 import 'package:edu_shamiit_ai/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_ai/core/services/student_api_service.dart';
 
 class ExamInstructionsScreen extends ConsumerStatefulWidget {
   final String examId;
   final String? passcode;
-  const ExamInstructionsScreen({super.key, required this.examId, this.passcode});
+  const ExamInstructionsScreen(
+      {super.key, required this.examId, this.passcode});
 
   @override
-  ConsumerState<ExamInstructionsScreen> createState() => _ExamInstructionsScreenState();
+  ConsumerState<ExamInstructionsScreen> createState() =>
+      _ExamInstructionsScreenState();
 }
 
-class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen> {
+class _ExamInstructionsScreenState
+    extends ConsumerState<ExamInstructionsScreen> {
   final StudentApiService _apiService = StudentApiService();
   Map<String, dynamic>? _examData;
   bool _isLoading = true;
@@ -29,7 +31,10 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
   bool _checkedHonorCode = false;
 
   bool get _allChecked =>
-      _checkedQuietSpace && _checkedMonitoring && _checkedViolations && _checkedHonorCode;
+      _checkedQuietSpace &&
+      _checkedMonitoring &&
+      _checkedViolations &&
+      _checkedHonorCode;
 
   @override
   void initState() {
@@ -73,11 +78,14 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
       return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
-          title: const Text('Final Instructions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text('Final Instructions',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color(0xFF134E4A),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => safeGoBack(context, '/student/exams/verify/${widget.examId}'),
+            onPressed: () =>
+                safeGoBack(context, '/student/exams/verify/${widget.examId}'),
           ),
         ),
         body: Center(
@@ -86,17 +94,23 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                const Icon(Icons.error_outline,
+                    size: 48, color: Colors.redAccent),
                 const SizedBox(height: 16),
                 Text(
                   'Failed to load exam details: $_error',
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _loadExamDetails,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF134E4A), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF134E4A),
+                      foregroundColor: Colors.white),
                   child: const Text('Retry'),
                 ),
               ],
@@ -110,7 +124,7 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
     final exam = dataPayload['exam'] as Map<String, dynamic>? ?? {};
     final title = exam['title'] ?? 'Online Examination';
     final durationMins = exam['duration_minutes'] ?? 90;
-    
+
     // Proctor Settings
     final camera = exam['camera_required'] as bool? ?? true;
     final mic = exam['mic_required'] as bool? ?? true;
@@ -132,7 +146,8 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            final query = widget.passcode != null ? '?passcode=${widget.passcode}' : '';
+            final query =
+                widget.passcode != null ? '?passcode=${widget.passcode}' : '';
             safeGoBack(context, '/student/exams/verify/${widget.examId}$query');
           },
         ),
@@ -269,7 +284,7 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -282,25 +297,29 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
                           _buildCheckboxTile(
                             'I am sitting in a quiet, well-lit private space and will remain alone throughout the test.',
                             _checkedQuietSpace,
-                            (val) => setState(() => _checkedQuietSpace = val ?? false),
+                            (val) => setState(
+                                () => _checkedQuietSpace = val ?? false),
                           ),
                           const Divider(height: 16),
                           _buildCheckboxTile(
                             'I understand that my webcam and microphone must remain active and in focus at all times.',
                             _checkedMonitoring,
-                            (val) => setState(() => _checkedMonitoring = val ?? false),
+                            (val) => setState(
+                                () => _checkedMonitoring = val ?? false),
                           ),
                           const Divider(height: 16),
                           _buildCheckboxTile(
                             'I agree that window blur (leaving fullscreen, opening devtools, switching tabs) will result in warnings.',
                             _checkedViolations,
-                            (val) => setState(() => _checkedViolations = val ?? false),
+                            (val) => setState(
+                                () => _checkedViolations = val ?? false),
                           ),
                           const Divider(height: 16),
                           _buildCheckboxTile(
                             'Academic Honor: I certify that I will answer questions without using smart devices, textbooks, or notes.',
                             _checkedHonorCode,
-                            (val) => setState(() => _checkedHonorCode = val ?? false),
+                            (val) => setState(
+                                () => _checkedHonorCode = val ?? false),
                           ),
                         ],
                       ),
@@ -328,8 +347,11 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
                 child: ElevatedButton(
                   onPressed: _allChecked
                       ? () {
-                          final query = widget.passcode != null ? '?passcode=${widget.passcode}' : '';
-                          context.push('/student/exams/live/${widget.examId}$query');
+                          final query = widget.passcode != null
+                              ? '?passcode=${widget.passcode}'
+                              : '';
+                          context.push(
+                              '/student/exams/live/${widget.examId}$query');
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
@@ -412,7 +434,8 @@ class _ExamInstructionsScreenState extends ConsumerState<ExamInstructionsScreen>
     );
   }
 
-  Widget _buildCheckboxTile(String text, bool value, ValueChanged<bool?> onChanged) {
+  Widget _buildCheckboxTile(
+      String text, bool value, ValueChanged<bool?> onChanged) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

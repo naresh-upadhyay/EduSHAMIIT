@@ -16,7 +16,7 @@ class AssignExamScreen extends ConsumerStatefulWidget {
 
 class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
   final TeacherApiService _apiService = TeacherApiService();
-  
+
   // Data loading states
   TeacherExam? _exam;
   List<TeacherMyClass> _classes = [];
@@ -26,7 +26,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
   // Target Selection States
   List<String> _selectedClasses = [];
   String _selectedBatch = 'All Students';
-  
+
   // Student selection state variables
   List<StudentDirectoryEntry> _allStudents = [];
   List<StudentDirectoryEntry> _filteredStudents = [];
@@ -34,7 +34,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
   bool _isFetchingStudents = false;
   String _studentSearchQuery = '';
   final _studentSearchController = TextEditingController();
-  
+
   // Visibility States
   String _visibilityMode = 'Immediate'; // Immediate, Scheduled, Hidden
   DateTime _scheduledDate = DateTime.now().add(const Duration(days: 1));
@@ -75,11 +75,14 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
 
       if (_classes.isNotEmpty) {
         if (_exam!.class_.isNotEmpty) {
-          _selectedClasses = _exam!.class_.split(',').map((c) => c.trim()).toList();
+          _selectedClasses =
+              _exam!.class_.split(',').map((c) => c.trim()).toList();
         } else {
           final first = _classes.first;
           final sec = first.section.trim();
-          final label = (sec.isEmpty || first.name.contains('-$sec')) ? first.name : '${first.name}-$sec';
+          final label = (sec.isEmpty || first.name.contains('-$sec'))
+              ? first.name
+              : '${first.name}-$sec';
           _selectedClasses = [label];
         }
       } else {
@@ -88,7 +91,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
 
       if (_exam != null) {
         _selectedBatch = _exam!.scope ?? 'All Students';
-        _targetedStudentIds = (_exam!.targetStudents ?? []).map((s) => s.toString()).toList();
+        _targetedStudentIds =
+            (_exam!.targetStudents ?? []).map((s) => s.toString()).toList();
         if (_exam!.passcode != null && _exam!.passcode!.trim().isNotEmpty) {
           _requirePassword = true;
           _passwordController.text = _exam!.passcode!;
@@ -100,16 +104,19 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
         if (_exam!.startTime != null) {
           final localStart = _exam!.startTime!.toLocal();
           _examDate = localStart;
-          _examStartTime = TimeOfDay(hour: localStart.hour, minute: localStart.minute);
+          _examStartTime =
+              TimeOfDay(hour: localStart.hour, minute: localStart.minute);
         } else {
           _examDate = DateTime.now().add(const Duration(days: 1));
           _examStartTime = const TimeOfDay(hour: 9, minute: 0);
         }
 
-        if ((_exam!.status == 'scheduled' || _exam!.status == 'ready') && _exam!.releaseTime != null) {
+        if ((_exam!.status == 'scheduled' || _exam!.status == 'ready') &&
+            _exam!.releaseTime != null) {
           _visibilityMode = 'Scheduled';
           _scheduledDate = _exam!.releaseTime!.toLocal();
-          _scheduledTime = TimeOfDay.fromDateTime(_exam!.releaseTime!.toLocal());
+          _scheduledTime =
+              TimeOfDay.fromDateTime(_exam!.releaseTime!.toLocal());
         } else if (_exam!.status == 'published') {
           _visibilityMode = 'Immediate';
         } else {
@@ -199,7 +206,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -225,11 +232,13 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                     TextButton(
                       onPressed: () {
                         setState(() {
-                          _targetedStudentIds = _allStudents.map((s) => s.id).toList();
+                          _targetedStudentIds =
+                              _allStudents.map((s) => s.id).toList();
                         });
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -250,7 +259,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                         });
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -278,8 +288,10 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
             },
             decoration: InputDecoration(
               hintText: 'Search by name or roll number...',
-              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 18),
+              hintStyle:
+                  const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              prefixIcon:
+                  const Icon(Icons.search, color: Color(0xFF94A3B8), size: 18),
               suffixIcon: _studentSearchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, size: 18),
@@ -319,7 +331,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                   width: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
                   ),
                 ),
               ),
@@ -331,7 +344,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
               alignment: Alignment.center,
               child: Column(
                 children: [
-                  Icon(Icons.people_outline, color: Colors.grey.shade400, size: 36),
+                  Icon(Icons.people_outline,
+                      color: Colors.grey.shade400, size: 36),
                   const SizedBox(height: 8),
                   const Text(
                     'No students found in the selected class sections.',
@@ -361,26 +375,34 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: _filteredStudents.length,
-                separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                separatorBuilder: (context, index) =>
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 itemBuilder: (context, index) {
                   final student = _filteredStudents[index];
                   final isSelected = _targetedStudentIds.contains(student.id);
 
                   return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     leading: CircleAvatar(
                       radius: 18,
-                      backgroundColor: isSelected ? const Color(0xFFEEF2FF) : const Color(0xFFF1F5F9),
+                      backgroundColor: isSelected
+                          ? const Color(0xFFEEF2FF)
+                          : const Color(0xFFF1F5F9),
                       backgroundImage: student.profileImageUrl != null
                           ? NetworkImage(student.profileImageUrl!)
                           : null,
                       child: student.profileImageUrl == null
                           ? Text(
-                              student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                              student.name.isNotEmpty
+                                  ? student.name[0].toUpperCase()
+                                  : 'S',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: isSelected ? const Color(0xFF4338CA) : const Color(0xFF64748B),
+                                color: isSelected
+                                    ? const Color(0xFF4338CA)
+                                    : const Color(0xFF64748B),
                               ),
                             )
                           : null,
@@ -395,7 +417,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                     ),
                     subtitle: Text(
                       'Roll No: ${student.rollNo} • Class: ${student.class_}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF64748B)),
                     ),
                     trailing: InkWell(
                       onTap: () {
@@ -410,19 +433,25 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                       borderRadius: BorderRadius.circular(20),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF6366F1) : Colors.white,
+                          color: isSelected
+                              ? const Color(0xFF6366F1)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+                            color: isSelected
+                                ? const Color(0xFF6366F1)
+                                : const Color(0xFFE2E8F0),
                           ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (isSelected) ...[
-                              const Icon(Icons.check, color: Colors.white, size: 12),
+                              const Icon(Icons.check,
+                                  color: Colors.white, size: 12),
                               const SizedBox(width: 4),
                             ],
                             Text(
@@ -430,7 +459,9 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: isSelected ? Colors.white : const Color(0xFF6366F1),
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF6366F1),
                               ),
                             ),
                           ],
@@ -451,11 +482,11 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
     DateTime initial = _scheduledDate;
     final today = DateTime(now.year, now.month, now.day);
     final initialDateOnly = DateTime(initial.year, initial.month, initial.day);
-    
+
     if (initialDateOnly.isBefore(today)) {
       initial = now;
     }
-    
+
     final date = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -481,11 +512,11 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
     DateTime initial = _examDate ?? now.add(const Duration(days: 1));
     final today = DateTime(now.year, now.month, now.day);
     final initialDateOnly = DateTime(initial.year, initial.month, initial.day);
-    
+
     if (initialDateOnly.isBefore(today)) {
       initial = now.add(const Duration(days: 1));
     }
-    
+
     final date = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -540,7 +571,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one student for the targeted scope'),
+          content:
+              Text('Please select at least one student for the targeted scope'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -568,7 +600,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
               : (_exam?.status ?? 'new');
 
       final DateTime now = DateTime.now();
-      
+
       int durationMins = 90;
       if (_exam != null) {
         final digits = _exam!.duration.replaceAll(RegExp(r'[^0-9]'), '');
@@ -582,7 +614,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
         _examStartTime!.hour,
         _examStartTime!.minute,
       );
-      final DateTime endDateTime = startDateTime.add(Duration(minutes: durationMins));
+      final DateTime endDateTime =
+          startDateTime.add(Duration(minutes: durationMins));
 
       // Calculate release time
       DateTime? releaseDateTime;
@@ -594,10 +627,12 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
           _scheduledTime.hour,
           _scheduledTime.minute,
         );
-        if (releaseDateTime.isAfter(startDateTime) || releaseDateTime.isAtSameMomentAs(startDateTime)) {
+        if (releaseDateTime.isAfter(startDateTime) ||
+            releaseDateTime.isAtSameMomentAs(startDateTime)) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('⚠️ Publish date and time must be earlier than the exam start date and time.'),
+              content: Text(
+                  '⚠️ Publish date and time must be earlier than the exam start date and time.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -614,13 +649,16 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
         'status': status,
         'target_classes': _selectedClasses,
         'class': _selectedClasses.join(', '),
-        'venue': _exam?.examType.toLowerCase() == 'online' ? 'Online Portal' : _exam?.roomNumber ?? 'Classroom',
+        'venue': _exam?.examType.toLowerCase() == 'online'
+            ? 'Online Portal'
+            : _exam?.roomNumber ?? 'Classroom',
         'exam_date': _examDate!.toIso8601String().split('T')[0],
         'start_time': startDateTime.toUtc().toIso8601String(),
         'end_time': endDateTime.toUtc().toIso8601String(),
         'scope': _selectedBatch,
         'passcode': _requirePassword ? _passwordController.text.trim() : null,
-        'target_students': _selectedBatch == 'All Students' ? null : _targetedStudentIds,
+        'target_students':
+            _selectedBatch == 'All Students' ? null : _targetedStudentIds,
         'release_time': releaseDateTime?.toUtc().toIso8601String(),
       };
 
@@ -660,11 +698,14 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
   @override
   Widget build(BuildContext context) {
     // Collect unique class names from the backend class list
-    final classNames = _classes.map((c) {
-      final section = c.section.trim();
-      if (section.isEmpty || c.name.contains('-$section')) return c.name;
-      return '${c.name}-$section';
-    }).toSet().toList();
+    final classNames = _classes
+        .map((c) {
+          final section = c.section.trim();
+          if (section.isEmpty || c.name.contains('-$section')) return c.name;
+          return '${c.name}-$section';
+        })
+        .toSet()
+        .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -726,10 +767,12 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.02),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.02),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
                                     ),
@@ -753,13 +796,15 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFF8FAFC),
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        border: Border.all(
+                                            color: const Color(0xFFE2E8F0)),
                                       ),
                                       child: Wrap(
                                         spacing: 8,
                                         runSpacing: 8,
                                         children: classNames.map((c) {
-                                          final isSelected = _selectedClasses.contains(c);
+                                          final isSelected =
+                                              _selectedClasses.contains(c);
                                           return FilterChip(
                                             label: Text(c),
                                             selected: isSelected,
@@ -768,20 +813,26 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                                 if (selected) {
                                                   _selectedClasses.add(c);
                                                 } else {
-                                                  if (_selectedClasses.length > 1) {
+                                                  if (_selectedClasses.length >
+                                                      1) {
                                                     _selectedClasses.remove(c);
                                                   }
                                                 }
                                               });
-                                              if (_selectedBatch != 'All Students') {
+                                              if (_selectedBatch !=
+                                                  'All Students') {
                                                 _fetchStudentsForSelectedClasses();
                                               }
                                             },
-                                            selectedColor: const Color(0xFF6366F1).withOpacity(0.18),
-                                            checkmarkColor: const Color(0xFF6366F1),
+                                            selectedColor:
+                                                const Color(0xFF6366F1)
+                                                    .withValues(alpha: 0.18),
+                                            checkmarkColor:
+                                                const Color(0xFF6366F1),
                                             backgroundColor: Colors.white,
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                               side: BorderSide(
                                                 color: isSelected
                                                     ? const Color(0xFF6366F1)
@@ -805,7 +856,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                     ),
                                     const SizedBox(height: 18),
                                     DropdownButtonFormField<String>(
-                                      value: _selectedBatch,
+                                      initialValue: _selectedBatch,
                                       decoration: const InputDecoration(
                                         labelText: 'Batch / Scope',
                                         labelStyle: TextStyle(
@@ -814,8 +865,13 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                         ),
                                         border: UnderlineInputBorder(),
                                       ),
-                                      items: ['All Students', 'Remedial Batch', 'Selective Group']
-                                          .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                                      items: [
+                                        'All Students',
+                                        'Remedial Batch',
+                                        'Selective Group'
+                                      ]
+                                          .map((b) => DropdownMenuItem(
+                                              value: b, child: Text(b)))
                                           .toList(),
                                       onChanged: (v) {
                                         setState(() {
@@ -848,10 +904,12 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.02),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.02),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
                                     ),
@@ -870,11 +928,14 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                       ),
                                       subtitle: const Text(
                                         'Students must input a password before commencing checks.',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF64748B)),
                                       ),
                                       value: _requirePassword,
-                                      activeColor: const Color(0xFF6366F1),
-                                      onChanged: (v) => setState(() => _requirePassword = v),
+                                      activeThumbColor: const Color(0xFF6366F1),
+                                      onChanged: (v) =>
+                                          setState(() => _requirePassword = v),
                                     ),
                                     if (_requirePassword) ...[
                                       const SizedBox(height: 16),
@@ -882,10 +943,13 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                         controller: _passwordController,
                                         decoration: InputDecoration(
                                           labelText: 'Exam Password Code',
-                                          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                          labelStyle: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                          prefixIcon: const Icon(
+                                              Icons.lock_outline_rounded),
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                           ),
                                         ),
                                       ),
@@ -911,10 +975,12 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.02),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.02),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
                                     ),
@@ -942,11 +1008,14 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: const Color(0xFFE2E8F0)),
                                         ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             const Icon(
                                               Icons.event_note,
@@ -955,7 +1024,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                             ),
                                             const SizedBox(width: 8),
                                             Text(
-                                              _examDate != null && _examStartTime != null
+                                              _examDate != null &&
+                                                      _examStartTime != null
                                                   ? 'Exam: ${_examDate!.toString().split(' ')[0]} at ${_examStartTime!.format(context)}'
                                                   : 'Choose Exam Date & Start Time',
                                               style: const TextStyle(
@@ -991,14 +1061,18 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                       ),
                                       subtitle: const Text(
                                         'Available immediately for student access.',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF64748B)),
                                       ),
                                       value: 'Immediate',
                                       groupValue: _visibilityMode,
                                       activeColor: const Color(0xFF6366F1),
-                                      onChanged: (v) => setState(() => _visibilityMode = v!),
+                                      onChanged: (v) =>
+                                          setState(() => _visibilityMode = v!),
                                     ),
-                                    const Divider(height: 1, indent: 16, endIndent: 16),
+                                    const Divider(
+                                        height: 1, indent: 16, endIndent: 16),
                                     RadioListTile<String>(
                                       title: const Text(
                                         'Scheduled Release',
@@ -1010,12 +1084,15 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                       ),
                                       subtitle: const Text(
                                         'Hidden until the configured calendar date.',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF64748B)),
                                       ),
                                       value: 'Scheduled',
                                       groupValue: _visibilityMode,
                                       activeColor: const Color(0xFF6366F1),
-                                      onChanged: (v) => setState(() => _visibilityMode = v!),
+                                      onChanged: (v) =>
+                                          setState(() => _visibilityMode = v!),
                                     ),
                                     if (_visibilityMode == 'Scheduled') ...[
                                       const SizedBox(height: 16),
@@ -1029,11 +1106,14 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFEEF2FF),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: const Color(0xFFC7D2FE)),
                                           ),
                                           child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               const Icon(
                                                 Icons.calendar_today_rounded,
@@ -1063,10 +1143,12 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                       ),
                       // Bottom Action bar
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 16),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                          border: Border(
+                              top: BorderSide(color: Colors.grey.shade200)),
                         ),
                         child: SizedBox(
                           width: double.infinity,
@@ -1083,7 +1165,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                             ),
                             child: const Text(
                               'Publish and Schedule Exam',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -1092,17 +1175,19 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                   ),
                   if (_isSaving)
                     Container(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       child: const Center(
                         child: Card(
                           margin: EdgeInsets.symmetric(horizontal: 40),
                           child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 20),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF6366F1)),
                                 ),
                                 SizedBox(width: 20),
                                 Text(
@@ -1136,7 +1221,10 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
           Expanded(
             child: Text(
               'Final Step: Assign this question paper draft to one or multiple class sections and release schedules.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF3730A3), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF3730A3),
+                  fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -1156,7 +1244,7 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.35),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -1169,9 +1257,10 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -1186,7 +1275,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
               ),
               Row(
                 children: [
-                  const Icon(Icons.timer_outlined, size: 14, color: Colors.white70),
+                  const Icon(Icons.timer_outlined,
+                      size: 14, color: Colors.white70),
                   const SizedBox(width: 4),
                   Text(
                     _exam!.duration,
@@ -1213,7 +1303,10 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
           const SizedBox(height: 6),
           Text(
             'Subject: ${_exam!.subject}',
-            style: const TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+                fontWeight: FontWeight.w500),
           ),
           const Divider(height: 24, color: Colors.white24),
           Row(
@@ -1228,7 +1321,8 @@ class _AssignExamScreenState extends ConsumerState<AssignExamScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: _exam!.examType.toLowerCase() == 'online'
                       ? const Color(0xFF10B981)

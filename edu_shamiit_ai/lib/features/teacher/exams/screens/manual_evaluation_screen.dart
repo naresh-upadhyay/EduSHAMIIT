@@ -11,7 +11,8 @@ class ManualEvaluationScreen extends ConsumerStatefulWidget {
   const ManualEvaluationScreen({super.key, required this.examId});
 
   @override
-  ConsumerState<ManualEvaluationScreen> createState() => _ManualEvaluationScreenState();
+  ConsumerState<ManualEvaluationScreen> createState() =>
+      _ManualEvaluationScreenState();
 }
 
 class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
@@ -31,7 +32,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   String _studentSearchQuery = '';
 
   final Map<String, TextEditingController> _scoreControllers = {};
-  final TextEditingController _overallRemarksController = TextEditingController();
+  final TextEditingController _overallRemarksController =
+      TextEditingController();
   late TabController _tabController;
 
   static const _primary = Color(0xFF6366F1);
@@ -58,7 +60,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
       _isOffline = (exam['exam_type']?.toString().toLowerCase() == 'offline');
 
       final questions = await _apiService.getExamQuestions(widget.examId);
-      final submissionsData = await _apiService.getExamSubmissions(widget.examId);
+      final submissionsData =
+          await _apiService.getExamSubmissions(widget.examId);
       final filtered = submissionsData
           .where((s) => s['status'] == 'submitted' || s['status'] == 'graded')
           .toList();
@@ -86,10 +89,13 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   void _initControllersForStudent() {
-    for (final c in _scoreControllers.values) c.dispose();
+    for (final c in _scoreControllers.values) {
+      c.dispose();
+    }
     _scoreControllers.clear();
     _overallRemarksController.clear();
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return;
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return;
 
     final sub = _submissions[_currentStudentIndex];
     for (final q in _subjectiveQuestions) {
@@ -112,7 +118,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    for (final c in _scoreControllers.values) c.dispose();
+    for (final c in _scoreControllers.values) {
+      c.dispose();
+    }
     _overallRemarksController.dispose();
     super.dispose();
   }
@@ -126,7 +134,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
       final qId = q['id'];
       final sAns = answers[qId] ?? answers[qId?.toString()];
       final cAns = q['correct_answer']?.toString().trim().toLowerCase();
-      if (sAns != null && cAns != null && sAns.toString().trim().toLowerCase() == cAns) {
+      if (sAns != null &&
+          cAns != null &&
+          sAns.toString().trim().toLowerCase() == cAns) {
         m += (q['marks'] as num?)?.toDouble() ?? 0.0;
       }
     }
@@ -134,46 +144,58 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   double get _currentAutoGradedMarks {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return 0.0;
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return 0.0;
     return _calculateAutoGradedMarks(_submissions[_currentStudentIndex]);
   }
 
   bool get _isCurrentStudentGraded {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return false;
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return false;
     return _submissions[_currentStudentIndex]['status'] == 'graded';
   }
 
-  int get _gradedCount => _submissions.where((s) => s['status'] == 'graded').length;
+  int get _gradedCount =>
+      _submissions.where((s) => s['status'] == 'graded').length;
 
   String _getStudentName() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return 'Student';
-    final profile = _submissions[_currentStudentIndex]['profiles'] as Map<String, dynamic>? ?? {};
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return 'Student';
+    final profile = _submissions[_currentStudentIndex]['profiles']
+            as Map<String, dynamic>? ??
+        {};
     return profile['full_name']?.toString() ?? 'Student';
   }
 
   String _getRollNumber() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return '';
-    final profile = _submissions[_currentStudentIndex]['profiles'] as Map<String, dynamic>? ?? {};
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return '';
+    final profile = _submissions[_currentStudentIndex]['profiles']
+            as Map<String, dynamic>? ??
+        {};
     return profile['roll_number']?.toString() ?? '';
   }
 
   Future<void> _submitGrade() async {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return;
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return;
     final sub = _submissions[_currentStudentIndex];
     double subjTotal = 0.0;
-    
+
     // Validate scores first
     for (final q in _subjectiveQuestions) {
       final text = _scoreControllers[q['id']]?.text.trim() ?? '';
       if (text.isNotEmpty) {
         final s = double.tryParse(text);
         if (s == null) {
-          _showToast('Please enter a valid number for all scores.', isSuccess: false);
+          _showToast('Please enter a valid number for all scores.',
+              isSuccess: false);
           return;
         }
         final maxM = (q['marks'] as num?)?.toDouble() ?? 0.0;
         if (s > maxM) {
-          _showToast('Score cannot exceed maximum marks ($maxM).', isSuccess: false);
+          _showToast('Score cannot exceed maximum marks ($maxM).',
+              isSuccess: false);
           return;
         }
         if (s < 0) {
@@ -184,7 +206,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
     }
 
     // Create new answers map preserving auto scores and inserting subjective scores
-    final currentAnswers = Map<String, dynamic>.from(sub['answers'] as Map? ?? {});
+    final currentAnswers =
+        Map<String, dynamic>.from(sub['answers'] as Map? ?? {});
 
     for (final q in _subjectiveQuestions) {
       final text = _scoreControllers[q['id']]?.text.trim() ?? '';
@@ -221,11 +244,11 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
         remarks: _overallRemarksController.text.trim(),
         answers: currentAnswers,
       );
-      
+
       if (!mounted) return;
       _showToast('Grade submitted for ${_getStudentName()}', isSuccess: true);
       await _loadData();
-      
+
       if (!mounted) return;
       final next = _submissions.indexWhere((s) => s['status'] != 'graded');
       if (next != -1) {
@@ -242,7 +265,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Future<void> _gradeAllAuto() async {
-    final ungraded = _submissions.where((s) => s['status'] != 'graded').toList();
+    final ungraded =
+        _submissions.where((s) => s['status'] != 'graded').toList();
     if (ungraded.isEmpty) {
       _showToast('All submissions are already graded!', isSuccess: true);
       return;
@@ -262,7 +286,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
         );
         successCount++;
       }
-      _showToast('Successfully auto-graded $successCount students!', isSuccess: true);
+      _showToast('Successfully auto-graded $successCount students!',
+          isSuccess: true);
       await _loadData();
     } catch (e) {
       _showToast('Bulk grading partially completed: $e', isSuccess: false);
@@ -282,59 +307,65 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
           constraints: const BoxConstraints(maxWidth: 480),
           child: Padding(
             padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _success.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: _success.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded,
+                      color: _success, size: 48),
                 ),
-                child: const Icon(Icons.check_circle_rounded, color: _success, size: 48),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'All Students Graded!',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: AppFonts.heading),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Graded ${_submissions.length} students. Ready to publish results.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, height: 1.5),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    context.pushReplacement('/teacher/exams/publish/${widget.examId}');
-                  },
-                  icon: const Icon(Icons.publish_rounded),
-                  label: const Text('Publish Results'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 20),
+                const Text(
+                  'All Students Graded!',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: AppFonts.heading),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Graded ${_submissions.length} students. Ready to publish results.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.grey, height: 1.5),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      context.pushReplacement(
+                          '/teacher/exams/publish/${widget.examId}');
+                    },
+                    icon: const Icon(Icons.publish_rounded),
+                    label: const Text('Publish Results'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  context.go('/teacher/exams');
-                },
-                child: const Text('Back to Exams'),
-              ),
-            ],
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.go('/teacher/exams');
+                  },
+                  child: const Text('Back to Exams'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -351,7 +382,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Future<void> _launchUrl(String url) async {
-    if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+    if (!await launchUrl(Uri.parse(url),
+        mode: LaunchMode.externalApplication)) {
       _showToast('Could not open attachment', isSuccess: false);
     }
   }
@@ -359,8 +391,12 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   List<Map<String, dynamic>> _getFilteredSubmissions() {
     if (_studentSearchQuery.isEmpty) return _submissions;
     return _submissions.where((s) {
-      final name = ((s['profiles'] as Map?)?['full_name'] ?? '').toString().toLowerCase();
-      final roll = ((s['profiles'] as Map?)?['roll_number'] ?? '').toString().toLowerCase();
+      final name = ((s['profiles'] as Map?)?['full_name'] ?? '')
+          .toString()
+          .toLowerCase();
+      final roll = ((s['profiles'] as Map?)?['roll_number'] ?? '')
+          .toString()
+          .toLowerCase();
       final q = _studentSearchQuery.toLowerCase();
       return name.contains(q) || roll.contains(q);
     }).toList();
@@ -375,14 +411,18 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
         children: [
           _buildTopHeader(),
           if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator(color: _primary)))
+            const Expanded(
+                child:
+                    Center(child: CircularProgressIndicator(color: _primary)))
           else if (_error != null)
             Expanded(child: _buildError())
           else if (_submissions.isEmpty)
             Expanded(child: _buildEmptyState())
           else ...[
             _buildProgressBar(),
-            Expanded(child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout()),
+            Expanded(
+                child:
+                    isDesktop ? _buildDesktopLayout() : _buildMobileLayout()),
           ],
         ],
       ),
@@ -400,7 +440,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white, size: 18),
                   onPressed: () => safeGoBack(context, '/teacher/exams'),
                 ),
                 const SizedBox(width: 4),
@@ -410,7 +451,11 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                     children: [
                       Text(
                         'Evaluate Exam',
-                        style: TextStyle(fontFamily: AppFonts.heading, fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
+                        style: TextStyle(
+                            fontFamily: AppFonts.heading,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white),
                       ),
                       Text(
                         'Subjective Answer Grading',
@@ -421,11 +466,17 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                 ),
                 if (!_isLoading && _submissions.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20)),
                     child: Text(
                       '$_gradedCount/${_submissions.length} Graded',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12),
                     ),
                   ),
               ],
@@ -445,11 +496,18 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
           children: [
             Row(
               children: [
-                Text('Grading Progress', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+                Text('Grading Progress',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600)),
                 const Spacer(),
                 Text(
                   '$_gradedCount of ${_submissions.length} students',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: _primary),
                 ),
               ],
             ),
@@ -457,7 +515,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
-                value: _submissions.isNotEmpty ? _gradedCount / _submissions.length : 0.0,
+                value: _submissions.isNotEmpty
+                    ? _gradedCount / _submissions.length
+                    : 0.0,
                 minHeight: 6,
                 backgroundColor: Colors.grey.shade100,
                 valueColor: const AlwaysStoppedAnimation<Color>(_success),
@@ -519,7 +579,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
             indicatorColor: _primary,
             labelColor: _primary,
             unselectedLabelColor: Colors.grey,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            labelStyle:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             tabs: const [
               Tab(text: 'Students'),
               Tab(text: 'Questions'),
@@ -566,8 +627,10 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
               hintStyle: const TextStyle(fontSize: 12),
               isDense: true,
               prefixIcon: const Icon(Icons.search, size: 18),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             ),
           ),
         ),
@@ -580,12 +643,18 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
               child: OutlinedButton.icon(
                 onPressed: _isAutoGradingBulk ? null : _gradeAllAuto,
                 icon: _isAutoGradingBulk
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _primary))
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: _primary))
                     : const Icon(Icons.auto_awesome_rounded, size: 14),
-                label: Text(_isAutoGradingBulk ? 'Grading...' : 'Grade All Auto'),
+                label:
+                    Text(_isAutoGradingBulk ? 'Grading...' : 'Grade All Auto'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   side: const BorderSide(color: _primary),
                   foregroundColor: _primary,
                 ),
@@ -599,7 +668,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: filtered.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: _border),
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: _border),
             itemBuilder: (context, i) {
               final sub = filtered[i];
               final realIndex = _submissions.indexOf(sub);
@@ -622,7 +692,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                 },
                 leading: CircleAvatar(
                   radius: 14,
-                  backgroundColor: isG ? _success.withValues(alpha: 0.15) : _primary.withValues(alpha: 0.1),
+                  backgroundColor: isG
+                      ? _success.withValues(alpha: 0.15)
+                      : _primary.withValues(alpha: 0.1),
                   child: Text(
                     name.isNotEmpty ? name[0].toUpperCase() : 'S',
                     style: TextStyle(
@@ -639,17 +711,22 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                     fontSize: 12.5,
                   ),
                 ),
-                subtitle: Text('Roll: $roll', style: const TextStyle(fontSize: 10)),
+                subtitle:
+                    Text('Roll: $roll', style: const TextStyle(fontSize: 10)),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (isG)
                       Text(
                         '${sub['score']}',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _success),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _success),
                       )
                     else
-                      const Icon(Icons.pending_actions_rounded, size: 14, color: _warning),
+                      const Icon(Icons.pending_actions_rounded,
+                          size: 14, color: _warning),
                   ],
                 ),
               );
@@ -661,7 +738,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Widget _buildStudentCard() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return const SizedBox();
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return const SizedBox();
     final sub = _submissions[_currentStudentIndex];
     final isG = sub['status'] == 'graded';
     final score = sub['score'];
@@ -670,19 +748,31 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isG ? [const Color(0xFFECFDF5), const Color(0xFFF0FDF4)] : [const Color(0xFFF5F3FF), const Color(0xFFEDE9FE)],
+          colors: isG
+              ? [const Color(0xFFECFDF5), const Color(0xFFF0FDF4)]
+              : [const Color(0xFFF5F3FF), const Color(0xFFEDE9FE)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isG ? _success.withValues(alpha: 0.3) : _primary.withValues(alpha: 0.2)),
+        border: Border.all(
+            color: isG
+                ? _success.withValues(alpha: 0.3)
+                : _primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: isG ? _success.withValues(alpha: 0.15) : _primary.withValues(alpha: 0.15),
+            backgroundColor: isG
+                ? _success.withValues(alpha: 0.15)
+                : _primary.withValues(alpha: 0.15),
             child: Text(
-              _getStudentName().isNotEmpty ? _getStudentName()[0].toUpperCase() : 'S',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isG ? _success : _primary),
+              _getStudentName().isNotEmpty
+                  ? _getStudentName()[0].toUpperCase()
+                  : 'S',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: isG ? _success : _primary),
             ),
           ),
           const SizedBox(width: 14),
@@ -690,17 +780,28 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_getStudentName(), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(_getStudentName(),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Text('Roll No: ${_getRollNumber()}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    Text('Roll No: ${_getRollNumber()}',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade600)),
                     if (isG) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: _success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                        child: const Text('GRADED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _success)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: _success.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6)),
+                        child: const Text('GRADED',
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: _success)),
                       ),
                     ],
                   ],
@@ -717,8 +818,13 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('$score', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _success)),
-                const Text('Marks', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                Text('$score',
+                    style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: _success)),
+                const Text('Marks',
+                    style: TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
         ],
@@ -727,8 +833,11 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
   }
 
   Widget _buildQuestionBlock(Map<String, dynamic> q) {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return const SizedBox();
-    final answers = _submissions[_currentStudentIndex]['answers'] as Map<String, dynamic>? ?? {};
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return const SizedBox();
+    final answers = _submissions[_currentStudentIndex]['answers']
+            as Map<String, dynamic>? ??
+        {};
     final qId = q['id'];
     final qType = q['question_type'] as String? ?? 'mcq';
     final isSub = qType == 'subjective';
@@ -746,7 +855,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
     final cAns = q['correct_answer']?.toString().trim().toLowerCase();
     final sAns = sText.trim().toLowerCase();
     final isOk = !isSub && cAns != null && cAns.isNotEmpty && sAns == cAns;
-    final isErr = !isSub && cAns != null && cAns.isNotEmpty && sAns.isNotEmpty && !isOk;
+    final isErr =
+        !isSub && cAns != null && cAns.isNotEmpty && sAns.isNotEmpty && !isOk;
     final bc = isOk
         ? _success.withValues(alpha: 0.4)
         : (isErr ? _danger.withValues(alpha: 0.3) : _border);
@@ -774,8 +884,11 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                   ? _warning.withValues(alpha: 0.08)
                   : (isOk
                       ? _success.withValues(alpha: 0.06)
-                      : (isErr ? _danger.withValues(alpha: 0.05) : Colors.grey.shade50)),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      : (isErr
+                          ? _danger.withValues(alpha: 0.05)
+                          : Colors.grey.shade50)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
@@ -784,11 +897,18 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                 Expanded(
                   child: Text(
                     q['question_text'] ?? '',
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.4),
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text('${q['marks'] ?? 0} M', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary)),
+                Text('${q['marks'] ?? 0} M',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: _primary)),
               ],
             ),
           ),
@@ -799,18 +919,27 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
               children: [
                 Row(
                   children: [
-                    Icon(Icons.person_rounded, size: 14, color: Colors.grey.shade500),
+                    Icon(Icons.person_rounded,
+                        size: 14, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
                     Text(
-                      _isOffline ? 'Question Options & Answer' : 'Student Response',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                      _isOffline
+                          ? 'Question Options & Answer'
+                          : 'Student Response',
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade600),
                     ),
                     const Spacer(),
                     if (!_isOffline && !isSub && cAns != null) ...[
                       Icon(
-                        isOk ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                        isOk
+                            ? Icons.check_circle_rounded
+                            : Icons.cancel_rounded,
                         size: 16,
-                        color: isOk ? _success : (isErr ? _danger : Colors.grey),
+                        color:
+                            isOk ? _success : (isErr ? _danger : Colors.grey),
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -818,7 +947,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: isOk ? _success : (isErr ? _danger : Colors.grey),
+                          color:
+                              isOk ? _success : (isErr ? _danger : Colors.grey),
                         ),
                       ),
                     ],
@@ -836,29 +966,45 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                     ),
                     child: Text(
                       sText.isNotEmpty ? sText : '— No response —',
-                      style: TextStyle(fontSize: 12.5, height: 1.5, color: sText.isNotEmpty ? Colors.black87 : Colors.grey),
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.5,
+                          color:
+                              sText.isNotEmpty ? Colors.black87 : Colors.grey),
                     ),
                   ),
                 if (q['options'] != null && q['options'] is List) ...[
                   const SizedBox(height: 6),
-                  const Text('Options:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('Options:',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey)),
                   const SizedBox(height: 4),
-                  ... (q['options'] as List).map((opt) {
-                    final isCorrectOpt = cAns != null && opt.toString().trim().toLowerCase() == cAns;
+                  ...(q['options'] as List).map((opt) {
+                    final isCorrectOpt = cAns != null &&
+                        opt.toString().trim().toLowerCase() == cAns;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: isCorrectOpt ? _success.withOpacity(0.08) : Colors.grey.shade50,
+                        color: isCorrectOpt
+                            ? _success.withValues(alpha: 0.08)
+                            : Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isCorrectOpt ? _success.withOpacity(0.3) : Colors.grey.shade200,
+                          color: isCorrectOpt
+                              ? _success.withValues(alpha: 0.3)
+                              : Colors.grey.shade200,
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            isCorrectOpt ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                            isCorrectOpt
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked,
                             size: 14,
                             color: isCorrectOpt ? _success : Colors.grey,
                           ),
@@ -869,7 +1015,9 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                               style: TextStyle(
                                 fontSize: 11.5,
                                 color: isCorrectOpt ? _success : Colors.black87,
-                                fontWeight: isCorrectOpt ? FontWeight.bold : FontWeight.normal,
+                                fontWeight: isCorrectOpt
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                           ),
@@ -878,20 +1026,26 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                     );
                   }),
                 ],
-                if (cAns != null && cAns.isNotEmpty && (q['options'] == null || q['options'] is! List)) ...[
+                if (cAns != null &&
+                    cAns.isNotEmpty &&
+                    (q['options'] == null || q['options'] is! List)) ...[
                   const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Padding(
                         padding: EdgeInsets.only(top: 1.0),
-                        child: Icon(Icons.check_circle_outline_rounded, size: 13, color: _success),
+                        child: Icon(Icons.check_circle_outline_rounded,
+                            size: 13, color: _success),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           'Correct Answer: $cAns',
-                          style: const TextStyle(fontSize: 11, color: _success, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: _success,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -910,16 +1064,19 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.picture_as_pdf, color: Colors.red, size: 22),
+                          const Icon(Icons.picture_as_pdf,
+                              color: Colors.red, size: 22),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               fName ?? 'answer_sheet.pdf',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.bold),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const Icon(Icons.open_in_new_rounded, color: Colors.red, size: 16),
+                          const Icon(Icons.open_in_new_rounded,
+                              color: Colors.red, size: 16),
                         ],
                       ),
                     ),
@@ -945,28 +1102,38 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
     final Color c = info[1] as Color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-      child: Text(info[0] as String, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: c)),
+      decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6)),
+      child: Text(info[0] as String,
+          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: c)),
     );
   }
 
   Widget _buildGradingPanel() {
-    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length) return const SizedBox();
+    if (_submissions.isEmpty || _currentStudentIndex >= _submissions.length)
+      return const SizedBox();
     final autoM = _currentAutoGradedMarks;
-    final totalM = _allQuestions.fold(0.0, (sum, q) => sum + ((q['marks'] as num?)?.toDouble() ?? 0.0));
+    final totalM = _allQuestions.fold(
+        0.0, (sum, q) => sum + ((q['marks'] as num?)?.toDouble() ?? 0.0));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [_primary, Color(0xFF818CF8)]),
+            gradient:
+                const LinearGradient(colors: [_primary, Color(0xFF818CF8)]),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('GRADING SUMMARY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white70)),
+              const Text('GRADING SUMMARY',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white70)),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -974,8 +1141,14 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Auto-Graded', style: TextStyle(fontSize: 11, color: Colors.white70)),
-                        Text('$autoM Marks', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const Text('Auto-Graded',
+                            style:
+                                TextStyle(fontSize: 11, color: Colors.white70)),
+                        Text('$autoM Marks',
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
                       ],
                     ),
                   ),
@@ -986,8 +1159,14 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Total Available', style: TextStyle(fontSize: 11, color: Colors.white70)),
-                          Text('$totalM Marks', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          const Text('Total Available',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.white70)),
+                          Text('$totalM Marks',
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white)),
                         ],
                       ),
                     ),
@@ -1001,7 +1180,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
         if (_subjectiveQuestions.isNotEmpty) ...[
           Text(
             _isOffline ? 'GRADE QUESTIONS' : 'GRADE SUBJECTIVE QUESTIONS',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+            style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
           const SizedBox(height: 12),
           ..._subjectiveQuestions.map((q) {
@@ -1009,7 +1189,10 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _border)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1017,7 +1200,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                     (q['question_text']?.toString().length ?? 0) > 60
                         ? '${q['question_text'].toString().substring(0, 60)}...'
                         : q['question_text']?.toString() ?? '',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, height: 1.3),
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600, height: 1.3),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -1040,21 +1224,29 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                             }
                             return TextField(
                               controller: _scoreControllers[q['id']],
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              style: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.bold),
                               decoration: InputDecoration(
                                 labelText: 'Score',
                                 hintText: '0',
                                 errorText: errorText,
                                 suffixText: ' / ${maxM.toInt()}',
-                                suffixStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                                suffixStyle: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey),
                                 isDense: true,
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8)),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: _primary, width: 2),
+                                  borderSide: const BorderSide(
+                                      color: _primary, width: 2),
                                 ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 10),
                               ),
                             );
                           },
@@ -1070,11 +1262,18 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
         ],
         Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _border)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('FEEDBACK / REMARKS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const Text('FEEDBACK / REMARKS',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey)),
               const SizedBox(height: 10),
               TextField(
                 controller: _overallRemarksController,
@@ -1082,7 +1281,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
                 decoration: InputDecoration(
                   hintText: 'Write feedback for the student...',
                   isDense: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: _primary, width: 2),
@@ -1099,7 +1299,11 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
           child: ElevatedButton.icon(
             onPressed: _isSubmitting ? null : _submitGrade,
             icon: _isSubmitting
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check_rounded, size: 18),
             label: Text(
               _isSubmitting
@@ -1111,7 +1315,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
               backgroundColor: _success,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
           ),
@@ -1132,7 +1337,8 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: _border),
               foregroundColor: Colors.grey,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ),
@@ -1146,11 +1352,13 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
           children: [
             const Icon(Icons.error_outline_rounded, color: _danger, size: 48),
             const SizedBox(height: 16),
-            Text(_error ?? '', style: const TextStyle(color: Colors.red, fontSize: 12)),
+            Text(_error ?? '',
+                style: const TextStyle(color: Colors.red, fontSize: 12)),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _loadData,
-              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary, foregroundColor: Colors.white),
               child: const Text('Retry'),
             ),
           ],
@@ -1163,19 +1371,25 @@ class _ManualEvaluationScreenState extends ConsumerState<ManualEvaluationScreen>
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: _primary.withValues(alpha: 0.08), shape: BoxShape.circle),
-              child: const Icon(Icons.assignment_late_outlined, color: _primary, size: 48),
+              decoration: BoxDecoration(
+                  color: _primary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle),
+              child: const Icon(Icons.assignment_late_outlined,
+                  color: _primary, size: 48),
             ),
             const SizedBox(height: 20),
-            const Text('No Submissions Found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('No Submissions Found',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('No student submissions ready for evaluation.', style: TextStyle(color: Colors.grey.shade500)),
+            Text('No student submissions ready for evaluation.',
+                style: TextStyle(color: Colors.grey.shade500)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () => context.go('/teacher/exams'),
               icon: const Icon(Icons.arrow_back_rounded, size: 16),
               label: const Text('Back to Exams'),
-              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary, foregroundColor: Colors.white),
             ),
           ],
         ),

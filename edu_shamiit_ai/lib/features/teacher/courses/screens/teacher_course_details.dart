@@ -13,10 +13,12 @@ class TeacherCourseDetailsScreen extends ConsumerStatefulWidget {
   const TeacherCourseDetailsScreen({super.key, required this.courseId});
 
   @override
-  ConsumerState<TeacherCourseDetailsScreen> createState() => _TeacherCourseDetailsScreenState();
+  ConsumerState<TeacherCourseDetailsScreen> createState() =>
+      _TeacherCourseDetailsScreenState();
 }
 
-class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetailsScreen> {
+class _TeacherCourseDetailsScreenState
+    extends ConsumerState<TeacherCourseDetailsScreen> {
   bool _isLoading = true;
   String _courseName = '';
   String? _classId;
@@ -49,10 +51,12 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
     });
 
     try {
-      final details = await TeacherApiService().getCourseDetails(widget.courseId);
+      final details =
+          await TeacherApiService().getCourseDetails(widget.courseId);
       final course = details['course'] as Map<String, dynamic>? ?? {};
-      _courseName = (course['name'] ?? course['title'] ?? 'Course Details').toString();
-      
+      _courseName =
+          (course['name'] ?? course['title'] ?? 'Course Details').toString();
+
       final subjectObj = course['subjects'] as Map<String, dynamic>?;
       if (subjectObj != null && _courseName == 'Course Details') {
         _courseName = (subjectObj['name'] ?? 'Course Details').toString();
@@ -196,7 +200,7 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: iconBgColor.withOpacity(0.15),
+            color: iconBgColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
@@ -237,7 +241,7 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
           iconBgColor: const Color(0xFF06B6D4),
           isDark: isDark,
         ),
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -268,9 +272,12 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              foregroundColor:
+                  isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            child: Text('Cancel'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
+            child: Text('Cancel'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -291,10 +298,13 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               backgroundColor: const Color(0xFF06B6D4),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               elevation: 0,
             ),
-            child: Text('Add'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
+            child: Text('Add'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -302,8 +312,10 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
   }
 
   void _showEditChapterDialog(Map<String, dynamic> chapter) {
-    final titleCtrl = TextEditingController(text: chapter['title']?.toString() ?? '');
-    final descCtrl = TextEditingController(text: chapter['description']?.toString() ?? '');
+    final titleCtrl =
+        TextEditingController(text: chapter['title']?.toString() ?? '');
+    final descCtrl =
+        TextEditingController(text: chapter['description']?.toString() ?? '');
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
@@ -315,7 +327,7 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
           iconBgColor: const Color(0xFF06B6D4),
           isDark: isDark,
         ),
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -346,16 +358,20 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              foregroundColor:
+                  isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            child: Text('Cancel'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
+            child: Text('Cancel'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty) return;
               Navigator.pop(ctx);
               try {
-                await TeacherApiService().updateChapter(chapter['id'].toString(), {
+                await TeacherApiService()
+                    .updateChapter(chapter['id'].toString(), {
                   'title': titleCtrl.text.trim(),
                   'description': descCtrl.text.trim(),
                 });
@@ -369,10 +385,13 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               backgroundColor: const Color(0xFF06B6D4),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               elevation: 0,
             ),
-            child: Text('Save'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
+            child: Text('Save'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -391,7 +410,7 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
           iconBgColor: Colors.red,
           isDark: isDark,
         ),
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -399,12 +418,14 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             children: [
               const SizedBox(height: 8),
               Text(
-                'Are you sure you want to delete chapter "${chapter['title']}"? This will delete all its topics.'.tr(ref),
+                'Are you sure you want to delete chapter "${chapter['title']}"? This will delete all its topics.'
+                    .tr(ref),
                 style: TextStyle(
                   fontFamily: AppFonts.body,
                   fontSize: 14,
                   height: 1.5,
-                  color: isDark ? Colors.grey.shade300 : const Color(0xFF334155),
+                  color:
+                      isDark ? Colors.grey.shade300 : const Color(0xFF334155),
                 ),
               ),
             ],
@@ -415,15 +436,19 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              foregroundColor:
+                  isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            child: Text('Cancel'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
+            child: Text('Cancel'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await TeacherApiService().deleteChapter(chapter['id'].toString());
+                await TeacherApiService()
+                    .deleteChapter(chapter['id'].toString());
                 _showSuccessSnackBar('Chapter deleted successfully');
                 _loadCourseDetails();
               } catch (e) {
@@ -434,10 +459,13 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               elevation: 0,
             ),
-            child: Text('Delete'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
+            child: Text('Delete'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -459,7 +487,7 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
           iconBgColor: const Color(0xFF06B6D4),
           isDark: isDark,
         ),
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -481,16 +509,20 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              foregroundColor:
+                  isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            child: Text('Cancel'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
+            child: Text('Cancel'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty) return;
               Navigator.pop(ctx);
               try {
-                final result = await TeacherApiService().createTopic(chapterId, {
+                final result =
+                    await TeacherApiService().createTopic(chapterId, {
                   'title': titleCtrl.text.trim(),
                   'content': '',
                 });
@@ -504,10 +536,13 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               backgroundColor: const Color(0xFF06B6D4),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               elevation: 0,
             ),
-            child: Text('Add'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
+            child: Text('Add'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -515,7 +550,8 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
   }
 
   void _showEditTopicTitleDialog(Map<String, dynamic> topic) {
-    final titleCtrl = TextEditingController(text: topic['title']?.toString() ?? '');
+    final titleCtrl =
+        TextEditingController(text: topic['title']?.toString() ?? '');
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
@@ -527,7 +563,7 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
           iconBgColor: const Color(0xFF06B6D4),
           isDark: isDark,
         ),
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -549,9 +585,12 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              foregroundColor:
+                  isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            child: Text('Cancel'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
+            child: Text('Cancel'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -571,10 +610,13 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               backgroundColor: const Color(0xFF06B6D4),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               elevation: 0,
             ),
-            child: Text('Save'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
+            child: Text('Save'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -593,7 +635,7 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
           iconBgColor: Colors.red,
           isDark: isDark,
         ),
-        content: Container(
+        content: SizedBox(
           width: 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -601,12 +643,14 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             children: [
               const SizedBox(height: 8),
               Text(
-                'Are you sure you want to delete topic "${topic['title']}"?'.tr(ref),
+                'Are you sure you want to delete topic "${topic['title']}"?'
+                    .tr(ref),
                 style: TextStyle(
                   fontFamily: AppFonts.body,
                   fontSize: 14,
                   height: 1.5,
-                  color: isDark ? Colors.grey.shade300 : const Color(0xFF334155),
+                  color:
+                      isDark ? Colors.grey.shade300 : const Color(0xFF334155),
                 ),
               ),
             ],
@@ -617,9 +661,12 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              foregroundColor: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+              foregroundColor:
+                  isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
-            child: Text('Cancel'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
+            child: Text('Cancel'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -636,10 +683,13 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               elevation: 0,
             ),
-            child: Text('Delete'.tr(ref), style: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
+            child: Text('Delete'.tr(ref),
+                style: const TextStyle(
+                    fontFamily: AppFonts.body, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -653,7 +703,8 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
     setState(() {
       _isEditingContent = true;
       _editTitleController.text = _selectedTopic!['title']?.toString() ?? '';
-      _editContentController.text = _selectedTopic!['content']?.toString() ?? '';
+      _editContentController.text =
+          _selectedTopic!['content']?.toString() ?? '';
     });
   }
 
@@ -736,7 +787,8 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
       ),
       endDrawer: !isWide ? Drawer(child: SafeArea(child: sidebarWidget)) : null,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF06B6D4)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF06B6D4)))
           : _chapters.isEmpty
               ? _buildEmptyState()
               : Row(
@@ -746,12 +798,15 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                         width: 320,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          border: Border(right: BorderSide(color: Colors.grey.shade200)),
+                          border: Border(
+                              right: BorderSide(color: Colors.grey.shade200)),
                         ),
                         child: sidebarWidget,
                       ),
                     Expanded(
-                      child: _isEditingContent ? _buildEditorArea() : _buildContentArea(),
+                      child: _isEditingContent
+                          ? _buildEditorArea()
+                          : _buildContentArea(),
                     ),
                   ],
                 ),
@@ -767,14 +822,17 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
           const SizedBox(height: 16),
           Text(
             'This course has no chapters or topics yet.'.tr(ref),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey),
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _showAddChapterDialog,
             icon: const Icon(Icons.add, color: Colors.white),
-            label: Text('Create First Chapter'.tr(ref), style: const TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF06B6D4)),
+            label: Text('Create First Chapter'.tr(ref),
+                style: const TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF06B6D4)),
           ),
         ],
       ),
@@ -821,7 +879,8 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                 final topics = ch['topics'] as List<dynamic>? ?? [];
 
                 return Theme(
-                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  data: Theme.of(context)
+                      .copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
                     key: PageStorageKey<String>(chId),
                     initiallyExpanded: idx == 0 || chId == _selectedChapterId,
@@ -851,9 +910,15 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                             }
                           },
                           itemBuilder: (context) => [
-                            PopupMenuItem(value: 'add', child: Text('Add Topic'.tr(ref))),
-                            PopupMenuItem(value: 'edit', child: Text('Edit Chapter'.tr(ref))),
-                            PopupMenuItem(value: 'delete', child: Text('Delete Chapter'.tr(ref), style: const TextStyle(color: Colors.red))),
+                            PopupMenuItem(
+                                value: 'add', child: Text('Add Topic'.tr(ref))),
+                            PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Edit Chapter'.tr(ref))),
+                            PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete Chapter'.tr(ref),
+                                    style: const TextStyle(color: Colors.red))),
                           ],
                         ),
                       ],
@@ -861,20 +926,26 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                     subtitle: desc.isNotEmpty
                         ? Text(
                             desc,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           )
                         : null,
-                    leading: const Icon(Icons.folder_outlined, color: Color(0xFF06B6D4), size: 20),
+                    leading: const Icon(Icons.folder_outlined,
+                        color: Color(0xFF06B6D4), size: 20),
                     children: topics.map<Widget>((t) {
                       final topicId = t['id'].toString();
-                      final isSelected = _selectedTopic != null && _selectedTopic!['id'] == topicId;
-                      
+                      final isSelected = _selectedTopic != null &&
+                          _selectedTopic!['id'] == topicId;
+
                       return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 2),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFFECFEFF) : Colors.transparent,
+                          color: isSelected
+                              ? const Color(0xFFECFEFF)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: ListTile(
@@ -885,8 +956,12 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                                 child: Text(
                                   t['title']?.toString() ?? '',
                                   style: TextStyle(
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                    color: isSelected ? const Color(0xFF0891B2) : const Color(0xFF475569),
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? const Color(0xFF0891B2)
+                                        : const Color(0xFF475569),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -896,26 +971,39 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                                 padding: EdgeInsets.zero,
                                 onSelected: (val) {
                                   if (val == 'edit_title') {
-                                    _showEditTopicTitleDialog(Map<String, dynamic>.from(t as Map));
+                                    _showEditTopicTitleDialog(
+                                        Map<String, dynamic>.from(t as Map));
                                   } else if (val == 'delete') {
-                                    _confirmDeleteTopic(Map<String, dynamic>.from(t as Map));
+                                    _confirmDeleteTopic(
+                                        Map<String, dynamic>.from(t as Map));
                                   }
                                 },
                                 itemBuilder: (context) => [
-                                  PopupMenuItem(value: 'edit_title', child: Text('Rename'.tr(ref))),
-                                  PopupMenuItem(value: 'delete', child: Text('Delete'.tr(ref), style: const TextStyle(color: Colors.red))),
+                                  PopupMenuItem(
+                                      value: 'edit_title',
+                                      child: Text('Rename'.tr(ref))),
+                                  PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Delete'.tr(ref),
+                                          style: const TextStyle(
+                                              color: Colors.red))),
                                 ],
                               ),
                             ],
                           ),
                           leading: Icon(
-                            isSelected ? Icons.play_circle_fill : Icons.radio_button_unchecked,
-                            color: isSelected ? const Color(0xFF06B6D4) : Colors.grey.shade400,
+                            isSelected
+                                ? Icons.play_circle_fill
+                                : Icons.radio_button_unchecked,
+                            color: isSelected
+                                ? const Color(0xFF06B6D4)
+                                : Colors.grey.shade400,
                             size: 16,
                           ),
                           onTap: () {
                             setState(() {
-                              _selectedTopic = Map<String, dynamic>.from(t as Map);
+                              _selectedTopic =
+                                  Map<String, dynamic>.from(t as Map);
                               _selectedChapterId = chId;
                               _isEditingContent = false; // reset editor
                             });
@@ -982,17 +1070,18 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               ElevatedButton.icon(
                 onPressed: _startEditingContent,
                 icon: const Icon(Icons.edit, size: 16, color: Colors.white),
-                label: Text('Edit Content'.tr(ref), style: const TextStyle(color: Colors.white)),
+                label: Text('Edit Content'.tr(ref),
+                    style: const TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF06B6D4),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             ],
           ),
         ),
-        
         Expanded(
           child: Container(
             color: Colors.white,
@@ -1008,14 +1097,17 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                             children: [
                               Text(
                                 'No content yet.'.tr(ref),
-                                style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                                style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontStyle: FontStyle.italic),
                               ),
                               const SizedBox(height: 12),
                               OutlinedButton.icon(
                                 onPressed: _startEditingContent,
                                 icon: const Icon(Icons.add),
                                 label: Text('Add Material / Content'.tr(ref)),
-                                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF06B6D4)),
+                                style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF06B6D4)),
                               ),
                             ],
                           ),
@@ -1025,11 +1117,29 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                         data: MathFormatter.cleanMathExpressions(content),
                         selectable: true,
                         styleSheet: MarkdownStyleSheet(
-                          p: const TextStyle(fontSize: 15, height: 1.6, color: Color(0xFF334155)),
-                          h1: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A), height: 1.8),
-                          h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B), height: 1.6),
-                          h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
-                          code: const TextStyle(backgroundColor: Color(0xFFF1F5F9), fontFamily: 'monospace', fontSize: 13, color: Color(0xFF0F172A)),
+                          p: const TextStyle(
+                              fontSize: 15,
+                              height: 1.6,
+                              color: Color(0xFF334155)),
+                          h1: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                              height: 1.8),
+                          h2: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                              height: 1.6),
+                          h3: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF334155)),
+                          code: const TextStyle(
+                              backgroundColor: Color(0xFFF1F5F9),
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                              color: Color(0xFF0F172A)),
                           codeblockPadding: const EdgeInsets.all(12),
                           codeblockDecoration: BoxDecoration(
                             color: const Color(0xFFF8FAFC),
@@ -1069,7 +1179,9 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
               Row(
                 children: [
                   TextButton(
-                    onPressed: _isSavingContent ? null : () => setState(() => _isEditingContent = false),
+                    onPressed: _isSavingContent
+                        ? null
+                        : () => setState(() => _isEditingContent = false),
                     child: Text('Cancel'.tr(ref)),
                   ),
                   const SizedBox(width: 8),
@@ -1081,7 +1193,11 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                       elevation: 0,
                     ),
                     child: _isSavingContent
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
                         : Text('Save Changes'.tr(ref)),
                   ),
                 ],
@@ -1107,7 +1223,9 @@ class _TeacherCourseDetailsScreenState extends ConsumerState<TeacherCourseDetail
                 labelText: 'Content (Markdown Supported)'.tr(ref),
                 alignLabelWithHint: true,
                 border: const OutlineInputBorder(),
-                hintText: 'Enter topic reading material, markdown formatting, code blocks, bullet points etc.'.tr(ref),
+                hintText:
+                    'Enter topic reading material, markdown formatting, code blocks, bullet points etc.'
+                        .tr(ref),
               ),
             ),
           ),

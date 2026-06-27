@@ -21,10 +21,10 @@ class StudentExamsScreen extends ConsumerStatefulWidget {
 
 class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
   final StudentApiService _apiService = StudentApiService();
-  
+
   // Timer for updating live progress status dynamically
   Timer? _timer;
-  
+
   List<ExamSchedule> _allExams = [];
   List<String> _categories = ['All'];
   bool _isLoading = true;
@@ -56,7 +56,7 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
     try {
       final examsList = await _apiService.getExamSchedule();
       examsList.sort((a, b) => b.dateTime.compareTo(a.dateTime));
-      
+
       final Set<String> catSet = {};
       for (var e in examsList) {
         if (e.examCategory.trim().isNotEmpty) {
@@ -77,8 +77,6 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
       });
     }
   }
-
-
 
   String _getSubjectIcon(String subject) {
     const icons = {
@@ -113,9 +111,21 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
     }
   }
 
-
   String _getMonthAbbreviation(int month) {
-    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const months = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC'
+    ];
     return months[month - 1];
   }
 
@@ -123,7 +133,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF134E4A))),
+        body:
+            Center(child: CircularProgressIndicator(color: Color(0xFF134E4A))),
       );
     }
 
@@ -139,8 +150,10 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadExams,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF134E4A)),
-                child: Text('Retry'.tr(ref), style: const TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF134E4A)),
+                child: Text('Retry'.tr(ref),
+                    style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -149,7 +162,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
     }
 
     final now = DateTime.now();
-    final upcomingExams = _allExams.where((e) => now.isBefore(e.dateTime)).toList();
+    final upcomingExams =
+        _allExams.where((e) => now.isBefore(e.dateTime)).toList();
     Widget? countdownWidget;
     if (upcomingExams.isNotEmpty) {
       countdownWidget = _buildNextExamCountdownCard(
@@ -205,8 +219,10 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
         compare: (a, b) => a.examType.compareTo(b.examType),
         cellBuilder: (exam) {
           final isOnline = exam.examType.toLowerCase() == 'online';
-          final tagBg = isOnline ? const Color(0xFFEEF2FF) : const Color(0xFFF0FDF4);
-          final tagText = isOnline ? const Color(0xFF4F46E5) : const Color(0xFF16A34A);
+          final tagBg =
+              isOnline ? const Color(0xFFEEF2FF) : const Color(0xFFF0FDF4);
+          final tagText =
+              isOnline ? const Color(0xFF4F46E5) : const Color(0xFF16A34A);
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
@@ -215,7 +231,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
             ),
             child: Text(
               isOnline ? '🖥️ Online' : '📝 Offline',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: tagText),
+              style: TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.bold, color: tagText),
             ),
           );
         },
@@ -229,9 +246,9 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Text(
               exam.examCategory.trim().isEmpty ? 'General' : exam.examCategory,
@@ -244,7 +261,6 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
           );
         },
       ),
-
       AzureGridColumn<ExamSchedule>(
         label: 'Schedule',
         width: 150.0,
@@ -263,7 +279,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
         width: 120.0,
         cellBuilder: (exam) {
           final isOnline = exam.examType.toLowerCase() == 'online';
-          return Text(isOnline ? 'Online Portal' : exam.venue, overflow: TextOverflow.ellipsis);
+          return Text(isOnline ? 'Online Portal' : exam.venue,
+              overflow: TextOverflow.ellipsis);
         },
       ),
       AzureGridColumn<ExamSchedule>(
@@ -277,7 +294,9 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
         width: 210.0,
         cellBuilder: (exam) {
           final status = exam.submissionStatus;
-          final isDone = status == 'graded' || status == 'submitted' || exam.sessionStatus == 'completed';
+          final isDone = status == 'graded' ||
+              status == 'submitted' ||
+              exam.sessionStatus == 'completed';
 
           if (isDone) {
             String statusText = 'Submitted';
@@ -289,25 +308,31 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                 onTap: () => context.push('/student/exams/result/${exam.id}'),
                 borderRadius: BorderRadius.circular(4),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.analytics_outlined, size: 14, color: textCol),
                       const SizedBox(width: 4),
-                      Text(statusText, style: TextStyle(color: textCol, fontWeight: FontWeight.bold)),
+                      Text(statusText,
+                          style: TextStyle(
+                              color: textCol, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
               );
-            } else if (exam.sessionStatus == 'completed' && status != 'submitted') {
+            } else if (exam.sessionStatus == 'completed' &&
+                status != 'submitted') {
               statusText = 'Unsubmitted';
               textCol = const Color(0xFFF97316); // Orange
             }
-            return Text(statusText, style: TextStyle(color: textCol, fontWeight: FontWeight.bold));
+            return Text(statusText,
+                style: TextStyle(color: textCol, fontWeight: FontWeight.bold));
           }
 
-          final isActive = now.isAfter(exam.dateTime) && now.isBefore(exam.endTime);
+          final isActive =
+              now.isAfter(exam.dateTime) && now.isBefore(exam.endTime);
           final isUpcoming = now.isBefore(exam.dateTime);
 
           if (isActive) {
@@ -316,19 +341,24 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
               return SizedBox(
                 height: 28,
                 child: ElevatedButton(
-                  onPressed: () => context.push('/student/exams/details/${exam.id}'),
+                  onPressed: () =>
+                      context.push('/student/exams/details/${exam.id}'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     backgroundColor: Colors.red,
                   ),
                   child: Text(
-                    (status == 'active' || exam.hasSession) ? 'Resume Now' : 'Join Now',
+                    (status == 'active' || exam.hasSession)
+                        ? 'Resume Now'
+                        : 'Join Now',
                     style: const TextStyle(fontSize: 11, color: Colors.white),
                   ),
                 ),
               );
             } else {
-              return Text('Venue: ${exam.venue}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold));
+              return Text('Venue: ${exam.venue}',
+                  style: const TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold));
             }
           } else if (isUpcoming) {
             final diff = exam.dateTime.difference(now);
@@ -340,7 +370,9 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
             } else {
               text += '${hours}h ${mins}m';
             }
-            return Text('⏳ $text', style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold));
+            return Text('⏳ $text',
+                style: const TextStyle(
+                    color: Color(0xFF64748B), fontWeight: FontWeight.bold));
           } else {
             String statusText = 'Completed';
             Color textCol = const Color(0xFF475569);
@@ -351,7 +383,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
               statusText = 'Absent';
               textCol = const Color(0xFF991B1B);
             }
-            return Text(statusText, style: TextStyle(color: textCol, fontWeight: FontWeight.bold));
+            return Text(statusText,
+                style: TextStyle(color: textCol, fontWeight: FontWeight.bold));
           }
         },
       ),
@@ -362,12 +395,15 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
       AzureGridFilter<ExamSchedule>(
         label: 'Category',
         options: _categories.where((c) => c != 'All').toList(),
-        filterFn: (exam, selected) => exam.examCategory.trim().toLowerCase() == selected.trim().toLowerCase(),
+        filterFn: (exam, selected) =>
+            exam.examCategory.trim().toLowerCase() ==
+            selected.trim().toLowerCase(),
       ),
       AzureGridFilter<ExamSchedule>(
         label: 'Type',
         options: ['Online', 'Offline'],
-        filterFn: (exam, selected) => exam.examType.trim().toLowerCase() == selected.trim().toLowerCase(),
+        filterFn: (exam, selected) =>
+            exam.examType.trim().toLowerCase() == selected.trim().toLowerCase(),
       ),
       AzureGridFilter<ExamSchedule>(
         label: 'Status',
@@ -403,12 +439,22 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton.icon(
-                    onPressed: () => setState(() => _isAiBannerCollapsed = !_isAiBannerCollapsed),
-                    icon: Icon(_isAiBannerCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 16),
-                    label: Text(_isAiBannerCollapsed ? 'Show AI Assistant' : 'Hide AI Assistant', style: const TextStyle(fontSize: 11)),
+                    onPressed: () => setState(
+                        () => _isAiBannerCollapsed = !_isAiBannerCollapsed),
+                    icon: Icon(
+                        _isAiBannerCollapsed
+                            ? Icons.keyboard_arrow_down
+                            : Icons.keyboard_arrow_up,
+                        size: 16),
+                    label: Text(
+                        _isAiBannerCollapsed
+                            ? 'Show AI Assistant'
+                            : 'Hide AI Assistant',
+                        style: const TextStyle(fontSize: 11)),
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF0F766E),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                     ),
                   ),
                 ],
@@ -419,7 +465,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
             if (!_isAiBannerCollapsed) ...[
               if (Responsive.isWide(context)) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: countdownWidget != null
                       ? Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,7 +480,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                 ),
               ] else ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   child: Column(
                     children: [
                       if (countdownWidget != null) countdownWidget,
@@ -456,10 +504,14 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                 disableVerticalScroll: true,
                 mobileCardBuilder: (context, exam) {
                   final nowTime = DateTime.now();
-                  final isActive = nowTime.isAfter(exam.dateTime) && nowTime.isBefore(exam.endTime);
+                  final isActive = nowTime.isAfter(exam.dateTime) &&
+                      nowTime.isBefore(exam.endTime);
                   final isUpcoming = nowTime.isBefore(exam.dateTime);
                   final isPast = nowTime.isAfter(exam.endTime);
-                  return _buildExamCard(exam, isActive: isActive, isUpcoming: isUpcoming, isPast: isPast);
+                  return _buildExamCard(exam,
+                      isActive: isActive,
+                      isUpcoming: isUpcoming,
+                      isPast: isPast);
                 },
               ),
             ),
@@ -471,7 +523,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.fromLTRB(0, Responsive.headerTopPadding(context), 16, Responsive.isWide(context) ? 8 : 16),
+      padding: EdgeInsets.fromLTRB(0, Responsive.headerTopPadding(context), 16,
+          Responsive.isWide(context) ? 8 : 16),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF134E4A), Color(0xFF0F766E)],
@@ -568,7 +621,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(_getSubjectIcon(nextExam.subject), style: const TextStyle(fontSize: 20)),
+              Text(_getSubjectIcon(nextExam.subject),
+                  style: const TextStyle(fontSize: 20)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -702,22 +756,23 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
     );
   }
 
-
-
-  Widget _buildExamCard(ExamSchedule exam, {bool isActive = false, bool isUpcoming = false, bool isPast = false}) {
+  Widget _buildExamCard(ExamSchedule exam,
+      {bool isActive = false, bool isUpcoming = false, bool isPast = false}) {
     final date = exam.dateTime.toLocal();
     final isOnline = exam.examType.toLowerCase() == 'online';
-    
+
     final hour = date.hour;
     final minute = date.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final formattedHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     final formattedTime = '$formattedHour:$minute $period';
-    
+
     // Tag formatting colors
     final tagBg = isOnline ? const Color(0xFFEEF2FF) : const Color(0xFFF0FDF4);
-    final tagText = isOnline ? const Color(0xFF4F46E5) : const Color(0xFF16A34A);
-    final tagBorder = isOnline ? const Color(0xFFC7D2FE) : const Color(0xFFBBF7D0);
+    final tagText =
+        isOnline ? const Color(0xFF4F46E5) : const Color(0xFF16A34A);
+    final tagBorder =
+        isOnline ? const Color(0xFFC7D2FE) : const Color(0xFFBBF7D0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -750,7 +805,7 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: isActive 
+                    colors: isActive
                         ? [const Color(0xFFDC2626), const Color(0xFFEF4444)]
                         : [const Color(0xFF134E4A), const Color(0xFF0F766E)],
                   ),
@@ -786,7 +841,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(_getSubjectIcon(exam.subject), style: const TextStyle(fontSize: 14)),
+                        Text(_getSubjectIcon(exam.subject),
+                            style: const TextStyle(fontSize: 14)),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -849,7 +905,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                       _buildMetaText('📚 Topics', exam.syllabus!),
                       const SizedBox(height: 4),
                     ],
-                    _buildMetaText('🕒 Time', '$formattedTime • ${exam.duration}'),
+                    _buildMetaText(
+                        '🕒 Time', '$formattedTime • ${exam.duration}'),
                   ],
                 ),
               ),
@@ -857,7 +914,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildMetaText('📍 Venue', isOnline ? 'Online Portal' : exam.venue),
+                    _buildMetaText(
+                        '📍 Venue', isOnline ? 'Online Portal' : exam.venue),
                     const SizedBox(height: 4),
                     _buildMetaText('🏆 Max Marks', '${exam.totalMarks} Marks'),
                   ],
@@ -868,9 +926,9 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
           // Row 3: Action triggers based on status
           if (isActive) ...[
             const SizedBox(height: 12),
-            if (isOnline) 
+            if (isOnline)
               _buildJoinButton(exam)
-            else 
+            else
               _buildOfflineStatusBanner('Go to Venue: ${exam.venue}'),
           ] else if (isUpcoming) ...[
             const SizedBox(height: 12),
@@ -891,12 +949,18 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
       children: [
         Text(
           '$label: ',
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w600),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF334155), fontWeight: FontWeight.w700),
+            style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFF334155),
+                fontWeight: FontWeight.w700),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -920,7 +984,8 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
         child: const Center(
           child: Text(
             '✅ Submission Received',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey),
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey),
           ),
         ),
       );
@@ -948,7 +1013,9 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
         ),
         child: Center(
           child: Text(
-            status == 'active' ? '⚡ RESUME ONLINE EXAM' : '✍️ JOIN ONLINE EXAM NOW',
+            status == 'active'
+                ? '⚡ RESUME ONLINE EXAM'
+                : '✍️ JOIN ONLINE EXAM NOW',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w800,
@@ -1024,12 +1091,12 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
 
   Widget _buildCompletedStatus(ExamSchedule exam) {
     final status = exam.submissionStatus;
-    
+
     String statusText = 'Exam Completed';
     Color bg = const Color(0xFFF1F5F9);
     Color textCol = const Color(0xFF475569);
     bool canViewResult = false;
-    
+
     if (status == 'graded' && exam.obtainedScore != null) {
       statusText = 'Graded: ${exam.obtainedScore}/${exam.totalMarks} Marks';
       bg = const Color(0xFFF0FDF4);
@@ -1039,7 +1106,9 @@ class _StudentExamsScreenState extends ConsumerState<StudentExamsScreen> {
       statusText = 'Submission Received • Pending Evaluation';
       bg = const Color(0xFFEFF6FF);
       textCol = const Color(0xFF1D4ED8);
-    } else if (status == 'active' || exam.hasSession || exam.sessionStatus == 'completed') {
+    } else if (status == 'active' ||
+        exam.hasSession ||
+        exam.sessionStatus == 'completed') {
       statusText = 'Unsubmitted';
       bg = const Color(0xFFFFF7ED); // Light Orange
       textCol = const Color(0xFFC2410C); // Dark Orange

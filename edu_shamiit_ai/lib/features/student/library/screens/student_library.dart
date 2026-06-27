@@ -56,7 +56,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           border: Border.all(color: const Color(0xFFE9D5FF)),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6D28D9).withOpacity(0.04),
+              color: const Color(0xFF6D28D9).withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -68,7 +68,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             const Row(
               children: [
                 Text('📋', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 6),
+                SizedBox(width: 6),
                 Text(
                   'Request a New Acquisition',
                   style: TextStyle(
@@ -99,8 +99,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 labelStyle:
                     const TextStyle(color: Color(0xFF6D28D9), fontSize: 13),
                 hintText: 'e.g. Required reference for CSE-301 curriculum',
-                hintStyle:
-                    const TextStyle(color: Colors.black38, fontSize: 12),
+                hintStyle: const TextStyle(color: Colors.black38, fontSize: 12),
                 filled: true,
                 fillColor: const Color(0xFFFAF5FF),
                 enabledBorder: OutlineInputBorder(
@@ -157,7 +156,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         label: 'Book Title',
         width: 180.0,
         compare: (a, b) => a.bookTitle.compareTo(b.bookTitle),
-        cellBuilder: (b) => Text(b.bookTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
+        cellBuilder: (b) => Text(b.bookTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       AzureGridColumn<LibraryBorrow>(
         label: 'Author',
@@ -169,7 +169,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         label: 'Borrow Date',
         width: 110.0,
         compare: (a, b) => a.borrowedAt.compareTo(b.borrowedAt),
-        cellBuilder: (b) => Text('${b.borrowedAt.day}/${b.borrowedAt.month}/${b.borrowedAt.year}'),
+        cellBuilder: (b) => Text(
+            '${b.borrowedAt.day}/${b.borrowedAt.month}/${b.borrowedAt.year}'),
       ),
       AzureGridColumn<LibraryBorrow>(
         label: 'Due Date',
@@ -180,14 +181,18 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           if (b.dueDate == null) return 1;
           return a.dueDate!.compareTo(b.dueDate!);
         },
-        cellBuilder: (b) => Text(b.dueDate != null ? '${b.dueDate!.day}/${b.dueDate!.month}/${b.dueDate!.year}' : 'N/A'),
+        cellBuilder: (b) => Text(b.dueDate != null
+            ? '${b.dueDate!.day}/${b.dueDate!.month}/${b.dueDate!.year}'
+            : 'N/A'),
       ),
       AzureGridColumn<LibraryBorrow>(
         label: 'Status',
         width: 110.0,
         compare: (a, b) => a.status.compareTo(b.status),
         cellBuilder: (b) {
-          final isOverdue = b.dueDate != null && b.dueDate!.isBefore(DateTime.now()) && !b.isReturned;
+          final isOverdue = b.dueDate != null &&
+              b.dueDate!.isBefore(DateTime.now()) &&
+              !b.isReturned;
           String statusLabel = 'Borrowed';
           Color badgeBg = const Color(0xFFF5F3FF);
           Color badgeText = const Color(0xFF6D28D9);
@@ -215,8 +220,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           }
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(4)),
-            child: Text(statusLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeText)),
+            decoration: BoxDecoration(
+                color: badgeBg, borderRadius: BorderRadius.circular(4)),
+            child: Text(statusLabel,
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: badgeText)),
           );
         },
       ),
@@ -239,7 +249,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       backgroundColor: const Color(0xFF6D28D9),
                     ),
-                    child: const Text('Renew', style: TextStyle(fontSize: 9, color: Colors.white)),
+                    child: const Text('Renew',
+                        style: TextStyle(fontSize: 9, color: Colors.white)),
                   ),
                 ),
               if (canRenew && canReturn) const SizedBox(width: 4),
@@ -252,7 +263,9 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       side: const BorderSide(color: Color(0xFF6D28D9)),
                     ),
-                    child: const Text('Return', style: TextStyle(fontSize: 9, color: Color(0xFF6D28D9))),
+                    child: const Text('Return',
+                        style:
+                            TextStyle(fontSize: 9, color: Color(0xFF6D28D9))),
                   ),
                 ),
             ],
@@ -266,7 +279,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         label: 'Title',
         width: 180.0,
         compare: (a, b) => a.title.compareTo(b.title),
-        cellBuilder: (bk) => Text(bk.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        cellBuilder: (bk) =>
+            Text(bk.title, style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       AzureGridColumn<LibraryBook>(
         label: 'Author',
@@ -302,9 +316,11 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
               onPressed: () => _showBookDetailsDialog(bk),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                backgroundColor: isAvailable ? const Color(0xFF6D28D9) : Colors.grey,
+                backgroundColor:
+                    isAvailable ? const Color(0xFF6D28D9) : Colors.grey,
               ),
-              child: Text(isAvailable ? 'Request Borrow' : 'Details', style: const TextStyle(fontSize: 10, color: Colors.white)),
+              child: Text(isAvailable ? 'Request Borrow' : 'Details',
+                  style: const TextStyle(fontSize: 10, color: Colors.white)),
             ),
           );
         },
@@ -316,7 +332,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         label: 'Title',
         width: 200.0,
         compare: (a, b) => a.title.compareTo(b.title),
-        cellBuilder: (bk) => Text(bk.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        cellBuilder: (bk) =>
+            Text(bk.title, style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       AzureGridColumn<LibraryBook>(
         label: 'Author',
@@ -347,7 +364,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 backgroundColor: const Color(0xFF3B82F6),
               ),
-              child: const Text('Read / Download', style: TextStyle(fontSize: 10, color: Colors.white)),
+              child: const Text('Read / Download',
+                  style: TextStyle(fontSize: 10, color: Colors.white)),
             ),
           );
         },
@@ -359,7 +377,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
         label: 'Book Title',
         width: 180.0,
         compare: (a, b) => a.title.compareTo(b.title),
-        cellBuilder: (req) => Text(req.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        cellBuilder: (req) => Text(req.title,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       AzureGridColumn<LibraryBookRequest>(
         label: 'Author',
@@ -370,7 +389,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
       AzureGridColumn<LibraryBookRequest>(
         label: 'Reason',
         width: 150.0,
-        cellBuilder: (req) => Text(req.reason ?? 'N/A', overflow: TextOverflow.ellipsis),
+        cellBuilder: (req) =>
+            Text(req.reason ?? 'N/A', overflow: TextOverflow.ellipsis),
       ),
       AzureGridColumn<LibraryBookRequest>(
         label: 'Status',
@@ -388,8 +408,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
           }
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(4)),
-            child: Text(req.status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeText)),
+            decoration: BoxDecoration(
+                color: badgeBg, borderRadius: BorderRadius.circular(4)),
+            child: Text(req.status.toUpperCase(),
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: badgeText)),
           );
         },
       ),
@@ -397,7 +422,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
 
     Widget tabContent;
     if (libraryState.isLoading) {
-      tabContent = const Center(child: CircularProgressIndicator(color: Color(0xFF6D28D9)));
+      tabContent = const Center(
+          child: CircularProgressIndicator(color: Color(0xFF6D28D9)));
     } else {
       if (Responsive.isWide(context)) {
         if (_selectedTab == 0) {
@@ -406,7 +432,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             items: borrows.where((b) => b.status != 'cancelled').toList(),
             columns: myBooksColumns,
             searchMatcher: (b) => '${b.bookTitle} ${b.bookAuthor} ${b.status}',
-            onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+            onRefresh: () =>
+                ref.read(libraryProvider.notifier).fetchLibraryData(),
             mobileCardBuilder: (context, b) => const SizedBox(),
           );
         } else if (_selectedTab == 1) {
@@ -414,8 +441,10 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             title: 'Browse Library Books',
             items: libraryState.books.where((b) => !b.isDigital).toList(),
             columns: browseColumns,
-            searchMatcher: (bk) => '${bk.title} ${bk.author} ${bk.isbn} ${bk.category}',
-            onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+            searchMatcher: (bk) =>
+                '${bk.title} ${bk.author} ${bk.isbn} ${bk.category}',
+            onRefresh: () =>
+                ref.read(libraryProvider.notifier).fetchLibraryData(),
             mobileCardBuilder: (context, bk) => const SizedBox(),
           );
         } else if (_selectedTab == 2) {
@@ -424,7 +453,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
             items: libraryState.books.where((b) => b.isDigital).toList(),
             columns: digitalColumns,
             searchMatcher: (bk) => '${bk.title} ${bk.author} ${bk.category}',
-            onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+            onRefresh: () =>
+                ref.read(libraryProvider.notifier).fetchLibraryData(),
             mobileCardBuilder: (context, bk) => const SizedBox(),
           );
         } else {
@@ -442,10 +472,13 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 flex: 6,
                 child: AzureGrid<LibraryBookRequest>(
                   title: 'My Book Requests',
-                  items: libraryState.requests.where((r) => r.status != 'cancelled').toList(),
+                  items: libraryState.requests
+                      .where((r) => r.status != 'cancelled')
+                      .toList(),
                   columns: requestColumns,
                   searchMatcher: (r) => '${r.title} ${r.author} ${r.status}',
-                  onRefresh: () => ref.read(libraryProvider.notifier).fetchLibraryData(),
+                  onRefresh: () =>
+                      ref.read(libraryProvider.notifier).fetchLibraryData(),
                   mobileCardBuilder: (context, r) => const SizedBox(),
                 ),
               ),
@@ -483,8 +516,7 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () =>
-                      safeGoBack(context, '/student/dashboard'),
+                  onPressed: () => safeGoBack(context, '/student/dashboard'),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -498,8 +530,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -912,12 +944,22 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                 ],
               ),
               InkWell(
-                onTap: () => setState(() => _isAiRecommendationsCollapsed = !_isAiRecommendationsCollapsed),
+                onTap: () => setState(() => _isAiRecommendationsCollapsed =
+                    !_isAiRecommendationsCollapsed),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(_isAiRecommendationsCollapsed ? 'Show' : 'Hide', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
-                    Icon(_isAiRecommendationsCollapsed ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 14, color: Colors.white),
+                    Text(_isAiRecommendationsCollapsed ? 'Show' : 'Hide',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
+                    Icon(
+                        _isAiRecommendationsCollapsed
+                            ? Icons.keyboard_arrow_down
+                            : Icons.keyboard_arrow_up,
+                        size: 14,
+                        color: Colors.white),
                   ],
                 ),
               ),
@@ -985,7 +1027,8 @@ class _StudentLibraryState extends ConsumerState<StudentLibrary> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  book.recommendationReason ?? 'Recommended for you',
+                                  book.recommendationReason ??
+                                      'Recommended for you',
                                   style: const TextStyle(
                                     fontSize: 8,
                                     fontStyle: FontStyle.italic,
