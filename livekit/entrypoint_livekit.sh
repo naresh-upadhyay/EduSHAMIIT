@@ -65,7 +65,7 @@ rtc:
   tcp_port: 7881
   port_range_start: 50000
   port_range_end: 50050
-  use_external_ip: false
+  use_external_ip: ${USE_EXTERNAL_IP:-true}
   enable_loopback_candidate: true
 EOF
 
