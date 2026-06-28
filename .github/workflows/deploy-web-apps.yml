@@ -1,0 +1,93 @@
+name: Deploy Web Apps to GitHub Pages
+
+on:
+  push:
+    branches: [main, master, deploy, monorepo]
+    paths:
+      - "edu_shamiit_academic/**"
+      - "edu_shamiit_admin/**"
+      - "edu_shamiit_core/**"
+      - ".github/workflows/deploy-web-apps.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Academic & Admin Web
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter (latest stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Verify Flutter
+        run: flutter --version
+
+      - name: Disable analytics
+        run: flutter config --no-analytics
+
+      - name: Get core dependencies
+        working-directory: edu_shamiit_core
+        run: flutter pub get
+
+      - name: Build Academic App
+        working-directory: edu_shamiit_academic
+        run: |
+          flutter pub get
+          flutter build web --release --base-href=/academic/
+
+      - name: Build Admin App
+        working-directory: edu_shamiit_admin
+        run: |
+          flutter pub get
+          flutter build web --release --base-href=/admin/
+
+      - name: Prepare Combined Publish Directory
+        run: |
+          mkdir -p dist
+          cp -r edu_shamiit_academic/build/web dist/academic
+          cp -r edu_shamiit_admin/build/web dist/admin
+          cat << 'EOF' > dist/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>EduSHAMIIT</title>
+            <script>
+              (function() {
+                var host = window.location.hostname;
+                var path = window.location.pathname;
+                if (host.indexOf('eduadmin') !== -1 || host.indexOf('admin') !== -1) {
+                  if (path.indexOf('/admin') !== 0) {
+                    window.location.replace('/admin/' + window.location.search + window.location.hash);
+                  }
+                } else {
+                  if (path.indexOf('/academic') !== 0) {
+                    window.location.replace('/academic/' + window.location.search + window.location.hash);
+                  }
+                }
+              })();
+            </script>
+          </head>
+          <body></body>
+          </html>
+          EOF
+          echo "academic.shamiit.com" > dist/CNAME
+
+      - name: Deploy Combined Build to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "deploy: Dual Flutter web build ${{ github.sha }}"
