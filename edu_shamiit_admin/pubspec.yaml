@@ -1,0 +1,48 @@
+name: edu_shamiit_admin
+description: EduSHAMIIT Admin Suite & Core Controller
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local Shared Package
+  edu_shamiit_core:
+    path: ../edu_shamiit_core
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+
+  # Navigation
+  go_router: ^13.0.0
+
+  # UI & Charting
+  flutter_animate: ^4.3.0
+  lottie: ^3.0.0
+  shimmer: ^3.0.0
+  cached_network_image: ^3.3.1
+  fl_chart: ^0.66.0
+  font_awesome_flutter: ^11.0.0
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+
+  # Backend / Supabase
+  supabase_flutter: ^2.3.2
+  http: ^1.1.0
+
+  # Utilities
+  intl: ^0.19.0
+  uuid: ^4.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
