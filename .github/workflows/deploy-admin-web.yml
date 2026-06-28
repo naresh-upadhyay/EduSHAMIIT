@@ -1,0 +1,59 @@
+name: Deploy Admin Web to GitHub Pages
+
+on:
+  push:
+    branches: [main, master, deploy, monorepo]
+    paths:
+      - "edu_shamiit_admin/**"
+      - "edu_shamiit_core/**"
+      - ".github/workflows/deploy-admin-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Admin Web
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter (latest stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Verify Flutter
+        run: flutter --version
+
+      - name: Disable analytics
+        run: flutter config --no-analytics
+
+      - name: Get core dependencies
+        working-directory: edu_shamiit_core
+        run: flutter pub get
+
+      - name: Get admin dependencies
+        working-directory: edu_shamiit_admin
+        run: flutter pub get
+
+      - name: Build Admin Flutter Web
+        working-directory: edu_shamiit_admin
+        run: |
+          flutter build web --release --base-href=/
+
+      - name: Deploy to External Repository (EduSHAMIIT-Admin)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.ADMIN_DEPLOY_TOKEN || secrets.GITHUB_TOKEN }}
+          external_repository: naresh-upadhyay/EduSHAMIIT-Admin
+          publish_dir: edu_shamiit_admin/build/web
+          publish_branch: gh-pages
+          cname: eduadmin.shamiit.com
+          force_orphan: true
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "deploy: Admin Flutter web build ${{ github.sha }}"
