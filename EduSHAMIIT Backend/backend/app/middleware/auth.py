@@ -44,24 +44,36 @@ def reset_request_host(token):
 
 
 def get_public_supabase_url(supabase_url: str) -> str:
-    """Dynamically resolve the public Supabase storage base URL."""
+    """Dynamically resolve the public Supabase storage base URL or rewrite a full URL."""
+    if not supabase_url:
+        return supabase_url
+        
     # 1. Try request host context (live browser request host)
     host = get_request_host()
+    if not host:
+        # Try ENVIRONMENT PUBLIC_URL
+        import os
+        host = os.environ.get("PUBLIC_URL")
+        
     if host:
-        return host.rstrip("/")
-        
-    # 2. Try ENVIRONMENT PUBLIC_URL
-    import os
-    env_pub = os.environ.get("PUBLIC_URL")
-    if env_pub:
-        return env_pub.rstrip("/")
-        
-    # 3. Local dev fallback substitutions
+        host = host.rstrip("/")
+        # If it's a complete URL, replace the base domain part
+        for prefix in ["http://kong:8000", "http://supabase-kong:8000", "http://127.0.0.1:8000", "http://localhost:8000"]:
+            if supabase_url.startswith(prefix):
+                return supabase_url.replace(prefix, host)
+        # If it's just the base URL prefix itself being resolved
+        if supabase_url in ["http://kong:8000", "http://supabase-kong:8000", "http://127.0.0.1:8000", "http://localhost:8000"]:
+            return host
+            
+        return supabase_url
+
+    # 3. Local dev fallback substitutions (if host is not resolved at all)
     url = supabase_url.rstrip("/")
-    if "http://kong:8000" in url:
-        return url.replace("http://kong:8000", "http://127.0.0.1:8000")
-    if "http://supabase-kong:8000" in url:
-        return url.replace("http://supabase-kong:8000", "http://127.0.0.1:8000")
+    for prefix in ["http://kong:8000", "http://supabase-kong:8000"]:
+        if url.startswith(prefix):
+            return url.replace(prefix, "http://127.0.0.1:8000")
+    if url in ["http://kong:8000", "http://supabase-kong:8000"]:
+        return "http://127.0.0.1:8000"
     return url
 
 

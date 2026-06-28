@@ -500,6 +500,26 @@ class TableQuery:
         return QueryResult(data, response.headers, is_single=self._single, is_maybe_single=self._maybe_single)
 
 
+def _clean_data_urls(data):
+    if not data:
+        return data
+    try:
+        from app.middleware.auth import get_public_supabase_url
+    except ImportError:
+        return data
+    
+    if isinstance(data, list):
+        for item in data:
+            _clean_data_urls(item)
+    elif isinstance(data, dict):
+        for k, v in data.items():
+            if isinstance(v, str) and v.startswith("http") and ("/storage/v1/object/public/" in v or "/storage/v1/" in v):
+                data[k] = get_public_supabase_url(v)
+            elif isinstance(v, (dict, list)):
+                _clean_data_urls(v)
+    return data
+
+
 class QueryResult:
     """Query result wrapper."""
 
@@ -513,6 +533,8 @@ class QueryResult:
                 self.count = int(content_range.split("/")[-1])
             except ValueError:
                 pass
+
+        data = _clean_data_urls(data)
 
         if is_single:
             self.data = data if data else None

@@ -364,8 +364,10 @@ async def download_document(
         raise HTTPException(status_code=404, detail="Document not found or access denied")
 
     if doc.get("file_url"):
+        from app.middleware.auth import get_public_supabase_url
+        file_url = get_public_supabase_url(doc["file_url"])
         # Redirect to the Supabase public URL
-        return RedirectResponse(url=doc["file_url"])
+        return RedirectResponse(url=file_url)
 
     # AI-generated text document — stream as a .txt file
     content = doc.get("content", "")
