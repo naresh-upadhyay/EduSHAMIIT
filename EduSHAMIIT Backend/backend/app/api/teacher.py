@@ -70,6 +70,27 @@ async def teacher_dashboard(user=Depends(require_teacher), school_id=Depends(req
         if not profile.get("specialization"):
             profile["specialization"] = profile.get("department") or profile.get("primary_subject") or profile.get("designation") or "General"
             
+    data["quick_access"] = [
+        {"title": "My Classes", "icon": "📚", "route": "/teacher/my-classes", "bg": "ECFDF5"},
+        {"title": "Achievements", "icon": "🏆", "route": "/teacher/achievements", "bg": "F0FDF4"},
+        {"title": "Timetable", "icon": "🗓️", "route": "/teacher/timetable", "bg": "EEF2FF"},
+        {"title": "Attendance", "icon": "📋", "route": "/teacher/attendance", "bg": "EFF6FF"},
+        {"title": "Homework", "icon": "📝", "route": "/teacher/homework", "bg": "FDF2F8"},
+        {"title": "Gradebook", "icon": "📊", "route": "/teacher/gradebook", "bg": "FDF4FF"},
+        {"title": "Exams", "icon": "✍️", "route": "/teacher/exams", "bg": "EEF2FF"},
+        {"title": "Submissions", "icon": "📁", "route": "/teacher/submissions", "bg": "EFF6FF"},
+        {"title": "Notices", "icon": "📢", "route": "/teacher/notices", "bg": "FFF7ED"},
+        {"title": "Live Classes", "icon": "🎥", "route": "/teacher/live-classes", "bg": "FFE4E6"},
+        {"title": "Students", "icon": "👥", "route": "/teacher/student-directory", "bg": "ECFDF5"},
+        {"title": "Leave", "icon": "🏖️", "route": "/teacher/leave", "bg": "FEF2F2"},
+        {"title": "Salary", "icon": "💰", "route": "/teacher/salary", "bg": "E0E7FF"},
+        {"title": "AI Chat", "icon": "🤖", "route": "/teacher/ai-chat", "bg": "F0FDF4"},
+        {"title": "Documents", "icon": "📁", "route": "/teacher/documents", "bg": "EFF6FF"},
+        {"title": "Messages", "icon": "💬", "route": "/teacher/messaging", "bg": "E0E7FF"},
+        {"title": "Profile", "icon": "👤", "route": "/teacher/profile", "bg": "FAF5FF"},
+        {"title": "Settings", "icon": "⚙️", "route": "/teacher/settings", "bg": "F1F5F9"},
+    ]
+            
     result = {"success": True, "school_id": school_id, "data": data}
     await set_cached(school_id, "teacher_dashboard", result, user["id"], ttl=120)
     return result

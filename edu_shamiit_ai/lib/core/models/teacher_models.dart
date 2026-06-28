@@ -383,33 +383,43 @@ class TeacherDashboard {
             QuickAccessItem(
                 title: 'My Classes', icon: '📚', route: '/teacher/my-classes'),
             QuickAccessItem(
+                title: 'Achievements', icon: '🏆', route: '/teacher/achievements'),
+            QuickAccessItem(
+                title: 'Timetable', icon: '🗓️', route: '/teacher/timetable'),
+            QuickAccessItem(
                 title: 'Attendance', icon: '📋', route: '/teacher/attendance'),
             QuickAccessItem(
                 title: 'Homework', icon: '📝', route: '/teacher/homework'),
             QuickAccessItem(
-                title: 'Exams', icon: '📝', route: '/teacher/exams'),
-            QuickAccessItem(
                 title: 'Gradebook', icon: '📊', route: '/teacher/gradebook'),
+            QuickAccessItem(
+                title: 'Exams', icon: '✍️', route: '/teacher/exams'),
+            QuickAccessItem(
+                title: 'Submissions', icon: '📁', route: '/teacher/submissions'),
+            QuickAccessItem(
+                title: 'Notices', icon: '📢', route: '/teacher/notices'),
+            QuickAccessItem(
+                title: 'Live Classes',
+                icon: '🎥',
+                route: '/teacher/live-classes'),
             QuickAccessItem(
                 title: 'Students',
                 icon: '👥',
                 route: '/teacher/student-directory'),
             QuickAccessItem(
-                title: 'Timetable', icon: '🗓️', route: '/teacher/timetable'),
-            QuickAccessItem(
-                title: 'Notices', icon: '📢', route: '/teacher/notices'),
-            QuickAccessItem(
                 title: 'Leave', icon: '🏖️', route: '/teacher/leave'),
-            QuickAccessItem(
-                title: 'Live Class',
-                icon: '🎥',
-                route: '/teacher/live-classes'),
-            QuickAccessItem(
-                title: 'Documents', icon: '📁', route: '/teacher/documents'),
             QuickAccessItem(
                 title: 'Salary', icon: '💰', route: '/teacher/salary'),
             QuickAccessItem(
-                title: 'Achievements', icon: '🏆', route: '/teacher/achievements'),
+                title: 'AI Chat', icon: '🤖', route: '/teacher/ai-chat'),
+            QuickAccessItem(
+                title: 'Documents', icon: '📁', route: '/teacher/documents'),
+            QuickAccessItem(
+                title: 'Messages', icon: '💬', route: '/teacher/messaging'),
+            QuickAccessItem(
+                title: 'Profile', icon: '👤', route: '/teacher/profile'),
+            QuickAccessItem(
+                title: 'Settings', icon: '⚙️', route: '/teacher/settings'),
           ],
     );
   }

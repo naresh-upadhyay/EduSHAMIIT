@@ -90,20 +90,24 @@ async def student_dashboard(user=Depends(require_student), school_id=Depends(req
     data["pending_homework"] = mapped_homework
 
     data["quick_access"] = [
+        {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
         {"title": "Timetable", "icon": "🗓️", "route": "/student/timetable", "bg": "EEF2FF"},
         {"title": "Results", "icon": "📊", "route": "/student/results", "bg": "FDF4FF"},
+        {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
+        {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
+        {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
         {"title": "Fees", "icon": "💳", "route": "/student/fees", "bg": "ECFDF5"},
         {"title": "Notices", "icon": "📢", "route": "/student/notices", "bg": "FFF7ED"},
-        {"title": "Homework", "icon": "📝", "route": "/student/homework", "bg": "FDF2F8"},
-        {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
-        {"title": "Achieve", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
-        {"title": "Attendance", "icon": "📋", "route": "/student/attendance", "bg": "EFF6FF"},
         {"title": "Library", "icon": "📖", "route": "/student/library", "bg": "FAF5FF"},
-        {"title": "Courses", "icon": "📚", "route": "/student/courses", "bg": "ECFDF5"},
+        {"title": "Transport", "icon": "🚌", "route": "/student/transport", "bg": "EFF6FF"},
+        {"title": "Achievements", "icon": "🏆", "route": "/student/achievements", "bg": "F0FDF4"},
+        {"title": "Live Classes", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": True},
         {"title": "Leave", "icon": "✉️", "route": "/student/leave-application", "bg": "FEF2F2"},
-        {"title": "Exams", "icon": "✍️", "route": "/student/exams", "bg": "EEF2FF"},
-        {"title": "Live Class", "icon": "🔴", "route": "/student/live-classes", "bg": "FFE4E6", "badge": True},
         {"title": "Messages", "icon": "💬", "route": "/student/messaging", "bg": "E0E7FF"},
+        {"title": "AI Chat", "icon": "🤖", "route": "/student/ai-chat", "bg": "F0FDF4"},
+        {"title": "Documents", "icon": "📁", "route": "/student/documents", "bg": "EFF6FF"},
+        {"title": "Profile", "icon": "👤", "route": "/student/profile", "bg": "FAF5FF"},
+        {"title": "Settings", "icon": "⚙️", "route": "/student/settings", "bg": "F1F5F9"},
     ]
     
     result = {"success": True, "school_id": school_id, "data": data}
