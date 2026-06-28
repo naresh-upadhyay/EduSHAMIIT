@@ -12,9 +12,24 @@ class _SystemControlTabState extends State<SystemControlTab> {
   double _accentHue = 239;
 
   final Map<String, Map<String, bool>> _permissions = {
-    'Student': {'Access Timetable': true, 'Run Exams': true, 'Financials': false, 'IT Control': false},
-    'Teacher': {'Access Timetable': true, 'Run Exams': true, 'Financials': false, 'IT Control': false},
-    'Admin': {'Access Timetable': true, 'Run Exams': true, 'Financials': true, 'IT Control': true},
+    'Student': {
+      'Access Timetable': true,
+      'Run Exams': true,
+      'Financials': false,
+      'IT Control': false
+    },
+    'Teacher': {
+      'Access Timetable': true,
+      'Run Exams': true,
+      'Financials': false,
+      'IT Control': false
+    },
+    'Admin': {
+      'Access Timetable': true,
+      'Run Exams': true,
+      'Financials': true,
+      'IT Control': true
+    },
   };
 
   final List<String> _auditLogs = [
@@ -46,7 +61,6 @@ class _SystemControlTabState extends State<SystemControlTab> {
             style: TextStyle(color: Color(0xFF94A3B8)),
           ),
           const SizedBox(height: 32),
-
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -61,14 +75,18 @@ class _SystemControlTabState extends State<SystemControlTab> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF13182C),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.05)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'Dynamic Theme Customizer (HSL Hue)',
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 20),
                           Row(
@@ -77,7 +95,9 @@ class _SystemControlTabState extends State<SystemControlTab> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Primary Hue: ${_primaryHue.toInt()}°', style: const TextStyle(color: Color(0xFF94A3B8))),
+                                    Text('Primary Hue: ${_primaryHue.toInt()}°',
+                                        style: const TextStyle(
+                                            color: Color(0xFF94A3B8))),
                                     Slider(
                                       value: _primaryHue,
                                       min: 0,
@@ -97,7 +117,9 @@ class _SystemControlTabState extends State<SystemControlTab> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Accent Hue: ${_accentHue.toInt()}°', style: const TextStyle(color: Color(0xFF94A3B8))),
+                                    Text('Accent Hue: ${_accentHue.toInt()}°',
+                                        style: const TextStyle(
+                                            color: Color(0xFF94A3B8))),
                                     Slider(
                                       value: _accentHue,
                                       min: 0,
@@ -125,14 +147,18 @@ class _SystemControlTabState extends State<SystemControlTab> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF13182C),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.05)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'Role Permission Matrix',
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 20),
                           Table(
@@ -147,11 +173,22 @@ class _SystemControlTabState extends State<SystemControlTab> {
                               // Headers
                               TableRow(
                                 children: [
-                                  const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Role', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold))),
+                                  const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 8),
+                                      child: Text('Role',
+                                          style: TextStyle(
+                                              color: Color(0xFF94A3B8),
+                                              fontWeight: FontWeight.bold))),
                                   ..._permissions['Student']!.keys.map(
                                         (k) => Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
-                                          child: Text(k, style: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold, fontSize: 12)),
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
+                                          child: Text(k,
+                                              style: const TextStyle(
+                                                  color: Color(0xFF94A3B8),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12)),
                                         ),
                                       ),
                                 ],
@@ -164,21 +201,28 @@ class _SystemControlTabState extends State<SystemControlTab> {
                                   return TableRow(
                                     children: [
                                       Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        child: Text(role, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                        child: Text(role,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold)),
                                       ),
                                       ...perms.entries.map(
                                         (perm) {
                                           final name = perm.key;
                                           final val = perm.value;
                                           return Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 4),
                                             child: Checkbox(
                                               value: val,
-                                              activeColor: const Color(0xFF4F46E5),
+                                              activeColor:
+                                                  const Color(0xFF4F46E5),
                                               onChanged: (bool? newVal) {
                                                 setState(() {
-                                                  _permissions[role]![name] = newVal ?? false;
+                                                  _permissions[role]![name] =
+                                                      newVal ?? false;
                                                 });
                                               },
                                             ),
@@ -207,28 +251,33 @@ class _SystemControlTabState extends State<SystemControlTab> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF090B15),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Live Audit Trail Logs',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 16),
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: ListView.builder(
                             itemCount: _auditLogs.length,
                             itemBuilder: (context, index) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 6),
                                 child: Text(
                                   _auditLogs[index],
                                   style: const TextStyle(

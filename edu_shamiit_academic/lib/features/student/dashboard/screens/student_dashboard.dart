@@ -4,14 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:edu_shamiit_core/constants/app_fonts.dart';
-import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
-import 'package:edu_shamiit_core/providers/auth_provider.dart';
-import 'package:edu_shamiit_core/utils/responsive.dart';
-import 'package:edu_shamiit_core/widgets/responsive_content.dart';
-import 'package:edu_shamiit_core/constants/student_colors.dart';
-import 'package:edu_shamiit_core/utils/l10n.dart';
 import 'package:edu_shamiit_academic/core/providers/student_providers.dart';
 
 class StudentDashboard extends ConsumerStatefulWidget {

@@ -35,12 +35,12 @@ class _StaffTabState extends ConsumerState<StaffTab> {
 
     try {
       final search = _searchController.text.trim();
-      final path = search.isNotEmpty 
-          ? '/admin/teachers/list?search=$search' 
+      final path = search.isNotEmpty
+          ? '/admin/teachers/list?search=$search'
           : '/admin/teachers/list';
-      
+
       final response = await ApiService().get(path);
-      
+
       if (response['success'] == true) {
         final data = response['data'] as Map<String, dynamic>;
         setState(() {
@@ -83,12 +83,14 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                 children: [
                   const Text(
                     'Assign Classes to Teacher',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '$teacherName ($teacherEmail)',
-                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                    style:
+                        const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                   ),
                 ],
               ),
@@ -100,7 +102,8 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                   children: [
                     const Text(
                       'Select Classes:',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -114,7 +117,9 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                           selectedColor: const Color(0xFF4F46E5),
                           checkmarkColor: Colors.white,
                           labelStyle: TextStyle(
-                            color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF94A3B8),
                             fontWeight: FontWeight.bold,
                           ),
                           backgroundColor: const Color(0xFF0F1222),
@@ -135,8 +140,10 @@ class _StaffTabState extends ConsumerState<StaffTab> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                  onPressed:
+                      isSubmitting ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Color(0xFF64748B))),
                 ),
                 ElevatedButton(
                   onPressed: isSubmitting || selectedClasses.isEmpty
@@ -154,14 +161,17 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                               if (context.mounted) {
                                 Navigator.of(context).pop();
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Classes successfully assigned to teacher!')),
+                                  const SnackBar(
+                                      content: Text(
+                                          'Classes successfully assigned to teacher!')),
                                 );
                               }
                             } else {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(res['detail'] ?? 'Failed to assign classes'),
+                                    content: Text(res['detail'] ??
+                                        'Failed to assign classes'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -184,15 +194,18 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
-                    disabledBackgroundColor: const Color(0xFF4F46E5).withOpacity(0.3),
+                    disabledBackgroundColor:
+                        const Color(0xFF4F46E5).withValues(alpha: 0.3),
                   ),
                   child: isSubmitting
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('Assign', style: TextStyle(color: Colors.white)),
+                      : const Text('Assign',
+                          style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -235,7 +248,8 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                   decoration: InputDecoration(
                     hintText: 'Search staff by name...',
                     hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
+                    prefixIcon:
+                        const Icon(Icons.search, color: Color(0xFF94A3B8)),
                     filled: true,
                     fillColor: const Color(0xFF13182C),
                     border: OutlineInputBorder(
@@ -252,7 +266,8 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                 icon: const Icon(Icons.search),
                 label: const Text('Search'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -269,38 +284,52 @@ class _StaffTabState extends ConsumerState<StaffTab> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage != null
-                    ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
+                    ? Center(
+                        child: Text(_errorMessage!,
+                            style: const TextStyle(color: Colors.red)))
                     : _teachers.isEmpty
-                        ? const Center(child: Text('No teachers found', style: TextStyle(color: Color(0xFF94A3B8))))
+                        ? const Center(
+                            child: Text('No teachers found',
+                                style: TextStyle(color: Color(0xFF94A3B8))))
                         : ListView.builder(
                             itemCount: _teachers.length,
                             itemBuilder: (context, index) {
-                              final teacher = _teachers[index] as Map<String, dynamic>;
+                              final teacher =
+                                  _teachers[index] as Map<String, dynamic>;
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 16),
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF13182C),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.05)),
                                 ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
                                       children: [
                                         CircleAvatar(
-                                          backgroundImage: teacher['avatar_url'] != null
-                                              ? NetworkImage(teacher['avatar_url'])
-                                              : null,
-                                          backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
+                                          backgroundImage:
+                                              teacher['avatar_url'] != null
+                                                  ? NetworkImage(
+                                                      teacher['avatar_url'])
+                                                  : null,
+                                          backgroundColor:
+                                              const Color(0xFF4F46E5)
+                                                  .withValues(alpha: 0.1),
                                           child: teacher['avatar_url'] == null
-                                              ? const Icon(Icons.person, color: Color(0xFF4F46E5))
+                                              ? const Icon(Icons.person,
+                                                  color: Color(0xFF4F46E5))
                                               : null,
                                         ),
                                         const SizedBox(width: 16),
                                         Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               teacher['full_name'] ?? 'No Name',
@@ -313,18 +342,23 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                                             const SizedBox(height: 4),
                                             Text(
                                               '${teacher['email']}  •  ${teacher['specialization'] ?? 'General Specialist'}',
-                                              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                                              style: const TextStyle(
+                                                  color: Color(0xFF94A3B8),
+                                                  fontSize: 13),
                                             ),
                                           ],
                                         ),
                                       ],
                                     ),
                                     ElevatedButton.icon(
-                                      onPressed: () => _showAssignClassesDialog(teacher),
-                                      icon: const Icon(Icons.add_task_rounded, size: 18),
+                                      onPressed: () =>
+                                          _showAssignClassesDialog(teacher),
+                                      icon: const Icon(Icons.add_task_rounded,
+                                          size: 18),
                                       label: const Text('Assign Classes'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF4F46E5),
+                                        backgroundColor:
+                                            const Color(0xFF4F46E5),
                                         foregroundColor: Colors.white,
                                       ),
                                     ),

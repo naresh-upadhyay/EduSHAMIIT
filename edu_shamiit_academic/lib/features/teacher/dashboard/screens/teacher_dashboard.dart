@@ -1,18 +1,11 @@
-import 'package:edu_shamiit_core/utils/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:edu_shamiit_core/constants/student_colors.dart';
-import 'package:edu_shamiit_core/constants/app_fonts.dart';
-import 'package:edu_shamiit_core/constants/app_gradients.dart';
 import 'package:edu_shamiit_academic/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_core/models/teacher_models.dart' as models;
-import 'package:edu_shamiit_core/utils/responsive.dart';
-import 'package:edu_shamiit_core/widgets/responsive_content.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
-import 'package:edu_shamiit_core/providers/auth_provider.dart';
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {
   const TeacherDashboardScreen({super.key});

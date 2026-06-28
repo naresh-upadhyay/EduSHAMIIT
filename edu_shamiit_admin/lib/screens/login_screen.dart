@@ -76,15 +76,15 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
               width: 450,
               padding: const EdgeInsets.all(40),
               decoration: BoxDecoration(
-                color: const Color(0xFF13182C).withOpacity(0.85),
+                color: const Color(0xFF13182C).withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   width: 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.4),
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 30,
                     offset: const Offset(0, 10),
                   ),
@@ -108,7 +108,10 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         const SizedBox(width: 12),
                         Text(
                           'EduVerse',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
                                 fontFamily: 'Outfit',
@@ -134,7 +137,8 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Email Address',
                         labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.email_outlined,
+                            color: Color(0xFF94A3B8)),
                         filled: true,
                         fillColor: const Color(0xFF0B0D19),
                         border: OutlineInputBorder(
@@ -147,7 +151,8 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF4F46E5), width: 1.5),
                         ),
                       ),
                       validator: (value) {
@@ -170,10 +175,13 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       decoration: InputDecoration(
                         labelText: 'Password',
                         labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.lock_outline_rounded,
+                            color: Color(0xFF94A3B8)),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
                             color: const Color(0xFF94A3B8),
                           ),
                           onPressed: () {
@@ -194,7 +202,8 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF4F46E5), width: 1.5),
                         ),
                       ),
                       validator: (value) {
@@ -219,7 +228,8 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                           elevation: 2,
                         ),
                         child: authState.isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text(
                                 'Authenticate Control Suite',
                                 style: TextStyle(

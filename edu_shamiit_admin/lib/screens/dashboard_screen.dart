@@ -14,7 +14,8 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  ConsumerState<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+  ConsumerState<AdminDashboardScreen> createState() =>
+      _AdminDashboardScreenState();
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
@@ -50,15 +51,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Brand Header
-                Row(
+                const Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.admin_panel_settings_rounded,
                       color: Color(0xFF4F46E5),
                       size: 32,
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
+                    SizedBox(width: 8),
+                    Text(
                       'EduVerse Admin',
                       style: TextStyle(
                         color: Colors.white,
@@ -75,14 +76,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Expanded(
                   child: ListView(
                     children: [
-                      _buildSidebarItem(0, 'Command Center', Icons.dashboard_outlined),
-                      _buildSidebarItem(1, 'Financial Suite', Icons.payments_outlined),
-                      _buildSidebarItem(2, 'Fee Defaulters', Icons.warning_amber_rounded),
-                      _buildSidebarItem(3, 'Staff & Class Registry', Icons.people_outline_rounded),
-                      _buildSidebarItem(4, 'New Admissions', Icons.person_add_alt_1_outlined),
-                      _buildSidebarItem(5, 'Gate Scanner Log', Icons.qr_code_scanner_rounded),
-                      _buildSidebarItem(6, 'IT Support Tickets', Icons.support_agent_rounded),
-                      _buildSidebarItem(7, 'Security & Controls', Icons.security_rounded),
+                      _buildSidebarItem(
+                          0, 'Command Center', Icons.dashboard_outlined),
+                      _buildSidebarItem(
+                          1, 'Financial Suite', Icons.payments_outlined),
+                      _buildSidebarItem(
+                          2, 'Fee Defaulters', Icons.warning_amber_rounded),
+                      _buildSidebarItem(3, 'Staff & Class Registry',
+                          Icons.people_outline_rounded),
+                      _buildSidebarItem(
+                          4, 'New Admissions', Icons.person_add_alt_1_outlined),
+                      _buildSidebarItem(
+                          5, 'Gate Scanner Log', Icons.qr_code_scanner_rounded),
+                      _buildSidebarItem(
+                          6, 'IT Support Tickets', Icons.support_agent_rounded),
+                      _buildSidebarItem(
+                          7, 'Security & Controls', Icons.security_rounded),
                     ],
                   ),
                 ),
@@ -93,7 +102,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
+                      backgroundColor:
+                          const Color(0xFF4F46E5).withValues(alpha: 0.1),
                       child: const Icon(Icons.person, color: Color(0xFF4F46E5)),
                     ),
                     const SizedBox(width: 12),
@@ -103,18 +113,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         children: [
                           Text(
                             userName,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13),
                             overflow: TextOverflow.ellipsis,
                           ),
                           const Text(
                             'Super Admin',
-                            style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                            style: TextStyle(
+                                color: Color(0xFF64748B), fontSize: 11),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.logout, color: Color(0xFFEF4444), size: 20),
+                      icon: const Icon(Icons.logout,
+                          color: Color(0xFFEF4444), size: 20),
                       onPressed: () {
                         ref.read(authProvider.notifier).signOut();
                       },
@@ -145,11 +160,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Search control index...',
-                            hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-                            prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                            hintStyle: const TextStyle(
+                                color: Color(0xFF64748B), fontSize: 13),
+                            prefixIcon: const Icon(Icons.search,
+                                size: 18, color: Color(0xFF64748B)),
                             filled: true,
                             fillColor: const Color(0xFF13182C),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 0, horizontal: 16),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                               borderSide: BorderSide.none,
@@ -160,10 +178,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                       // Notification trigger
                       IconButton(
-                        icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                        icon: const Icon(Icons.notifications_outlined,
+                            color: Colors.white),
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('No new system alerts.')),
+                            const SnackBar(
+                                content: Text('No new system alerts.')),
                           );
                         },
                       ),
@@ -214,7 +234,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           borderRadius: BorderRadius.circular(8),
         ),
         selected: isSelected,
-        selectedTileColor: const Color(0xFF4F46E5).withOpacity(0.15),
+        selectedTileColor: const Color(0xFF4F46E5).withValues(alpha: 0.15),
       ),
     );
   }
@@ -226,11 +246,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         final textController = TextEditingController();
         return AlertDialog(
           backgroundColor: const Color(0xFF13182C),
-          title: Row(
-            children: const [
+          title: const Row(
+            children: [
               Icon(Icons.assistant, color: Color(0xFF4F46E5)),
               SizedBox(width: 8),
-              Text('Shami — AI Admin Assistant', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text('Shami — AI Admin Assistant',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           content: Column(
@@ -261,7 +283,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close', style: TextStyle(color: Color(0xFF64748B))),
+              child: const Text('Close',
+                  style: TextStyle(color: Color(0xFF64748B))),
             ),
             ElevatedButton(
               onPressed: () {
@@ -271,8 +294,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   SnackBar(content: Text('AI processing request: "$prompt"')),
                 );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5)),
-              child: const Text('Execute Prompt', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5)),
+              child: const Text('Execute Prompt',
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         );

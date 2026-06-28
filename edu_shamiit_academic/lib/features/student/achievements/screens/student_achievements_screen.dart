@@ -1,11 +1,7 @@
-import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_academic/shared/widgets/nav_helper.dart';
-import 'package:edu_shamiit_core/constants/student_colors.dart';
-import 'package:edu_shamiit_core/constants/app_fonts.dart';
 import 'package:edu_shamiit_academic/core/services/student_api_service.dart';
-import 'package:edu_shamiit_core/models/student_models.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_academic/shared/widgets/azure_grid.dart';
 

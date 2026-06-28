@@ -8,20 +8,15 @@ import 'package:shimmer/shimmer.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_academic/shared/widgets/nav_helper.dart';
-import 'package:edu_shamiit_core/constants/teacher_colors.dart';
-import 'package:edu_shamiit_core/constants/app_gradients.dart';
-import 'package:edu_shamiit_core/constants/app_fonts.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_core/models/teacher_models.dart' as models;
-import 'package:edu_shamiit_core/providers/auth_provider.dart';
-import 'package:edu_shamiit_core/widgets/image_preview_dialog.dart';
-import 'package:edu_shamiit_core/utils/l10n.dart';
 
 class TeacherProfileScreen extends ConsumerStatefulWidget {
   const TeacherProfileScreen({super.key});
 
   @override
-  ConsumerState<TeacherProfileScreen> createState() => _TeacherProfileScreenState();
+  ConsumerState<TeacherProfileScreen> createState() =>
+      _TeacherProfileScreenState();
 }
 
 class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
@@ -42,7 +37,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
       filename += '.jpg';
     }
 
-    final ok = await ref.read(teacherProfileProvider.notifier).uploadAvatar(croppedBytes, filename);
+    final ok = await ref
+        .read(teacherProfileProvider.notifier)
+        .uploadAvatar(croppedBytes, filename);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(ok ? 'Photo updated!'.tr(ref) : 'Upload failed'.tr(ref)),
@@ -87,7 +84,7 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
   Widget build(BuildContext context) {
     final st = ref.watch(teacherProfileProvider);
     final theme = Theme.of(context);
-    
+
     if (st.profile == null) {
       if (st.error != null) {
         return Scaffold(
@@ -120,7 +117,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                 5,
                 (_) => Container(
                   height: 52,
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -144,7 +142,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                    icon: const Icon(Icons.arrow_back_ios_new,
+                        color: Colors.white, size: 20),
                     onPressed: () => safeGoBack(context, '/teacher/dashboard'),
                   ),
                 ],
@@ -156,20 +155,22 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 56, color: TeacherColors.error),
+                  const Icon(Icons.error_outline,
+                      size: 56, color: TeacherColors.error),
                   const SizedBox(height: 12),
                   Text(
                     msg,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark 
-                          ? TeacherColors.text3 
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? TeacherColors.text3
                           : TeacherColors.text2,
                     ),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: () => ref.read(teacherProfileProvider.notifier).loadProfile(),
+                    onPressed: () =>
+                        ref.read(teacherProfileProvider.notifier).loadProfile(),
                     icon: const Icon(Icons.refresh),
                     label: Text('Retry'.tr(ref)),
                     style: ElevatedButton.styleFrom(
@@ -196,7 +197,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
           backgroundColor: const Color(0xFF0C4A6E),
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new,
+                color: Colors.white, size: 20),
             onPressed: () => safeGoBack(context, '/teacher/dashboard'),
           ),
           actions: [
@@ -220,8 +222,10 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                 ),
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.white.withValues(alpha: 0.12),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
@@ -229,7 +233,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
           flexibleSpace: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
               final top = constraints.biggest.height;
-              final isCollapsed = top <= kToolbarHeight + MediaQuery.of(context).padding.top + 20;
+              final isCollapsed = top <=
+                  kToolbarHeight + MediaQuery.of(context).padding.top + 20;
 
               return FlexibleSpaceBar(
                 title: isCollapsed
@@ -256,8 +261,11 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                         const SizedBox(height: 36),
                         GestureDetector(
                           onTap: () {
-                            if (p.profileImageUrl != null && p.profileImageUrl!.isNotEmpty) {
-                              ImagePreviewDialog.show(context, p.profileImageUrl!, title: p.fullName);
+                            if (p.profileImageUrl != null &&
+                                p.profileImageUrl!.isNotEmpty) {
+                              ImagePreviewDialog.show(
+                                  context, p.profileImageUrl!,
+                                  title: p.fullName);
                             }
                           },
                           child: Stack(
@@ -282,11 +290,13 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                                             strokeWidth: 2,
                                           ),
                                         )
-                                      : p.profileImageUrl != null && p.profileImageUrl!.isNotEmpty
+                                      : p.profileImageUrl != null &&
+                                              p.profileImageUrl!.isNotEmpty
                                           ? CachedNetworkImage(
                                               imageUrl: p.profileImageUrl!,
                                               fit: BoxFit.cover,
-                                              errorWidget: (_, __, ___) => _initials(p.fullName),
+                                              errorWidget: (_, __, ___) =>
+                                                  _initials(p.fullName),
                                             )
                                           : _initials(p.fullName),
                                 ),
@@ -302,9 +312,11 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                                     decoration: BoxDecoration(
                                       color: TeacherColors.primary,
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+                                      border: Border.all(
+                                          color: Colors.white, width: 2),
                                     ),
-                                    child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                                    child: const Icon(Icons.camera_alt,
+                                        size: 14, color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -328,7 +340,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                             if (p.qualification.isNotEmpty) p.qualification,
                             '${p.experienceYears}y Exp'
                           ].join(' · '),
-                          style: const TextStyle(fontSize: 11, color: Colors.white70),
+                          style: const TextStyle(
+                              fontSize: 11, color: Colors.white70),
                         ),
                         const SizedBox(height: 14),
                         Container(
@@ -341,7 +354,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _stat('${p.experienceYears} Years', 'Experience'.tr(ref)),
+                              _stat('${p.experienceYears} Years',
+                                  'Experience'.tr(ref)),
                               _stat('${p.classes.length}', 'Classes'.tr(ref)),
                               _stat('${p.xpPoints}', 'XP Points'.tr(ref)),
                               _stat('${p.streak}', 'Streak'.tr(ref)),
@@ -395,7 +409,11 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               _infoCard([
                 ('Name'.tr(ref), p.fatherName, false),
                 ('Occupation'.tr(ref), p.fatherOccupation, false),
-                ('Phone'.tr(ref), p.fatherPhone.isEmpty ? '' : '📞 ${p.fatherPhone}', true),
+                (
+                  'Phone'.tr(ref),
+                  p.fatherPhone.isEmpty ? '' : '📞 ${p.fatherPhone}',
+                  true
+                ),
               ]),
               const SizedBox(height: 16),
 
@@ -404,7 +422,11 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               _infoCard([
                 ('Name'.tr(ref), p.motherName, false),
                 ('Occupation'.tr(ref), p.motherOccupation, false),
-                ('Phone'.tr(ref), p.motherPhone.isEmpty ? '' : '📞 ${p.motherPhone}', true),
+                (
+                  'Phone'.tr(ref),
+                  p.motherPhone.isEmpty ? '' : '📞 ${p.motherPhone}',
+                  true
+                ),
               ]),
               const SizedBox(height: 16),
 
@@ -430,11 +452,18 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
   }
 
   Widget _initials(String name) {
-    final i = name.trim().split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase();
+    final i = name
+        .trim()
+        .split(' ')
+        .take(2)
+        .map((w) => w.isNotEmpty ? w[0] : '')
+        .join()
+        .toUpperCase();
     return Center(
       child: Text(
         i,
-        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white),
+        style: const TextStyle(
+            fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white),
       ),
     );
   }
@@ -466,8 +495,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
             fontFamily: AppFonts.heading,
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).brightness == Brightness.dark 
-                ? TeacherColors.text3 
+            color: Theme.of(context).brightness == Brightness.dark
+                ? TeacherColors.text3
                 : TeacherColors.text2,
             letterSpacing: 0.6,
           ),
@@ -483,7 +512,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           if (Theme.of(context).brightness != Brightness.dark)
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -494,12 +524,12 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              border: isLast 
-                  ? null 
+              border: isLast
+                  ? null
                   : Border(
                       bottom: BorderSide(
-                        color: isDark 
-                            ? const Color(0xFF1E293B) 
+                        color: isDark
+                            ? const Color(0xFF1E293B)
                             : const Color(0xFFF8FAFC),
                       ),
                     ),
@@ -520,8 +550,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: indigo 
-                          ? TeacherColors.primary 
+                      color: indigo
+                          ? TeacherColors.primary
                           : (isDark ? Colors.white : TeacherColors.text),
                     ),
                     textAlign: TextAlign.right,
@@ -554,7 +584,13 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
     if (p.address.isNotEmpty) score += 5;
 
     // Documents (5 required documents: Resume, Aadhaar, PAN, Marksheet, Experience Certificate. Each is 6% = 30%)
-    final requiredDocs = ['Resume', 'Aadhaar Card', 'PAN Card', 'Highest Degree Marksheet', 'Experience Certificate'];
+    final requiredDocs = [
+      'Resume',
+      'Aadhaar Card',
+      'PAN Card',
+      'Highest Degree Marksheet',
+      'Experience Certificate'
+    ];
     final uploadedTypes = p.documents.map((d) => d.type).toSet();
     for (final doc in requiredDocs) {
       if (uploadedTypes.contains(doc)) {
@@ -566,11 +602,17 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
 
   Widget _buildCompletionCard(int completion, models.TeacherProfile p) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Find missing fields or docs to suggest action
     String suggestion = "Your profile is 100% complete! High five! 🎉";
     if (completion < 100) {
-      final requiredDocs = ['Resume', 'Aadhaar Card', 'PAN Card', 'Highest Degree Marksheet', 'Experience Certificate'];
+      final requiredDocs = [
+        'Resume',
+        'Aadhaar Card',
+        'PAN Card',
+        'Highest Degree Marksheet',
+        'Experience Certificate'
+      ];
       final uploadedTypes = p.documents.map((d) => d.type).toSet();
       String? missingDoc;
       for (final doc in requiredDocs) {
@@ -596,7 +638,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+          if (!isDark)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -607,14 +651,17 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
             children: [
               Text(
                 'Profile Completion'.tr(ref),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
               Text(
                 '$completion%',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
-                  color: completion == 100 ? TeacherColors.success : TeacherColors.primary,
+                  color: completion == 100
+                      ? TeacherColors.success
+                      : TeacherColors.primary,
                 ),
               ),
             ],
@@ -625,9 +672,12 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
             child: LinearProgressIndicator(
               value: completion / 100.0,
               minHeight: 8,
-              backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              backgroundColor:
+                  isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
               valueColor: AlwaysStoppedAnimation<Color>(
-                completion == 100 ? TeacherColors.success : TeacherColors.primary,
+                completion == 100
+                    ? TeacherColors.success
+                    : TeacherColors.primary,
               ),
             ),
           ),
@@ -662,7 +712,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+          if (!isDark)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -708,7 +760,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+          if (!isDark)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -720,7 +774,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               const SizedBox(width: 8),
               Text(
                 'Teaching Assignments'.tr(ref),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -731,16 +786,19 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
             children: [
               // Subject tag
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: TeacherColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: TeacherColors.primary.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: TeacherColors.primary.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.bookmark_outline, size: 12, color: TeacherColors.primary),
+                    const Icon(Icons.bookmark_outline,
+                        size: 12, color: TeacherColors.primary),
                     const SizedBox(width: 4),
                     Text(
                       p.subject,
@@ -756,16 +814,19 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               // Specialization tag (if present)
               if (p.specialization != null && p.specialization!.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: TeacherColors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: TeacherColors.accent.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: TeacherColors.accent.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.psychology_outlined, size: 12, color: TeacherColors.accent),
+                      const Icon(Icons.psychology_outlined,
+                          size: 12, color: TeacherColors.accent),
                       const SizedBox(width: 4),
                       Text(
                         p.specialization!,
@@ -781,18 +842,24 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               // Classes tags
               ...classesList.map(
                 (cls) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.class_outlined, size: 12, color: Colors.grey),
+                      const Icon(Icons.class_outlined,
+                          size: 12, color: Colors.grey),
                       const SizedBox(width: 4),
                       Text(
                         cls,
@@ -821,10 +888,32 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         : 'Not provided';
 
     final timelineItems = [
-      (Icons.calendar_today, 'Joined School'.tr(ref), joinDateStr, TeacherColors.primary),
-      (Icons.school, 'Academic Credentials'.tr(ref), p.qualification, TeacherColors.accent),
-      (Icons.star, 'Total Teaching Experience'.tr(ref), '${p.experienceYears} Years', Colors.amber.shade700),
-      (Icons.book, 'Department Specalization'.tr(ref), (p.specialization != null && p.specialization!.isNotEmpty) ? p.specialization! : (p.subject.isNotEmpty ? p.subject : '—'), Colors.purple),
+      (
+        Icons.calendar_today,
+        'Joined School'.tr(ref),
+        joinDateStr,
+        TeacherColors.primary
+      ),
+      (
+        Icons.school,
+        'Academic Credentials'.tr(ref),
+        p.qualification,
+        TeacherColors.accent
+      ),
+      (
+        Icons.star,
+        'Total Teaching Experience'.tr(ref),
+        '${p.experienceYears} Years',
+        Colors.amber.shade700
+      ),
+      (
+        Icons.book,
+        'Department Specalization'.tr(ref),
+        (p.specialization != null && p.specialization!.isNotEmpty)
+            ? p.specialization!
+            : (p.subject.isNotEmpty ? p.subject : '—'),
+        Colors.purple
+      ),
     ];
 
     return Container(
@@ -833,7 +922,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+          if (!isDark)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -854,7 +945,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
-                        border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
+                        border: Border.all(
+                            color: color.withValues(alpha: 0.3), width: 1.5),
                       ),
                       child: Icon(icon, size: 14, color: color),
                     ),
@@ -862,7 +954,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                       Expanded(
                         child: Container(
                           width: 2,
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
                         ),
                       ),
                   ],
@@ -879,7 +973,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? TeacherColors.text3 : TeacherColors.text2,
+                            color: isDark
+                                ? TeacherColors.text3
+                                : TeacherColors.text2,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -935,7 +1031,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+          if (!isDark)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -962,7 +1060,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
               if (status != 'missing' && uploadedMap.containsKey(name)) {
                 final doc = uploadedMap[name]!;
                 final lowUrl = doc.fileUrl.toLowerCase();
-                if (lowUrl.contains('.jpg') || lowUrl.contains('.jpeg') || lowUrl.contains('.png')) {
+                if (lowUrl.contains('.jpg') ||
+                    lowUrl.contains('.jpeg') ||
+                    lowUrl.contains('.png')) {
                   ImagePreviewDialog.show(context, doc.fileUrl, title: name);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -979,8 +1079,8 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                     ? null
                     : Border(
                         bottom: BorderSide(
-                          color: isDark 
-                              ? const Color(0xFF1E293B) 
+                          color: isDark
+                              ? const Color(0xFF1E293B)
                               : const Color(0xFFF8FAFC),
                         ),
                       ),
@@ -997,7 +1097,10 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                   ),
                   Text(
                     statusText,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor),
                   ),
                 ],
               ),
@@ -1020,7 +1123,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
     return Container(
       decoration: BoxDecoration(
         boxShadow: [
-          if (!isDark) BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
+          if (!isDark)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04), blurRadius: 8),
         ],
       ),
       child: Material(
@@ -1035,7 +1140,9 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF8FAFC),
                     ),
                   ),
                 ),
@@ -1043,9 +1150,11 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
                   leading: Icon(icon, color: TeacherColors.primary, size: 20),
                   title: Text(
                     title,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                  trailing: const Icon(Icons.arrow_forward_ios,
+                      size: 12, color: Colors.grey),
                   dense: true,
                   onTap: () => context.go(route),
                 ),
@@ -1053,12 +1162,17 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
             }),
             // Logout item
             ListTile(
-              leading: const Icon(Icons.logout, color: TeacherColors.error, size: 20),
+              leading: const Icon(Icons.logout,
+                  color: TeacherColors.error, size: 20),
               title: Text(
                 'Logout'.tr(ref),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: TeacherColors.error),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: TeacherColors.error),
               ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+              trailing: const Icon(Icons.arrow_forward_ios,
+                  size: 12, color: Colors.grey),
               dense: true,
               onTap: () => _showLogoutDialog(context),
             ),
@@ -1076,16 +1190,20 @@ class _TeacherProfileScreenState extends ConsumerState<TeacherProfileScreen> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         title: Text(
           'Logout?'.tr(ref),
-          style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: isDark ? Colors.white : Colors.black,
+              fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Are you sure you want to logout from EduSHAMIIT?'.tr(ref),
-          style: TextStyle(color: isDark ? TeacherColors.text2 : TeacherColors.text2),
+          style: TextStyle(
+              color: isDark ? TeacherColors.text2 : TeacherColors.text2),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: Text('Cancel'.tr(ref), style: const TextStyle(color: Colors.grey)),
+            child: Text('Cancel'.tr(ref),
+                style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1119,9 +1237,22 @@ class _EditSheet extends ConsumerStatefulWidget {
 
 class _EditSheetState extends ConsumerState<_EditSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _name, _email, _phone, _address, _nationality,
-      _fatherName, _fatherOcc, _fatherPhone, _motherName, _motherOcc, _motherPhone, 
-      _guardian, _bio, _qualification, _expYears, _specialization;
+  late final TextEditingController _name,
+      _email,
+      _phone,
+      _address,
+      _nationality,
+      _fatherName,
+      _fatherOcc,
+      _fatherPhone,
+      _motherName,
+      _motherOcc,
+      _motherPhone,
+      _guardian,
+      _bio,
+      _qualification,
+      _expYears,
+      _specialization;
 
   String _gender = 'Male';
   String _bloodGroup = 'O+';
@@ -1140,7 +1271,8 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
     _email = TextEditingController(text: p.email);
     _phone = TextEditingController(text: p.phone ?? '');
     _address = TextEditingController(text: p.address);
-    _nationality = TextEditingController(text: p.nationality.isEmpty ? 'Indian' : p.nationality);
+    _nationality = TextEditingController(
+        text: p.nationality.isEmpty ? 'Indian' : p.nationality);
     _fatherName = TextEditingController(text: p.fatherName);
     _fatherOcc = TextEditingController(text: p.fatherOccupation);
     _fatherPhone = TextEditingController(text: p.fatherPhone);
@@ -1154,18 +1286,34 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
     _specialization = TextEditingController(text: p.specialization ?? '');
 
     if (['Male', 'Female', 'Other'].contains(p.gender)) _gender = p.gender;
-    if (['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].contains(p.bloodGroup)) _bloodGroup = p.bloodGroup;
-    if (['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other'].contains(p.religion)) _religion = p.religion;
-    if (['General', 'OBC', 'SC', 'ST', 'EWS'].contains(p.category)) _category = p.category;
+    if (['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
+        .contains(p.bloodGroup)) _bloodGroup = p.bloodGroup;
+    if (['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other']
+        .contains(p.religion)) _religion = p.religion;
+    if (['General', 'OBC', 'SC', 'ST', 'EWS'].contains(p.category))
+      _category = p.category;
     if (p.dateOfBirth.isNotEmpty) _dob = DateTime.tryParse(p.dateOfBirth);
   }
 
   @override
   void dispose() {
     for (final c in [
-      _name, _email, _phone, _address, _nationality, _fatherName, _fatherOcc,
-      _fatherPhone, _motherName, _motherOcc, _motherPhone, _guardian, _bio,
-      _qualification, _expYears, _specialization
+      _name,
+      _email,
+      _phone,
+      _address,
+      _nationality,
+      _fatherName,
+      _fatherOcc,
+      _fatherPhone,
+      _motherName,
+      _motherOcc,
+      _motherPhone,
+      _guardian,
+      _bio,
+      _qualification,
+      _expYears,
+      _specialization
     ]) {
       c.dispose();
     }
@@ -1203,7 +1351,7 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     // Create updates payload
     final data = <String, dynamic>{
       'full_name': _name.text.trim(),
@@ -1224,28 +1372,32 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
       'local_guardian': _guardian.text.trim(),
       'bio': _bio.text.trim(),
       'qualification': _qualification.text.trim(),
-      'experience_years': int.tryParse(_expYears.text.trim()) ?? widget.profile.experienceYears,
+      'experience_years':
+          int.tryParse(_expYears.text.trim()) ?? widget.profile.experienceYears,
       'specialization': _specialization.text.trim(),
     };
     if (_dob != null) {
-      data['date_of_birth'] = '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}';
+      data['date_of_birth'] =
+          '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}';
     }
 
     // 1. Upload document if selected
     if (_uploadedFileBytes != null && _uploadedFileName != null) {
       await ref.read(teacherProfileProvider.notifier).uploadDocument(
-        _uploadedFileBytes!,
-        _uploadedFileName!,
-        _docType,
-      );
+            _uploadedFileBytes!,
+            _uploadedFileName!,
+            _docType,
+          );
     }
 
     // 2. Update text profile fields
-    final ok = await ref.read(teacherProfileProvider.notifier).updateProfile(data);
+    final ok =
+        await ref.read(teacherProfileProvider.notifier).updateProfile(data);
     if (!mounted) return;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok ? '✅ Profile Updated Successfully!' : '❌ Save failed. Try again.'),
+      content: Text(
+          ok ? '✅ Profile Updated Successfully!' : '❌ Save failed. Try again.'),
       backgroundColor: ok ? TeacherColors.success : TeacherColors.error,
     ));
   }
@@ -1277,7 +1429,8 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : TeacherColors.border,
+                    color:
+                        isDark ? const Color(0xFF1E293B) : TeacherColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1293,7 +1446,6 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                 ),
               ),
               const SizedBox(height: 20),
-
               _groupLabel('TEACHER DETAILS'),
               _tf('Full Name', _name, Icons.person_outline),
               _tf('Bio / About Me', _bio, Icons.description_outlined, lines: 2),
@@ -1322,7 +1474,9 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Expanded(child: _tf('Nationality', _nationality, Icons.flag_outlined)),
+                  Expanded(
+                      child: _tf(
+                          'Nationality', _nationality, Icons.flag_outlined)),
                 ],
               ),
               Row(
@@ -1331,7 +1485,15 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                     child: _drop(
                       'Religion',
                       _religion,
-                      ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other'],
+                      [
+                        'Hindu',
+                        'Muslim',
+                        'Christian',
+                        'Sikh',
+                        'Buddhist',
+                        'Jain',
+                        'Other'
+                      ],
                       (v) => setState(() => _religion = v!),
                     ),
                   ),
@@ -1346,26 +1508,30 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                   ),
                 ],
               ),
-              _tf('Email', _email, Icons.email_outlined, type: TextInputType.emailAddress),
-              _tf('Phone', _phone, Icons.phone_outlined, type: TextInputType.phone),
+              _tf('Email', _email, Icons.email_outlined,
+                  type: TextInputType.emailAddress),
+              _tf('Phone', _phone, Icons.phone_outlined,
+                  type: TextInputType.phone),
               _tf('Address', _address, Icons.home_outlined, lines: 2),
-
               _groupLabel('PROFESSIONAL PROFILE'),
-              _tf('Highest Qualification', _qualification, Icons.school_outlined),
-              _tf('Years of Experience', _expYears, Icons.work_history_outlined, type: TextInputType.number),
-              _tf('Department Specialization', _specialization, Icons.psychology_outlined),
-
+              _tf('Highest Qualification', _qualification,
+                  Icons.school_outlined),
+              _tf('Years of Experience', _expYears, Icons.work_history_outlined,
+                  type: TextInputType.number),
+              _tf('Department Specialization', _specialization,
+                  Icons.psychology_outlined),
               _groupLabel('FATHER / GUARDIAN'),
               _tf("Father's Name", _fatherName, Icons.person_outline),
               _tf('Occupation', _fatherOcc, Icons.work_outline),
-              _tf("Father's Phone", _fatherPhone, Icons.phone_outlined, type: TextInputType.phone),
-
+              _tf("Father's Phone", _fatherPhone, Icons.phone_outlined,
+                  type: TextInputType.phone),
               _groupLabel('MOTHER'),
               _tf("Mother's Name", _motherName, Icons.person_outline),
               _tf('Occupation', _motherOcc, Icons.work_outline),
-              _tf("Mother's Phone", _motherPhone, Icons.phone_outlined, type: TextInputType.phone),
-              _tf('Local Guardian', _guardian, Icons.supervised_user_circle_outlined),
-
+              _tf("Mother's Phone", _motherPhone, Icons.phone_outlined,
+                  type: TextInputType.phone),
+              _tf('Local Guardian', _guardian,
+                  Icons.supervised_user_circle_outlined),
               _groupLabel('📎 UPLOAD DOCUMENTS'),
               _drop(
                 'Document Type',
@@ -1389,11 +1555,15 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: isDark ? const Color(0xFF1E293B) : TeacherColors.border,
+                      color: isDark
+                          ? const Color(0xFF1E293B)
+                          : TeacherColors.border,
                       width: 2,
                     ),
                     borderRadius: BorderRadius.circular(14),
-                    color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.02)
+                        : const Color(0xFFF8FAFC),
                   ),
                   child: Column(
                     children: [
@@ -1411,7 +1581,9 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                         'PDF, JPG, PNG up to 5MB'.tr(ref),
                         style: TextStyle(
                           fontSize: 9,
-                          color: isDark ? TeacherColors.text3 : TeacherColors.text3,
+                          color: isDark
+                              ? TeacherColors.text3
+                              : TeacherColors.text3,
                         ),
                       ),
                       if (_uploadedFileName != null) ...[
@@ -1452,7 +1624,9 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                       ...widget.profile.documents.map((doc) {
                         final isVerified = doc.status == 'verified';
                         final icon = isVerified ? '✅' : '⏳';
-                        final color = isVerified ? TeacherColors.success : Colors.amber.shade700;
+                        final color = isVerified
+                            ? TeacherColors.success
+                            : Colors.amber.shade700;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Text(
@@ -1476,13 +1650,15 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: TeacherColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                   child: saving
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         )
                       : const Text(
                           '💾 Save All Changes',
@@ -1498,8 +1674,11 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 style: TextButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  backgroundColor: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : const Color(0xFFF1F5F9),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
                   'Cancel',
@@ -1546,25 +1725,34 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
         controller: c,
         keyboardType: type,
         maxLines: lines,
-        style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
+        style: TextStyle(
+            fontSize: 13, color: isDark ? Colors.white : Colors.black),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: isDark ? TeacherColors.text3 : TeacherColors.text2),
-          prefixIcon: Icon(icon, size: 18, color: isDark ? TeacherColors.text3 : TeacherColors.text2),
+          labelStyle: TextStyle(
+              color: isDark ? TeacherColors.text3 : TeacherColors.text2),
+          prefixIcon: Icon(icon,
+              size: 18,
+              color: isDark ? TeacherColors.text3 : TeacherColors.text2),
           filled: true,
-          fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          fillColor:
+              isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
+            borderSide: BorderSide(
+                color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
+            borderSide: BorderSide(
+                color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: TeacherColors.primary, width: 1.5),
+            borderSide:
+                const BorderSide(color: TeacherColors.primary, width: 1.5),
           ),
         ),
         validator: (value) {
@@ -1592,24 +1780,31 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
       child: DropdownButtonFormField<String>(
         initialValue: val,
         dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
+        style: TextStyle(
+            fontSize: 13, color: isDark ? Colors.white : Colors.black),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: isDark ? TeacherColors.text3 : TeacherColors.text2),
+          labelStyle: TextStyle(
+              color: isDark ? TeacherColors.text3 : TeacherColors.text2),
           filled: true,
-          fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          fillColor:
+              isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
+            borderSide: BorderSide(
+                color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
+            borderSide: BorderSide(
+                color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: TeacherColors.primary, width: 1.5),
+            borderSide:
+                const BorderSide(color: TeacherColors.primary, width: 1.5),
           ),
         ),
         isExpanded: true,
@@ -1618,7 +1813,9 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
                   value: e,
                   child: Text(
                     e,
-                    style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white : Colors.black),
                   ),
                 ))
             .toList(),
@@ -1639,26 +1836,34 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
         child: InputDecorator(
           decoration: InputDecoration(
             labelText: 'Date of Birth',
-            labelStyle: TextStyle(color: isDark ? TeacherColors.text3 : TeacherColors.text2),
+            labelStyle: TextStyle(
+                color: isDark ? TeacherColors.text3 : TeacherColors.text2),
             prefixIcon: Icon(
               Icons.calendar_today_outlined,
               size: 18,
               color: isDark ? TeacherColors.text3 : TeacherColors.text2,
             ),
             filled: true,
-            fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            fillColor:
+                isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
+              borderSide: BorderSide(
+                  color:
+                      isDark ? const Color(0xFF1E293B) : TeacherColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: isDark ? const Color(0xFF1E293B) : TeacherColors.border),
+              borderSide: BorderSide(
+                  color:
+                      isDark ? const Color(0xFF1E293B) : TeacherColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: TeacherColors.primary, width: 1.5),
+              borderSide:
+                  const BorderSide(color: TeacherColors.primary, width: 1.5),
             ),
           ),
           child: Text(

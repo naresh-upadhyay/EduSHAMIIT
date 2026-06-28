@@ -31,7 +31,7 @@ class SupportTab extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF13182C),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,9 +49,24 @@ class SupportTab extends StatelessWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _buildTicketItem(context, id: 'TKT-1082', user: 'Neha Gupta (Teacher)', subject: 'Classroom Smartboard Offline', priority: 'High', status: 'Pending'),
-                    _buildTicketItem(context, id: 'TKT-1081', user: 'Admin Office', subject: 'Receipt Printer Connection Issue', priority: 'Medium', status: 'In Progress'),
-                    _buildTicketItem(context, id: 'TKT-1080', user: 'Ramesh Sen (Student)', subject: 'LMS Password Reset Request', priority: 'Low', status: 'Pending'),
+                    _buildTicketItem(context,
+                        id: 'TKT-1082',
+                        user: 'Neha Gupta (Teacher)',
+                        subject: 'Classroom Smartboard Offline',
+                        priority: 'High',
+                        status: 'Pending'),
+                    _buildTicketItem(context,
+                        id: 'TKT-1081',
+                        user: 'Admin Office',
+                        subject: 'Receipt Printer Connection Issue',
+                        priority: 'Medium',
+                        status: 'In Progress'),
+                    _buildTicketItem(context,
+                        id: 'TKT-1080',
+                        user: 'Ramesh Sen (Student)',
+                        subject: 'LMS Password Reset Request',
+                        priority: 'Low',
+                        status: 'Pending'),
                   ],
                 ),
               ],
@@ -70,14 +85,16 @@ class SupportTab extends StatelessWidget {
     required String priority,
     required String status,
   }) {
-    final priorityColor = priority == 'High' ? Colors.red : (priority == 'Medium' ? const Color(0xFFF59E0B) : Colors.blue);
+    final priorityColor = priority == 'High'
+        ? Colors.red
+        : (priority == 'Medium' ? const Color(0xFFF59E0B) : Colors.blue);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF0F1222),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.03)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -87,12 +104,13 @@ class SupportTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: priorityColor.withOpacity(0.1),
+                  color: priorityColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Text(
                   priority[0],
-                  style: TextStyle(color: priorityColor, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: priorityColor, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 16),
@@ -101,12 +119,16 @@ class SupportTab extends StatelessWidget {
                 children: [
                   Text(
                     '$id: $subject',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Requested by $user  •  Status: $status',
-                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                    style:
+                        const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                   ),
                 ],
               ),
@@ -117,7 +139,9 @@ class SupportTab extends StatelessWidget {
               ElevatedButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Ticket $id status updated to Resolved.')),
+                    SnackBar(
+                        content:
+                            Text('Ticket $id status updated to Resolved.')),
                   );
                 },
                 style: ElevatedButton.styleFrom(

@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_core/utils/responsive.dart';
-import 'package:edu_shamiit_core/utils/l10n.dart';
 import 'package:edu_shamiit_academic/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_core/constants/app_fonts.dart';
 import 'package:edu_shamiit_academic/core/services/teacher_api_service.dart';

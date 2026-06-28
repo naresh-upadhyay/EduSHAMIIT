@@ -105,7 +105,8 @@ class CommandCenterTab extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF13182C),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,11 +138,20 @@ class CommandCenterTab extends StatelessWidget {
                                 sideTitles: SideTitles(
                                   showTitles: true,
                                   getTitlesWidget: (value, meta) {
-                                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                                    const months = [
+                                      'Jan',
+                                      'Feb',
+                                      'Mar',
+                                      'Apr',
+                                      'May',
+                                      'Jun'
+                                    ];
                                     if (value >= 0 && value < months.length) {
                                       return Text(
                                         months[value.toInt()],
-                                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                                        style: const TextStyle(
+                                            color: Color(0xFF94A3B8),
+                                            fontSize: 12),
                                       );
                                     }
                                     return const Text('');
@@ -166,7 +176,8 @@ class CommandCenterTab extends StatelessWidget {
                                 dotData: const FlDotData(show: true),
                                 belowBarData: BarAreaData(
                                   show: true,
-                                  color: const Color(0xFF4F46E5).withOpacity(0.1),
+                                  color: const Color(0xFF4F46E5)
+                                      .withValues(alpha: 0.1),
                                 ),
                               ),
                             ],
@@ -187,7 +198,8 @@ class CommandCenterTab extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF13182C),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,10 +216,16 @@ class CommandCenterTab extends StatelessWidget {
                       Expanded(
                         child: ListView(
                           children: [
-                            _buildActivityItem('RFID: Gate Scanner', 'Student 10A checked in', '08:12 AM'),
-                            _buildActivityItem('Finance', 'Fee payment processed for 11B', '08:05 AM'),
-                            _buildActivityItem('Admissions', 'New application registered', 'Yesterday'),
-                            _buildActivityItem('System Security', 'Permission matrix updated by Admin', 'Yesterday'),
+                            _buildActivityItem('RFID: Gate Scanner',
+                                'Student 10A checked in', '08:12 AM'),
+                            _buildActivityItem('Finance',
+                                'Fee payment processed for 11B', '08:05 AM'),
+                            _buildActivityItem('Admissions',
+                                'New application registered', 'Yesterday'),
+                            _buildActivityItem(
+                                'System Security',
+                                'Permission matrix updated by Admin',
+                                'Yesterday'),
                           ],
                         ),
                       ),
@@ -235,7 +253,7 @@ class CommandCenterTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF13182C),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +264,8 @@ class CommandCenterTab extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                    color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
               ),
               Icon(icon, color: iconColor, size: 24),
             ],
@@ -256,7 +275,10 @@ class CommandCenterTab extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
@@ -281,7 +303,10 @@ class CommandCenterTab extends StatelessWidget {
             children: [
               Text(
                 category,
-                style: const TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.bold, fontSize: 12),
+                style: const TextStyle(
+                    color: Color(0xFF3B82F6),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12),
               ),
               const SizedBox(height: 2),
               Text(

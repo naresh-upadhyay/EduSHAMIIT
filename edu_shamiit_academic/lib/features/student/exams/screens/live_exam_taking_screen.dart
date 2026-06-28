@@ -1,17 +1,14 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:livekit_client/livekit_client.dart' hide ConnectionState;
 import 'package:livekit_client/livekit_client.dart' as lk show ConnectionState;
 import 'package:edu_shamiit_core/constants/student_colors.dart';
 import 'package:edu_shamiit_core/constants/app_fonts.dart';
-import 'package:edu_shamiit_core/utils/l10n.dart';
 import 'package:edu_shamiit_academic/core/services/student_api_service.dart';
 import 'package:edu_shamiit_academic/core/utils/web_proctor_helper.dart';
 
