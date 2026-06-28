@@ -11,7 +11,11 @@ template_base: "http://localhost:7980"
 
 # Performance tuning — allow egress to use more CPU for smooth encoding
 cpu_cost:
-  room_composite_cpu_cost: 3.0
+  room_composite_cpu_cost: 1.0
+  track_composite_cpu_cost: 1.0
+  track_cpu_cost: 0.5
+  web_cpu_cost: 1.0
+
 
 chrome_extra_args:
   - "--no-sandbox"
