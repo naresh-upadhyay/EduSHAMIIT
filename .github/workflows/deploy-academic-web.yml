@@ -1,28 +1,24 @@
-name: Deploy Flutter Web to GitHub Pages
+name: Deploy Academic Web to GitHub Pages
 
 on:
   push:
-    branches: [main, deploy]
+    branches: [main, master, deploy, monorepo]
     paths:
-      - "edu_shamiit_ai/**"
-      - ".github/workflows/deploy-flutter-web.yml"
+      - "edu_shamiit_academic/**"
+      - "edu_shamiit_core/**"
+      - ".github/workflows/deploy-academic-web.yml"
   workflow_dispatch:
 
 permissions:
   contents: write
 
-env:
-  # Using latest stable (currently 3.44.0+ with Dart 3.12+)
-  # No version pin to avoid SDK version conflicts with dependencies
-  FLUTTER_VERSION: ""
-
 jobs:
   build-and-deploy:
-    name: Build & Deploy Flutter Web
+    name: Build & Deploy Academic Web
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       - name: Set up Flutter (latest stable)
         uses: subosito/flutter-action@v2
@@ -36,12 +32,16 @@ jobs:
       - name: Disable analytics
         run: flutter config --no-analytics
 
-      - name: Get dependencies
-        working-directory: edu_shamiit_ai
+      - name: Get core dependencies
+        working-directory: edu_shamiit_core
         run: flutter pub get
 
-      - name: Build Flutter Web
-        working-directory: edu_shamiit_ai
+      - name: Get academic dependencies
+        working-directory: edu_shamiit_academic
+        run: flutter pub get
+
+      - name: Build Academic Flutter Web
+        working-directory: edu_shamiit_academic
         run: |
           flutter build web --release --base-href=/
 
@@ -49,10 +49,10 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: edu_shamiit_ai/build/web
+          publish_dir: edu_shamiit_academic/build/web
           publish_branch: gh-pages
           cname: academic.shamiit.com
           force_orphan: true
           user_name: "github-actions[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"
-          commit_message: "deploy: Flutter web build ${{ github.sha }}"
+          commit_message: "deploy: Academic Flutter web build ${{ github.sha }}"

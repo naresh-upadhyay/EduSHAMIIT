@@ -2,7 +2,7 @@ name: Deploy LiveKit to Google Cloud Run
 
 on:
   push:
-    branches: [main, deploy]
+    branches: [main, master, deploy, monorepo]
     paths:
       - ".github/workflows/deploy-livekit-cloud-run.yml"
       - "livekit/**"

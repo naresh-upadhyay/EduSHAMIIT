@@ -2,7 +2,7 @@ name: Deploy to Google Cloud Run
 
 on:
   push:
-    branches: [main, deploy]
+    branches: [main, master, deploy, monorepo]
     paths:
       - ".github/workflows/**"
       - "EduSHAMIIT Backend/backend/**"

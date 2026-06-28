@@ -11,7 +11,7 @@ import 'package:edu_shamiit_academic/core/services/teacher_api_service.dart';
 import 'package:edu_shamiit_core/models/teacher_models.dart' as models;
 import 'package:edu_shamiit_core/utils/responsive.dart';
 import 'package:edu_shamiit_core/widgets/responsive_content.dart';
-import 'package:edu_shamiit_academic/core/providers/teacher_profile_provider.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
 
 class TeacherDashboardScreen extends ConsumerStatefulWidget {

@@ -32,7 +32,7 @@ class AppConfig {
   /// Base URL for the backend API
   static String get baseUrl {
     if (_isProduction) return _productionApiUrl;
-    return 'http://$_host:80';
+    return 'http://$_host';
   }
 
   /// API base URL with /api prefix
@@ -42,6 +42,29 @@ class AppConfig {
   static String get supabaseUrl {
     if (_isProduction) return _productionSupabaseUrl;
     return 'http://$_host:8000';
+  }
+
+  /// Resolves media/document/image URLs dynamically depending on whether running in production or dev.
+  static String resolveUrl(String? rawUrl) {
+    if (rawUrl == null || rawUrl.isEmpty) return '';
+    if (_isProduction) {
+      return rawUrl
+          .replaceAll('http://kong:8000', _productionApiUrl)
+          .replaceAll('http://supabase-kong:8000', _productionApiUrl)
+          .replaceAll('http://127.0.0.1:8000', _productionApiUrl)
+          .replaceAll('http://localhost:8000', _productionApiUrl)
+          .replaceAll('http://127.0.0.1:80', _productionApiUrl)
+          .replaceAll('http://localhost:80', _productionApiUrl)
+          .replaceAll('http://127.0.0.1', _productionApiUrl)
+          .replaceAll('http://localhost', _productionApiUrl);
+    }
+    return rawUrl
+        .replaceAll('http://kong:8000', 'http://$_host:8000')
+        .replaceAll('http://supabase-kong:8000', 'http://$_host:8000')
+        .replaceAll('http://127.0.0.1:8000', 'http://$_host:8000')
+        .replaceAll('http://localhost:8000', 'http://$_host:8000')
+        .replaceAll('http://127.0.0.1:80', 'http://$_host:8000')
+        .replaceAll('http://localhost:80', 'http://$_host:8000');
   }
 
   /// Supabase Anon Key — uses cloud key in production, local key in dev

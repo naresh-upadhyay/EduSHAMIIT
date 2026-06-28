@@ -9,7 +9,7 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:edu_shamiit_academic/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_core/constants/student_colors.dart';
 import 'package:edu_shamiit_core/constants/app_fonts.dart';
-import 'package:edu_shamiit_academic/core/providers/profile_provider.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_core/widgets/image_preview_dialog.dart';
 import 'package:edu_shamiit_core/utils/l10n.dart';
 

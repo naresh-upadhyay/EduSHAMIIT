@@ -25,6 +25,10 @@ Thumbs.db
 # Uploaded assets
 volumes/assets
 
+# Scratch & Local Certs
+scratch/
+nginx/certs/
+
 # Generated and stored PDFs
 *.pdf
 **/*.pdf

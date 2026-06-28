@@ -169,7 +169,12 @@ async def login(request: LoginRequest):
         p = profile.data
 
         # Enforce role matching if role is requested
-        if request.role and p["role"].lower() != request.role.lower():
+        admin_roles = {"admin", "teacher_admin", "student_admin"}
+        req_role = request.role.lower()
+        profile_role = p["role"].lower()
+        roles_match = (req_role == profile_role) or (req_role in admin_roles and profile_role in admin_roles)
+
+        if request.role and not roles_match:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied: Selected role '{request.role}' does not match user's registered role"
@@ -901,7 +906,12 @@ async def verify_login_otp(request: VerifyLoginOtpRequest):
             
         user_id = user["id"]
         
-        if request.role and user["role"].lower() != request.role.lower():
+        admin_roles = {"admin", "teacher_admin", "student_admin"}
+        req_role = request.role.lower() if request.role else ""
+        user_role = user["role"].lower()
+        roles_match = (req_role == user_role) or (req_role in admin_roles and user_role in admin_roles)
+        
+        if request.role and not roles_match:
             raise HTTPException(status_code=403, detail="Selected role does not match registered profile")
             
         now = datetime.now(timezone.utc).isoformat()

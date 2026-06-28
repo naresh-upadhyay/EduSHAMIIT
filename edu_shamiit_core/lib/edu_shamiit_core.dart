@@ -9,6 +9,7 @@ export 'constants/app_fonts.dart';
 export 'constants/app_gradients.dart';
 export 'constants/student_colors.dart';
 export 'constants/teacher_colors.dart';
+export 'constants/mock_data.dart';
 
 // Theme
 export 'theme/responsive_dialog_padding.dart';
