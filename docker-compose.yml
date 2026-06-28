@@ -517,7 +517,7 @@ services:
       - "7880:7880"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro,z
-      - /etc/letsencrypt/live/edushamiitapi.shamiit.com:/etc/nginx/ssl:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - api
     networks:
