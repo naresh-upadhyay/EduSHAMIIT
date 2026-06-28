@@ -87,19 +87,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
               }
             }
           } catch (e) {
-            debugPrint('[AuthProvider] Could not restore Supabase session: $e. Clearing session to force re-login.');
-            try {
-              await Supabase.instance.client.auth.signOut();
-            } catch (_) {}
-            await _clearSession();
-            state = AuthState(isLoading: false);
-            return;
+            debugPrint('[AuthProvider] Could not restore Supabase session: $e. Staying logged in via app token.');
           }
         } else {
-          debugPrint('[AuthProvider] Missing Supabase refresh token for active session. Clearing session to force re-login.');
-          await _clearSession();
-          state = AuthState(isLoading: false);
-          return;
+          debugPrint('[AuthProvider] No Supabase refresh token stored. Staying logged in via app token.');
         }
         
         state = AuthState(
