@@ -199,6 +199,50 @@ async def deactivate_teacher(
     return {"success": True, "message": "Teacher deactivated"}
 
 
+@router.post("/{teacher_id}/assign-classes")
+async def assign_classes(
+    teacher_id: str,
+    request: dict,
+    user=Depends(require_teacher_admin),
+    school_id=Depends(require_school_id),
+):
+    """Assign classes to a teacher by ensuring they have at least one timetable entry for each class."""
+    sb = get_supabase()
+    classes = request.get("classes", [])
+    if not classes:
+        raise HTTPException(status_code=400, detail="Classes list is required")
+    
+    # Verify teacher exists
+    teacher_res = await sb.table("profiles").select("id").eq("id", teacher_id).eq("role", "teacher").eq("school_id", school_id).aexecute()
+    if not teacher_res.data:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    assigned = []
+    for cls in classes:
+        # Check if already exists in timetable
+        exist_res = await sb.table("timetable").select("id").eq("school_id", school_id).eq("teacher_id", teacher_id).eq("class", cls).aexecute()
+        if not exist_res.data:
+            # Find a subject for this class, or default to None
+            sub_res = await sb.table("subjects").select("id").eq("school_id", school_id).eq("class", cls).limit(1).aexecute()
+            subject_id = sub_res.data[0]["id"] if sub_res.data else None
+            
+            # Insert a dummy slot for Monday 9:00 - 10:00
+            insert_data = {
+                "school_id": school_id,
+                "teacher_id": teacher_id,
+                "subject_id": subject_id,
+                "class": cls,
+                "day_of_week": 1,
+                "start_time": "09:00:00",
+                "end_time": "10:00:00",
+                "room": "Interactive Room"
+            }
+            await sb.table("timetable").insert(insert_data).aexecute()
+            assigned.append(cls)
+            
+    return {"success": True, "message": f"Successfully assigned classes: {assigned}"}
+
+
 # ===========================================================
 # Homework CRUD (Admin)
 # ===========================================================
