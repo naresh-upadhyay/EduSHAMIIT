@@ -43,7 +43,7 @@ jobs:
       - name: Build Flutter Web
         working-directory: edu_shamiit_ai
         run: |
-          flutter build web --release --base-href=/EduSHAMIIT/
+          flutter build web --release --base-href=/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
@@ -51,6 +51,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: edu_shamiit_ai/build/web
           publish_branch: gh-pages
+          cname: academic.shamiit.com
           force_orphan: true
           user_name: "github-actions[bot]"
           user_email: "github-actions[bot]@users.noreply.github.com"
