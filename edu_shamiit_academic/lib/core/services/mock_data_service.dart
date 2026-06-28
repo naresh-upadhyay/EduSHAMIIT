@@ -1,4 +1,4 @@
-import '../constants/mock_data.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
 /// Service that provides mock data when API calls fail
 /// This service acts as a fallback mechanism to ensure the UI always has data to display

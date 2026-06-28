@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/app_config.dart';
-import '../models/teacher_models.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
 /// Service for teacher-related API calls
 class TeacherApiService {

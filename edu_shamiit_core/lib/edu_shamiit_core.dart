@@ -35,6 +35,8 @@ export 'providers/role_provider.dart';
 export 'providers/api_provider.dart';
 export 'providers/cache_provider.dart';
 export 'providers/auth_provider.dart';
+export 'providers/profile_provider.dart' hide DocumentModel;
+export 'providers/teacher_profile_provider.dart';
 
 // Utils
 export 'utils/responsive.dart';

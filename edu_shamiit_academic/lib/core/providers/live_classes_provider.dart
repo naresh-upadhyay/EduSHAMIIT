@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/api_service.dart';
-import 'api_provider.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
 /// Model class for live class data
 class LiveClassModel {

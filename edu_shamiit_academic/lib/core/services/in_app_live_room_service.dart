@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:livekit_client/livekit_client.dart';
 import 'package:uuid/uuid.dart';
-import 'api_service.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
 /// Class representing a chat message in the live meeting room
 class LiveRoomChatMessage {

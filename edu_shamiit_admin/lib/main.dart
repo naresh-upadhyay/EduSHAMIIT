@@ -30,7 +30,7 @@ class EduShamiitAdminApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'EduSHAMIIT Admin Suite',
       debugShowCheckedModeBanner: false,
-      themeMode: settings.themeMode,
+      themeMode: (settings.settings?.darkMode ?? false) ? ThemeMode.dark : ThemeMode.light,
       theme: getTeacherTheme(brightness: Brightness.light),
       darkTheme: getTeacherTheme(brightness: Brightness.dark),
       routerConfig: router,

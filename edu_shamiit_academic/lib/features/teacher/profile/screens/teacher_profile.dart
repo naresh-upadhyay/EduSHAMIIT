@@ -11,7 +11,7 @@ import 'package:edu_shamiit_academic/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_core/constants/teacher_colors.dart';
 import 'package:edu_shamiit_core/constants/app_gradients.dart';
 import 'package:edu_shamiit_core/constants/app_fonts.dart';
-import 'package:edu_shamiit_academic/core/providers/teacher_profile_provider.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_core/models/teacher_models.dart' as models;
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import 'package:edu_shamiit_core/widgets/image_preview_dialog.dart';
