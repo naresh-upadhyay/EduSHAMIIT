@@ -493,6 +493,10 @@ services:
       - SUPABASE_URL=http://kong:8000
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - MQTT_BROKER_HOST=mosquitto
+      - LIVEKIT_URL=http://livekit:7882
+      - LIVEKIT_PUBLIC_URL=wss://edushamiitapi.shamiit.com:7880
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=secretkey_edushamiit_livekit_2026_secure
     depends_on:
       db:
         condition: service_healthy

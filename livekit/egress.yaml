@@ -1,6 +1,6 @@
 api_key: "devkey"
 api_secret: "secretkey_edushamiit_livekit_2026_secure"
-ws_url: "ws://livekit:7880"
+ws_url: "ws://livekit:7882"
 insecure: true
 redis:
   address: "redis:6379"
