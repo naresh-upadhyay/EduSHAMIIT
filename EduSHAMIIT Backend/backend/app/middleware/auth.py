@@ -15,6 +15,7 @@ from app.middleware.jwt_cache import get_cached_payload, set_cached_payload
 
 # ContextVar for current user context (thread/async-safe context for tools)
 _current_user_context = contextvars.ContextVar("current_user_context", default={})
+_request_host_context = contextvars.ContextVar("request_host_context", default="")
 
 
 def set_current_user_context(user: dict):
@@ -25,6 +26,43 @@ def set_current_user_context(user: dict):
 def get_current_user_id() -> str:
     """Get the current user ID from context (used by AI tools)."""
     return _current_user_context.get().get("id", "")
+
+
+def set_request_host(host: str):
+    """Set the current request host context."""
+    return _request_host_context.set(host)
+
+
+def get_request_host() -> str:
+    """Get the current request host from context."""
+    return _request_host_context.get()
+
+
+def reset_request_host(token):
+    """Reset the request host context using token."""
+    _request_host_context.reset(token)
+
+
+def get_public_supabase_url(supabase_url: str) -> str:
+    """Dynamically resolve the public Supabase storage base URL."""
+    # 1. Try request host context (live browser request host)
+    host = get_request_host()
+    if host:
+        return host.rstrip("/")
+        
+    # 2. Try ENVIRONMENT PUBLIC_URL
+    import os
+    env_pub = os.environ.get("PUBLIC_URL")
+    if env_pub:
+        return env_pub.rstrip("/")
+        
+    # 3. Local dev fallback substitutions
+    url = supabase_url.rstrip("/")
+    if "http://kong:8000" in url:
+        return url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    if "http://supabase-kong:8000" in url:
+        return url.replace("http://supabase-kong:8000", "http://127.0.0.1:8000")
+    return url
 
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:

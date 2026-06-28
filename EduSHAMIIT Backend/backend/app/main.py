@@ -35,6 +35,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def add_request_host_middleware(request: Request, call_next):
+    proto = request.headers.get("X-Forwarded-Proto", request.url.scheme)
+    host = request.headers.get("Host", request.url.netloc)
+    host_str = f"{proto}://{host}"
+    
+    from app.middleware.auth import set_request_host, reset_request_host
+    token = set_request_host(host_str)
+    try:
+        response = await call_next(request)
+    finally:
+        reset_request_host(token)
+    return response
+
 import traceback
 from fastapi import Request, HTTPException
 from fastapi.exceptions import RequestValidationError

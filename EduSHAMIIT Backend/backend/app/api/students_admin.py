@@ -1348,7 +1348,8 @@ async def upload_book_pdf(
             raise e
         raise HTTPException(status_code=500, detail=f"Storage upload request failed: {str(e)}")
 
-    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    from app.middleware.auth import get_public_supabase_url
+    public_url_base = get_public_supabase_url(supabase_url)
     file_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
 
     # Update book info

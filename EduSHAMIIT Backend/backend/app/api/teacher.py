@@ -1779,7 +1779,8 @@ async def upload_avatar(
 
     # Build public URL with a cache-busting query parameter
     timestamp = int(datetime.utcnow().timestamp())
-    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    from app.middleware.auth import get_public_supabase_url
+    public_url_base = get_public_supabase_url(supabase_url)
     public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}?t={timestamp}"
 
     # Persist public URL in profiles
@@ -1842,7 +1843,8 @@ async def upload_document(
             detail=f"Storage upload failed: {upload_response.text}"
         )
 
-    public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+    from app.middleware.auth import get_public_supabase_url
+    public_url_base = get_public_supabase_url(supabase_url)
     public_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
 
     # 3. Insert into documents table

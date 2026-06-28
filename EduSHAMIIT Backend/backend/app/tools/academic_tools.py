@@ -953,7 +953,8 @@ def get_academic_tools(school_id: str):
                     with httpx.Client(timeout=30.0) as http_client:
                         upload_response = http_client.post(storage_url, headers=headers, content=file_bytes)
                     if upload_response.status_code in (200, 201):
-                        public_url_base = supabase_url.replace("http://kong:8000", "http://127.0.0.1:8000")
+                        from app.middleware.auth import get_public_supabase_url
+                        public_url_base = get_public_supabase_url(supabase_url)
                         file_url = f"{public_url_base}/storage/v1/object/public/{storage_path}"
                         from app.services.supabase_client import get_supabase
                         sb = get_supabase()
