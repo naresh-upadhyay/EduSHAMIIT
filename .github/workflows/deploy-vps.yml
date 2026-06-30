@@ -24,7 +24,7 @@ jobs:
       - name: Upload and Deploy
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "mkdir -p /root/app"
-          scp -o StrictHostKeyChecking=no project.zip root@${{ secrets.VPS_HOST }}:/root/app/project.zip
+          cat project.zip | ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "cat > /root/app/project.zip"
 
           ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} '
             cd /root/app && \
