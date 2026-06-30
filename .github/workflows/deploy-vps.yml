@@ -12,14 +12,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+      - name: Start SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
 
       - name: Zip Repository
         run: |
@@ -27,10 +23,10 @@ jobs:
 
       - name: Upload and Deploy
         run: |
-          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.VPS_HOST }} "mkdir -p /root/app"
-          scp -i ~/.ssh/id_ed25519 project.zip root@${{ secrets.VPS_HOST }}:/root/app/project.zip
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "mkdir -p /root/app"
+          scp -o StrictHostKeyChecking=no project.zip root@${{ secrets.VPS_HOST }}:/root/app/project.zip
 
-          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.VPS_HOST }} '
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} '
             cd /root/app && \
             unzip -o project.zip && \
             rm project.zip && \
