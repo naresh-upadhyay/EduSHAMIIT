@@ -1,0 +1,42 @@
+name: Deploy to Hostinger VPS
+
+on:
+  push:
+    branches: [main, master, deploy, monorepo]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Zip Repository
+        run: |
+          zip -r project.zip . -x "*.git*" "*.github*" "*.idea*" "*.vscode*" "node_modules/*" "build/*" "project.zip"
+
+      - name: Upload and Deploy
+        run: |
+          scp -i ~/.ssh/id_ed25519 project.zip root@${{ secrets.VPS_HOST }}:/root/app/project.zip
+
+          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.VPS_HOST }} '
+            cd /root/app && \
+            unzip -o project.zip && \
+            rm project.zip && \
+            find /root/app -type f -name "*.sh" -exec chmod +x {} + && \
+            find /root/app -type f \( -name "*.sh" -o -name "*.exs" -o -name "*.sql" -o -name "*.conf" -o -name "*.yml" -o -name "*.yaml" \) -exec sed -i "s/\r$//" {} + && \
+            docker compose down && \
+            docker compose up -d --build && \
+            docker cp /root/app/run_migrations.py edushamiit-api:/app/run_migrations.py && \
+            docker cp "/root/app/EduSHAMIIT Database" edushamiit-api:/app/ && \
+            docker exec edushamiit-api pip install psycopg2-binary && \
+            docker exec edushamiit-api python3 /app/run_migrations.py "postgresql://postgres:eduSHAMIIT2026_pg@db:5432/postgres"
+          '

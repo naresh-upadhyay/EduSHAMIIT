@@ -24,9 +24,9 @@ class AppConfig {
 
   // ─── Production Cloud URLs ───────────────────────────────────────────────
   static const String _productionApiUrl =
-      'https://edushamiitapi.shamiit.com';
+      'https://eduapi.shamiit.com';
   static const String _productionSupabaseUrl =
-      'https://edushamiitapi.shamiit.com';
+      'https://eduapi.shamiit.com';
 
   // ─── API Configuration ───────────────────────────────────────────────────
   /// Base URL for the backend API

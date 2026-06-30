@@ -1,0 +1,2795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduSHAMIIT Admin Suite</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg-deep: #0a0d1a;
+    --bg-card: #0f1525;
+    --bg-surface: #141929;
+    --bg-elevated: #1a2035;
+    --border: rgba(255,255,255,0.08);
+    --border-active: rgba(99,102,241,0.5);
+    --accent-primary: #6366f1;
+    --accent-secondary: #8b5cf6;
+    --accent-gold: #f59e0b;
+    --accent-emerald: #10b981;
+    --accent-rose: #f43f5e;
+    --accent-cyan: #06b6d4;
+    --accent-orange: #f97316;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #475569;
+    --gradient-primary: linear-gradient(135deg, #6366f1, #8b5cf6);
+    --gradient-gold: linear-gradient(135deg, #f59e0b, #ef4444);
+    --gradient-emerald: linear-gradient(135deg, #10b981, #06b6d4);
+    --shadow-glow: 0 0 30px rgba(99,102,241,0.2);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ===== LOGIN SCREEN ===== */
+  .screen { display: none; width: 100%; height: 100vh; position: absolute; top: 0; left: 0; }
+  .screen.active { display: flex; }
+
+  #login-screen {
+    background: radial-gradient(ellipse at 30% 0%, rgba(99,102,241,0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 100%, rgba(139,92,246,0.1) 0%, transparent 50%),
+                var(--bg-deep);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .login-header { text-align: center; }
+  .login-logo {
+    width: 72px; height: 72px;
+    background: var(--gradient-primary);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; margin: 0 auto 16px;
+    box-shadow: var(--shadow-glow);
+  }
+  .login-header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; }
+  .login-header h1 span { color: var(--accent-primary); }
+  .login-header p { color: var(--text-secondary); font-size: 13px; letter-spacing: 2px; margin-top: 4px; }
+
+  .login-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 32px;
+    width: 420px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+  }
+
+  .role-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .roles-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .role-btn {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 6px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+    font-size: 10px; font-family: 'Inter', sans-serif;
+  }
+  .role-btn:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+  .role-btn.selected {
+    background: rgba(99,102,241,0.15);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+    box-shadow: 0 0 15px rgba(99,102,241,0.2);
+  }
+  .role-btn .icon { font-size: 20px; }
+
+  .input-group { margin-bottom: 14px; }
+  .input-group input {
+    width: 100%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 13px 16px;
+    color: var(--text-primary);
+    font-size: 14px; font-family: 'Inter', sans-serif;
+    outline: none; transition: border-color 0.2s;
+  }
+  .input-group input:focus { border-color: var(--accent-primary); }
+  .input-group input::placeholder { color: var(--text-muted); }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--gradient-primary);
+    border: none; border-radius: var(--radius-sm);
+    padding: 14px;
+    color: white; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif;
+    cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .auth-alts { display: flex; gap: 8px; }
+  .auth-alt {
+    flex: 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    color: var(--text-secondary);
+    font-size: 12px; font-family: 'Inter', sans-serif;
+    cursor: pointer; text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.2s;
+  }
+  .auth-alt:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+
+  /* ===== MAIN APP LAYOUT ===== */
+  #app-screen {
+    flex-direction: row;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: 100vh; overflow: hidden;
+    position: relative;
+  }
+
+  .sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sidebar-logo {
+    width: 36px; height: 36px;
+    background: var(--gradient-primary);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .sidebar-brand h2 { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 700; }
+  .sidebar-brand h2 span { color: var(--accent-primary); }
+  .sidebar-brand p { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; }
+
+  .role-badge {
+    margin: 12px 20px;
+    background: rgba(99,102,241,0.12);
+    border: 1px solid rgba(99,102,241,0.3);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .role-badge .role-icon { font-size: 18px; }
+  .role-badge .role-info { flex: 1; }
+  .role-badge .role-name { font-size: 13px; font-weight: 600; color: var(--accent-primary); }
+  .role-badge .role-id { font-size: 10px; color: var(--text-muted); }
+
+  .school-selector {
+    margin: 0 20px 8px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; transition: border-color 0.2s;
+    font-size: 12px;
+  }
+  .school-selector:hover { border-color: var(--accent-primary); }
+  .school-dot { width: 8px; height: 8px; background: var(--accent-emerald); border-radius: 50%; }
+  .school-name { flex: 1; color: var(--text-secondary); font-size: 12px; }
+  .school-arrow { color: var(--text-muted); font-size: 10px; }
+
+  .nav-section { padding: 0 12px; margin-bottom: 4px; }
+  .nav-section-label {
+    font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px;
+    text-transform: uppercase; padding: 8px 8px 4px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    cursor: pointer; transition: all 0.15s;
+    color: var(--text-secondary);
+    font-size: 13px; margin-bottom: 1px;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--bg-surface); color: var(--text-primary); }
+  .nav-item.active {
+    background: rgba(99,102,241,0.15);
+    color: var(--accent-primary);
+    font-weight: 500;
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 3px; height: 60%;
+    background: var(--accent-primary);
+    border-radius: 0 2px 2px 0;
+  }
+  .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-item .nav-badge {
+    margin-left: auto;
+    background: var(--accent-rose);
+    color: white; font-size: 9px; font-weight: 700;
+    padding: 2px 5px; border-radius: 10px;
+  }
+  .nav-item .nav-badge.info { background: var(--accent-primary); }
+  .nav-item .nav-badge.warn { background: var(--accent-gold); color: #000; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+  }
+  .user-avatar {
+    width: 34px; height: 34px;
+    background: var(--gradient-primary);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .user-info { flex: 1; }
+  .user-info .user-name { font-size: 13px; font-weight: 600; }
+  .user-info .user-email { font-size: 10px; color: var(--text-muted); }
+  .logout-btn { color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 4px; }
+  .logout-btn:hover { color: var(--accent-rose); }
+
+  /* MAIN CONTENT */
+  .main-content {
+    flex: 1; display: flex; flex-direction: column;
+    height: 100vh; overflow: hidden;
+    background: var(--bg-deep);
+  }
+
+  /* TOP BAR */
+  .topbar {
+    height: 64px; min-height: 64px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 24px; gap: 16px;
+  }
+  .topbar-title { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; flex: 1; }
+  .topbar-title span { color: var(--text-muted); font-weight: 400; font-size: 14px; margin-left: 8px; }
+
+  .topbar-search {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-muted); font-size: 13px;
+    cursor: pointer; min-width: 220px;
+    transition: border-color 0.2s;
+  }
+  .topbar-search:hover { border-color: var(--accent-primary); }
+
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; position: relative;
+    transition: all 0.2s;
+  }
+  .icon-btn:hover { border-color: var(--accent-primary); }
+  .notif-dot {
+    position: absolute; top: 6px; right: 6px;
+    width: 7px; height: 7px;
+    background: var(--accent-rose); border-radius: 50%;
+    border: 1.5px solid var(--bg-card);
+  }
+
+  /* CONTENT PANELS */
+  .content-panel {
+    flex: 1; overflow-y: auto; padding: 24px;
+    display: none;
+  }
+  .content-panel.active { display: block; }
+
+  /* DASHBOARD GRID */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px; margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+  }
+  .stat-card:hover { border-color: rgba(99,102,241,0.3); transform: translateY(-2px); }
+  .stat-card::after {
+    content: '';
+    position: absolute; top: 0; right: 0;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    opacity: 0.1;
+  }
+  .stat-card.blue::after { background: var(--accent-primary); }
+  .stat-card.emerald::after { background: var(--accent-emerald); }
+  .stat-card.gold::after { background: var(--accent-gold); }
+  .stat-card.rose::after { background: var(--accent-rose); }
+
+  .stat-icon {
+    font-size: 24px; margin-bottom: 12px;
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stat-card.blue .stat-icon { background: rgba(99,102,241,0.15); }
+  .stat-card.emerald .stat-icon { background: rgba(16,185,129,0.15); }
+  .stat-card.gold .stat-icon { background: rgba(245,158,11,0.15); }
+  .stat-card.rose .stat-icon { background: rgba(244,63,94,0.15); }
+
+  .stat-value { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; }
+  .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .stat-change {
+    font-size: 11px; margin-top: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .stat-change.up { color: var(--accent-emerald); }
+  .stat-change.down { color: var(--accent-rose); }
+
+  /* GRID LAYOUTS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+  .col-span-2 { grid-column: span 2; }
+  .col-span-3 { grid-column: span 3; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-action {
+    font-size: 12px; color: var(--accent-primary); cursor: pointer;
+    padding: 4px 10px; border-radius: 6px;
+    background: rgba(99,102,241,0.1);
+  }
+  .card-action:hover { background: rgba(99,102,241,0.2); }
+
+  /* TABLE */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    text-align: left; padding: 10px 12px;
+    font-size: 11px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .data-table td {
+    padding: 12px 12px;
+    font-size: 13px; color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); color: var(--text-primary); }
+  .data-table tr:last-child td { border-bottom: none; }
+
+  .avatar-cell { display: flex; align-items: center; gap: 10px; }
+  .mini-avatar {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+  .avatar-name { font-weight: 500; color: var(--text-primary); font-size: 13px; }
+  .avatar-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* BADGES */
+  .badge {
+    padding: 3px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .badge-green { background: rgba(16,185,129,0.15); color: #10b981; }
+  .badge-blue { background: rgba(99,102,241,0.15); color: #818cf8; }
+  .badge-gold { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .badge-red { background: rgba(244,63,94,0.15); color: #f43f5e; }
+  .badge-gray { background: rgba(148,163,184,0.1); color: #94a3b8; }
+  .badge-cyan { background: rgba(6,182,212,0.15); color: #06b6d4; }
+
+  /* STATUS INDICATOR */
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .status-dot.green { background: #10b981; }
+  .status-dot.red { background: #f43f5e; }
+  .status-dot.gold { background: #f59e0b; }
+  .status-dot.blue { background: #6366f1; }
+
+  /* PROGRESS */
+  .progress-bar {
+    height: 6px; background: var(--bg-elevated);
+    border-radius: 3px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 0.5s;
+  }
+  .progress-fill.blue { background: var(--gradient-primary); }
+  .progress-fill.emerald { background: var(--gradient-emerald); }
+  .progress-fill.gold { background: var(--gradient-gold); }
+
+  /* ACTIVITY ITEM */
+  .activity-item {
+    display: flex; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .activity-content { flex: 1; }
+  .activity-text { font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
+  .activity-text strong { color: var(--text-primary); }
+  .activity-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* NOTICE / ALERT */
+  .notice {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 10px; padding: 12px 16px;
+    display: flex; gap: 10px; align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .notice.info { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.25); }
+  .notice.danger { background: rgba(244,63,94,0.08); border-color: rgba(244,63,94,0.25); }
+  .notice.success { background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.25); }
+  .notice-icon { font-size: 16px; margin-top: 1px; }
+  .notice-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .notice-text strong { color: var(--text-primary); }
+
+  /* QUICK ACTION BUTTONS */
+  .quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .qa-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 12px;
+    text-align: center; cursor: pointer;
+    transition: all 0.2s;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .qa-btn:hover {
+    border-color: var(--accent-primary);
+    background: rgba(99,102,241,0.08);
+    transform: translateY(-2px);
+  }
+  .qa-icon { font-size: 22px; }
+  .qa-label { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+
+  /* FORM ELEMENTS */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: span 2; }
+  .form-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .form-control {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+    color: var(--text-primary); font-size: 13px;
+    font-family: 'Inter', sans-serif; outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-control:focus { border-color: var(--accent-primary); }
+  select.form-control { cursor: pointer; }
+  textarea.form-control { resize: vertical; min-height: 80px; }
+
+  .form-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+  .btn-sm {
+    padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif;
+    cursor: pointer; border: none; transition: all 0.2s;
+  }
+  .btn-primary-sm { background: var(--gradient-primary); color: white; }
+  .btn-secondary-sm { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); }
+  .btn-danger-sm { background: rgba(244,63,94,0.15); color: var(--accent-rose); border: 1px solid rgba(244,63,94,0.3); }
+
+  /* CHART PLACEHOLDER */
+  .chart-area {
+    background: var(--bg-surface);
+    border-radius: 10px; padding: 16px;
+    display: flex; align-items: flex-end; gap: 8px;
+    height: 140px; position: relative; overflow: hidden;
+  }
+  .chart-bar {
+    flex: 1; border-radius: 4px 4px 0 0;
+    background: var(--gradient-primary); opacity: 0.7;
+    min-width: 20px; transition: opacity 0.2s;
+    position: relative;
+  }
+  .chart-bar:hover { opacity: 1; }
+  .chart-label {
+    position: absolute; bottom: -20px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px; color: var(--text-muted); white-space: nowrap;
+  }
+
+  /* CALENDAR */
+  .mini-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-day {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; border-radius: 6px; cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+  }
+  .cal-day:hover { background: var(--bg-elevated); color: var(--text-primary); }
+  .cal-day.today { background: var(--gradient-primary); color: white; font-weight: 700; }
+  .cal-day.has-event { position: relative; }
+  .cal-day.has-event::after {
+    content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+    width: 3px; height: 3px; border-radius: 50%; background: var(--accent-gold);
+  }
+  .cal-day.weekend { color: var(--text-muted); }
+  .cal-header-day { font-size: 10px; color: var(--text-muted); text-align: center; padding: 4px 0; }
+
+  /* SCHOOL CARD (Multi-school) */
+  .school-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    display: flex; gap: 12px; align-items: center;
+    cursor: pointer; transition: all 0.2s; margin-bottom: 8px;
+  }
+  .school-card:hover { border-color: var(--accent-primary); background: rgba(99,102,241,0.05); }
+  .school-card-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+  }
+  .school-card-info { flex: 1; }
+  .school-card-name { font-size: 14px; font-weight: 600; }
+  .school-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* DONUT CHART */
+  .donut-wrap {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .donut-svg { width: 100px; height: 100px; }
+  .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* METRIC ROW */
+  .metric-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-label { font-size: 13px; color: var(--text-secondary); }
+  .metric-value { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+  /* NOTIFICATION PANEL */
+  .notif-item {
+    display: flex; gap: 12px; padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-dot-large { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .notif-content { flex: 1; }
+  .notif-title { font-size: 13px; font-weight: 500; }
+  .notif-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .notif-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* TAB BAR */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 20px; background: var(--bg-card); border-radius: 10px; padding: 4px; border: 1px solid var(--border); }
+  .tab-item {
+    flex: 1; text-align: center; padding: 8px; font-size: 12px;
+    font-weight: 500; border-radius: 7px; cursor: pointer;
+    color: var(--text-muted); transition: all 0.2s;
+  }
+  .tab-item.active { background: var(--gradient-primary); color: white; }
+
+  /* SECTION HEADING */
+  .section-heading { font-size: 16px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-heading .sh-icon { font-size: 18px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* TRANSITION */
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* UTILITY */
+  .text-primary { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-muted { color: var(--text-muted); }
+  .text-accent { color: var(--accent-primary); }
+  .text-emerald { color: var(--accent-emerald); }
+  .text-gold { color: var(--accent-gold); }
+  .text-rose { color: var(--accent-rose); }
+  .flex { display: flex; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .gap-8 { gap: 8px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .mb-16 { margin-bottom: 16px; }
+  .font-bold { font-weight: 700; }
+  .font-medium { font-weight: 500; }
+  .f12 { font-size: 12px; }
+  .f13 { font-size: 13px; }
+
+  /* TOP ROLE SELECTOR BAR */
+  .role-topbar {
+    display: flex; gap: 6px; padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    background: var(--bg-surface);
+  }
+  .role-top-btn {
+    padding: 5px 12px; border-radius: 20px; font-size: 11px;
+    font-family: 'Inter', sans-serif; cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent; color: var(--text-muted);
+    white-space: nowrap; transition: all 0.2s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .role-top-btn:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+  .role-top-btn.active { background: var(--gradient-primary); border-color: transparent; color: white; }
+
+  .sidebar-nav-wrap { overflow-y: auto; flex: 1; padding-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ========== LOGIN SCREEN ========== -->
+<div class="screen active" id="login-screen">
+  <div>
+    <div class="login-header">
+      <div class="login-logo">🏫</div>
+      <h1>Edu<span>SHAMIIT</span></h1>
+      <p>ADMIN SUITE · SECURE ACCESS</p>
+    </div>
+    <div class="login-card" style="margin-top:24px">
+      <div class="role-label">Select Your Role</div>
+      <div class="roles-grid">
+        <div class="role-btn" onclick="selectRole('super_admin',this)"><span class="icon">🛡️</span>Super Admin</div>
+        <div class="role-btn" onclick="selectRole('director',this)"><span class="icon">👑</span>Director</div>
+        <div class="role-btn" onclick="selectRole('principal',this)"><span class="icon">🎓</span>Principal</div>
+        <div class="role-btn selected" onclick="selectRole('finance',this)"><span class="icon">💰</span>Finance</div>
+        <div class="role-btn" onclick="selectRole('admin_mgr',this)"><span class="icon">⚙️</span>Admin Mgr</div>
+        <div class="role-btn" onclick="selectRole('hr',this)"><span class="icon">👥</span>HR Manager</div>
+        <div class="role-btn" onclick="selectRole('transport',this)"><span class="icon">🚌</span>Transport</div>
+        <div class="role-btn" onclick="selectRole('library',this)"><span class="icon">📚</span>Librarian</div>
+        <div class="role-btn" onclick="selectRole('sports',this)"><span class="icon">⚽</span>Sports</div>
+        <div class="role-btn" onclick="selectRole('security',this)"><span class="icon">🔒</span>Security</div>
+        <div class="role-btn" onclick="selectRole('support',this)"><span class="icon">🎧</span>Support</div>
+        <div class="role-btn" onclick="selectRole('driver',this)"><span class="icon">🚐</span>Driver</div>
+      </div>
+      <div class="input-group">
+        <input type="text" id="login-id" placeholder="Admin ID (e.g. ADMIN-2026-001)" value="ADMIN-2026-004">
+      </div>
+      <div class="input-group">
+        <input type="password" placeholder="Password" value="••••••••">
+      </div>
+      <button class="btn-primary" onclick="enterApp()">🛡️ Enter Workspace</button>
+      <div class="auth-alts">
+        <div class="auth-alt">🪪 Face ID</div>
+        <div class="auth-alt">🔑 OTP Code</div>
+        <div class="auth-alt">📷 Scan QR</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MAIN APP SCREEN ========== -->
+<div class="screen" id="app-screen">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🏫</div>
+      <div class="sidebar-brand">
+        <h2>Edu<span>SHAMIIT</span></h2>
+        <p>ADMIN SUITE</p>
+      </div>
+    </div>
+
+    <div class="role-badge">
+      <span class="role-icon" id="sidebar-role-icon">💰</span>
+      <div class="role-info">
+        <div class="role-name" id="sidebar-role-name">Finance Manager</div>
+        <div class="role-id" id="sidebar-role-id">ADMIN-2026-004</div>
+      </div>
+    </div>
+
+    <div class="school-selector" onclick="switchPanel('schools')">
+      <span class="school-dot"></span>
+      <span class="school-name">Delhi Public School, Noida</span>
+      <span class="school-arrow">▼</span>
+    </div>
+
+    <!-- ROLE TOP SELECTOR (inside sidebar) -->
+    <div style="padding:4px 12px 8px">
+      <div style="font-size:10px;color:var(--text-muted);padding:4px 0 6px;letter-spacing:1px">SWITCH ROLE VIEW</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px" id="role-switcher">
+        <button class="role-top-btn" onclick="switchRole('super_admin')">🛡️ Super</button>
+        <button class="role-top-btn" onclick="switchRole('director')">👑 Director</button>
+        <button class="role-top-btn" onclick="switchRole('principal')">🎓 Principal</button>
+        <button class="role-top-btn active" onclick="switchRole('finance')">💰 Finance</button>
+        <button class="role-top-btn" onclick="switchRole('hr')">👥 HR</button>
+        <button class="role-top-btn" onclick="switchRole('transport')">🚌 Transport</button>
+        <button class="role-top-btn" onclick="switchRole('library')">📚 Library</button>
+        <button class="role-top-btn" onclick="switchRole('sports')">⚽ Sports</button>
+        <button class="role-top-btn" onclick="switchRole('security')">🔒 Security</button>
+        <button class="role-top-btn" onclick="switchRole('support')">🎧 Support</button>
+      </div>
+    </div>
+
+    <div class="sidebar-nav-wrap" id="sidebar-nav">
+      <!-- Populated by JS -->
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="user-avatar-initials">FM</div>
+      <div class="user-info">
+        <div class="user-name" id="user-display-name">Rakesh Sharma</div>
+        <div class="user-email">finance@edushamiit.in</div>
+      </div>
+      <div class="logout-btn" onclick="logout()">⏻</div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard <span id="topbar-subtitle">Finance Overview</span></div>
+      <div class="topbar-search">🔍 <span>Search anything...</span></div>
+      <div class="topbar-actions">
+        <div class="icon-btn" onclick="switchPanel('notifications')">🔔<div class="notif-dot"></div></div>
+        <div class="icon-btn" onclick="switchPanel('calendar_panel')">📅</div>
+        <div class="icon-btn" onclick="switchPanel('settings')">⚙️</div>
+        <div class="user-avatar" style="width:32px;height:32px;font-size:12px;cursor:pointer" id="topbar-avatar">FM</div>
+      </div>
+    </div>
+
+    <!-- CONTENT PANELS -->
+    <div class="content-panel active fade-in" id="panel-dashboard">
+      <!-- Dynamic -->
+    </div>
+    <div class="content-panel" id="panel-schools"><!-- Schools --></div>
+    <div class="content-panel" id="panel-notifications"><!-- Notifs --></div>
+    <div class="content-panel" id="panel-settings"><!-- Settings --></div>
+    <div class="content-panel" id="panel-fee_management"><!-- Fee Mgmt --></div>
+    <div class="content-panel" id="panel-accounts"><!-- Accounts --></div>
+    <div class="content-panel" id="panel-payroll"><!-- Payroll --></div>
+    <div class="content-panel" id="panel-budget"><!-- Budget --></div>
+    <div class="content-panel" id="panel-expenses"><!-- Expenses --></div>
+    <div class="content-panel" id="panel-reports_fin"><!-- Reports --></div>
+    <div class="content-panel" id="panel-staff_directory"><!-- Staff --></div>
+    <div class="content-panel" id="panel-recruitment"><!-- Recruit --></div>
+    <div class="content-panel" id="panel-attendance_hr"><!-- Attend HR --></div>
+    <div class="content-panel" id="panel-leave_management"><!-- Leave --></div>
+    <div class="content-panel" id="panel-performance"><!-- Perf --></div>
+    <div class="content-panel" id="panel-vehicles"><!-- Vehicles --></div>
+    <div class="content-panel" id="panel-routes"><!-- Routes --></div>
+    <div class="content-panel" id="panel-tracking"><!-- Track --></div>
+    <div class="content-panel" id="panel-books"><!-- Books --></div>
+    <div class="content-panel" id="panel-issued"><!-- Issued --></div>
+    <div class="content-panel" id="panel-inventory_lib"><!-- Inventory Lib --></div>
+    <div class="content-panel" id="panel-sports_events"><!-- Sports Events --></div>
+    <div class="content-panel" id="panel-equipment"><!-- Equipment --></div>
+    <div class="content-panel" id="panel-teams"><!-- Teams --></div>
+    <div class="content-panel" id="panel-access_control"><!-- Access --></div>
+    <div class="content-panel" id="panel-visitors"><!-- Visitors --></div>
+    <div class="content-panel" id="panel-incidents"><!-- Incidents --></div>
+    <div class="content-panel" id="panel-helpdesk"><!-- Helpdesk --></div>
+    <div class="content-panel" id="panel-announcements"><!-- Announce --></div>
+    <div class="content-panel" id="panel-multi_school"><!-- Multi School --></div>
+    <div class="content-panel" id="panel-system_config"><!-- System Config --></div>
+    <div class="content-panel" id="panel-user_management"><!-- User Mgmt --></div>
+    <div class="content-panel" id="panel-academic"><!-- Academic --></div>
+    <div class="content-panel" id="panel-admissions"><!-- Admissions --></div>
+    <div class="content-panel" id="panel-compliance"><!-- Compliance --></div>
+    <div class="content-panel" id="panel-calendar_panel"><!-- Calendar Panel --></div>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+let currentRole = 'finance';
+let currentPanel = 'dashboard';
+
+// ========== ROLE CONFIG ==========
+const roles = {
+  super_admin: {
+    name: 'Super Admin', icon: '🛡️', initials: 'SA', id: 'ADMIN-2026-001',
+    color: '#6366f1', email: 'superadmin@edushamiit.in', displayName: 'Arjun Verma',
+    nav: [
+      { section: 'Command Center', items: [
+        { id: 'dashboard', icon: '⚡', label: 'Dashboard' },
+        { id: 'multi_school', icon: '🏫', label: 'All Schools', badge: '12', badgeType: 'info' },
+        { id: 'system_config', icon: '🔧', label: 'System Config' },
+        { id: 'user_management', icon: '👤', label: 'User Management' },
+      ]},
+      { section: 'Academics', items: [
+        { id: 'academic', icon: '📖', label: 'Academic Control' },
+        { id: 'admissions', icon: '📋', label: 'Admissions' },
+        { id: 'compliance', icon: '✅', label: 'Compliance' },
+      ]},
+      { section: 'Operations', items: [
+        { id: 'fee_management', icon: '💵', label: 'Fee Management' },
+        { id: 'staff_directory', icon: '👥', label: 'Staff Directory' },
+        { id: 'transport', icon: '🚌', label: 'Transport' },
+      ]},
+      { section: 'Analytics', items: [
+        { id: 'reports_fin', icon: '📊', label: 'Reports & Analytics' },
+        { id: 'announcements', icon: '📢', label: 'Announcements' },
+      ]}
+    ]
+  },
+  director: {
+    name: 'Director', icon: '👑', initials: 'DR', id: 'ADMIN-2026-002',
+    color: '#f59e0b', email: 'director@edushamiit.in', displayName: 'Priya Mishra',
+    nav: [
+      { section: 'Overview', items: [
+        { id: 'dashboard', icon: '📊', label: 'Executive Dashboard' },
+        { id: 'multi_school', icon: '🏫', label: 'School Portfolio' },
+        { id: 'reports_fin', icon: '📈', label: 'Analytics & Reports' },
+      ]},
+      { section: 'People', items: [
+        { id: 'staff_directory', icon: '👥', label: 'Staff Overview' },
+        { id: 'performance', icon: '⭐', label: 'Performance Review' },
+        { id: 'admissions', icon: '📋', label: 'Admissions KPI' },
+      ]},
+      { section: 'Finance', items: [
+        { id: 'budget', icon: '💼', label: 'Budget Overview' },
+        { id: 'fee_management', icon: '💵', label: 'Revenue Tracking' },
+      ]},
+      { section: 'Communication', items: [
+        { id: 'announcements', icon: '📢', label: 'Announcements' },
+        { id: 'compliance', icon: '✅', label: 'Compliance' },
+      ]}
+    ]
+  },
+  principal: {
+    name: 'Principal', icon: '🎓', initials: 'PC', id: 'ADMIN-2026-003',
+    color: '#10b981', email: 'principal@edushamiit.in', displayName: 'Dr. Sanjay Gupta',
+    nav: [
+      { section: 'School', items: [
+        { id: 'dashboard', icon: '🏠', label: 'School Dashboard' },
+        { id: 'academic', icon: '📖', label: 'Academics' },
+        { id: 'admissions', icon: '📋', label: 'Admissions' },
+      ]},
+      { section: 'Staff & Students', items: [
+        { id: 'staff_directory', icon: '👥', label: 'Staff' },
+        { id: 'attendance_hr', icon: '✔️', label: 'Attendance' },
+        { id: 'performance', icon: '⭐', label: 'Appraisals' },
+      ]},
+      { section: 'Operations', items: [
+        { id: 'fee_management', icon: '💵', label: 'Fee Status' },
+        { id: 'transport', icon: '🚌', label: 'Transport' },
+        { id: 'announcements', icon: '📢', label: 'Circulars' },
+        { id: 'calendar_panel', icon: '📅', label: 'School Calendar' },
+      ]}
+    ]
+  },
+  finance: {
+    name: 'Finance Manager', icon: '💰', initials: 'FM', id: 'ADMIN-2026-004',
+    color: '#6366f1', email: 'finance@edushamiit.in', displayName: 'Rakesh Sharma',
+    nav: [
+      { section: 'Finance', items: [
+        { id: 'dashboard', icon: '💹', label: 'Finance Dashboard' },
+        { id: 'fee_management', icon: '💵', label: 'Fee Management', badge: '23', badgeType: 'warn' },
+        { id: 'accounts', icon: '📒', label: 'Accounts & Ledger' },
+        { id: 'payroll', icon: '💳', label: 'Payroll', badge: '!', badgeType: '' },
+        { id: 'budget', icon: '📊', label: 'Budget Planning' },
+        { id: 'expenses', icon: '🧾', label: 'Expenses' },
+        { id: 'reports_fin', icon: '📈', label: 'Reports & GST' },
+      ]},
+      { section: 'Operations', items: [
+        { id: 'announcements', icon: '📢', label: 'Notices' },
+        { id: 'helpdesk', icon: '🎧', label: 'Fee Queries', badge: '5', badgeType: '' },
+      ]}
+    ]
+  },
+  hr: {
+    name: 'HR Manager', icon: '👥', initials: 'HR', id: 'ADMIN-2026-005',
+    color: '#8b5cf6', email: 'hr@edushamiit.in', displayName: 'Meena Patel',
+    nav: [
+      { section: 'HR', items: [
+        { id: 'dashboard', icon: '👥', label: 'HR Dashboard' },
+        { id: 'staff_directory', icon: '📇', label: 'Staff Directory' },
+        { id: 'recruitment', icon: '📝', label: 'Recruitment', badge: '3', badgeType: 'info' },
+        { id: 'attendance_hr', icon: '✔️', label: 'Attendance' },
+        { id: 'leave_management', icon: '🏖️', label: 'Leave Management', badge: '7', badgeType: 'warn' },
+        { id: 'payroll', icon: '💳', label: 'Payroll' },
+        { id: 'performance', icon: '⭐', label: 'Appraisals' },
+      ]},
+      { section: 'Tools', items: [
+        { id: 'reports_fin', icon: '📊', label: 'HR Reports' },
+        { id: 'announcements', icon: '📢', label: 'Policy Notices' },
+      ]}
+    ]
+  },
+  transport: {
+    name: 'Transport Head', icon: '🚌', initials: 'TH', id: 'ADMIN-2026-006',
+    color: '#06b6d4', email: 'transport@edushamiit.in', displayName: 'Anil Kumar',
+    nav: [
+      { section: 'Transport', items: [
+        { id: 'dashboard', icon: '🚌', label: 'Transport Dashboard' },
+        { id: 'vehicles', icon: '🚐', label: 'Vehicles', badge: '2', badgeType: '' },
+        { id: 'routes', icon: '🗺️', label: 'Routes & Stops' },
+        { id: 'tracking', icon: '📍', label: 'Live Tracking' },
+        { id: 'staff_directory', icon: '👤', label: 'Drivers & Staff' },
+      ]},
+      { section: 'Reports', items: [
+        { id: 'reports_fin', icon: '📊', label: 'Transport Reports' },
+        { id: 'helpdesk', icon: '🎧', label: 'Parent Queries', badge: '4', badgeType: '' },
+      ]}
+    ]
+  },
+  library: {
+    name: 'Librarian', icon: '📚', initials: 'LB', id: 'ADMIN-2026-007',
+    color: '#f97316', email: 'library@edushamiit.in', displayName: 'Sudha Rani',
+    nav: [
+      { section: 'Library', items: [
+        { id: 'dashboard', icon: '📚', label: 'Library Dashboard' },
+        { id: 'books', icon: '📖', label: 'Book Catalog' },
+        { id: 'issued', icon: '🔖', label: 'Issued Books', badge: '12', badgeType: 'warn' },
+        { id: 'inventory_lib', icon: '📦', label: 'Inventory' },
+      ]},
+      { section: 'Members', items: [
+        { id: 'staff_directory', icon: '👥', label: 'Members' },
+        { id: 'reports_fin', icon: '📊', label: 'Library Reports' },
+      ]}
+    ]
+  },
+  sports: {
+    name: 'Sports Head', icon: '⚽', initials: 'SP', id: 'ADMIN-2026-008',
+    color: '#10b981', email: 'sports@edushamiit.in', displayName: 'Coach Rajesh',
+    nav: [
+      { section: 'Sports', items: [
+        { id: 'dashboard', icon: '⚽', label: 'Sports Dashboard' },
+        { id: 'sports_events', icon: '🏆', label: 'Events & Tournaments' },
+        { id: 'teams', icon: '👥', label: 'Teams & Players' },
+        { id: 'equipment', icon: '🏋️', label: 'Equipment' },
+      ]},
+      { section: 'Management', items: [
+        { id: 'staff_directory', icon: '👤', label: 'Coaches' },
+        { id: 'reports_fin', icon: '📊', label: 'Performance Reports' },
+      ]}
+    ]
+  },
+  security: {
+    name: 'Security Head', icon: '🔒', initials: 'SH', id: 'ADMIN-2026-009',
+    color: '#f43f5e', email: 'security@edushamiit.in', displayName: 'Ravi Singh',
+    nav: [
+      { section: 'Security', items: [
+        { id: 'dashboard', icon: '🛡️', label: 'Security Dashboard' },
+        { id: 'access_control', icon: '🔐', label: 'Access Control' },
+        { id: 'visitors', icon: '🪪', label: 'Visitor Management', badge: '3', badgeType: 'warn' },
+        { id: 'incidents', icon: '🚨', label: 'Incidents', badge: '1', badgeType: '' },
+      ]},
+      { section: 'Staff', items: [
+        { id: 'staff_directory', icon: '👤', label: 'Guard Roster' },
+        { id: 'reports_fin', icon: '📊', label: 'Security Reports' },
+      ]}
+    ]
+  },
+  support: {
+    name: 'Support Manager', icon: '🎧', initials: 'SM', id: 'ADMIN-2026-010',
+    color: '#06b6d4', email: 'support@edushamiit.in', displayName: 'Priti Verma',
+    nav: [
+      { section: 'Support', items: [
+        { id: 'dashboard', icon: '🎧', label: 'Support Dashboard' },
+        { id: 'helpdesk', icon: '🎫', label: 'Help Desk', badge: '18', badgeType: '' },
+        { id: 'announcements', icon: '📢', label: 'Announcements' },
+      ]},
+      { section: 'Communication', items: [
+        { id: 'staff_directory', icon: '👥', label: 'Staff Directory' },
+        { id: 'reports_fin', icon: '📊', label: 'Support Reports' },
+      ]}
+    ]
+  },
+};
+
+// ========== NAV BUILDER ==========
+function buildNav(role) {
+  const config = roles[role];
+  if (!config) return;
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = '';
+  config.nav.forEach(section => {
+    const s = document.createElement('div');
+    s.className = 'nav-section';
+    s.innerHTML = `<div class="nav-section-label">${section.section}</div>`;
+    section.items.forEach(item => {
+      const d = document.createElement('div');
+      d.className = 'nav-item' + (item.id === currentPanel ? ' active' : '');
+      d.innerHTML = `<span class="nav-icon">${item.icon}</span>${item.label}${item.badge ? `<span class="nav-badge ${item.badgeType||''}">${item.badge}</span>` : ''}`;
+      d.onclick = () => switchPanel(item.id);
+      s.appendChild(d);
+    });
+    nav.appendChild(s);
+  });
+}
+
+// ========== ROLE SWITCH ==========
+function switchRole(role) {
+  currentRole = role;
+  currentPanel = 'dashboard';
+  const config = roles[role];
+  if (!config) return;
+  document.getElementById('sidebar-role-icon').textContent = config.icon;
+  document.getElementById('sidebar-role-name').textContent = config.name;
+  document.getElementById('sidebar-role-id').textContent = config.id;
+  document.getElementById('user-display-name').textContent = config.displayName;
+  document.getElementById('user-avatar-initials').textContent = config.initials;
+  document.getElementById('topbar-avatar').textContent = config.initials;
+  // update role switcher buttons
+  document.querySelectorAll('#role-switcher .role-top-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(role.split('_')[0]));
+  });
+  buildNav(role);
+  renderPanel('dashboard');
+}
+
+// ========== PANEL SWITCH ==========
+function switchPanel(panelId) {
+  currentPanel = panelId;
+  document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const panel = document.getElementById('panel-' + panelId);
+  if (panel) { panel.classList.add('active'); panel.classList.add('fade-in'); }
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.includes(panelId.replace(/_/g,' '))) n.classList.add('active');
+  });
+  // Re-highlight nav
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(n => {
+    const onclick = n.getAttribute('onclick');
+  });
+  buildNav(currentRole); // rebuild to mark active
+  renderPanel(panelId);
+  updateTopbar(panelId);
+}
+
+function updateTopbar(panelId) {
+  const titles = {
+    dashboard:'Dashboard', fee_management:'Fee Management', accounts:'Accounts & Ledger',
+    payroll:'Payroll Processing', budget:'Budget Planning', expenses:'Expenses',
+    reports_fin:'Reports & Analytics', staff_directory:'Staff Directory', recruitment:'Recruitment',
+    attendance_hr:'Attendance', leave_management:'Leave Management', performance:'Performance Review',
+    vehicles:'Vehicle Management', routes:'Routes & Stops', tracking:'Live Tracking',
+    books:'Book Catalog', issued:'Issued Books', inventory_lib:'Library Inventory',
+    sports_events:'Sports Events', equipment:'Sports Equipment', teams:'Teams & Players',
+    access_control:'Access Control', visitors:'Visitor Management', incidents:'Security Incidents',
+    helpdesk:'Help Desk', announcements:'Announcements', multi_school:'School Portfolio',
+    system_config:'System Configuration', user_management:'User Management',
+    academic:'Academic Control', admissions:'Admissions', compliance:'Compliance',
+    calendar_panel:'School Calendar', notifications:'Notifications', settings:'Settings', schools:'School Selector'
+  };
+  document.getElementById('topbar-title').innerHTML = (titles[panelId]||panelId) + ` <span id="topbar-subtitle">${roles[currentRole]?.name||''}</span>`;
+}
+
+// ========== PANEL RENDERERS ==========
+function renderPanel(id) {
+  const el = document.getElementById('panel-' + id);
+  if (!el) return;
+  const renderers = {
+    dashboard: renderDashboard,
+    fee_management: renderFeeManagement,
+    accounts: renderAccounts,
+    payroll: renderPayroll,
+    budget: renderBudget,
+    expenses: renderExpenses,
+    reports_fin: renderReports,
+    staff_directory: renderStaffDirectory,
+    recruitment: renderRecruitment,
+    attendance_hr: renderAttendance,
+    leave_management: renderLeave,
+    performance: renderPerformance,
+    vehicles: renderVehicles,
+    routes: renderRoutes,
+    tracking: renderTracking,
+    books: renderBooks,
+    issued: renderIssued,
+    inventory_lib: renderInventoryLib,
+    sports_events: renderSportsEvents,
+    equipment: renderEquipment,
+    teams: renderTeams,
+    access_control: renderAccessControl,
+    visitors: renderVisitors,
+    incidents: renderIncidents,
+    helpdesk: renderHelpdesk,
+    announcements: renderAnnouncements,
+    multi_school: renderMultiSchool,
+    system_config: renderSystemConfig,
+    user_management: renderUserManagement,
+    academic: renderAcademic,
+    admissions: renderAdmissions,
+    compliance: renderCompliance,
+    calendar_panel: renderCalendarPanel,
+    notifications: renderNotifications,
+    settings: renderSettings,
+    schools: renderMultiSchool,
+  };
+  if (renderers[id]) {
+    el.innerHTML = '';
+    renderers[id](el);
+  }
+}
+
+// ============= DASHBOARD =============
+function renderDashboard(el) {
+  const roleData = {
+    super_admin: {
+      stats: [
+        { icon:'🏫', label:'Total Schools', value:'12', change:'+2 this year', dir:'up', cls:'blue' },
+        { icon:'🎓', label:'Total Students', value:'28,450', change:'+1,240 enrolled', dir:'up', cls:'emerald' },
+        { icon:'👨‍🏫', label:'Total Staff', value:'1,842', change:'+34 joined', dir:'up', cls:'gold' },
+        { icon:'💰', label:'Revenue (FY)', value:'₹8.4Cr', change:'+18% vs last FY', dir:'up', cls:'rose' },
+      ],
+    },
+    director: {
+      stats: [
+        { icon:'🏫', label:'Schools Managed', value:'5', change:'2 underperforming', dir:'down', cls:'blue' },
+        { icon:'📈', label:'Avg Collection %', value:'87.4%', change:'+3.2% vs last month', dir:'up', cls:'emerald' },
+        { icon:'⭐', label:'Avg CBSE Score', value:'82.1%', change:'+1.4% YoY', dir:'up', cls:'gold' },
+        { icon:'🚨', label:'Pending Actions', value:'7', change:'3 critical', dir:'down', cls:'rose' },
+      ],
+    },
+    principal: {
+      stats: [
+        { icon:'👦', label:'Total Students', value:'2,340', change:'+120 this session', dir:'up', cls:'blue' },
+        { icon:'👨‍🏫', label:'Teaching Staff', value:'128', change:'4 on leave today', dir:'down', cls:'emerald' },
+        { icon:'✅', label:'Attendance Today', value:'94.2%', change:'+0.8% vs yesterday', dir:'up', cls:'gold' },
+        { icon:'💵', label:'Fee Pending', value:'₹12.4L', change:'38 students', dir:'down', cls:'rose' },
+      ],
+    },
+    finance: {
+      stats: [
+        { icon:'💵', label:'Fee Collected (MTD)', value:'₹42.6L', change:'+12% vs last month', dir:'up', cls:'blue' },
+        { icon:'⏳', label:'Fee Pending', value:'₹8.2L', change:'23 students', dir:'down', cls:'emerald' },
+        { icon:'💳', label:'Payroll Due', value:'₹18.4L', change:'Due in 5 days', dir:'down', cls:'gold' },
+        { icon:'📊', label:'Monthly Budget', value:'₹67L', change:'71% utilized', dir:'up', cls:'rose' },
+      ],
+    },
+    hr: {
+      stats: [
+        { icon:'👥', label:'Total Staff', value:'186', change:'+4 this month', dir:'up', cls:'blue' },
+        { icon:'🟢', label:'Present Today', value:'174', change:'93.5% attendance', dir:'up', cls:'emerald' },
+        { icon:'🏖️', label:'Leave Requests', value:'7', change:'3 pending approval', dir:'down', cls:'gold' },
+        { icon:'📝', label:'Open Positions', value:'3', change:'2 critical roles', dir:'down', cls:'rose' },
+      ],
+    },
+    transport: {
+      stats: [
+        { icon:'🚌', label:'Total Buses', value:'18', change:'2 under service', dir:'down', cls:'blue' },
+        { icon:'👦', label:'Students Covered', value:'840', change:'36% of school', dir:'up', cls:'emerald' },
+        { icon:'🗺️', label:'Active Routes', value:'14', change:'All running', dir:'up', cls:'gold' },
+        { icon:'⚠️', label:'Alerts Today', value:'2', change:'1 breakdown', dir:'down', cls:'rose' },
+      ],
+    },
+    library: {
+      stats: [
+        { icon:'📚', label:'Total Books', value:'12,480', change:'+240 added', dir:'up', cls:'blue' },
+        { icon:'🔖', label:'Books Issued', value:'342', change:'12 overdue', dir:'down', cls:'emerald' },
+        { icon:'👥', label:'Active Members', value:'2,104', change:'89% students', dir:'up', cls:'gold' },
+        { icon:'🔄', label:'Returns Due', value:'28', change:'This week', dir:'down', cls:'rose' },
+      ],
+    },
+    sports: {
+      stats: [
+        { icon:'🏆', label:'Active Events', value:'4', change:'2 this week', dir:'up', cls:'blue' },
+        { icon:'👥', label:'Team Members', value:'284', change:'12 sports', dir:'up', cls:'emerald' },
+        { icon:'🥇', label:'Trophies Won', value:'18', change:'+3 this season', dir:'up', cls:'gold' },
+        { icon:'🏋️', label:'Equipment Items', value:'486', change:'12 needs repair', dir:'down', cls:'rose' },
+      ],
+    },
+    security: {
+      stats: [
+        { icon:'🪪', label:'Visitors Today', value:'42', change:'8 currently inside', dir:'up', cls:'blue' },
+        { icon:'✅', label:'Guard Present', value:'12/14', change:'2 on leave', dir:'down', cls:'emerald' },
+        { icon:'🚨', label:'Incidents (Month)', value:'3', change:'0 major', dir:'up', cls:'gold' },
+        { icon:'📷', label:'CCTV Cameras', value:'64', change:'2 offline', dir:'down', cls:'rose' },
+      ],
+    },
+    support: {
+      stats: [
+        { icon:'🎫', label:'Open Tickets', value:'18', change:'5 critical', dir:'down', cls:'blue' },
+        { icon:'✅', label:'Resolved Today', value:'12', change:'+4 vs yesterday', dir:'up', cls:'emerald' },
+        { icon:'⏱️', label:'Avg Response', value:'2.4h', change:'-0.5h improved', dir:'up', cls:'gold' },
+        { icon:'😊', label:'Satisfaction', value:'94%', change:'+2% this week', dir:'up', cls:'rose' },
+      ],
+    },
+  };
+  const d = roleData[currentRole] || roleData.finance;
+
+  el.innerHTML = `
+    <div class="stats-grid">
+      ${d.stats.map(s => `
+        <div class="stat-card ${s.cls}">
+          <div class="stat-icon">${s.icon}</div>
+          <div class="stat-value">${s.value}</div>
+          <div class="stat-label">${s.label}</div>
+          <div class="stat-change ${s.dir}">
+            ${s.dir==='up'?'↑':'↓'} ${s.change}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="quick-actions">
+      ${getQuickActions(currentRole).map(a => `
+        <div class="qa-btn" onclick="switchPanel('${a.panel}')">
+          <span class="qa-icon">${a.icon}</span>
+          <span class="qa-label">${a.label}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Monthly Trend</div>
+          <div class="card-action">View All</div>
+        </div>
+        <div class="chart-area" style="align-items:flex-end;gap:6px;height:160px">
+          ${['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'].map((m,i)=>{
+            const h = [40,55,48,70,82,65,90,75,88,60,72,95][i];
+            const colors = ['var(--gradient-primary)','var(--gradient-emerald)','var(--gradient-gold)'];
+            return `<div style="flex:1;border-radius:4px 4px 0 0;background:${colors[i%3]};height:${h}%;min-width:16px;opacity:${i===11?1:0.6};transition:opacity 0.2s;position:relative" title="${m}: ${h}%">
+              <div style="position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text-muted);white-space:nowrap">${m}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="margin-top:28px"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔔 Recent Activity</div>
+          <div class="card-action">View All</div>
+        </div>
+        ${getActivities(currentRole).map(a => `
+          <div class="activity-item">
+            <div class="activity-icon" style="background:${a.bg}">${a.icon}</div>
+            <div class="activity-content">
+              <div class="activity-text">${a.text}</div>
+              <div class="activity-time">${a.time}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="grid-2">
+      ${getDashboardExtra(currentRole)}
+    </div>
+  `;
+}
+
+function getQuickActions(role) {
+  const map = {
+    finance: [
+      {icon:'💵',label:'Collect Fee',panel:'fee_management'},
+      {icon:'💳',label:'Run Payroll',panel:'payroll'},
+      {icon:'🧾',label:'Add Expense',panel:'expenses'},
+      {icon:'📊',label:'P&L Report',panel:'reports_fin'},
+      {icon:'💼',label:'Budget',panel:'budget'},
+      {icon:'📒',label:'Ledger',panel:'accounts'},
+      {icon:'📤',label:'Export Data',panel:'reports_fin'},
+      {icon:'🔔',label:'Reminders',panel:'announcements'},
+    ],
+    hr: [
+      {icon:'👤',label:'Add Staff',panel:'staff_directory'},
+      {icon:'📝',label:'New Job Post',panel:'recruitment'},
+      {icon:'✔️',label:'Attendance',panel:'attendance_hr'},
+      {icon:'🏖️',label:'Approve Leave',panel:'leave_management'},
+      {icon:'💳',label:'Payroll',panel:'payroll'},
+      {icon:'⭐',label:'Appraisal',panel:'performance'},
+      {icon:'📊',label:'HR Report',panel:'reports_fin'},
+      {icon:'📢',label:'Notice',panel:'announcements'},
+    ],
+    transport: [
+      {icon:'🚌',label:'Add Vehicle',panel:'vehicles'},
+      {icon:'🗺️',label:'New Route',panel:'routes'},
+      {icon:'📍',label:'Live Track',panel:'tracking'},
+      {icon:'👤',label:'Add Driver',panel:'staff_directory'},
+      {icon:'⚠️',label:'Breakdown',panel:'vehicles'},
+      {icon:'📊',label:'Reports',panel:'reports_fin'},
+      {icon:'💵',label:'Fuel Logs',panel:'expenses'},
+      {icon:'📢',label:'Alert',panel:'announcements'},
+    ],
+    library: [
+      {icon:'📖',label:'Add Book',panel:'books'},
+      {icon:'🔖',label:'Issue Book',panel:'issued'},
+      {icon:'🔄',label:'Returns',panel:'issued'},
+      {icon:'📦',label:'Inventory',panel:'inventory_lib'},
+      {icon:'👥',label:'Members',panel:'staff_directory'},
+      {icon:'📊',label:'Reports',panel:'reports_fin'},
+      {icon:'🔍',label:'Search',panel:'books'},
+      {icon:'📢',label:'Notice',panel:'announcements'},
+    ],
+    super_admin: [
+      {icon:'🏫',label:'Add School',panel:'multi_school'},
+      {icon:'👤',label:'Add User',panel:'user_management'},
+      {icon:'⚙️',label:'Config',panel:'system_config'},
+      {icon:'📊',label:'Analytics',panel:'reports_fin'},
+      {icon:'📋',label:'Admission',panel:'admissions'},
+      {icon:'✅',label:'Compliance',panel:'compliance'},
+      {icon:'💰',label:'Finance',panel:'fee_management'},
+      {icon:'📢',label:'Broadcast',panel:'announcements'},
+    ],
+    principal: [
+      {icon:'✔️',label:'Attendance',panel:'attendance_hr'},
+      {icon:'📢',label:'Circular',panel:'announcements'},
+      {icon:'📋',label:'Admissions',panel:'admissions'},
+      {icon:'👥',label:'Staff',panel:'staff_directory'},
+      {icon:'📅',label:'Calendar',panel:'calendar_panel'},
+      {icon:'💵',label:'Fee Status',panel:'fee_management'},
+      {icon:'🚌',label:'Transport',panel:'transport'},
+      {icon:'⭐',label:'Appraisals',panel:'performance'},
+    ],
+    director: [
+      {icon:'🏫',label:'Schools',panel:'multi_school'},
+      {icon:'📈',label:'Analytics',panel:'reports_fin'},
+      {icon:'💼',label:'Budget',panel:'budget'},
+      {icon:'👥',label:'Staff',panel:'staff_directory'},
+      {icon:'📋',label:'KPIs',panel:'admissions'},
+      {icon:'⭐',label:'Review',panel:'performance'},
+      {icon:'📢',label:'Announce',panel:'announcements'},
+      {icon:'✅',label:'Compliance',panel:'compliance'},
+    ],
+    sports: [
+      {icon:'🏆',label:'New Event',panel:'sports_events'},
+      {icon:'👥',label:'Teams',panel:'teams'},
+      {icon:'🏋️',label:'Equipment',panel:'equipment'},
+      {icon:'📊',label:'Reports',panel:'reports_fin'},
+      {icon:'👤',label:'Coaches',panel:'staff_directory'},
+      {icon:'📅',label:'Schedule',panel:'calendar_panel'},
+      {icon:'📢',label:'Notice',panel:'announcements'},
+      {icon:'🏅',label:'Awards',panel:'sports_events'},
+    ],
+    security: [
+      {icon:'🪪',label:'New Visitor',panel:'visitors'},
+      {icon:'🔐',label:'Access',panel:'access_control'},
+      {icon:'🚨',label:'Incident',panel:'incidents'},
+      {icon:'👤',label:'Guards',panel:'staff_directory'},
+      {icon:'📷',label:'CCTV',panel:'access_control'},
+      {icon:'📊',label:'Reports',panel:'reports_fin'},
+      {icon:'🔒',label:'Lockdown',panel:'incidents'},
+      {icon:'📢',label:'Alert',panel:'announcements'},
+    ],
+    support: [
+      {icon:'🎫',label:'New Ticket',panel:'helpdesk'},
+      {icon:'📢',label:'Announce',panel:'announcements'},
+      {icon:'👥',label:'Staff',panel:'staff_directory'},
+      {icon:'📊',label:'Reports',panel:'reports_fin'},
+      {icon:'✅',label:'Resolve',panel:'helpdesk'},
+      {icon:'📧',label:'Email',panel:'announcements'},
+      {icon:'📋',label:'FAQ',panel:'helpdesk'},
+      {icon:'🔔',label:'Alerts',panel:'notifications'},
+    ],
+  };
+  return map[role] || map.finance;
+}
+
+function getActivities(role) {
+  const map = {
+    finance: [
+      {icon:'💵',bg:'rgba(16,185,129,0.15)',text:'<strong>Rohan Sharma</strong> paid ₹24,500 fee for Q4',time:'10 mins ago'},
+      {icon:'⚠️',bg:'rgba(245,158,11,0.15)',text:'Payroll for <strong>November</strong> is pending approval',time:'1 hour ago'},
+      {icon:'🧾',bg:'rgba(99,102,241,0.15)',text:'New expense: <strong>Lab Equipment</strong> ₹1,20,000 added',time:'3 hours ago'},
+      {icon:'📊',bg:'rgba(244,63,94,0.15)',text:'Monthly P&L report generated for <strong>October</strong>',time:'Yesterday'},
+    ],
+    hr: [
+      {icon:'👤',bg:'rgba(16,185,129,0.15)',text:'<strong>Anjali Singh</strong> joined as Science Teacher',time:'9 mins ago'},
+      {icon:'🏖️',bg:'rgba(245,158,11,0.15)',text:'<strong>Ramesh Kumar</strong> applied for 3-day sick leave',time:'45 mins ago'},
+      {icon:'📝',bg:'rgba(99,102,241,0.15)',text:'New job posted: <strong>Math Teacher</strong> (Secondary)',time:'2 hours ago'},
+      {icon:'✅',bg:'rgba(244,63,94,0.15)',text:'Payroll processed for <strong>186 employees</strong>',time:'Yesterday'},
+    ],
+    transport: [
+      {icon:'🚌',bg:'rgba(6,182,212,0.15)',text:'Bus <strong>MP-09-AB-1234</strong> departed Route 4',time:'5 mins ago'},
+      {icon:'⚠️',bg:'rgba(245,158,11,0.15)',text:'Bus <strong>MH-12-CD-5678</strong> breakdown at Sector 18',time:'32 mins ago'},
+      {icon:'✅',bg:'rgba(16,185,129,0.15)',text:'Route 7 completed – all students dropped safely',time:'1 hour ago'},
+      {icon:'🔧',bg:'rgba(99,102,241,0.15)',text:'Service scheduled for <strong>Bus 3</strong> tomorrow',time:'Yesterday'},
+    ],
+    default: [
+      {icon:'📢',bg:'rgba(99,102,241,0.15)',text:'Assembly scheduled for <strong>Tomorrow 8 AM</strong>',time:'Just now'},
+      {icon:'✅',bg:'rgba(16,185,129,0.15)',text:'<strong>Attendance</strong> marked: 94% present today',time:'1 hour ago'},
+      {icon:'🔔',bg:'rgba(245,158,11,0.15)',text:'New announcement from <strong>Principal</strong>',time:'3 hours ago'},
+      {icon:'📊',bg:'rgba(244,63,94,0.15)',text:'Monthly report auto-generated and sent',time:'Yesterday'},
+    ]
+  };
+  return map[role] || map.default;
+}
+
+function getDashboardExtra(role) {
+  if (role === 'finance') {
+    return `
+      <div class="card">
+        <div class="card-header"><div class="card-title">💰 Fee Collection Status</div></div>
+        ${[
+          {grade:'Grade 1-5', collected:89, amt:'₹14.2L'},
+          {grade:'Grade 6-8', collected:72, amt:'₹11.8L'},
+          {grade:'Grade 9-10', collected:95, amt:'₹9.4L'},
+          {grade:'Grade 11-12', collected:68, amt:'₹7.2L'},
+        ].map(r => `
+          <div style="margin-bottom:14px">
+            <div class="flex-between mb-4" style="margin-bottom:6px">
+              <span class="f13">${r.grade}</span>
+              <span class="f13 font-bold text-primary">${r.amt} <span class="text-secondary">(${r.collected}%)</span></span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill ${r.collected>85?'emerald':r.collected>70?'blue':'gold'}" style="width:${r.collected}%"></div></div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🧾 Upcoming Payments</div></div>
+        ${[
+          {label:'Payroll - November',amt:'₹18.4L',due:'5 days',cls:'gold'},
+          {label:'Electricity Bill',amt:'₹1.2L',due:'8 days',cls:'blue'},
+          {label:'Lab Supplies Vendor',amt:'₹84,000',due:'12 days',cls:'emerald'},
+          {label:'Annual Insurance',amt:'₹2.6L',due:'20 days',cls:'gray'},
+        ].map(p => `
+          <div class="metric-row">
+            <div>
+              <div class="f13 font-medium">${p.label}</div>
+              <div style="font-size:11px;color:var(--text-muted)">Due in ${p.due}</div>
+            </div>
+            <span class="badge badge-${p.cls}">${p.amt}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else if (role === 'hr') {
+    return `
+      <div class="card">
+        <div class="card-header"><div class="card-title">👥 Dept Attendance Today</div></div>
+        ${[
+          {dept:'Teaching Staff', present:42, total:46},
+          {dept:'Admin Staff', present:18, total:19},
+          {dept:'Lab Assistants', present:8, total:10},
+          {dept:'Support Staff', present:22, total:24},
+        ].map(d => `
+          <div style="margin-bottom:14px">
+            <div class="flex-between" style="margin-bottom:6px">
+              <span class="f13">${d.dept}</span>
+              <span class="f13 text-primary">${d.present}/${d.total}</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill emerald" style="width:${Math.round(d.present/d.total*100)}%"></div></div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📝 Pending Leave Requests</div></div>
+        ${[
+          {name:'Ravi Kumar',dept:'Science',days:3,type:'Medical'},
+          {name:'Sunita Devi',dept:'Math',days:1,type:'Personal'},
+          {name:'Manoj Singh',dept:'Admin',days:5,type:'Annual'},
+          {name:'Priti Shah',dept:'Commerce',days:2,type:'Medical'},
+        ].map(r => `
+          <div class="metric-row">
+            <div class="avatar-cell">
+              <div class="mini-avatar" style="background:rgba(139,92,246,0.2);color:#8b5cf6">${r.name[0]}</div>
+              <div>
+                <div class="avatar-name">${r.name}</div>
+                <div class="avatar-sub">${r.dept} • ${r.days} day(s) • ${r.type}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm btn-primary-sm" style="padding:4px 10px">✓</button>
+              <button class="btn-sm btn-danger-sm" style="padding:4px 10px">✗</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else if (role === 'transport') {
+    return `
+      <div class="card">
+        <div class="card-header"><div class="card-title">🚌 Fleet Status</div></div>
+        ${[
+          {bus:'DL-01-AB-1234',route:'Route 1 - Sector 12',driver:'Mohan Lal',status:'Active'},
+          {bus:'UP-32-CD-5678',route:'Route 3 - Green Park',driver:'Suresh K.',status:'Active'},
+          {bus:'MP-09-EF-9012',route:'Route 6 - Noida Ext.',driver:'Ramesh J.',status:'Breakdown'},
+          {bus:'HR-26-GH-3456',route:'Route 9 - Indirapuram',driver:'Vivek M.',status:'Service'},
+        ].map(b => `
+          <div class="metric-row">
+            <div>
+              <div class="f13 font-medium">${b.bus}</div>
+              <div class="avatar-sub">${b.route} • ${b.driver}</div>
+            </div>
+            <span class="badge ${b.status==='Active'?'badge-green':b.status==='Breakdown'?'badge-red':'badge-gold'}">${b.status}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📍 Today's Schedule</div></div>
+        ${[
+          {time:'6:30 AM',event:'Morning Pickup Start',status:'done'},
+          {time:'8:00 AM',event:'All buses at school',status:'done'},
+          {time:'1:30 PM',event:'Afternoon Drop - Primary',status:'active'},
+          {time:'4:00 PM',event:'Afternoon Drop - Secondary',status:'upcoming'},
+          {time:'5:00 PM',event:'Extra-Curricular Drop',status:'upcoming'},
+        ].map(s => `
+          <div class="activity-item">
+            <div style="width:60px;font-size:11px;color:var(--text-muted);padding-top:2px">${s.time}</div>
+            <div class="activity-icon" style="background:${s.status==='done'?'rgba(16,185,129,0.15)':s.status==='active'?'rgba(99,102,241,0.15)':'rgba(148,163,184,0.1)'}">
+              ${s.status==='done'?'✅':s.status==='active'?'🔄':'⏱️'}
+            </div>
+            <div class="activity-content">
+              <div class="f13" style="color:${s.status==='active'?'var(--text-primary)':'var(--text-secondary)'}">${s.event}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    return `
+      <div class="card">
+        <div class="card-header"><div class="card-title">📅 Upcoming Events</div></div>
+        ${[
+          {date:'Dec 15',event:'Annual Sports Day',type:'sports'},
+          {date:'Dec 18',event:'Parent-Teacher Meeting',type:'academic'},
+          {date:'Dec 22',event:'Winter Break Begins',type:'holiday'},
+          {date:'Jan 10',event:'New Term Starts',type:'academic'},
+        ].map(e => `
+          <div class="metric-row">
+            <div class="avatar-cell">
+              <div class="mini-avatar" style="background:rgba(99,102,241,0.15);color:var(--accent-primary)">${e.date.split(' ')[1]}</div>
+              <div>
+                <div class="avatar-name">${e.event}</div>
+                <div class="avatar-sub">${e.date}</div>
+              </div>
+            </div>
+            <span class="badge ${e.type==='sports'?'badge-green':e.type==='holiday'?'badge-gold':'badge-blue'}">${e.type}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📊 Quick Metrics</div></div>
+        ${getRoleMetrics(currentRole).map(m=>`
+          <div class="metric-row">
+            <span class="metric-label">${m.label}</span>
+            <span class="metric-value">${m.value}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+}
+
+function getRoleMetrics(role) {
+  const map = {
+    super_admin:[
+      {label:'Schools Active',value:'12/12'},
+      {label:'System Uptime',value:'99.8%'},
+      {label:'Users Online',value:'284'},
+      {label:'Data Storage Used',value:'68%'},
+      {label:'API Calls Today',value:'14,280'},
+    ],
+    director:[
+      {label:'Collection Rate',value:'87.4%'},
+      {label:'Staff Strength',value:'1,842'},
+      {label:'New Admissions',value:'+124'},
+      {label:'Avg Satisfaction',value:'4.6/5'},
+      {label:'Pending Reviews',value:'7'},
+    ],
+    principal:[
+      {label:'Avg Daily Attendance',value:'94.2%'},
+      {label:'Exams This Month',value:'3'},
+      {label:'New Admissions',value:'8'},
+      {label:'Staff on Leave',value:'4'},
+      {label:'Pending Approvals',value:'6'},
+    ],
+    library:[
+      {label:'Books Available',value:'11,840'},
+      {label:'Books Issued',value:'342'},
+      {label:'Overdue Books',value:'12'},
+      {label:'New Arrivals',value:'48'},
+      {label:'Lost/Damaged',value:'3'},
+    ],
+    sports:[
+      {label:'Active Sports',value:'12'},
+      {label:'Events This Month',value:'4'},
+      {label:'Medals This Year',value:'28'},
+      {label:'Students Registered',value:'284'},
+      {label:'Equipment OK',value:'94%'},
+    ],
+    security:[
+      {label:'Guards On Duty',value:'12/14'},
+      {label:'Visitors Today',value:'42'},
+      {label:'Gates Open',value:'2/3'},
+      {label:'CCTV Active',value:'62/64'},
+      {label:'Incidents MTD',value:'3'},
+    ],
+    support:[
+      {label:'Open Tickets',value:'18'},
+      {label:'Closed Today',value:'12'},
+      {label:'Avg Resolution',value:'4.2h'},
+      {label:'Escalated',value:'2'},
+      {label:'CSAT Score',value:'94%'},
+    ],
+  };
+  return map[role] || map.super_admin;
+}
+
+// ============= FEE MANAGEMENT =============
+function renderFeeManagement(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">💵 Overview</div>
+      <div class="tab-item">📋 Student Fees</div>
+      <div class="tab-item">⏰ Pending</div>
+      <div class="tab-item">🏷️ Fee Structure</div>
+      <div class="tab-item">🧾 Receipts</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">💵</div><div class="stat-value">₹42.6L</div><div class="stat-label">Collected (MTD)</div><div class="stat-change up">↑ 12%</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">⏳</div><div class="stat-value">₹8.2L</div><div class="stat-label">Pending</div><div class="stat-change down">↓ 23 students</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🚫</div><div class="stat-value">₹1.4L</div><div class="stat-label">Overdue</div><div class="stat-change down">↓ 8 students</div></div>
+      <div class="stat-card rose"><div class="stat-icon">📊</div><div class="stat-value">83.8%</div><div class="stat-label">Collection %</div><div class="stat-change up">↑ 3%</div></div>
+    </div>
+    <div class="notice warn"><span class="notice-icon">⚠️</span><div class="notice-text"><strong>23 students</strong> have pending fees for December 2024. SMS reminders sent to parents. 8 students are overdue by 30+ days.</div></div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Fee Ledger</div>
+        <div style="display:flex;gap:8px">
+          <select class="form-control" style="padding:6px 10px;font-size:12px"><option>All Classes</option><option>Grade 1-5</option><option>Grade 6-8</option><option>Grade 9-12</option></select>
+          <div class="card-action">+ Collect Fee</div>
+        </div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Student</th><th>Class</th><th>Total Fee</th><th>Paid</th><th>Balance</th><th>Last Payment</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          ${[
+            {name:'Aarav Sharma',cls:'10-A',total:'₹48,000',paid:'₹48,000',bal:'₹0',date:'Dec 1, 2024',status:'Paid',st:'green'},
+            {name:'Priya Singh',cls:'8-B',total:'₹42,000',paid:'₹21,000',bal:'₹21,000',date:'Oct 15, 2024',status:'Partial',st:'gold'},
+            {name:'Rohit Kumar',cls:'6-C',total:'₹38,000',paid:'₹0',bal:'₹38,000',date:'Never',status:'Overdue',st:'red'},
+            {name:'Sneha Patel',cls:'11-A',total:'₹55,000',paid:'₹55,000',bal:'₹0',date:'Nov 28, 2024',status:'Paid',st:'green'},
+            {name:'Ravi Verma',cls:'9-B',total:'₹45,000',paid:'₹30,000',bal:'₹15,000',date:'Nov 1, 2024',status:'Partial',st:'gold'},
+            {name:'Ananya Gupta',cls:'12-A',total:'₹58,000',paid:'₹58,000',bal:'₹0',date:'Dec 3, 2024',status:'Paid',st:'green'},
+          ].map(r=>`
+            <tr>
+              <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(99,102,241,0.2);color:#818cf8">${r.name[0]}</div><div class="avatar-name">${r.name}</div></div></td>
+              <td>${r.cls}</td><td>${r.total}</td><td>${r.paid}</td>
+              <td style="color:${r.st==='red'?'var(--accent-rose)':r.st==='gold'?'var(--accent-gold)':'var(--accent-emerald)'};font-weight:600">${r.bal}</td>
+              <td>${r.date}</td>
+              <td><span class="badge badge-${r.st}">${r.status}</span></td>
+              <td><button class="btn-sm btn-primary-sm">Collect</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= ACCOUNTS =============
+function renderAccounts(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">📒 Ledger</div>
+      <div class="tab-item">🏦 Bank Accounts</div>
+      <div class="tab-item">🔄 Transactions</div>
+      <div class="tab-item">📊 Trial Balance</div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🏦 Bank Balances</div><div class="card-action">Refresh</div></div>
+        ${[
+          {bank:'SBI - Current A/C',acc:'XXXX-8421',bal:'₹24,84,200',type:'Current'},
+          {bank:'HDFC - Fixed Deposit',acc:'XXXX-3301',bal:'₹50,00,000',type:'FD'},
+          {bank:'PNB - Salary A/C',acc:'XXXX-7712',bal:'₹18,42,000',type:'Current'},
+        ].map(b=>`
+          <div class="school-card">
+            <div class="school-card-icon" style="background:rgba(99,102,241,0.1)">🏦</div>
+            <div class="school-card-info">
+              <div class="school-card-name">${b.bank}</div>
+              <div class="school-card-meta">${b.acc} • ${b.type}</div>
+            </div>
+            <div style="font-size:15px;font-weight:700;color:var(--accent-emerald)">${b.bal}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📊 Income vs Expense</div></div>
+        <div class="donut-wrap" style="margin:8px 0">
+          <svg class="donut-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="35" fill="none" stroke="#1a2035" stroke-width="16"/>
+            <circle cx="50" cy="50" r="35" fill="none" stroke="#6366f1" stroke-width="16" stroke-dasharray="131 89" stroke-dashoffset="22" transform="rotate(-90 50 50)"/>
+            <circle cx="50" cy="50" r="35" fill="none" stroke="#f43f5e" stroke-width="16" stroke-dasharray="89 131" stroke-dashoffset="-109" transform="rotate(-90 50 50)"/>
+            <text x="50" y="54" text-anchor="middle" fill="#f1f5f9" font-size="12" font-weight="700">60%</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>Income ₹42.6L</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f43f5e"></div>Expense ₹28.4L</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Surplus ₹14.2L</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔄 Recent Transactions</div><div class="card-action">Export</div></div>
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Dr/Cr</th><th>Amount</th><th>Balance</th></tr></thead>
+        <tbody>
+          ${[
+            {date:'Dec 5',desc:'Fee Collection - Class 10',cat:'Income',type:'Cr',amt:'₹1,24,000',bal:'₹24,84,200'},
+            {date:'Dec 4',desc:'Electricity Bill Payment',cat:'Utility',type:'Dr',amt:'₹84,000',bal:'₹23,60,200'},
+            {date:'Dec 3',desc:'Lab Equipment Purchase',cat:'Capital',type:'Dr',amt:'₹1,20,000',bal:'₹24,44,200'},
+            {date:'Dec 2',desc:'Staff Salary - November',cat:'Payroll',type:'Dr',amt:'₹18,40,000',bal:'₹25,64,200'},
+            {date:'Dec 1',desc:'Fee Collection - Class 12',cat:'Income',type:'Cr',amt:'₹2,18,000',bal:'₹44,04,200'},
+          ].map(t=>`
+            <tr>
+              <td>${t.date}</td><td>${t.desc}</td>
+              <td><span class="badge badge-blue">${t.cat}</span></td>
+              <td><span class="badge ${t.type==='Cr'?'badge-green':'badge-red'}">${t.type}</span></td>
+              <td style="font-weight:600;color:${t.type==='Cr'?'var(--accent-emerald)':'var(--accent-rose)'}">${t.amt}</td>
+              <td>${t.bal}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= PAYROLL =============
+function renderPayroll(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">💳 Process Payroll</div>
+      <div class="tab-item">📋 Salary Slips</div>
+      <div class="tab-item">⚙️ Pay Structure</div>
+      <div class="tab-item">📊 Reports</div>
+    </div>
+    <div class="notice warn"><span class="notice-icon">⚠️</span><div class="notice-text"><strong>November 2024 Payroll</strong> is pending. Total payable: <strong>₹18,40,200</strong> for 186 employees. Deadline: December 10, 2024.</div></div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">👥</div><div class="stat-value">186</div><div class="stat-label">Total Employees</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">💳</div><div class="stat-value">₹18.4L</div><div class="stat-label">Gross Payroll</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🏛️</div><div class="stat-value">₹2.1L</div><div class="stat-label">PF + ESI</div></div>
+      <div class="stat-card rose"><div class="stat-icon">📤</div><div class="stat-value">₹16.3L</div><div class="stat-label">Net Payout</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">💳 Payroll Register - November 2024</div>
+        <div style="display:flex;gap:8px"><div class="card-action">📤 Export</div><button class="btn-sm btn-primary-sm">Run Payroll</button></div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Employee</th><th>Dept</th><th>Basic</th><th>HRA</th><th>Allowances</th><th>Deductions</th><th>Net Pay</th><th>Status</th></tr></thead>
+        <tbody>
+          ${[
+            {name:'Anjali Mishra',dept:'Science',basic:'₹42,000',hra:'₹16,800',allow:'₹8,400',ded:'₹5,880',net:'₹61,320',status:'Pending'},
+            {name:'Suresh Verma',dept:'Math',basic:'₹38,000',hra:'₹15,200',allow:'₹7,600',ded:'₹5,320',net:'₹55,480',status:'Pending'},
+            {name:'Rekha Singh',dept:'English',basic:'₹35,000',hra:'₹14,000',allow:'₹7,000',ded:'₹4,900',net:'₹51,100',status:'Pending'},
+            {name:'Mohan Gupta',dept:'Admin',basic:'₹28,000',hra:'₹11,200',allow:'₹5,600',ded:'₹3,920',net:'₹40,880',status:'Pending'},
+          ].map(r=>`
+            <tr>
+              <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(139,92,246,0.2);color:#a78bfa">${r.name[0]}</div><div class="avatar-name">${r.name}</div></div></td>
+              <td>${r.dept}</td><td>${r.basic}</td><td>${r.hra}</td><td>${r.allow}</td>
+              <td style="color:var(--accent-rose)">${r.ded}</td>
+              <td style="font-weight:700;color:var(--accent-emerald)">${r.net}</td>
+              <td><span class="badge badge-gold">${r.status}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= STAFF DIRECTORY =============
+function renderStaffDirectory(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">👥 All Staff</div>
+      <div class="tab-item">📋 Profile</div>
+      <div class="tab-item">📄 Documents</div>
+      <div class="tab-item">📞 Contacts</div>
+    </div>
+    <div class="flex-between mb-16" style="margin-bottom:16px">
+      <div style="display:flex;gap:8px">
+        <select class="form-control" style="font-size:12px;padding:7px 12px"><option>All Departments</option><option>Teaching</option><option>Admin</option><option>Support</option></select>
+        <select class="form-control" style="font-size:12px;padding:7px 12px"><option>All Status</option><option>Active</option><option>On Leave</option></select>
+      </div>
+      <button class="btn-sm btn-primary-sm">+ Add Staff Member</button>
+    </div>
+    <div class="card">
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Designation</th><th>Department</th><th>Contact</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${[
+            {name:'Dr. Anjali Mishra',role:'Sr. Science Teacher',dept:'Science',phone:'9876543210',joined:'Aug 2019',status:'Active'},
+            {name:'Suresh Kumar Verma',role:'HOD Mathematics',dept:'Mathematics',phone:'9765432109',joined:'Jan 2015',status:'Active'},
+            {name:'Rekha Singh Tomar',role:'English Teacher',dept:'English',phone:'9654321098',joined:'Jul 2021',status:'On Leave'},
+            {name:'Mohan Lal Gupta',role:'Office Manager',dept:'Admin',phone:'9543210987',joined:'Mar 2012',status:'Active'},
+            {name:'Priya Sharma',role:'Lab Assistant',dept:'Science',phone:'9432109876',joined:'Jun 2022',status:'Active'},
+            {name:'Ravi Shankar',role:'Accountant',dept:'Finance',phone:'9321098765',joined:'Sep 2018',status:'Active'},
+          ].map(s=>`
+            <tr>
+              <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(16,185,129,0.2);color:#10b981">${s.name[0]}</div><div><div class="avatar-name">${s.name}</div></div></div></td>
+              <td class="text-secondary">${s.role}</td>
+              <td><span class="badge badge-blue">${s.dept}</span></td>
+              <td class="text-secondary">${s.phone}</td>
+              <td class="text-muted">${s.joined}</td>
+              <td><span class="badge ${s.status==='Active'?'badge-green':'badge-gold'}">${s.status}</span></td>
+              <td><div style="display:flex;gap:4px"><button class="btn-sm btn-secondary-sm" style="padding:4px 8px">View</button><button class="btn-sm btn-secondary-sm" style="padding:4px 8px">Edit</button></div></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= VEHICLES =============
+function renderVehicles(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">🚌 All Vehicles</div>
+      <div class="tab-item">🔧 Maintenance</div>
+      <div class="tab-item">⛽ Fuel Logs</div>
+      <div class="tab-item">📄 Documents</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">🚌</div><div class="stat-value">18</div><div class="stat-label">Total Buses</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">14</div><div class="stat-label">Active</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🔧</div><div class="stat-value">2</div><div class="stat-label">Under Service</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">2</div><div class="stat-label">Breakdown</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🚌 Vehicle Registry</div><button class="btn-sm btn-primary-sm">+ Add Vehicle</button></div>
+      <table class="data-table">
+        <thead><tr><th>Vehicle No.</th><th>Model</th><th>Capacity</th><th>Driver</th><th>Route</th><th>Insurance</th><th>Status</th></tr></thead>
+        <tbody>
+          ${[
+            {no:'DL-01-AB-1234',model:'TATA Starbus',cap:52,driver:'Mohan Lal',route:'Route 1',ins:'Valid till Mar 25',status:'Active'},
+            {no:'UP-32-CD-5678',model:'Ashok Leyland',cap:48,driver:'Suresh K.',route:'Route 3',ins:'Valid till Jun 25',status:'Active'},
+            {no:'MP-09-EF-9012',model:'TATA Starbus',cap:52,driver:'Ramesh J.',route:'Route 6',ins:'Valid till Jan 25',status:'Breakdown'},
+            {no:'HR-26-GH-3456',model:'Eicher Bus',cap:40,driver:'Vivek M.',route:'Route 9',ins:'Valid till Aug 25',status:'Service'},
+          ].map(v=>`
+            <tr>
+              <td style="font-weight:600;color:var(--text-primary)">${v.no}</td>
+              <td>${v.model}</td><td>${v.cap} seats</td><td>${v.driver}</td><td>${v.route}</td><td style="font-size:11px">${v.ins}</td>
+              <td><span class="badge ${v.status==='Active'?'badge-green':v.status==='Breakdown'?'badge-red':'badge-gold'}">${v.status}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= BOOKS =============
+function renderBooks(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">📚 Catalog</div>
+      <div class="tab-item">➕ Add Book</div>
+      <div class="tab-item">🔍 Search</div>
+      <div class="tab-item">📊 Stats</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">📚</div><div class="stat-value">12,480</div><div class="stat-label">Total Books</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">11,840</div><div class="stat-label">Available</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🔖</div><div class="stat-value">342</div><div class="stat-label">Issued</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⏰</div><div class="stat-value">12</div><div class="stat-label">Overdue</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📚 Book Catalog</div><button class="btn-sm btn-primary-sm">+ Add Book</button></div>
+      <table class="data-table">
+        <thead><tr><th>Book ID</th><th>Title</th><th>Author</th><th>Category</th><th>Available</th><th>Total</th><th>Action</th></tr></thead>
+        <tbody>
+          ${[
+            {id:'BK-001',title:'NCERT Physics Class 12',author:'NCERT',cat:'Science',avail:42,total:50},
+            {id:'BK-002',title:'Wings of Fire',author:'A.P.J. Abdul Kalam',cat:'Biography',avail:8,total:10},
+            {id:'BK-003',title:'Discovery of India',author:'Jawaharlal Nehru',cat:'History',avail:4,total:5},
+            {id:'BK-004',title:'NCERT Mathematics XI',author:'NCERT',cat:'Mathematics',avail:0,total:40},
+            {id:'BK-005',title:'The Alchemist',author:'Paulo Coelho',cat:'Fiction',avail:6,total:8},
+          ].map(b=>`
+            <tr>
+              <td style="font-size:11px;color:var(--text-muted)">${b.id}</td>
+              <td class="text-primary font-medium">${b.title}</td>
+              <td>${b.author}</td>
+              <td><span class="badge badge-blue">${b.cat}</span></td>
+              <td style="color:${b.avail===0?'var(--accent-rose)':b.avail<5?'var(--accent-gold)':'var(--accent-emerald)'};font-weight:600">${b.avail}</td>
+              <td>${b.total}</td>
+              <td><button class="btn-sm btn-primary-sm" ${b.avail===0?'disabled style="opacity:0.5"':''}>Issue</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= VISITORS =============
+function renderVisitors(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">🪪 Today's Visitors</div>
+      <div class="tab-item">➕ New Entry</div>
+      <div class="tab-item">📋 History</div>
+      <div class="tab-item">🔒 Blacklist</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">🪪</div><div class="stat-value">42</div><div class="stat-label">Total Today</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">34</div><div class="stat-label">Checked Out</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🏠</div><div class="stat-value">8</div><div class="stat-label">Still Inside</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">3</div><div class="stat-label">Awaiting Approval</div></div>
+    </div>
+    <div class="notice info"><span class="notice-icon">ℹ️</span><div class="notice-text">3 visitors are waiting for approval at the main gate. Please approve or deny their entry.</div></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🪪 Visitor Log</div><button class="btn-sm btn-primary-sm">+ New Visitor</button></div>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Phone</th><th>Purpose</th><th>Meeting</th><th>In Time</th><th>Out Time</th><th>Status</th></tr></thead>
+        <tbody>
+          ${[
+            {name:'Ramesh Sharma',phone:'9876543210',purpose:'Parent Meeting',meet:'Mr. Gupta (Principal)',in:'9:14 AM',out:'10:30 AM',status:'Out'},
+            {name:'Sunita Devi',phone:'9765432109',purpose:'Fee Payment',meet:'Finance Desk',in:'10:02 AM',out:'10:45 AM',status:'Out'},
+            {name:'Delivery Agent',phone:'9654321098',purpose:'Parcel Delivery',meet:'Admin Office',in:'11:30 AM',out:'-',status:'Inside'},
+            {name:'Book Vendor',phone:'9543210987',purpose:'Library Supply',meet:'Librarian',in:'12:00 PM',out:'-',status:'Inside'},
+            {name:'Maintenance Team',phone:'9432109876',purpose:'AC Repair',meet:'Admin Mgr',in:'-',out:'-',status:'Pending'},
+          ].map(v=>`
+            <tr>
+              <td class="font-medium text-primary">${v.name}</td>
+              <td>${v.phone}</td><td>${v.purpose}</td><td>${v.meet}</td>
+              <td>${v.in}</td><td>${v.out}</td>
+              <td><span class="badge ${v.status==='Out'?'badge-gray':v.status==='Inside'?'badge-green':'badge-gold'}">${v.status}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= HELP DESK =============
+function renderHelpdesk(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">🎫 All Tickets</div>
+      <div class="tab-item">🆕 Open</div>
+      <div class="tab-item">🔄 In Progress</div>
+      <div class="tab-item">✅ Resolved</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">🎫</div><div class="stat-value">18</div><div class="stat-label">Open Tickets</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">12</div><div class="stat-label">Resolved Today</div></div>
+      <div class="stat-card gold"><div class="stat-icon">⏱️</div><div class="stat-value">2.4h</div><div class="stat-label">Avg Resolution</div></div>
+      <div class="stat-card rose"><div class="stat-icon">🚨</div><div class="stat-value">5</div><div class="stat-label">Escalated</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🎫 Support Tickets</div><button class="btn-sm btn-primary-sm">+ New Ticket</button></div>
+      <table class="data-table">
+        <thead><tr><th>Ticket ID</th><th>Raised By</th><th>Subject</th><th>Category</th><th>Priority</th><th>Assigned</th><th>Status</th></tr></thead>
+        <tbody>
+          ${[
+            {id:'#TK-1042',by:'Ravi Sharma (Parent)',sub:'Fee receipt not received',cat:'Finance',pri:'High',assign:'Finance Team',status:'Open'},
+            {id:'#TK-1041',by:'Anjali Singh (Teacher)',sub:'Projector not working in Room 4',cat:'IT',pri:'Medium',assign:'IT Support',status:'In Progress'},
+            {id:'#TK-1040',by:'Mohan Kumar (Parent)',sub:'Bus route change request',cat:'Transport',pri:'Low',assign:'Transport Head',status:'Open'},
+            {id:'#TK-1039',by:'Sita Devi (Staff)',sub:'Leave approval pending',cat:'HR',pri:'High',assign:'HR Manager',status:'Escalated'},
+            {id:'#TK-1038',by:'Ram Prasad (Parent)',sub:'Scholarship inquiry',cat:'Admissions',pri:'Low',assign:'Admin',status:'Resolved'},
+          ].map(t=>`
+            <tr>
+              <td style="font-size:11px;color:var(--accent-primary);font-weight:600">${t.id}</td>
+              <td>${t.by}</td><td>${t.sub}</td>
+              <td><span class="badge badge-blue">${t.cat}</span></td>
+              <td><span class="badge ${t.pri==='High'?'badge-red':t.pri==='Medium'?'badge-gold':'badge-gray'}">${t.pri}</span></td>
+              <td style="font-size:12px">${t.assign}</td>
+              <td><span class="badge ${t.status==='Resolved'?'badge-green':t.status==='Escalated'?'badge-red':t.status==='In Progress'?'badge-blue':'badge-gold'}">${t.status}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============= ANNOUNCEMENTS =============
+function renderAnnouncements(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">📢 All</div>
+      <div class="tab-item">✏️ Create</div>
+      <div class="tab-item">📤 Sent</div>
+      <div class="tab-item">📋 Templates</div>
+    </div>
+    <div class="card mb-16" style="margin-bottom:16px">
+      <div class="card-header"><div class="card-title">✏️ New Announcement</div></div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Title</label><input class="form-control" placeholder="Announcement title..." value="Winter Break Schedule 2024"></div>
+        <div class="form-group"><label class="form-label">Priority</label><select class="form-control"><option>Normal</option><option selected>Important</option><option>Urgent</option></select></div>
+        <div class="form-group full"><label class="form-label">Message</label><textarea class="form-control">Dear Parents and Students, the school will remain closed from December 22, 2024 to January 5, 2025 for Winter Vacations. Classes will resume on January 6, 2025.</textarea></div>
+        <div class="form-group"><label class="form-label">Send To</label><select class="form-control"><option>All (Students + Parents + Staff)</option><option>Students Only</option><option>Parents Only</option></select></div>
+        <div class="form-group"><label class="form-label">Channel</label><select class="form-control"><option>App + SMS + Email</option><option>App Only</option><option>SMS Only</option></select></div>
+      </div>
+      <div class="form-actions"><button class="btn-sm btn-secondary-sm">Save Draft</button><button class="btn-sm btn-primary-sm">Send Now 📤</button></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📢 Recent Announcements</div></div>
+      ${[
+        {title:'Winter Break - December 22 to January 5',date:'Dec 5, 2024',sent:2840,read:1920,priority:'Important'},
+        {title:'Annual Sports Day - December 15',date:'Dec 3, 2024',sent:2840,read:2240,priority:'Normal'},
+        {title:'Fee Payment Last Date - December 10',date:'Dec 1, 2024',sent:480,read:380,priority:'Urgent'},
+        {title:'Parent-Teacher Meeting - December 8',date:'Nov 28, 2024',sent:2840,read:2100,priority:'Normal'},
+      ].map(a=>`
+        <div class="notice ${a.priority==='Urgent'?'danger':a.priority==='Important'?'warn':'info'}" style="margin-bottom:8px">
+          <span class="notice-icon">📢</span>
+          <div class="notice-text" style="flex:1">
+            <strong>${a.title}</strong><br>
+            Sent: ${a.date} · <span class="text-muted">${a.sent} recipients · ${a.read} read (${Math.round(a.read/a.sent*100)}%)</span>
+          </div>
+          <span class="badge ${a.priority==='Urgent'?'badge-red':a.priority==='Important'?'badge-gold':'badge-blue'}">${a.priority}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ============= MULTI SCHOOL =============
+function renderMultiSchool(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🏫</span>School Portfolio</div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">🏫</div><div class="stat-value">12</div><div class="stat-label">Total Schools</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">👦</div><div class="stat-value">28,450</div><div class="stat-label">Total Students</div></div>
+      <div class="stat-card gold"><div class="stat-icon">👨‍🏫</div><div class="stat-value">1,842</div><div class="stat-label">Total Staff</div></div>
+      <div class="stat-card rose"><div class="stat-icon">💰</div><div class="stat-value">₹8.4Cr</div><div class="stat-label">Annual Revenue</div></div>
+    </div>
+    <div class="grid-2">
+      ${[
+        {name:'Delhi Public School, Noida Sector 12',city:'Noida, UP',students:2340,staff:186,status:'Active',score:92},
+        {name:'EduSHAMIIT Academy, Greater Noida',city:'Greater Noida, UP',students:1820,staff:142,status:'Active',score:88},
+        {name:'Shami International School, Agra',city:'Agra, UP',students:3100,staff:248,status:'Active',score:94},
+        {name:'EduSHAMIIT CBSE, Mathura',city:'Mathura, UP',students:1540,staff:118,status:'Active',score:85},
+        {name:'Shami Convent School, Aligarh',city:'Aligarh, UP',students:2100,staff:164,status:'Under Review',score:71},
+        {name:'New EduSHAMIIT Campus, Meerut',city:'Meerut, UP',students:840,staff:64,status:'New',score:78},
+      ].map(s=>`
+        <div class="school-card" onclick="">
+          <div class="school-card-icon" style="background:rgba(99,102,241,0.1)">🏫</div>
+          <div class="school-card-info">
+            <div class="school-card-name">${s.name}</div>
+            <div class="school-card-meta">${s.city} · ${s.students} students · ${s.staff} staff</div>
+            <div style="margin-top:6px">
+              <div class="progress-bar" style="height:4px"><div class="progress-fill ${s.score>90?'emerald':s.score>80?'blue':'gold'}" style="width:${s.score}%"></div></div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:18px;font-weight:700;color:${s.score>90?'var(--accent-emerald)':s.score>80?'var(--accent-primary)':'var(--accent-gold)'}">${s.score}</div>
+            <span class="badge ${s.status==='Active'?'badge-green':s.status==='New'?'badge-blue':'badge-gold'}">${s.status}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ============= NOTIFICATIONS =============
+function renderNotifications(el) {
+  el.innerHTML = `
+    <div class="tab-bar">
+      <div class="tab-item active">🔔 All</div>
+      <div class="tab-item">🚨 Alerts</div>
+      <div class="tab-item">📋 System</div>
+      <div class="tab-item">✉️ Messages</div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔔 Notifications</div><div class="card-action">Mark All Read</div></div>
+      ${[
+        {dot:'rose',title:'Fee Payment Alert',desc:'8 students have overdue fees exceeding 30 days. Immediate action required.',time:'10 mins ago'},
+        {dot:'gold',title:'Payroll Reminder',desc:'November 2024 payroll is pending. Deadline: December 10, 2024.',time:'1 hour ago'},
+        {dot:'blue',title:'New Admission',desc:'3 new admission forms received for Grade 6 and Grade 9.',time:'2 hours ago'},
+        {dot:'emerald',title:'Fee Collected',desc:'₹1,24,000 collected from Class 10 students today.',time:'3 hours ago'},
+        {dot:'rose',title:'System Alert',desc:'Bus MP-09-EF-9012 reported breakdown on Route 6 at Sector 18.',time:'4 hours ago'},
+        {dot:'blue',title:'Leave Request',desc:'Rekha Singh Tomar has applied for 5 days medical leave.',time:'Yesterday'},
+        {dot:'gold',title:'Report Ready',desc:'Monthly financial report for November 2024 has been generated.',time:'Yesterday'},
+      ].map(n=>`
+        <div class="notif-item">
+          <div class="notif-dot-large" style="background:var(--accent-${n.dot})"></div>
+          <div class="notif-content">
+            <div class="notif-title">${n.title}</div>
+            <div class="notif-desc">${n.desc}</div>
+            <div class="notif-time">${n.time}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ============= SETTINGS =============
+function renderSettings(el) {
+  el.innerHTML = `
+    <div class="grid-2">
+      <div>
+        <div class="card mb-16" style="margin-bottom:16px">
+          <div class="card-header"><div class="card-title">👤 Profile Settings</div></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Full Name</label><input class="form-control" value="${roles[currentRole]?.displayName||'Admin User'}"></div>
+            <div class="form-group"><label class="form-label">Role</label><input class="form-control" value="${roles[currentRole]?.name||'Admin'}" readonly></div>
+            <div class="form-group"><label class="form-label">Email</label><input class="form-control" value="${roles[currentRole]?.email||'admin@edushamiit.in'}"></div>
+            <div class="form-group"><label class="form-label">Phone</label><input class="form-control" value="9876543210"></div>
+            <div class="form-group full"><label class="form-label">Address</label><input class="form-control" value="Jewar, Uttar Pradesh"></div>
+          </div>
+          <div class="form-actions"><button class="btn-sm btn-primary-sm">Save Changes</button></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🔒 Security</div></div>
+          <div class="form-group mb-16" style="margin-bottom:12px"><label class="form-label">Current Password</label><input type="password" class="form-control" value="••••••••"></div>
+          <div class="form-group mb-16" style="margin-bottom:12px"><label class="form-label">New Password</label><input type="password" class="form-control" placeholder="Enter new password"></div>
+          <div class="form-group" style="margin-bottom:12px"><label class="form-label">2FA Method</label><select class="form-control"><option>OTP via SMS</option><option>Authenticator App</option><option>Email OTP</option></select></div>
+          <div class="form-actions"><button class="btn-sm btn-primary-sm">Update Security</button></div>
+        </div>
+      </div>
+      <div>
+        <div class="card mb-16" style="margin-bottom:16px">
+          <div class="card-header"><div class="card-title">🔔 Notification Preferences</div></div>
+          ${[
+            {label:'Fee Alerts',desc:'Get notified on fee payments and overdue'},
+            {label:'Payroll Reminders',desc:'Payroll processing reminders'},
+            {label:'System Alerts',desc:'Critical system notifications'},
+            {label:'Daily Digest',desc:'Morning summary at 8 AM'},
+            {label:'SMS Notifications',desc:'Important alerts via SMS'},
+          ].map((n,i)=>`
+            <div class="metric-row">
+              <div><div class="f13">${n.label}</div><div class="f12 text-muted">${n.desc}</div></div>
+              <div style="width:40px;height:22px;background:${i<3?'var(--gradient-primary)':'var(--bg-elevated)'};border-radius:11px;cursor:pointer;position:relative;transition:all 0.2s">
+                <div style="position:absolute;${i<3?'right:3px':'left:3px'};top:3px;width:16px;height:16px;background:white;border-radius:50%"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🎨 Appearance</div></div>
+          <div class="metric-row"><span class="metric-label">Theme</span><select class="form-control" style="width:auto;padding:5px 10px"><option>Dark (Default)</option><option>Light</option></select></div>
+          <div class="metric-row"><span class="metric-label">Language</span><select class="form-control" style="width:auto;padding:5px 10px"><option>English</option><option>Hindi</option></select></div>
+          <div class="metric-row"><span class="metric-label">Date Format</span><select class="form-control" style="width:auto;padding:5px 10px"><option>DD/MM/YYYY</option><option>MM/DD/YYYY</option></select></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============= CALENDAR =============
+function renderCalendarPanel(el) {
+  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const calDays = Array.from({length:35},(_,i)=>{
+    const d = i-3; // Dec 1 starts on Sunday (offset 0), adjust
+    return d < 1 || d > 31 ? null : d;
+  });
+  const events = {15:'Sports Day',8:'PTM',22:'Winter Break',10:'Fee Last Date'};
+  el.innerHTML = `
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📅 December 2024</div>
+          <div style="display:flex;gap:8px"><div class="card-action">◀</div><div class="card-action">▶</div></div>
+        </div>
+        <div class="mini-calendar">
+          ${days.map(d=>`<div class="cal-header-day">${d}</div>`).join('')}
+          ${calDays.map(d=>`
+            <div class="cal-day ${d===5?'today':''} ${events[d]?'has-event':''} ${d===null?'':''}">
+              ${d||''}
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top:16px">
+          <div class="f12 text-muted" style="margin-bottom:8px;letter-spacing:1px">EVENTS THIS MONTH</div>
+          ${Object.entries(events).map(([d,e])=>`
+            <div class="activity-item">
+              <div class="mini-avatar" style="background:rgba(99,102,241,0.15);color:var(--accent-primary);font-size:11px">${d}</div>
+              <div class="f13">${e}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 Upcoming Events</div><button class="btn-sm btn-primary-sm">+ Add Event</button></div>
+        ${[
+          {date:'Dec 8',title:'Parent-Teacher Meeting',time:'10:00 AM - 2:00 PM',type:'Academic',location:'School Auditorium'},
+          {date:'Dec 10',title:'Fee Payment Last Date',time:'All Day',type:'Finance',location:'Finance Office'},
+          {date:'Dec 15',title:'Annual Sports Day',time:'8:00 AM - 5:00 PM',type:'Sports',location:'School Ground'},
+          {date:'Dec 18',title:'Winter Fest & Cultural Show',time:'4:00 PM - 8:00 PM',type:'Cultural',location:'Auditorium'},
+          {date:'Dec 22',title:'Winter Vacation Starts',time:'All Day',type:'Holiday',location:''},
+          {date:'Jan 6',title:'School Reopens',time:'7:30 AM',type:'Academic',location:''},
+        ].map(e=>`
+          <div class="activity-item">
+            <div class="mini-avatar" style="background:rgba(99,102,241,0.15);color:var(--accent-primary);font-size:10px;text-align:center;line-height:1.2">${e.date.replace('Dec ','').replace('Jan ','')}<br><span style="font-size:8px;color:var(--text-muted)">${e.date.includes('Dec')?'DEC':'JAN'}</span></div>
+            <div class="activity-content">
+              <div class="f13 font-medium text-primary">${e.title}</div>
+              <div class="f12 text-muted">${e.time}${e.location?' · '+e.location:''}</div>
+            </div>
+            <span class="badge ${e.type==='Finance'?'badge-gold':e.type==='Sports'?'badge-green':e.type==='Holiday'?'badge-cyan':e.type==='Cultural'?'badge-blue':'badge-gray'}">${e.type}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ============= OTHER PANELS =============
+function renderBudget(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">📊 Overview</div><div class="tab-item">📋 Planning</div><div class="tab-item">📈 Utilization</div></div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">💼</div><div class="stat-value">₹2.4Cr</div><div class="stat-label">Annual Budget</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">₹1.7Cr</div><div class="stat-label">Utilized</div></div>
+      <div class="stat-card gold"><div class="stat-icon">📊</div><div class="stat-value">71%</div><div class="stat-label">Utilization Rate</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⏳</div><div class="stat-value">₹70L</div><div class="stat-label">Remaining</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Budget Allocation by Department</div></div>
+      ${[
+        {dept:'Teaching & Academics',alloc:80,used:62,pct:77},
+        {dept:'Infrastructure & Maintenance',alloc:40,used:28,pct:70},
+        {dept:'Transport Operations',alloc:30,used:24,pct:80},
+        {dept:'Library & Lab Resources',alloc:15,used:9,pct:60},
+        {dept:'Sports & Extra-Curricular',alloc:12,used:7,pct:58},
+        {dept:'Admin & IT',alloc:20,used:18,pct:90},
+      ].map(b=>`
+        <div style="margin-bottom:16px">
+          <div class="flex-between" style="margin-bottom:6px">
+            <span class="f13">${b.dept}</span>
+            <span class="f13 text-muted">₹${b.used}L / ₹${b.alloc}L <span class="font-bold text-primary">(${b.pct}%)</span></span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill ${b.pct>85?'gold':b.pct>70?'blue':'emerald'}" style="width:${b.pct}%"></div></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderExpenses(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">🧾 All Expenses</div><div class="tab-item">➕ Add</div><div class="tab-item">✅ Approval</div><div class="tab-item">📊 Reports</div></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🧾 Expense Register</div><button class="btn-sm btn-primary-sm">+ Add Expense</button></div>
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Submitted By</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${[
+            {date:'Dec 5',desc:'Electricity Bill - December',cat:'Utility',amt:'₹84,000',by:'Accounts',status:'Approved'},
+            {date:'Dec 4',desc:'Science Lab Equipment',cat:'Capital',amt:'₹1,20,000',by:'HOD Science',status:'Pending'},
+            {date:'Dec 3',desc:'Sports Equipment for Annual Day',cat:'Sports',amt:'₹42,000',by:'Sports Head',status:'Approved'},
+            {date:'Dec 2',desc:'Stationery & Office Supplies',cat:'Admin',amt:'₹18,500',by:'Admin Mgr',status:'Approved'},
+            {date:'Dec 1',desc:'Fuel - All School Buses',cat:'Transport',amt:'₹64,000',by:'Transport Head',status:'Pending'},
+          ].map(e=>`
+            <tr>
+              <td>${e.date}</td><td>${e.desc}</td>
+              <td><span class="badge badge-blue">${e.cat}</span></td>
+              <td style="font-weight:600">${e.amt}</td>
+              <td>${e.by}</td>
+              <td><span class="badge ${e.status==='Approved'?'badge-green':'badge-gold'}">${e.status}</span></td>
+              <td><div style="display:flex;gap:4px">${e.status==='Pending'?'<button class="btn-sm btn-primary-sm" style="padding:4px 8px">✓ Approve</button><button class="btn-sm btn-danger-sm" style="padding:4px 8px">✗</button>':'<button class="btn-sm btn-secondary-sm" style="padding:4px 8px">View</button>'}</div></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderReports(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">📊 Overview</div><div class="tab-item">💰 Financial</div><div class="tab-item">👥 HR</div><div class="tab-item">📚 Academic</div></div>
+    <div class="grid-4" style="grid-template-columns:repeat(4,1fr)">
+      ${[
+        {icon:'📄',title:'Monthly P&L',desc:'Income vs Expense summary'},
+        {icon:'💵',title:'Fee Collection',desc:'Student-wise fee report'},
+        {icon:'💳',title:'Payroll Report',desc:'Staff salary breakup'},
+        {icon:'🧾',title:'GST Report',desc:'Tax filing data'},
+        {icon:'📊',title:'Balance Sheet',desc:'Assets & liabilities'},
+        {icon:'👥',title:'Attendance Report',desc:'Staff & student attendance'},
+        {icon:'🚌',title:'Transport Report',desc:'Fleet & route analytics'},
+        {icon:'📚',title:'Library Report',desc:'Books issued & returned'},
+      ].map(r=>`
+        <div class="qa-btn" style="text-align:left;gap:12px;padding:16px">
+          <div style="font-size:28px">${r.icon}</div>
+          <div>
+            <div class="f13 font-medium text-primary">${r.title}</div>
+            <div class="f12 text-muted">${r.desc}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 Financial Summary - November 2024</div><div class="card-action">Export PDF</div></div>
+      ${[
+        {label:'Total Income',value:'₹42,68,400',type:'positive'},
+        {label:'Total Expenses',value:'₹28,42,200',type:'negative'},
+        {label:'Net Surplus',value:'₹14,26,200',type:'positive'},
+        {label:'Fee Collection Rate',value:'87.4%',type:'neutral'},
+        {label:'Payroll Disbursed',value:'₹18,40,000',type:'negative'},
+        {label:'Capital Expenditure',value:'₹2,40,000',type:'negative'},
+      ].map(m=>`
+        <div class="metric-row">
+          <span class="metric-label">${m.label}</span>
+          <span class="metric-value" style="color:${m.type==='positive'?'var(--accent-emerald)':m.type==='negative'?'var(--accent-rose)':'var(--text-primary)'}">${m.value}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderRecruitment(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">📝 Job Posts</div><div class="tab-item">👤 Applicants</div><div class="tab-item">🗓️ Interviews</div><div class="tab-item">✅ Onboarding</div></div>
+    <div class="notice info"><span class="notice-icon">📝</span><div class="notice-text"><strong>3 positions are currently open.</strong> 12 applications received this week. 4 interviews scheduled for this week.</div></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📝 Open Positions</div><button class="btn-sm btn-primary-sm">+ Post Job</button></div>
+      <table class="data-table">
+        <thead><tr><th>Position</th><th>Department</th><th>Type</th><th>Applications</th><th>Posted</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          ${[
+            {pos:'Mathematics Teacher (Secondary)',dept:'Mathematics',type:'Full Time',apps:8,posted:'Dec 1',status:'Active'},
+            {pos:'Lab Assistant - Physics',dept:'Science',type:'Full Time',apps:3,posted:'Nov 28',status:'Active'},
+            {pos:'Office Admin Executive',dept:'Admin',type:'Full Time',apps:14,posted:'Nov 20',status:'Interview'},
+          ].map(j=>`
+            <tr>
+              <td class="font-medium text-primary">${j.pos}</td>
+              <td><span class="badge badge-blue">${j.dept}</span></td>
+              <td>${j.type}</td>
+              <td style="font-weight:600;color:var(--accent-primary)">${j.apps} applied</td>
+              <td>${j.posted}</td>
+              <td><span class="badge ${j.status==='Active'?'badge-green':'badge-gold'}">${j.status}</span></td>
+              <td><button class="btn-sm btn-secondary-sm">View</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAttendance(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">✅ Today</div><div class="tab-item">📅 Monthly</div><div class="tab-item">📊 Reports</div></div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">👥</div><div class="stat-value">186</div><div class="stat-label">Total Staff</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">174</div><div class="stat-label">Present</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🏖️</div><div class="stat-value">8</div><div class="stat-label">On Leave</div></div>
+      <div class="stat-card rose"><div class="stat-icon">❌</div><div class="stat-value">4</div><div class="stat-label">Absent</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">✅ Today's Attendance - ${new Date().toDateString()}</div><div class="card-action">Mark Attendance</div></div>
+      <table class="data-table">
+        <thead><tr><th>Staff Member</th><th>Dept</th><th>In Time</th><th>Out Time</th><th>Hours</th><th>Status</th></tr></thead>
+        <tbody>
+          ${[
+            {name:'Anjali Mishra',dept:'Science',in:'7:48 AM',out:'-',hrs:'-',status:'Present'},
+            {name:'Suresh Verma',dept:'Math',in:'7:52 AM',out:'-',hrs:'-',status:'Present'},
+            {name:'Rekha Singh',dept:'English',in:'-',out:'-',hrs:'-',status:'Leave'},
+            {name:'Mohan Gupta',dept:'Admin',in:'8:02 AM',out:'-',hrs:'-',status:'Present'},
+            {name:'Priya Sharma',dept:'Science',in:'-',out:'-',hrs:'-',status:'Absent'},
+          ].map(a=>`
+            <tr>
+              <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(16,185,129,0.2);color:#10b981">${a.name[0]}</div><div class="avatar-name">${a.name}</div></div></td>
+              <td>${a.dept}</td><td>${a.in}</td><td>${a.out}</td><td>${a.hrs}</td>
+              <td><span class="badge ${a.status==='Present'?'badge-green':a.status==='Leave'?'badge-gold':'badge-red'}">${a.status}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderLeave(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">🏖️ Requests</div><div class="tab-item">📅 Calendar</div><div class="tab-item">⚙️ Policy</div></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏖️ Pending Leave Requests</div></div>
+      ${[
+        {name:'Ravi Kumar',dept:'Science',type:'Medical Leave',days:3,from:'Dec 8',to:'Dec 10',reason:'Doctor advised rest'},
+        {name:'Sunita Devi',dept:'Mathematics',type:'Personal Leave',days:1,from:'Dec 12',to:'Dec 12',reason:'Family function'},
+        {name:'Manoj Singh',dept:'Admin',type:'Annual Leave',days:5,from:'Dec 22',to:'Dec 27',reason:'Vacation'},
+        {name:'Priti Shah',dept:'Commerce',type:'Medical Leave',days:2,from:'Dec 9',to:'Dec 10',reason:'Fever'},
+      ].map(r=>`
+        <div class="school-card" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="mini-avatar" style="background:rgba(139,92,246,0.2);color:#a78bfa;width:38px;height:38px;border-radius:10px">${r.name[0]}</div>
+            <div style="flex:1">
+              <div class="f13 font-medium text-primary">${r.name} <span class="text-muted">· ${r.dept}</span></div>
+              <div class="f12 text-muted">${r.type} · ${r.days} day(s) · ${r.from} to ${r.to}</div>
+              <div class="f12 text-secondary" style="margin-top:2px">${r.reason}</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn-sm btn-primary-sm">✓ Approve</button>
+              <button class="btn-sm btn-danger-sm">✗ Deny</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderPerformance(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">⭐ Appraisals</div><div class="tab-item">📊 Analytics</div><div class="tab-item">🎯 Goals</div></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">⭐ Staff Performance - 2024</div><button class="btn-sm btn-primary-sm">Start Appraisal</button></div>
+      <table class="data-table">
+        <thead><tr><th>Staff Member</th><th>Dept</th><th>Teaching Score</th><th>Attendance</th><th>Student Feedback</th><th>Overall</th><th>Rating</th></tr></thead>
+        <tbody>
+          ${[
+            {name:'Anjali Mishra',dept:'Science',teach:92,attend:98,feedback:4.8,overall:94,rating:'Excellent'},
+            {name:'Suresh Verma',dept:'Math',teach:88,attend:95,feedback:4.5,overall:89,rating:'Very Good'},
+            {name:'Rekha Singh',dept:'English',teach:78,attend:82,feedback:4.0,overall:79,rating:'Good'},
+            {name:'Mohan Gupta',dept:'Admin',teach:'-',attend:90,feedback:4.2,overall:82,rating:'Good'},
+          ].map(s=>`
+            <tr>
+              <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(245,158,11,0.2);color:#f59e0b">${s.name[0]}</div><div class="avatar-name">${s.name}</div></div></td>
+              <td>${s.dept}</td>
+              <td>${typeof s.teach==='number'?`<div class="progress-bar" style="width:80px"><div class="progress-fill blue" style="width:${s.teach}%"></div></div>`:'-'}</td>
+              <td>${s.attend}%</td><td>⭐ ${s.feedback}</td>
+              <td style="font-weight:700;color:var(--accent-primary)">${s.overall}%</td>
+              <td><span class="badge ${s.rating==='Excellent'?'badge-green':s.rating==='Very Good'?'badge-blue':'badge-gold'}">${s.rating}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderRoutes(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">🗺️ All Routes</div><div class="tab-item">🛑 Stops</div><div class="tab-item">👦 Students</div></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🗺️ Route Management</div><button class="btn-sm btn-primary-sm">+ Add Route</button></div>
+      <table class="data-table">
+        <thead><tr><th>Route</th><th>Bus</th><th>Driver</th><th>Stops</th><th>Students</th><th>Start</th><th>Status</th></tr></thead>
+        <tbody>
+          ${[
+            {name:'Route 1 - Sector 12',bus:'DL-01-AB-1234',driver:'Mohan Lal',stops:8,students:52,start:'6:30 AM',status:'Active'},
+            {name:'Route 3 - Green Park',bus:'UP-32-CD-5678',driver:'Suresh K.',stops:6,students:44,start:'6:45 AM',status:'Active'},
+            {name:'Route 6 - Noida Ext.',bus:'MP-09-EF-9012',driver:'Ramesh J.',stops:10,students:58,start:'7:00 AM',status:'Suspended'},
+            {name:'Route 9 - Indirapuram',bus:'HR-26-GH-3456',driver:'Vivek M.',stops:7,students:40,start:'6:50 AM',status:'Service'},
+          ].map(r=>`
+            <tr>
+              <td class="font-medium text-primary">${r.name}</td>
+              <td style="font-size:11px">${r.bus}</td><td>${r.driver}</td>
+              <td>${r.stops}</td><td>${r.students}</td><td>${r.start}</td>
+              <td><span class="badge ${r.status==='Active'?'badge-green':r.status==='Suspended'?'badge-red':'badge-gold'}">${r.status}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderTracking(el) {
+  el.innerHTML = `
+    <div class="notice success"><span class="notice-icon">📍</span><div class="notice-text"><strong>Live Tracking Active.</strong> 14 buses are currently on route. 2 buses suspended. All data refreshes every 30 seconds.</div></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">📍 Live Bus Positions</div><div class="card-action">Refresh</div></div>
+        ${[
+          {bus:'Route 1 Bus',no:'DL-01-AB-1234',loc:'Near Sector 12 Metro',speed:'42 km/h',eta:'8 mins',status:'On Route'},
+          {bus:'Route 3 Bus',no:'UP-32-CD-5678',loc:'Green Park Crossing',speed:'38 km/h',eta:'12 mins',status:'On Route'},
+          {bus:'Route 9 Bus',no:'HR-26-GH-3456',loc:'Indirapuram Flyover',speed:'55 km/h',eta:'22 mins',status:'On Route'},
+        ].map(b=>`
+          <div class="activity-item">
+            <div class="activity-icon" style="background:rgba(6,182,212,0.15)">🚌</div>
+            <div class="activity-content">
+              <div class="f13 font-medium text-primary">${b.bus} <span style="font-size:10px;color:var(--text-muted)">${b.no}</span></div>
+              <div class="f12 text-secondary">📍 ${b.loc}</div>
+              <div class="f12 text-muted">🏃 ${b.speed} · ETA School: ${b.eta}</div>
+            </div>
+            <span class="badge badge-green">${b.status}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;min-height:280px;flex-direction:column;gap:12px">
+        <div style="font-size:48px">🗺️</div>
+        <div class="text-secondary f13">Interactive Map View</div>
+        <div class="text-muted f12">GPS tracking integrated with Google Maps</div>
+        <button class="btn-sm btn-primary-sm">Open Live Map</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderIssued(el) {
+  el.innerHTML = `
+    <div class="tab-bar"><div class="tab-item active">🔖 Currently Issued</div><div class="tab-item">⏰ Overdue</div><div class="tab-item">🔄 Return</div></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔖 Issued Books Log</div></div>
+      <table class="data-table">
+        <thead><tr><th>Book</th><th>Issued To</th><th>Class</th><th>Issue Date</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          ${[
+            {book:'Wings of Fire',member:'Aarav Sharma',cls:'10-A',issued:'Nov 25',due:'Dec 9',status:'Due Today'},
+            {book:'NCERT Physics 12',member:'Priya Singh',cls:'12-B',issued:'Nov 20',due:'Dec 4',status:'Overdue'},
+            {book:'The Alchemist',member:'Rohit Kumar',cls:'8-C',issued:'Dec 1',due:'Dec 15',status:'Active'},
+            {book:'Discovery of India',member:'Sneha Patel',cls:'11-A',issued:'Nov 30',due:'Dec 14',status:'Active'},
+          ].map(b=>`
+            <tr>
+              <td class="font-medium text-primary">${b.book}</td>
+              <td>${b.member}</td><td>${b.cls}</td><td>${b.issued}</td><td>${b.due}</td>
+              <td><span class="badge ${b.status==='Active'?'badge-green':b.status==='Overdue'?'badge-red':'badge-gold'}">${b.status}</span></td>
+              <td><button class="btn-sm btn-primary-sm">Return</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderInventoryLib(el) {
+  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">📦 Library Inventory</div><button class="btn-sm btn-primary-sm">+ Add Item</button></div>
+    <table class="data-table"><thead><tr><th>Item</th><th>Category</th><th>Quantity</th><th>Condition</th><th>Location</th></tr></thead><tbody>
+    ${[
+      {item:'Reading Tables',cat:'Furniture',qty:24,cond:'Good',loc:'Main Hall'},
+      {item:'Study Chairs',cat:'Furniture',qty:96,cond:'Good',loc:'Main Hall'},
+      {item:'Bookracks (Steel)',cat:'Storage',qty:42,cond:'Good',loc:'Stacks'},
+      {item:'Computer Terminals',cat:'Technology',qty:8,cond:'Good',loc:'Digital Section'},
+      {item:'Barcode Scanner',cat:'Equipment',qty:2,cond:'Needs Service',loc:'Issue Counter'},
+    ].map(i=>`<tr><td class="font-medium">${i.item}</td><td><span class="badge badge-blue">${i.cat}</span></td><td>${i.qty}</td><td><span class="badge ${i.cond==='Good'?'badge-green':'badge-gold'}">${i.cond}</span></td><td>${i.loc}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderSportsEvents(el) {
+  el.innerHTML = `<div class="tab-bar"><div class="tab-item active">🏆 Events</div><div class="tab-item">➕ New Event</div><div class="tab-item">🥇 Results</div></div>
+    <div class="card"><div class="card-header"><div class="card-title">🏆 Sports Events 2024-25</div><button class="btn-sm btn-primary-sm">+ New Event</button></div>
+    <table class="data-table"><thead><tr><th>Event</th><th>Sport</th><th>Date</th><th>Participants</th><th>Venue</th><th>Status</th></tr></thead><tbody>
+    ${[
+      {event:'Annual Sports Day',sport:'Multi-Sport',date:'Dec 15, 2024',part:480,venue:'School Ground',status:'Upcoming'},
+      {event:'District Basketball Tournament',sport:'Basketball',date:'Dec 10, 2024',part:24,venue:'Indoor Court',status:'Upcoming'},
+      {event:'Zonal Football Match',sport:'Football',date:'Nov 28, 2024',part:22,venue:'School Ground',status:'Completed'},
+      {event:'Inter-School Cricket',sport:'Cricket',date:'Nov 15, 2024',part:30,venue:'Cricket Ground',status:'Completed'},
+    ].map(e=>`<tr><td class="font-medium text-primary">${e.event}</td><td>${e.sport}</td><td>${e.date}</td><td>${e.part}</td><td>${e.venue}</td>
+    <td><span class="badge ${e.status==='Upcoming'?'badge-blue':'badge-green'}">${e.status}</span></td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderEquipment(el) {
+  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">🏋️ Sports Equipment</div><button class="btn-sm btn-primary-sm">+ Add Equipment</button></div>
+    <table class="data-table"><thead><tr><th>Equipment</th><th>Sport</th><th>Qty</th><th>Condition</th><th>Location</th><th>Last Checked</th></tr></thead><tbody>
+    ${[
+      {eq:'Cricket Bat',sport:'Cricket',qty:12,cond:'Good',loc:'Store Room A',check:'Dec 1'},
+      {eq:'Football',sport:'Football',qty:8,cond:'Good',loc:'Store Room A',check:'Dec 1'},
+      {eq:'Basketball',sport:'Basketball',qty:6,cond:'Good',loc:'Store Room B',check:'Nov 28'},
+      {eq:'Badminton Racket',sport:'Badminton',qty:16,cond:'Needs Repair',loc:'Store Room B',check:'Nov 20'},
+      {eq:'Volleyball Net',sport:'Volleyball',qty:3,cond:'Good',loc:'Store Room A',check:'Dec 2'},
+    ].map(e=>`<tr><td class="font-medium">${e.eq}</td><td>${e.sport}</td><td>${e.qty}</td>
+    <td><span class="badge ${e.cond==='Good'?'badge-green':'badge-gold'}">${e.cond}</span></td><td>${e.loc}</td><td>${e.check}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderTeams(el) {
+  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">👥 Sports Teams</div><button class="btn-sm btn-primary-sm">+ Create Team</button></div>
+    <div class="grid-2">
+    ${[
+      {sport:'🏏 Cricket',members:22,coach:'Coach Rajesh',record:'W12 L3 D2',status:'Active'},
+      {sport:'⚽ Football',members:18,coach:'Coach Amit',record:'W8 L4 D1',status:'Active'},
+      {sport:'🏀 Basketball',members:12,coach:'Coach Priya',record:'W6 L2',status:'Active'},
+      {sport:'🏸 Badminton',members:16,coach:'Coach Sunita',record:'W10 L1',status:'Active'},
+    ].map(t=>`<div class="school-card"><div class="school-card-icon" style="background:rgba(16,185,129,0.1);font-size:24px">${t.sport[0]}${t.sport[1]}</div>
+    <div class="school-card-info"><div class="school-card-name">${t.sport}</div>
+    <div class="school-card-meta">${t.members} members · ${t.coach}</div>
+    <div class="school-card-meta">Record: ${t.record}</div></div>
+    <span class="badge badge-green">${t.status}</span></div>`).join('')}
+    </div></div>`;
+}
+
+function renderAccessControl(el) {
+  el.innerHTML = `<div class="tab-bar"><div class="tab-item active">🔐 Access Logs</div><div class="tab-item">📷 CCTV</div><div class="tab-item">🚪 Gates</div></div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">🚪</div><div class="stat-value">2/3</div><div class="stat-label">Gates Open</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">📷</div><div class="stat-value">62/64</div><div class="stat-label">CCTV Active</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🪪</div><div class="stat-value">1,842</div><div class="stat-label">ID Cards Issued</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">2</div><div class="stat-label">Cameras Offline</div></div>
+    </div>
+    <div class="card"><div class="card-header"><div class="card-title">🔐 Today's Access Log</div></div>
+    <table class="data-table"><thead><tr><th>Person</th><th>Gate</th><th>Time</th><th>Method</th><th>Status</th></tr></thead><tbody>
+    ${[
+      {name:'Anjali Mishra (Staff)',gate:'Main Gate',time:'7:48 AM',method:'ID Card',status:'Granted'},
+      {name:'Unknown Visitor',gate:'Side Gate',time:'9:15 AM',method:'Manual',status:'Denied'},
+      {name:'Delivery Agent - Amazon',gate:'Back Gate',time:'11:30 AM',method:'Manual',status:'Granted'},
+      {name:'Maintenance Worker',gate:'Main Gate',time:'12:00 PM',method:'OTP',status:'Granted'},
+    ].map(a=>`<tr><td class="text-primary">${a.name}</td><td>${a.gate}</td><td>${a.time}</td><td>${a.method}</td>
+    <td><span class="badge ${a.status==='Granted'?'badge-green':'badge-red'}">${a.status}</span></td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderIncidents(el) {
+  el.innerHTML = `<div class="tab-bar"><div class="tab-item active">🚨 All Incidents</div><div class="tab-item">➕ Report</div><div class="tab-item">📊 Analysis</div></div>
+    <div class="notice danger"><span class="notice-icon">🚨</span><div class="notice-text"><strong>1 active incident</strong> being handled: Unauthorized person spotted near Back Gate. Guards deployed.</div></div>
+    <div class="card"><div class="card-header"><div class="card-title">🚨 Incident Register</div><button class="btn-sm btn-danger-sm">+ Report Incident</button></div>
+    <table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Location</th><th>Reported By</th><th>Severity</th><th>Status</th></tr></thead><tbody>
+    ${[
+      {date:'Dec 5',type:'Unauthorized Entry Attempt',loc:'Back Gate',by:'Guard Ramesh',sev:'High',status:'Active'},
+      {date:'Dec 3',type:'Student Fight',loc:'Corridor B',by:'Teacher Priya',sev:'Medium',status:'Resolved'},
+      {date:'Nov 28',type:'Theft Suspicion',loc:'Classroom 4B',by:'HOD Science',sev:'Medium',status:'Resolved'},
+      {date:'Nov 20',type:'Fire Alarm (False)',loc:'Lab Block',by:'Lab Staff',sev:'Low',status:'Resolved'},
+    ].map(i=>`<tr><td>${i.date}</td><td class="text-primary">${i.type}</td><td>${i.loc}</td><td>${i.by}</td>
+    <td><span class="badge ${i.sev==='High'?'badge-red':i.sev==='Medium'?'badge-gold':'badge-gray'}">${i.sev}</span></td>
+    <td><span class="badge ${i.status==='Active'?'badge-red':'badge-green'}">${i.status}</span></td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderSystemConfig(el) {
+  el.innerHTML = `<div class="grid-2">
+    <div class="card"><div class="card-header"><div class="card-title">⚙️ General Settings</div></div>
+    ${[
+      {label:'Academic Year',val:'2024-2025'},
+      {label:'Session Start',val:'April 1, 2024'},
+      {label:'Session End',val:'March 31, 2025'},
+      {label:'School Timing',val:'7:30 AM - 2:30 PM'},
+      {label:'Working Days',val:'Mon - Sat'},
+      {label:'System Language',val:'English + Hindi'},
+    ].map(s=>`<div class="metric-row"><span class="metric-label">${s.label}</span><span class="metric-value">${s.val}</span></div>`).join('')}
+    </div>
+    <div class="card"><div class="card-header"><div class="card-title">🔧 Module Status</div></div>
+    ${[
+      {mod:'Fee Management',status:'Active'},
+      {mod:'HR & Payroll',status:'Active'},
+      {mod:'Transport Tracking',status:'Active'},
+      {mod:'Library System',status:'Active'},
+      {mod:'AI Assistant',status:'Beta'},
+      {mod:'Parent Portal',status:'Active'},
+      {mod:'E-Learning',status:'Inactive'},
+    ].map(m=>`<div class="metric-row"><span class="metric-label">${m.mod}</span>
+    <span class="badge ${m.status==='Active'?'badge-green':m.status==='Beta'?'badge-blue':'badge-gray'}">${m.status}</span></div>`).join('')}
+    </div>
+    </div>`;
+}
+
+function renderUserManagement(el) {
+  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">👤 Admin Users</div><button class="btn-sm btn-primary-sm">+ Add User</button></div>
+    <table class="data-table"><thead><tr><th>Name</th><th>Role</th><th>School</th><th>Last Login</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    ${[
+      {name:'Arjun Verma',role:'Super Admin',school:'All Schools',login:'Just now',status:'Active'},
+      {name:'Priya Mishra',role:'Director',school:'Zone A',login:'1 hour ago',status:'Active'},
+      {name:'Dr. Sanjay Gupta',role:'Principal',school:'DPS Noida',login:'2 hours ago',status:'Active'},
+      {name:'Rakesh Sharma',role:'Finance Manager',school:'DPS Noida',login:'30 mins ago',status:'Active'},
+      {name:'Meena Patel',role:'HR Manager',school:'DPS Noida',login:'Yesterday',status:'Active'},
+      {name:'Anil Kumar',role:'Transport Head',school:'DPS Noida',login:'3 hours ago',status:'Active'},
+    ].map(u=>`<tr>
+    <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(99,102,241,0.2);color:#818cf8">${u.name[0]}</div><div class="avatar-name">${u.name}</div></div></td>
+    <td><span class="badge badge-blue">${u.role}</span></td><td>${u.school}</td><td>${u.login}</td>
+    <td><span class="badge badge-green">${u.status}</span></td>
+    <td><div style="display:flex;gap:4px"><button class="btn-sm btn-secondary-sm" style="padding:4px 8px">Edit</button><button class="btn-sm btn-danger-sm" style="padding:4px 8px">Disable</button></div></td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderAcademic(el) {
+  el.innerHTML = `<div class="tab-bar"><div class="tab-item active">📖 Academics</div><div class="tab-item">📝 Exams</div><div class="tab-item">📊 Results</div><div class="tab-item">📅 Timetable</div></div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">📚</div><div class="stat-value">12</div><div class="stat-label">Grades</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">📝</div><div class="stat-value">3</div><div class="stat-label">Upcoming Exams</div></div>
+      <div class="stat-card gold"><div class="stat-icon">📊</div><div class="stat-value">82%</div><div class="stat-label">Avg Pass Rate</div></div>
+      <div class="stat-card rose"><div class="stat-icon">🎯</div><div class="stat-value">94%</div><div class="stat-label">Board Result</div></div>
+    </div>
+    <div class="card"><div class="card-header"><div class="card-title">📝 Upcoming Examinations</div></div>
+    ${[
+      {exam:'Half Yearly Examination',grades:'Grade 6-10',from:'Dec 10',to:'Dec 20',type:'Theory'},
+      {exam:'Pre-Board Examination',grades:'Grade 11-12',from:'Dec 12',to:'Dec 22',type:'Theory + Practical'},
+      {exam:'Unit Test 3',grades:'Grade 1-5',from:'Dec 8',to:'Dec 9',type:'Theory'},
+    ].map(e=>`<div class="activity-item">
+    <div class="activity-icon" style="background:rgba(99,102,241,0.15)">📝</div>
+    <div class="activity-content">
+      <div class="f13 font-medium text-primary">${e.exam}</div>
+      <div class="f12 text-muted">${e.grades} · ${e.from} to ${e.to} · ${e.type}</div>
+    </div>
+    <span class="badge badge-blue">Upcoming</span>
+    </div>`).join('')}
+    </div>`;
+}
+
+function renderAdmissions(el) {
+  el.innerHTML = `<div class="tab-bar"><div class="tab-item active">📋 Applications</div><div class="tab-item">🧪 Test</div><div class="tab-item">✅ Enrolled</div><div class="tab-item">📊 Reports</div></div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">📋</div><div class="stat-value">124</div><div class="stat-label">Applications (FY)</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">98</div><div class="stat-label">Enrolled</div></div>
+      <div class="stat-card gold"><div class="stat-icon">⏳</div><div class="stat-value">18</div><div class="stat-label">Pending</div></div>
+      <div class="stat-card rose"><div class="stat-icon">❌</div><div class="stat-value">8</div><div class="stat-label">Rejected</div></div>
+    </div>
+    <div class="card"><div class="card-header"><div class="card-title">📋 Recent Applications</div><button class="btn-sm btn-primary-sm">+ New Application</button></div>
+    <table class="data-table"><thead><tr><th>Student Name</th><th>Grade Applying</th><th>Parent</th><th>Applied</th><th>Test Score</th><th>Status</th></tr></thead><tbody>
+    ${[
+      {name:'Aryan Mehta',grade:'Grade 6',parent:'Sunil Mehta',date:'Dec 4',score:'92/100',status:'Selected'},
+      {name:'Riya Gupta',grade:'Grade 9',parent:'Rahul Gupta',date:'Dec 3',score:'88/100',status:'Selected'},
+      {name:'Sam Khan',grade:'Grade 1',parent:'Irfan Khan',date:'Dec 3',score:'-',status:'Pending'},
+      {name:'Pooja Sharma',grade:'Grade 11',parent:'Deepak Sharma',date:'Dec 2',score:'76/100',status:'Waitlist'},
+    ].map(a=>`<tr><td class="text-primary font-medium">${a.name}</td><td>${a.grade}</td><td>${a.parent}</td><td>${a.date}</td><td>${a.score}</td>
+    <td><span class="badge ${a.status==='Selected'?'badge-green':a.status==='Pending'?'badge-gold':'badge-cyan'}">${a.status}</span></td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderCompliance(el) {
+  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">✅ Compliance Checklist - 2024-25</div></div>
+    ${[
+      {item:'CBSE Affiliation Renewal',deadline:'March 2025',status:'Completed',date:'Sep 2024'},
+      {item:'Fire Safety Audit',deadline:'Annual',status:'Completed',date:'Oct 2024'},
+      {item:'Annual Health Inspection',deadline:'Annual',status:'Completed',date:'Nov 2024'},
+      {item:'Staff Background Verification',deadline:'Ongoing',status:'In Progress',date:'-'},
+      {item:'POCSO Compliance Training',deadline:'Dec 2024',status:'Pending',date:'-'},
+      {item:'RTI Filing',deadline:'Annual',status:'Completed',date:'Apr 2024'},
+      {item:'Annual Audit (CA)',deadline:'Jun 2025',status:'Upcoming',date:'-'},
+    ].map(c=>`<div class="metric-row">
+    <div><div class="f13 font-medium">${c.item}</div><div class="f12 text-muted">Deadline: ${c.deadline}${c.date!=='-'?' · Done: '+c.date:''}</div></div>
+    <span class="badge ${c.status==='Completed'?'badge-green':c.status==='In Progress'?'badge-blue':c.status==='Pending'?'badge-red':'badge-gold'}">${c.status}</span>
+    </div>`).join('')}
+    </div>`;
+}
+
+// ========== LOGIN FUNCTIONS ==========
+let selectedRole = 'finance';
+
+function selectRole(role, btn) {
+  selectedRole = role;
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function enterApp() {
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('app-screen').classList.add('active');
+  switchRole(selectedRole);
+}
+
+function logout() {
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('login-screen').classList.add('active');
+}
+
+// ========== INIT ==========
+// Pre-select Finance on login screen
+document.querySelectorAll('.role-btn')[3]?.classList.add('selected');
+</script>
+</body>
+</html>
