@@ -108,19 +108,8 @@ def main():
     print(f"✅ Already applied: {len(applied)}")
     print(f"⏳ Pending: {len(migration_files) - len(applied)}\n")
 
-    # The 10 fixed files that need re-apply
-    fixed_files = {
-        "091_optimize_endpoints.sql",
-        "092_profile_session_and_stats.sql",
-        "100_enhance_live_classes_with_recording_data.sql",
-        "112_salary_advances.sql",
-        "115_enhance_attendance_module.sql",
-        "129_fix_rls_policies_roles.sql",
-        "135_rule_based_badges.sql",
-        "136_enhance_teacher_dashboard.sql",
-        "137_align_student_teacher_averages.sql",
-        "138_add_performance_indexes.sql",
-    }
+    # The fixed files list is cleared since they have already been successfully re-applied.
+    fixed_files = set()
 
     results = {"skipped": 0, "applied": 0, "failed": 0, "reapplied": 0}
 
