@@ -10,7 +10,7 @@ class TeacherApiService {
   factory TeacherApiService() => _instance;
   TeacherApiService._internal();
 
-  final http.Client _client = http.Client();
+  final http.Client _client = InterceptorClient();
 
   String get _baseUrl => AppConfig.apiBaseUrl;
   String get baseUrl => _baseUrl;

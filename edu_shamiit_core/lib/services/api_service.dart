@@ -10,7 +10,7 @@ class ApiService {
   factory ApiService() => _instance;
   ApiService._internal();
 
-  final http.Client _client = http.Client();
+  final http.Client _client = InterceptorClient();
   
   /// Global callback for 401 Unauthorized responses
   void Function()? onUnauthorized;
@@ -230,4 +230,24 @@ class ApiException implements Exception {
   ApiException(this.message);
   @override
   String toString() => 'ApiException: $message';
+}
+
+/// A custom HTTP client that intercepts 401 Unauthorized responses to trigger logout
+class InterceptorClient extends http.BaseClient {
+  final http.Client _inner = http.Client();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(request);
+    if (response.statusCode == 401) {
+      ApiService().onUnauthorized?.call();
+    }
+    return response;
+  }
+
+  @override
+  void close() {
+    _inner.close();
+    super.close();
+  }
 }

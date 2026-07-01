@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
 import 'package:edu_shamiit_core/models/student_models.dart';
 import 'package:edu_shamiit_academic/core/services/mock_data_service.dart';
+import 'package:edu_shamiit_core/services/api_service.dart';
 
 /// Student API service for communicating with FastAPI backend
 class StudentApiService {
@@ -11,7 +12,7 @@ class StudentApiService {
   factory StudentApiService() => _instance;
   StudentApiService._internal();
 
-  final http.Client _client = http.Client();
+  final http.Client _client = InterceptorClient();
 
   /// Get headers with authorization
   Future<Map<String, String>> get _headers async {
