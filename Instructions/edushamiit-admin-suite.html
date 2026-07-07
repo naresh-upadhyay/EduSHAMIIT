@@ -682,6 +682,96 @@
   .role-top-btn.active { background: var(--gradient-primary); border-color: transparent; color: white; }
 
   .sidebar-nav-wrap { overflow-y: auto; flex: 1; padding-bottom: 8px; }
+
+  /* ===== TOAST NOTIFICATIONS ===== */
+  #toast-container {
+    position: fixed; bottom: 24px; right: 24px;
+    z-index: 9999; display: flex; flex-direction: column; gap: 10px;
+  }
+  .toast {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    min-width: 280px; max-width: 360px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: slideIn 0.3s ease;
+    font-size: 13px;
+  }
+  .toast.success { border-left: 3px solid var(--accent-emerald); }
+  .toast.error   { border-left: 3px solid var(--accent-rose); }
+  .toast.warn    { border-left: 3px solid var(--accent-gold); }
+  .toast.info    { border-left: 3px solid var(--accent-primary); }
+  .toast-icon { font-size: 18px; flex-shrink: 0; }
+  .toast-msg  { flex: 1; color: var(--text-primary); }
+  .toast-close { color: var(--text-muted); cursor: pointer; font-size: 16px; }
+  .toast-close:hover { color: var(--text-primary); }
+  @keyframes slideIn  { from { opacity:0; transform:translateX(40px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes slideOut { from { opacity:1; transform:translateX(0); }   to { opacity:0; transform:translateX(40px); } }
+
+  /* ===== MODAL OVERLAY ===== */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 8000; display: none;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 28px;
+    width: 480px; max-width: 95vw;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+    animation: fadeIn 0.2s ease;
+  }
+  .modal-box.wide { width: 640px; }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; color: var(--text-muted);
+  }
+  .modal-close:hover { color: var(--accent-rose); border-color: var(--accent-rose); }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* ===== FUNCTIONAL TABS ===== */
+  .tab-bar .tab-item { cursor: pointer; user-select: none; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+
+  /* ===== SEARCH BAR (interactive) ===== */
+  .search-input {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 14px;
+    color: var(--text-primary); font-size: 13px;
+    font-family: 'Inter', sans-serif; outline: none;
+    width: 100%; transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent-primary); }
+  .search-input::placeholder { color: var(--text-muted); }
+
+  /* ===== CONFIRM DIALOG ===== */
+  #confirm-overlay {
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);
+    z-index:9500;display:none;align-items:center;justify-content:center;
+  }
+  #confirm-overlay.open{display:flex;}
+  #confirm-box{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:16px;padding:24px;width:360px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    text-align:center;
+  }
+  #confirm-box h3{font-size:15px;margin-bottom:8px;}
+  #confirm-box p{font-size:13px;color:var(--text-secondary);margin-bottom:20px;}
+  #confirm-box .btns{display:flex;gap:10px;justify-content:center;}
 </style>
 </head>
 <body>
@@ -753,14 +843,14 @@
       <span class="school-arrow">▼</span>
     </div>
 
-    <!-- ROLE TOP SELECTOR (inside sidebar) -->
-    <div style="padding:4px 12px 8px">
-      <div style="font-size:10px;color:var(--text-muted);padding:4px 0 6px;letter-spacing:1px">SWITCH ROLE VIEW</div>
+    <!-- SUPER ADMIN ONLY: Role Switcher (hidden for other roles) -->
+    <div style="padding:4px 12px 8px" id="role-switcher-panel">
+      <div style="font-size:10px;color:var(--text-muted);padding:4px 0 6px;letter-spacing:1px">🔁 SWITCH ROLE VIEW</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px" id="role-switcher">
         <button class="role-top-btn" onclick="switchRole('super_admin')">🛡️ Super</button>
         <button class="role-top-btn" onclick="switchRole('director')">👑 Director</button>
         <button class="role-top-btn" onclick="switchRole('principal')">🎓 Principal</button>
-        <button class="role-top-btn active" onclick="switchRole('finance')">💰 Finance</button>
+        <button class="role-top-btn" onclick="switchRole('finance')">💰 Finance</button>
         <button class="role-top-btn" onclick="switchRole('hr')">👥 HR</button>
         <button class="role-top-btn" onclick="switchRole('transport')">🚌 Transport</button>
         <button class="role-top-btn" onclick="switchRole('library')">📚 Library</button>
@@ -788,7 +878,10 @@
   <div class="main-content">
     <div class="topbar">
       <div class="topbar-title" id="topbar-title">Dashboard <span id="topbar-subtitle">Finance Overview</span></div>
-      <div class="topbar-search">🔍 <span>Search anything...</span></div>
+      <div class="topbar-search" onclick="this.querySelector('input').focus()">
+        🔍
+        <input class="search-input" style="background:transparent;border:none;outline:none;flex:1;color:var(--text-primary);font-size:13px;" placeholder="Search anything..." oninput="handleSearch(this.value)">
+      </div>
       <div class="topbar-actions">
         <div class="icon-btn" onclick="switchPanel('notifications')">🔔<div class="notif-dot"></div></div>
         <div class="icon-btn" onclick="switchPanel('calendar_panel')">📅</div>
@@ -836,6 +929,33 @@
     <div class="content-panel" id="panel-admissions"><!-- Admissions --></div>
     <div class="content-panel" id="panel-compliance"><!-- Compliance --></div>
     <div class="content-panel" id="panel-calendar_panel"><!-- Calendar Panel --></div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- GLOBAL MODAL -->
+<div class="modal-overlay" id="global-modal">
+  <div class="modal-box" id="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Modal</div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <h3 id="confirm-title">Are you sure?</h3>
+    <p id="confirm-msg">This action cannot be undone.</p>
+    <div class="btns">
+      <button class="btn-sm btn-secondary-sm" onclick="confirmResolve(false)">Cancel</button>
+      <button class="btn-sm btn-primary-sm" id="confirm-ok-btn" onclick="confirmResolve(true)">Confirm</button>
+    </div>
   </div>
 </div>
 
@@ -1071,6 +1191,9 @@ function switchRole(role) {
   document.getElementById('user-display-name').textContent = config.displayName;
   document.getElementById('user-avatar-initials').textContent = config.initials;
   document.getElementById('topbar-avatar').textContent = config.initials;
+  // Show role switcher only for super_admin
+  const rsp = document.getElementById('role-switcher-panel');
+  if (rsp) rsp.style.display = role === 'super_admin' ? 'block' : 'none';
   // update role switcher buttons
   document.querySelectorAll('#role-switcher .role-top-btn').forEach(b => {
     b.classList.toggle('active', b.textContent.toLowerCase().includes(role.split('_')[0]));
@@ -1523,9 +1646,9 @@ function getDashboardExtra(role) {
                 <div class="avatar-sub">${r.dept} • ${r.days} day(s) • ${r.type}</div>
               </div>
             </div>
-            <div style="display:flex;gap:6px">
-              <button class="btn-sm btn-primary-sm" style="padding:4px 10px">✓</button>
-              <button class="btn-sm btn-danger-sm" style="padding:4px 10px">✗</button>
+        <div style="display:flex;gap:6px">
+              <button class="btn-sm btn-primary-sm" style="padding:4px 10px" onclick="approveLeave('${r.name}')">✓</button>
+              <button class="btn-sm btn-danger-sm" style="padding:4px 10px" onclick="denyLeave('${r.name}')">✗</button>
             </div>
           </div>
         `).join('')}
@@ -1703,7 +1826,7 @@ function renderFeeManagement(el) {
               <td style="color:${r.st==='red'?'var(--accent-rose)':r.st==='gold'?'var(--accent-gold)':'var(--accent-emerald)'};font-weight:600">${r.bal}</td>
               <td>${r.date}</td>
               <td><span class="badge badge-${r.st}">${r.status}</span></td>
-              <td><button class="btn-sm btn-primary-sm">Collect</button></td>
+              <td><button class="btn-sm btn-primary-sm" onclick="collectFee('${r.name}')">Collect</button></td>
             </tr>
           `).join('')}
         </tbody>
@@ -1800,7 +1923,7 @@ function renderPayroll(el) {
     </div>
     <div class="card">
       <div class="card-header"><div class="card-title">💳 Payroll Register - November 2024</div>
-        <div style="display:flex;gap:8px"><div class="card-action">📤 Export</div><button class="btn-sm btn-primary-sm">Run Payroll</button></div>
+        <div style="display:flex;gap:8px"><div class="card-action" onclick="showToast('Exporting payroll data...','info','📤')">📤 Export</div><button class="btn-sm btn-primary-sm" onclick="runPayroll()">Run Payroll</button></div>
       </div>
       <table class="data-table">
         <thead><tr><th>Employee</th><th>Dept</th><th>Basic</th><th>HRA</th><th>Allowances</th><th>Deductions</th><th>Net Pay</th><th>Status</th></tr></thead>
@@ -1839,7 +1962,7 @@ function renderStaffDirectory(el) {
         <select class="form-control" style="font-size:12px;padding:7px 12px"><option>All Departments</option><option>Teaching</option><option>Admin</option><option>Support</option></select>
         <select class="form-control" style="font-size:12px;padding:7px 12px"><option>All Status</option><option>Active</option><option>On Leave</option></select>
       </div>
-      <button class="btn-sm btn-primary-sm">+ Add Staff Member</button>
+      <button class="btn-sm btn-primary-sm" onclick="addStaff()">+ Add Staff Member</button>
     </div>
     <div class="card">
       <table class="data-table">
@@ -1885,7 +2008,7 @@ function renderVehicles(el) {
       <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">2</div><div class="stat-label">Breakdown</div></div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🚌 Vehicle Registry</div><button class="btn-sm btn-primary-sm">+ Add Vehicle</button></div>
+      <div class="card-header"><div class="card-title">🚌 Vehicle Registry</div><button class="btn-sm btn-primary-sm" onclick="addVehicle()">+ Add Vehicle</button></div>
       <table class="data-table">
         <thead><tr><th>Vehicle No.</th><th>Model</th><th>Capacity</th><th>Driver</th><th>Route</th><th>Insurance</th><th>Status</th></tr></thead>
         <tbody>
@@ -1923,7 +2046,7 @@ function renderBooks(el) {
       <div class="stat-card rose"><div class="stat-icon">⏰</div><div class="stat-value">12</div><div class="stat-label">Overdue</div></div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">📚 Book Catalog</div><button class="btn-sm btn-primary-sm">+ Add Book</button></div>
+      <div class="card-header"><div class="card-title">📚 Book Catalog</div><button class="btn-sm btn-primary-sm" onclick="addBook()">+ Add Book</button></div>
       <table class="data-table">
         <thead><tr><th>Book ID</th><th>Title</th><th>Author</th><th>Category</th><th>Available</th><th>Total</th><th>Action</th></tr></thead>
         <tbody>
@@ -1941,7 +2064,7 @@ function renderBooks(el) {
               <td><span class="badge badge-blue">${b.cat}</span></td>
               <td style="color:${b.avail===0?'var(--accent-rose)':b.avail<5?'var(--accent-gold)':'var(--accent-emerald)'};font-weight:600">${b.avail}</td>
               <td>${b.total}</td>
-              <td><button class="btn-sm btn-primary-sm" ${b.avail===0?'disabled style="opacity:0.5"':''}>Issue</button></td>
+              <td><button class="btn-sm btn-primary-sm" ${b.avail===0?'disabled style="opacity:0.5"':''} onclick="issueBook('${b.title}')">Issue</button></td>
             </tr>
           `).join('')}
         </tbody>
@@ -1965,9 +2088,9 @@ function renderVisitors(el) {
       <div class="stat-card gold"><div class="stat-icon">🏠</div><div class="stat-value">8</div><div class="stat-label">Still Inside</div></div>
       <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">3</div><div class="stat-label">Awaiting Approval</div></div>
     </div>
-    <div class="notice info"><span class="notice-icon">ℹ️</span><div class="notice-text">3 visitors are waiting for approval at the main gate. Please approve or deny their entry.</div></div>
+    <div class="notice info"><span class="notice-icon">ℹ️</span><div class="notice-text">3 visitors are waiting for approval at the main gate. <span style="color:var(--accent-primary);cursor:pointer;font-weight:600" onclick="showToast('Approval request sent to security team.','success','✅')">Approve All</span> or <span style="color:var(--accent-rose);cursor:pointer;font-weight:600" onclick="showToast('All pending visitors denied.','warn','❌')">Deny All</span>.</div></div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🪪 Visitor Log</div><button class="btn-sm btn-primary-sm">+ New Visitor</button></div>
+      <div class="card-header"><div class="card-title">🪪 Visitor Log</div><button class="btn-sm btn-primary-sm" onclick="newVisitor()">+ New Visitor</button></div>
       <table class="data-table">
         <thead><tr><th>Name</th><th>Phone</th><th>Purpose</th><th>Meeting</th><th>In Time</th><th>Out Time</th><th>Status</th></tr></thead>
         <tbody>
@@ -2007,7 +2130,7 @@ function renderHelpdesk(el) {
       <div class="stat-card rose"><div class="stat-icon">🚨</div><div class="stat-value">5</div><div class="stat-label">Escalated</div></div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🎫 Support Tickets</div><button class="btn-sm btn-primary-sm">+ New Ticket</button></div>
+      <div class="card-header"><div class="card-title">🎫 Support Tickets</div><button class="btn-sm btn-primary-sm" onclick="newTicket()">+ New Ticket</button></div>
       <table class="data-table">
         <thead><tr><th>Ticket ID</th><th>Raised By</th><th>Subject</th><th>Category</th><th>Priority</th><th>Assigned</th><th>Status</th></tr></thead>
         <tbody>
@@ -2051,7 +2174,7 @@ function renderAnnouncements(el) {
         <div class="form-group"><label class="form-label">Send To</label><select class="form-control"><option>All (Students + Parents + Staff)</option><option>Students Only</option><option>Parents Only</option></select></div>
         <div class="form-group"><label class="form-label">Channel</label><select class="form-control"><option>App + SMS + Email</option><option>App Only</option><option>SMS Only</option></select></div>
       </div>
-      <div class="form-actions"><button class="btn-sm btn-secondary-sm">Save Draft</button><button class="btn-sm btn-primary-sm">Send Now 📤</button></div>
+    <div class="form-actions"><button class="btn-sm btn-secondary-sm">Save Draft</button><button class="btn-sm btn-primary-sm" onclick="sendAnnouncement()">Send Now 📤</button></div>
     </div>
     <div class="card">
       <div class="card-header"><div class="card-title">📢 Recent Announcements</div></div>
@@ -2159,7 +2282,7 @@ function renderSettings(el) {
             <div class="form-group"><label class="form-label">Phone</label><input class="form-control" value="9876543210"></div>
             <div class="form-group full"><label class="form-label">Address</label><input class="form-control" value="Jewar, Uttar Pradesh"></div>
           </div>
-          <div class="form-actions"><button class="btn-sm btn-primary-sm">Save Changes</button></div>
+      <div class="form-actions"><button class="btn-sm btn-primary-sm" onclick="showToast('Profile saved successfully!','success','✅')">Save Changes</button></div>
         </div>
         <div class="card">
           <div class="card-header"><div class="card-title">🔒 Security</div></div>
@@ -2211,7 +2334,7 @@ function renderCalendarPanel(el) {
       <div class="card">
         <div class="card-header">
           <div class="card-title">📅 December 2024</div>
-          <div style="display:flex;gap:8px"><div class="card-action">◀</div><div class="card-action">▶</div></div>
+        <div style="display:flex;gap:8px"><div class="card-action" onclick="showToast('Navigating prev month...','info','◀')">◀</div><div class="card-action" onclick="showToast('Navigating next month...','info','▶')">▶</div></div>
         </div>
         <div class="mini-calendar">
           ${days.map(d=>`<div class="cal-header-day">${d}</div>`).join('')}
@@ -2232,7 +2355,7 @@ function renderCalendarPanel(el) {
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><div class="card-title">📋 Upcoming Events</div><button class="btn-sm btn-primary-sm">+ Add Event</button></div>
+        <div class="card-header"><div class="card-title">📋 Upcoming Events</div><button class="btn-sm btn-primary-sm" onclick="addEvent()">+ Add Event</button></div>
         ${[
           {date:'Dec 8',title:'Parent-Teacher Meeting',time:'10:00 AM - 2:00 PM',type:'Academic',location:'School Auditorium'},
           {date:'Dec 10',title:'Fee Payment Last Date',time:'All Day',type:'Finance',location:'Finance Office'},
@@ -2291,7 +2414,7 @@ function renderExpenses(el) {
   el.innerHTML = `
     <div class="tab-bar"><div class="tab-item active">🧾 All Expenses</div><div class="tab-item">➕ Add</div><div class="tab-item">✅ Approval</div><div class="tab-item">📊 Reports</div></div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🧾 Expense Register</div><button class="btn-sm btn-primary-sm">+ Add Expense</button></div>
+      <div class="card-header"><div class="card-title">🧾 Expense Register</div><button class="btn-sm btn-primary-sm" onclick="addExpense()">+ Add Expense</button></div>
       <table class="data-table">
         <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Submitted By</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
@@ -2308,7 +2431,7 @@ function renderExpenses(el) {
               <td style="font-weight:600">${e.amt}</td>
               <td>${e.by}</td>
               <td><span class="badge ${e.status==='Approved'?'badge-green':'badge-gold'}">${e.status}</span></td>
-              <td><div style="display:flex;gap:4px">${e.status==='Pending'?'<button class="btn-sm btn-primary-sm" style="padding:4px 8px">✓ Approve</button><button class="btn-sm btn-danger-sm" style="padding:4px 8px">✗</button>':'<button class="btn-sm btn-secondary-sm" style="padding:4px 8px">View</button>'}</div></td>
+              <td><div style="display:flex;gap:4px">${e.status==='Pending'?'<button class="btn-sm btn-primary-sm" style="padding:4px 8px" onclick="approveExpense(\'' + e.desc + '\')">✓ Approve</button><button class="btn-sm btn-danger-sm" style="padding:4px 8px" onclick="showToast(\'' + e.desc + ' rejected.\',\'warn\',\'❌\')">✗</button>':'<button class="btn-sm btn-secondary-sm" style="padding:4px 8px">View</button>'}</div></td>
             </tr>
           `).join('')}
         </tbody>
@@ -2363,8 +2486,8 @@ function renderRecruitment(el) {
   el.innerHTML = `
     <div class="tab-bar"><div class="tab-item active">📝 Job Posts</div><div class="tab-item">👤 Applicants</div><div class="tab-item">🗓️ Interviews</div><div class="tab-item">✅ Onboarding</div></div>
     <div class="notice info"><span class="notice-icon">📝</span><div class="notice-text"><strong>3 positions are currently open.</strong> 12 applications received this week. 4 interviews scheduled for this week.</div></div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">📝 Open Positions</div><button class="btn-sm btn-primary-sm">+ Post Job</button></div>
+    <div class="card mb-16" style="margin-bottom:16px">
+      <div class="card-header"><div class="card-title">📝 Open Positions</div><button class="btn-sm btn-primary-sm" onclick="postJob()">+ Post Job</button></div>
       <table class="data-table">
         <thead><tr><th>Position</th><th>Department</th><th>Type</th><th>Applications</th><th>Posted</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
@@ -2442,8 +2565,8 @@ function renderLeave(el) {
               <div class="f12 text-secondary" style="margin-top:2px">${r.reason}</div>
             </div>
             <div style="display:flex;gap:6px">
-              <button class="btn-sm btn-primary-sm">✓ Approve</button>
-              <button class="btn-sm btn-danger-sm">✗ Deny</button>
+              <button class="btn-sm btn-primary-sm" onclick="approveLeave('${r.name}')">✓ Approve</button>
+              <button class="btn-sm btn-danger-sm" onclick="denyLeave('${r.name}')">✗ Deny</button>
             </div>
           </div>
         </div>
@@ -2544,7 +2667,7 @@ function renderIssued(el) {
   el.innerHTML = `
     <div class="tab-bar"><div class="tab-item active">🔖 Currently Issued</div><div class="tab-item">⏰ Overdue</div><div class="tab-item">🔄 Return</div></div>
     <div class="card">
-      <div class="card-header"><div class="card-title">🔖 Issued Books Log</div></div>
+      <div class="card-header"><div class="card-title">🔖 Issued Books Log</div><div class="card-action" onclick="showToast('Filtering overdue books...','info','⏰')">Show Overdue</div></div>
       <table class="data-table">
         <thead><tr><th>Book</th><th>Issued To</th><th>Class</th><th>Issue Date</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
@@ -2558,7 +2681,7 @@ function renderIssued(el) {
               <td class="font-medium text-primary">${b.book}</td>
               <td>${b.member}</td><td>${b.cls}</td><td>${b.issued}</td><td>${b.due}</td>
               <td><span class="badge ${b.status==='Active'?'badge-green':b.status==='Overdue'?'badge-red':'badge-gold'}">${b.status}</span></td>
-              <td><button class="btn-sm btn-primary-sm">Return</button></td>
+              <td><button class="btn-sm btn-primary-sm" onclick="returnBook('${b.book}')">Return</button></td>
             </tr>
           `).join('')}
         </tbody>
@@ -2568,7 +2691,7 @@ function renderIssued(el) {
 }
 
 function renderInventoryLib(el) {
-  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">📦 Library Inventory</div><button class="btn-sm btn-primary-sm">+ Add Item</button></div>
+  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">📦 Library Inventory</div><button class="btn-sm btn-primary-sm" onclick="showToast('Opening inventory form...','info','📦')">+ Add Item</button></div>
     <table class="data-table"><thead><tr><th>Item</th><th>Category</th><th>Quantity</th><th>Condition</th><th>Location</th></tr></thead><tbody>
     ${[
       {item:'Reading Tables',cat:'Furniture',qty:24,cond:'Good',loc:'Main Hall'},
@@ -2582,7 +2705,7 @@ function renderInventoryLib(el) {
 
 function renderSportsEvents(el) {
   el.innerHTML = `<div class="tab-bar"><div class="tab-item active">🏆 Events</div><div class="tab-item">➕ New Event</div><div class="tab-item">🥇 Results</div></div>
-    <div class="card"><div class="card-header"><div class="card-title">🏆 Sports Events 2024-25</div><button class="btn-sm btn-primary-sm">+ New Event</button></div>
+    <div class="card"><div class="card-header"><div class="card-title">🏆 Sports Events 2024-25</div><button class="btn-sm btn-primary-sm" onclick="addSportsEvent()">+ New Event</button></div>
     <table class="data-table"><thead><tr><th>Event</th><th>Sport</th><th>Date</th><th>Participants</th><th>Venue</th><th>Status</th></tr></thead><tbody>
     ${[
       {event:'Annual Sports Day',sport:'Multi-Sport',date:'Dec 15, 2024',part:480,venue:'School Ground',status:'Upcoming'},
@@ -2647,7 +2770,7 @@ function renderAccessControl(el) {
 function renderIncidents(el) {
   el.innerHTML = `<div class="tab-bar"><div class="tab-item active">🚨 All Incidents</div><div class="tab-item">➕ Report</div><div class="tab-item">📊 Analysis</div></div>
     <div class="notice danger"><span class="notice-icon">🚨</span><div class="notice-text"><strong>1 active incident</strong> being handled: Unauthorized person spotted near Back Gate. Guards deployed.</div></div>
-    <div class="card"><div class="card-header"><div class="card-title">🚨 Incident Register</div><button class="btn-sm btn-danger-sm">+ Report Incident</button></div>
+    <div class="card"><div class="card-header"><div class="card-title">🚨 Incident Register</div><button class="btn-sm btn-danger-sm" onclick="reportIncident()">+ Report Incident</button></div>
     <table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Location</th><th>Reported By</th><th>Severity</th><th>Status</th></tr></thead><tbody>
     ${[
       {date:'Dec 5',type:'Unauthorized Entry Attempt',loc:'Back Gate',by:'Guard Ramesh',sev:'High',status:'Active'},
@@ -2688,7 +2811,7 @@ function renderSystemConfig(el) {
 }
 
 function renderUserManagement(el) {
-  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">👤 Admin Users</div><button class="btn-sm btn-primary-sm">+ Add User</button></div>
+  el.innerHTML = `<div class="card"><div class="card-header"><div class="card-title">👤 Admin Users</div><button class="btn-sm btn-primary-sm" onclick="addAdminUser()">+ Add User</button></div>
     <table class="data-table"><thead><tr><th>Name</th><th>Role</th><th>School</th><th>Last Login</th><th>Status</th><th>Actions</th></tr></thead><tbody>
     ${[
       {name:'Arjun Verma',role:'Super Admin',school:'All Schools',login:'Just now',status:'Active'},
@@ -2738,7 +2861,7 @@ function renderAdmissions(el) {
       <div class="stat-card gold"><div class="stat-icon">⏳</div><div class="stat-value">18</div><div class="stat-label">Pending</div></div>
       <div class="stat-card rose"><div class="stat-icon">❌</div><div class="stat-value">8</div><div class="stat-label">Rejected</div></div>
     </div>
-    <div class="card"><div class="card-header"><div class="card-title">📋 Recent Applications</div><button class="btn-sm btn-primary-sm">+ New Application</button></div>
+    <div class="card"><div class="card-header"><div class="card-title">📋 Recent Applications</div><button class="btn-sm btn-primary-sm" onclick="showToast('Opening new application form...','info','📋')">+ New Application</button></div>
     <table class="data-table"><thead><tr><th>Student Name</th><th>Grade Applying</th><th>Parent</th><th>Applied</th><th>Test Score</th><th>Status</th></tr></thead><tbody>
     ${[
       {name:'Aryan Mehta',grade:'Grade 6',parent:'Sunil Mehta',date:'Dec 4',score:'92/100',status:'Selected'},
@@ -2767,8 +2890,253 @@ function renderCompliance(el) {
     </div>`;
 }
 
+// ========== GLOBAL BUTTON ACTIONS ==========
+
+// --- FEE MANAGEMENT ---
+function collectFee(studentName) {
+  const name = studentName || 'Student';
+  openModal('Collect Fee — ' + name, `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Student Name</label><input class="form-control" value="${name}" readonly></div>
+      <div class="form-group"><label class="form-label">Amount Collecting (₹)</label><input class="form-control" type="number" placeholder="Enter amount" id="fee-amt"></div>
+      <div class="form-group"><label class="form-label">Payment Mode</label><select class="form-control"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option></select></div>
+      <div class="form-group"><label class="form-label">Reference / Txn ID</label><input class="form-control" placeholder="Optional"></div>
+      <div class="form-group full"><label class="form-label">Remarks</label><textarea class="form-control" rows="2" placeholder="Optional remarks..."></textarea></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Fee collected successfully! Receipt generated.','success','💵')">💵 Collect & Print Receipt</button>`
+  );
+}
+
+// --- PAYROLL ---
+function runPayroll() {
+  showConfirm('Run Payroll', 'Process November 2024 payroll for 186 employees? Total: ₹18,40,200.', () => {
+    showToast('Payroll processing started. Salary slips will be generated shortly.', 'success', '💳');
+  }, 'Run Payroll ✓');
+}
+
+// --- ADD STAFF ---
+function addStaff() {
+  openModal('Add New Staff Member', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Full Name</label><input class="form-control" placeholder="Dr. Firstname Lastname"></div>
+      <div class="form-group"><label class="form-label">Designation</label><input class="form-control" placeholder="e.g. Science Teacher"></div>
+      <div class="form-group"><label class="form-label">Department</label><select class="form-control"><option>Teaching</option><option>Admin</option><option>Support</option><option>Finance</option><option>IT</option></select></div>
+      <div class="form-group"><label class="form-label">Employee ID</label><input class="form-control" placeholder="EMP-2026-XXX"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-control" placeholder="10-digit number" type="tel"></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-control" placeholder="name@edushamiit.in" type="email"></div>
+      <div class="form-group"><label class="form-label">Date of Joining</label><input class="form-control" type="date"></div>
+      <div class="form-group"><label class="form-label">Salary (₹/month)</label><input class="form-control" type="number" placeholder="e.g. 45000"></div>
+    </div>`, 
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Staff member added successfully!','success','👤')">+ Add Staff Member</button>`, true
+  );
+}
+
+// --- LEAVE ACTIONS ---
+function approveLeave(name) {
+  showConfirm('Approve Leave', `Approve leave request for ${name || 'this employee'}?`, () => {
+    showToast(`Leave approved for ${name || 'employee'}. SMS sent.`, 'success', '✅');
+  }, 'Approve ✓');
+}
+function denyLeave(name) {
+  showConfirm('Deny Leave', `Deny leave request for ${name || 'this employee'}?`, () => {
+    showToast(`Leave denied for ${name || 'employee'}. Employee notified.`, 'warn', '❌');
+  }, 'Deny Leave', true);
+}
+
+// --- BOOK ACTIONS ---
+function issueBook(title) {
+  openModal('Issue Book — ' + (title || 'Book'), `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Book Title</label><input class="form-control" value="${title || ''}" readonly></div>
+      <div class="form-group"><label class="form-label">Member ID / Name</label><input class="form-control" placeholder="Student/Staff name or ID"></div>
+      <div class="form-group"><label class="form-label">Issue Date</label><input class="form-control" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label class="form-label">Return Date</label><input class="form-control" type="date"></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Book issued successfully!','success','📖')">Issue Book 📖</button>`
+  );
+}
+function returnBook(title) {
+  showConfirm('Return Book', `Mark "${title || 'this book'}" as returned?`, () => {
+    showToast('Book returned successfully!', 'success', '🔄');
+  }, 'Mark Returned');
+}
+
+// --- ADD EXPENSE ---
+function addExpense() {
+  openModal('Add New Expense', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Description</label><input class="form-control" placeholder="Expense description"></div>
+      <div class="form-group"><label class="form-label">Amount (₹)</label><input class="form-control" type="number" placeholder="Amount"></div>
+      <div class="form-group"><label class="form-label">Category</label><select class="form-control"><option>Utility</option><option>Capital</option><option>Transport</option><option>Admin</option><option>Sports</option><option>IT</option></select></div>
+      <div class="form-group"><label class="form-label">Date</label><input class="form-control" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group full"><label class="form-label">Justification</label><textarea class="form-control" rows="2" placeholder="Why is this expense needed?"></textarea></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Expense submitted for approval.','info','🧾')">Submit for Approval</button>`, true
+  );
+}
+function approveExpense(desc) {
+  showConfirm('Approve Expense', `Approve expense: "${desc || 'this item'}"?`, () => {
+    showToast('Expense approved!', 'success', '✅');
+  }, 'Approve');
+}
+
+// --- HELP DESK ---
+function newTicket() {
+  openModal('Raise Support Ticket', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Raised By</label><input class="form-control" placeholder="Your name / Role"></div>
+      <div class="form-group"><label class="form-label">Category</label><select class="form-control"><option>Finance</option><option>IT</option><option>Transport</option><option>HR</option><option>Admissions</option><option>Other</option></select></div>
+      <div class="form-group"><label class="form-label">Priority</label><select class="form-control"><option>Low</option><option>Medium</option><option>High</option></select></div>
+      <div class="form-group"><label class="form-label">Assigned To</label><select class="form-control"><option>Finance Team</option><option>IT Support</option><option>Transport Head</option><option>HR Manager</option><option>Admin</option></select></div>
+      <div class="form-group full"><label class="form-label">Subject</label><input class="form-control" placeholder="Brief description of issue"></div>
+      <div class="form-group full"><label class="form-label">Details</label><textarea class="form-control" rows="3" placeholder="Explain the issue in detail..."></textarea></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Ticket raised! Ticket ID assigned.','success','🎫')">Raise Ticket</button>`, true
+  );
+}
+
+// --- VISITOR ENTRY ---
+function newVisitor() {
+  openModal('New Visitor Entry', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Visitor Name</label><input class="form-control" placeholder="Full name"></div>
+      <div class="form-group"><label class="form-label">Phone Number</label><input class="form-control" placeholder="10-digit" type="tel"></div>
+      <div class="form-group"><label class="form-label">Purpose of Visit</label><select class="form-control"><option>Parent Meeting</option><option>Fee Payment</option><option>Delivery</option><option>Official Work</option><option>Interview</option><option>Other</option></select></div>
+      <div class="form-group"><label class="form-label">Meeting With</label><input class="form-control" placeholder="Person / Dept to meet"></div>
+      <div class="form-group"><label class="form-label">ID Proof Type</label><select class="form-control"><option>Aadhaar</option><option>PAN</option><option>Driving License</option><option>Voter ID</option><option>Passport</option></select></div>
+      <div class="form-group"><label class="form-label">ID Number</label><input class="form-control" placeholder="ID proof number"></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Visitor entry logged. Badge printing...','success','🪪')">Log Entry & Print Badge</button>`, true
+  );
+}
+
+// --- INCIDENT REPORT ---
+function reportIncident() {
+  openModal('Report Security Incident', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Incident Type</label><select class="form-control"><option>Unauthorized Entry</option><option>Theft/Suspicion</option><option>Student Altercation</option><option>Property Damage</option><option>Fire/Emergency</option><option>Other</option></select></div>
+      <div class="form-group"><label class="form-label">Severity</label><select class="form-control"><option>Low</option><option>Medium</option><option>High</option></select></div>
+      <div class="form-group"><label class="form-label">Location</label><input class="form-control" placeholder="e.g. Main Gate, Block B"></div>
+      <div class="form-group"><label class="form-label">Time of Incident</label><input class="form-control" type="time"></div>
+      <div class="form-group full"><label class="form-label">Description</label><textarea class="form-control" rows="3" placeholder="Describe the incident..."></textarea></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-danger-sm" onclick="closeModal();showToast('Incident reported! Security team alerted.','error','🚨')">🚨 Report Incident</button>`, true
+  );
+}
+
+// --- ANNOUNCEMENT SEND ---
+function sendAnnouncement() {
+  showConfirm('Send Announcement', 'Send this announcement to all selected recipients via App + SMS + Email?', () => {
+    showToast('Announcement sent to 2,840 recipients!', 'success', '📢');
+  }, 'Send Now 📤');
+}
+
+// --- ADD VEHICLE ---
+function addVehicle() {
+  openModal('Add New Vehicle', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Vehicle Number</label><input class="form-control" placeholder="e.g. DL-01-AB-1234"></div>
+      <div class="form-group"><label class="form-label">Model</label><input class="form-control" placeholder="e.g. TATA Starbus"></div>
+      <div class="form-group"><label class="form-label">Seating Capacity</label><input class="form-control" type="number" placeholder="e.g. 52"></div>
+      <div class="form-group"><label class="form-label">Assigned Driver</label><input class="form-control" placeholder="Driver name"></div>
+      <div class="form-group"><label class="form-label">Insurance Valid Till</label><input class="form-control" type="date"></div>
+      <div class="form-group"><label class="form-label">Assigned Route</label><select class="form-control"><option>Route 1</option><option>Route 3</option><option>Route 6</option><option>Route 9</option><option>Unassigned</option></select></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Vehicle added to fleet!','success','🚌')">Add Vehicle</button>`
+  );
+}
+
+// --- ADD BOOK ---
+function addBook() {
+  openModal('Add Book to Catalog', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Title</label><input class="form-control" placeholder="Book title"></div>
+      <div class="form-group"><label class="form-label">Author</label><input class="form-control" placeholder="Author name"></div>
+      <div class="form-group"><label class="form-label">Category</label><select class="form-control"><option>Science</option><option>Mathematics</option><option>History</option><option>Fiction</option><option>Biography</option><option>Reference</option></select></div>
+      <div class="form-group"><label class="form-label">ISBN</label><input class="form-control" placeholder="ISBN number"></div>
+      <div class="form-group"><label class="form-label">Quantity</label><input class="form-control" type="number" placeholder="Number of copies"></div>
+      <div class="form-group"><label class="form-label">Location/Rack</label><input class="form-control" placeholder="e.g. Rack A-12"></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Book added to catalog!','success','📚')">Add to Catalog</button>`
+  );
+}
+
+// --- ADD EVENT ---
+function addEvent() {
+  openModal('Add Calendar Event', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Event Title</label><input class="form-control" placeholder="Event name"></div>
+      <div class="form-group"><label class="form-label">Type</label><select class="form-control"><option>Academic</option><option>Sports</option><option>Cultural</option><option>Holiday</option><option>Finance</option><option>Other</option></select></div>
+      <div class="form-group"><label class="form-label">Date</label><input class="form-control" type="date"></div>
+      <div class="form-group"><label class="form-label">Time</label><input class="form-control" type="time"></div>
+      <div class="form-group"><label class="form-label">Venue</label><input class="form-control" placeholder="Location"></div>
+      <div class="form-group"><label class="form-label">Notify To</label><select class="form-control"><option>All</option><option>Staff Only</option><option>Students & Parents</option></select></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Event added to school calendar!','success','📅')">Add Event</button>`
+  );
+}
+
+// --- ADD USER (System) ---
+function addAdminUser() {
+  openModal('Add Admin User', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Full Name</label><input class="form-control" placeholder="User's full name"></div>
+      <div class="form-group"><label class="form-label">Role</label><select class="form-control"><option>Finance Manager</option><option>HR Manager</option><option>Transport Head</option><option>Librarian</option><option>Sports Head</option><option>Security Head</option><option>Support Manager</option><option>Principal</option></select></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-control" placeholder="user@edushamiit.in" type="email"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-control" placeholder="10-digit" type="tel"></div>
+      <div class="form-group"><label class="form-label">School</label><select class="form-control"><option>DPS Noida</option><option>EduSHAMIIT Greater Noida</option><option>Shami International Agra</option><option>All Schools</option></select></div>
+      <div class="form-group"><label class="form-label">Temp Password</label><input class="form-control" type="password" placeholder="Set temporary password"></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Admin user created. Credentials sent via email.','success','👤')">Create User</button>`, true
+  );
+}
+
+// --- RECRUITMENT ---
+function postJob() {
+  openModal('Post New Job Opening', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Position Title</label><input class="form-control" placeholder="e.g. Mathematics Teacher"></div>
+      <div class="form-group"><label class="form-label">Department</label><select class="form-control"><option>Teaching</option><option>Admin</option><option>Support</option><option>IT</option></select></div>
+      <div class="form-group"><label class="form-label">Employment Type</label><select class="form-control"><option>Full Time</option><option>Part Time</option><option>Contract</option></select></div>
+      <div class="form-group"><label class="form-label">Salary Range (₹)</label><input class="form-control" placeholder="e.g. 35,000 - 55,000 / month"></div>
+      <div class="form-group full"><label class="form-label">Job Description</label><textarea class="form-control" rows="3" placeholder="Requirements, responsibilities..."></textarea></div>
+      <div class="form-group"><label class="form-label">Last Date to Apply</label><input class="form-control" type="date"></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Job posting published!','success','📝')">Publish Job Post</button>`, true
+  );
+}
+
+// --- SPORTS EVENT ---
+function addSportsEvent() {
+  openModal('Add Sports Event', `
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Event Name</label><input class="form-control" placeholder="e.g. Annual Sports Day"></div>
+      <div class="form-group"><label class="form-label">Sport</label><input class="form-control" placeholder="e.g. Cricket, Multi-Sport"></div>
+      <div class="form-group"><label class="form-label">Date</label><input class="form-control" type="date"></div>
+      <div class="form-group"><label class="form-label">Venue</label><input class="form-control" placeholder="e.g. School Ground"></div>
+      <div class="form-group"><label class="form-label">Max Participants</label><input class="form-control" type="number" placeholder="Number"></div>
+      <div class="form-group"><label class="form-label">Registration Deadline</label><input class="form-control" type="date"></div>
+    </div>`,
+    `<button class="btn-sm btn-secondary-sm" onclick="closeModal()">Cancel</button>
+     <button class="btn-sm btn-primary-sm" onclick="closeModal();showToast('Sports event created!','success','🏆')">Create Event</button>`
+  );
+}
+
 // ========== LOGIN FUNCTIONS ==========
 let selectedRole = 'finance';
+
 
 function selectRole(role, btn) {
   selectedRole = role;
@@ -2777,19 +3145,118 @@ function selectRole(role, btn) {
 }
 
 function enterApp() {
+  const id = document.getElementById('login-id').value.trim();
+  if (!id) { showToast('Please enter your Admin ID', 'warn', '⚠️'); return; }
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
   switchRole(selectedRole);
+  // Show/hide role switcher — only super_admin can switch roles
+  const panel = document.getElementById('role-switcher-panel');
+  if (panel) panel.style.display = selectedRole === 'super_admin' ? 'block' : 'none';
+  showToast(`Welcome back, ${roles[selectedRole]?.displayName || 'Admin'}!`, 'success', '👋');
 }
 
 function logout() {
-  document.getElementById('app-screen').classList.remove('active');
-  document.getElementById('login-screen').classList.add('active');
+  showConfirm('Sign Out', 'Are you sure you want to sign out?', () => {
+    document.getElementById('app-screen').classList.remove('active');
+    document.getElementById('login-screen').classList.add('active');
+  });
 }
+
+// ========== TOAST SYSTEM ==========
+function showToast(msg, type = 'info', icon = 'ℹ️', duration = 3500) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-msg">${msg}</span><span class="toast-close" onclick="this.parentElement.remove()">✕</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ========== MODAL SYSTEM ==========
+function openModal(title, bodyHTML, footerHTML = '', wide = false) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHTML;
+  document.getElementById('modal-footer').innerHTML = footerHTML;
+  const box = document.getElementById('modal-box');
+  box.className = wide ? 'modal-box wide' : 'modal-box';
+  document.getElementById('global-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('global-modal').classList.remove('open');
+}
+// Close modal on backdrop click
+document.getElementById('global-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ========== CONFIRM DIALOG ==========
+let _confirmCallback = null;
+function showConfirm(title, msg, onConfirm, okLabel = 'Confirm', danger = false) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  const okBtn = document.getElementById('confirm-ok-btn');
+  okBtn.textContent = okLabel;
+  okBtn.className = `btn-sm ${danger ? 'btn-danger-sm' : 'btn-primary-sm'}`;
+  _confirmCallback = onConfirm;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function confirmResolve(result) {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (result && _confirmCallback) _confirmCallback();
+  _confirmCallback = null;
+}
+
+// ========== TAB BAR HELPER ==========
+function initTabs(containerEl) {
+  const tabs = containerEl.querySelectorAll('.tab-bar .tab-item');
+  const contents = containerEl.querySelectorAll('.tab-content');
+  tabs.forEach((tab, i) => {
+    tab.onclick = () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      contents.forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      if (contents[i]) contents[i].classList.add('active');
+    };
+  });
+  // Activate first tab
+  if (tabs[0]) tabs[0].classList.add('active');
+  if (contents[0]) contents[0].classList.add('active');
+}
+
+// ========== SEARCH ==========
+function handleSearch(val) {
+  if (!val || val.length < 2) return;
+  // Visual feedback only for mockup
+  const allRows = document.querySelectorAll('.content-panel.active .data-table tbody tr');
+  allRows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(val.toLowerCase()) ? '' : 'none';
+  });
+}
+
+// ========== ROLE SWITCH (overridden to control UI) ==========
+const _origSwitchRole = switchRole;
 
 // ========== INIT ==========
 // Pre-select Finance on login screen
-document.querySelectorAll('.role-btn')[3]?.classList.add('selected');
+(function initLogin() {
+  const defaultIdx = { super_admin:0,director:1,principal:2,finance:3,admin_mgr:4,hr:5,transport:6,library:7,sports:8,security:9,support:10,driver:11 };
+  const btns = document.querySelectorAll('.role-btn');
+  btns.forEach(b => {
+    b.addEventListener('click', function() {
+      btns.forEach(x => x.classList.remove('selected'));
+      this.classList.add('selected');
+    });
+  });
+  if (btns[3]) btns[3].classList.add('selected'); // Finance default
+  // Hide role-switcher by default (shown only after super_admin login)
+  const rsp = document.getElementById('role-switcher-panel');
+  if (rsp) rsp.style.display = 'none';
+})();
 </script>
 </body>
 </html>
