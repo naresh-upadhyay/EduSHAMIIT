@@ -799,6 +799,8 @@
         <div class="role-btn" onclick="selectRole('security',this)"><span class="icon">🔒</span>Security</div>
         <div class="role-btn" onclick="selectRole('support',this)"><span class="icon">🎧</span>Support</div>
         <div class="role-btn" onclick="selectRole('driver',this)"><span class="icon">🚐</span>Driver</div>
+        <div class="role-btn" onclick="selectRole('hostel',this)"><span class="icon">🏠</span>Hostel</div>
+        <div class="role-btn" onclick="selectRole('exam_ctrl',this)"><span class="icon">📝</span>Exam Ctrl</div>
       </div>
       <div class="input-group">
         <input type="text" id="login-id" placeholder="Admin ID (e.g. ADMIN-2026-001)" value="ADMIN-2026-004">
@@ -857,6 +859,8 @@
         <button class="role-top-btn" onclick="switchRole('sports')">⚽ Sports</button>
         <button class="role-top-btn" onclick="switchRole('security')">🔒 Security</button>
         <button class="role-top-btn" onclick="switchRole('support')">🎧 Support</button>
+        <button class="role-top-btn" onclick="switchRole('hostel')">🏠 Hostel</button>
+        <button class="role-top-btn" onclick="switchRole('exam_ctrl')">📝 Exam</button>
       </div>
     </div>
 
@@ -929,6 +933,30 @@
     <div class="content-panel" id="panel-admissions"><!-- Admissions --></div>
     <div class="content-panel" id="panel-compliance"><!-- Compliance --></div>
     <div class="content-panel" id="panel-calendar_panel"><!-- Calendar Panel --></div>
+    <!-- NEW PANELS -->
+    <div class="content-panel" id="panel-whitelabel"><!-- White Label --></div>
+    <div class="content-panel" id="panel-servers"><!-- Servers --></div>
+    <div class="content-panel" id="panel-audit"><!-- Audit --></div>
+    <div class="content-panel" id="panel-billing"><!-- Billing --></div>
+    <div class="content-panel" id="panel-apis"><!-- APIs --></div>
+    <div class="content-panel" id="panel-groups"><!-- Groups --></div>
+    <div class="content-panel" id="panel-modules"><!-- Modules --></div>
+    <div class="content-panel" id="panel-hostel_rooms"><!-- Hostel Rooms --></div>
+    <div class="content-panel" id="panel-hostel_students"><!-- Hostel Students --></div>
+    <div class="content-panel" id="panel-hostel_complaints"><!-- Hostel Complaints --></div>
+    <div class="content-panel" id="panel-mess"><!-- Mess --></div>
+    <div class="content-panel" id="panel-hostel_attend"><!-- Hostel Attendance --></div>
+    <div class="content-panel" id="panel-exams"><!-- Exams --></div>
+    <div class="content-panel" id="panel-results"><!-- Results --></div>
+    <div class="content-panel" id="panel-report_cards"><!-- Report Cards --></div>
+    <div class="content-panel" id="panel-exam_schedule"><!-- Exam Schedule --></div>
+    <div class="content-panel" id="panel-exam_rooms"><!-- Exam Rooms --></div>
+    <div class="content-panel" id="panel-live_class"><!-- Live Class --></div>
+    <div class="content-panel" id="panel-chat_admin"><!-- Chat --></div>
+    <div class="content-panel" id="panel-digital_lib"><!-- Digital Library --></div>
+    <div class="content-panel" id="panel-patrol"><!-- Patrol --></div>
+    <div class="content-panel" id="panel-sla"><!-- SLA --></div>
+    <div class="content-panel" id="panel-fitness"><!-- Fitness --></div>
   </div>
 </div>
 
@@ -989,6 +1017,15 @@ const roles = {
       { section: 'Analytics', items: [
         { id: 'reports_fin', icon: '📊', label: 'Reports & Analytics' },
         { id: 'announcements', icon: '📢', label: 'Announcements' },
+      ]},
+      { section: 'Platform', items: [
+        { id: 'whitelabel', icon: '🎨', label: 'White Labeling' },
+        { id: 'servers', icon: '📡', label: 'Server Monitor' },
+        { id: 'audit', icon: '🔒', label: 'Audit Log' },
+        { id: 'billing', icon: '💳', label: 'Billing' },
+        { id: 'apis', icon: '🔌', label: 'API Management' },
+        { id: 'groups', icon: '🏢', label: 'School Groups' },
+        { id: 'modules', icon: '🧩', label: 'Module Toggle' },
       ]}
     ]
   },
@@ -1013,6 +1050,8 @@ const roles = {
       { section: 'Communication', items: [
         { id: 'announcements', icon: '📢', label: 'Announcements' },
         { id: 'compliance', icon: '✅', label: 'Compliance' },
+        { id: 'live_class', icon: '📹', label: 'Live Classes' },
+        { id: 'chat_admin', icon: '💬', label: 'Messaging' },
       ]}
     ]
   },
@@ -1035,6 +1074,9 @@ const roles = {
         { id: 'transport', icon: '🚌', label: 'Transport' },
         { id: 'announcements', icon: '📢', label: 'Circulars' },
         { id: 'calendar_panel', icon: '📅', label: 'School Calendar' },
+        { id: 'exams', icon: '📝', label: 'Exams' },
+        { id: 'live_class', icon: '📹', label: 'Live Classes' },
+        { id: 'chat_admin', icon: '💬', label: 'Messaging' },
       ]}
     ]
   },
@@ -1105,6 +1147,7 @@ const roles = {
       ]},
       { section: 'Members', items: [
         { id: 'staff_directory', icon: '👥', label: 'Members' },
+        { id: 'digital_lib', icon: '📖', label: 'Digital Library' },
         { id: 'reports_fin', icon: '📊', label: 'Library Reports' },
       ]}
     ]
@@ -1121,6 +1164,7 @@ const roles = {
       ]},
       { section: 'Management', items: [
         { id: 'staff_directory', icon: '👤', label: 'Coaches' },
+        { id: 'fitness', icon: '🏃', label: 'Fitness Tracker' },
         { id: 'reports_fin', icon: '📊', label: 'Performance Reports' },
       ]}
     ]
@@ -1137,6 +1181,7 @@ const roles = {
       ]},
       { section: 'Staff', items: [
         { id: 'staff_directory', icon: '👤', label: 'Guard Roster' },
+        { id: 'patrol', icon: '🚶', label: 'Patrol Schedule' },
         { id: 'reports_fin', icon: '📊', label: 'Security Reports' },
       ]}
     ]
@@ -1152,7 +1197,75 @@ const roles = {
       ]},
       { section: 'Communication', items: [
         { id: 'staff_directory', icon: '👥', label: 'Staff Directory' },
+        { id: 'sla', icon: '📊', label: 'SLA Dashboard' },
         { id: 'reports_fin', icon: '📊', label: 'Support Reports' },
+      ]}
+    ]
+  },
+  admin_mgr: {
+    name: 'Admin Manager', icon: '📋', initials: 'AM', id: 'ADMIN-2026-011',
+    color: '#3b82f6', email: 'admin@edushamiit.in', displayName: 'Priya Gupta',
+    nav: [
+      { section: 'Administration', items: [
+        { id: 'dashboard', icon: '📋', label: 'Admin Dashboard' },
+        { id: 'visitors', icon: '🪪', label: 'Visitors' },
+        { id: 'admissions', icon: '📋', label: 'Admissions' },
+        { id: 'fee_management', icon: '💵', label: 'Fees' },
+      ]},
+      { section: 'Records', items: [
+        { id: 'announcements', icon: '📢', label: 'Announcements' },
+        { id: 'calendar_panel', icon: '📅', label: 'Calendar' },
+        { id: 'chat_admin', icon: '💬', label: 'Messaging' },
+        { id: 'reports_fin', icon: '📊', label: 'Reports' },
+      ]}
+    ]
+  },
+  driver: {
+    name: 'Driver', icon: '🚐', initials: 'DV', id: 'ADMIN-2026-012',
+    color: '#6b7280', email: 'driver@edushamiit.in', displayName: 'Ramesh Kumar',
+    nav: [
+      { section: 'My Route', items: [
+        { id: 'dashboard', icon: '🚐', label: 'Driver Dashboard' },
+        { id: 'routes', icon: '🗺️', label: 'My Route' },
+        { id: 'tracking', icon: '📍', label: 'GPS Tracking' },
+      ]},
+      { section: 'Logs', items: [
+        { id: 'expenses', icon: '⛽', label: 'Fuel Logs' },
+        { id: 'reports_fin', icon: '📋', label: 'Trip Logs' },
+      ]}
+    ]
+  },
+  hostel: {
+    name: 'Hostel Warden', icon: '🏠', initials: 'HW', id: 'ADMIN-2026-013',
+    color: '#d97706', email: 'hostel@edushamiit.in', displayName: 'Geeta Mishra',
+    nav: [
+      { section: 'Hostel', items: [
+        { id: 'dashboard', icon: '🏠', label: 'Hostel Dashboard' },
+        { id: 'hostel_rooms', icon: '🚪', label: 'Rooms', badge: '4', badgeType: 'warn' },
+        { id: 'hostel_students', icon: '👧', label: 'Boarders' },
+        { id: 'hostel_attend', icon: '✔️', label: 'Attendance' },
+      ]},
+      { section: 'Services', items: [
+        { id: 'mess', icon: '🍽️', label: 'Mess Management' },
+        { id: 'hostel_complaints', icon: '📋', label: 'Complaints', badge: '2', badgeType: '' },
+        { id: 'reports_fin', icon: '📊', label: 'Hostel Reports' },
+      ]}
+    ]
+  },
+  exam_ctrl: {
+    name: 'Exam Controller', icon: '📝', initials: 'EC', id: 'ADMIN-2026-014',
+    color: '#2563eb', email: 'exams@edushamiit.in', displayName: 'Dr. Anil Kumar',
+    nav: [
+      { section: 'Examinations', items: [
+        { id: 'dashboard', icon: '📝', label: 'Exam Dashboard' },
+        { id: 'exams', icon: '📋', label: 'Exam List' },
+        { id: 'exam_schedule', icon: '📅', label: 'Schedule' },
+        { id: 'exam_rooms', icon: '🏠', label: 'Hall Allocation' },
+      ]},
+      { section: 'Results', items: [
+        { id: 'results', icon: '📊', label: 'Results' },
+        { id: 'report_cards', icon: '📄', label: 'Report Cards' },
+        { id: 'reports_fin', icon: '📈', label: 'Analytics' },
       ]}
     ]
   },
@@ -1235,7 +1348,15 @@ function updateTopbar(panelId) {
     helpdesk:'Help Desk', announcements:'Announcements', multi_school:'School Portfolio',
     system_config:'System Configuration', user_management:'User Management',
     academic:'Academic Control', admissions:'Admissions', compliance:'Compliance',
-    calendar_panel:'School Calendar', notifications:'Notifications', settings:'Settings', schools:'School Selector'
+    calendar_panel:'School Calendar', notifications:'Notifications', settings:'Settings', schools:'School Selector',
+    whitelabel:'White Labeling', servers:'Server Monitor', audit:'Audit Log', billing:'Billing',
+    apis:'API Management', groups:'School Groups', modules:'Module Toggle',
+    hostel_rooms:'Hostel Rooms', hostel_students:'Hostel Boarders', hostel_complaints:'Hostel Complaints',
+    mess:'Mess Management', hostel_attend:'Hostel Attendance',
+    exams:'Examinations', results:'Results', report_cards:'Report Cards',
+    exam_schedule:'Exam Schedule', exam_rooms:'Hall Allocation',
+    live_class:'Live Classes', chat_admin:'Messaging', digital_lib:'Digital Library',
+    patrol:'Patrol Schedule', sla:'SLA Dashboard', fitness:'Fitness Tracker'
   };
   document.getElementById('topbar-title').innerHTML = (titles[panelId]||panelId) + ` <span id="topbar-subtitle">${roles[currentRole]?.name||''}</span>`;
 }
@@ -1281,6 +1402,29 @@ function renderPanel(id) {
     notifications: renderNotifications,
     settings: renderSettings,
     schools: renderMultiSchool,
+    whitelabel: renderWhitelabel,
+    servers: renderServers,
+    audit: renderAudit,
+    billing: renderBilling,
+    apis: renderApis,
+    groups: renderGroups,
+    modules: renderModules,
+    hostel_rooms: renderHostelRooms,
+    hostel_students: renderHostelStudents,
+    hostel_complaints: renderHostelComplaints,
+    mess: renderMess,
+    hostel_attend: renderHostelAttend,
+    exams: renderExams,
+    results: renderResults,
+    report_cards: renderReportCards,
+    exam_schedule: renderExamSchedule,
+    exam_rooms: renderExamRooms,
+    live_class: renderLiveClass,
+    chat_admin: renderChatAdmin,
+    digital_lib: renderDigitalLib,
+    patrol: renderPatrol,
+    sla: renderSLA,
+    fitness: renderFitness,
   };
   if (renderers[id]) {
     el.innerHTML = '';
@@ -1369,6 +1513,38 @@ function renderDashboard(el) {
         { icon:'✅', label:'Resolved Today', value:'12', change:'+4 vs yesterday', dir:'up', cls:'emerald' },
         { icon:'⏱️', label:'Avg Response', value:'2.4h', change:'-0.5h improved', dir:'up', cls:'gold' },
         { icon:'😊', label:'Satisfaction', value:'94%', change:'+2% this week', dir:'up', cls:'rose' },
+      ],
+    },
+    admin_mgr: {
+      stats: [
+        { icon:'📝', label:'Active Admissions', value:'142', change:'+28 this week', dir:'up', cls:'blue' },
+        { icon:'🚪', label:'Visitors Today', value:'34', change:'6 currently inside', dir:'up', cls:'emerald' },
+        { icon:'📢', label:'Notices Sent', value:'8', change:'This week', dir:'up', cls:'gold' },
+        { icon:'📊', label:'Tasks Pending', value:'5', change:'2 urgent', dir:'down', cls:'rose' },
+      ],
+    },
+    driver: {
+      stats: [
+        { icon:'🚐', label:'My Route', value:'Route 1', change:'Noida Sec 18–62', dir:'up', cls:'blue' },
+        { icon:'👧', label:'Students', value:'52', change:'12 stops', dir:'up', cls:'emerald' },
+        { icon:'⛽', label:'Fuel Today', value:'12L', change:'29.5 km/L', dir:'up', cls:'gold' },
+        { icon:'✅', label:'Trips Done', value:'2/2', change:'All on time', dir:'up', cls:'rose' },
+      ],
+    },
+    hostel: {
+      stats: [
+        { icon:'🚪', label:'Total Rooms', value:'120', change:'4 vacant', dir:'up', cls:'blue' },
+        { icon:'👧', label:'Boarders', value:'480', change:'97% occupancy', dir:'up', cls:'emerald' },
+        { icon:'🍽️', label:'Mess Meals', value:'1,440', change:'Breakfast done', dir:'up', cls:'gold' },
+        { icon:'⚠️', label:'Complaints', value:'2', change:'1 high priority', dir:'down', cls:'rose' },
+      ],
+    },
+    exam_ctrl: {
+      stats: [
+        { icon:'📝', label:'Active Exams', value:'3', change:'Mid-Term ongoing', dir:'up', cls:'blue' },
+        { icon:'📅', label:'Upcoming', value:'5', change:'Next: Dec 16', dir:'up', cls:'emerald' },
+        { icon:'📊', label:'Results Pending', value:'2', change:'Grade 10, 11', dir:'down', cls:'gold' },
+        { icon:'🏠', label:'Halls Allocated', value:'4/6', change:'2 available', dir:'up', cls:'rose' },
       ],
     },
   };
@@ -1538,6 +1714,42 @@ function getQuickActions(role) {
       {icon:'📧',label:'Email',panel:'announcements'},
       {icon:'📋',label:'FAQ',panel:'helpdesk'},
       {icon:'🔔',label:'Alerts',panel:'notifications'},
+    ],
+    admin_mgr: [
+      {icon:'🚪',label:'Visitors',panel:'visitors'},
+      {icon:'📋',label:'Admissions',panel:'admissions'},
+      {icon:'💵',label:'Fees',panel:'fee_management'},
+      {icon:'📢',label:'Announce',panel:'announcements'},
+      {icon:'📅',label:'Calendar',panel:'calendar_panel'},
+      {icon:'💬',label:'Messaging',panel:'chat_admin'},
+      {icon:'📊',label:'Reports',panel:'reports_fin'},
+      {icon:'⚙️',label:'Settings',panel:'settings'},
+    ],
+    driver: [
+      {icon:'🗺️',label:'My Route',panel:'routes'},
+      {icon:'📍',label:'GPS Track',panel:'tracking'},
+      {icon:'⛽',label:'Fuel Log',panel:'expenses'},
+      {icon:'📋',label:'Trip Log',panel:'reports_fin'},
+    ],
+    hostel: [
+      {icon:'🚪',label:'Rooms',panel:'hostel_rooms'},
+      {icon:'👧',label:'Boarders',panel:'hostel_students'},
+      {icon:'✔️',label:'Attendance',panel:'hostel_attend'},
+      {icon:'🍽️',label:'Mess',panel:'mess'},
+      {icon:'📋',label:'Complaints',panel:'hostel_complaints'},
+      {icon:'📊',label:'Reports',panel:'reports_fin'},
+      {icon:'📢',label:'Notice',panel:'announcements'},
+      {icon:'⚙️',label:'Settings',panel:'settings'},
+    ],
+    exam_ctrl: [
+      {icon:'📋',label:'Exams',panel:'exams'},
+      {icon:'📅',label:'Schedule',panel:'exam_schedule'},
+      {icon:'🏠',label:'Halls',panel:'exam_rooms'},
+      {icon:'📊',label:'Results',panel:'results'},
+      {icon:'📄',label:'Report Cards',panel:'report_cards'},
+      {icon:'📈',label:'Analytics',panel:'reports_fin'},
+      {icon:'📢',label:'Notice',panel:'announcements'},
+      {icon:'⚙️',label:'Settings',panel:'settings'},
     ],
   };
   return map[role] || map.finance;
@@ -3238,13 +3450,561 @@ function handleSearch(val) {
   });
 }
 
+// ========== NEW RENDER FUNCTIONS ==========
+
+// --- DB DATA FOR NEW PANELS ---
+const hostelRoomsData = [
+  {id:'hr1',no:'101',fl:'1st',type:'Double',cap:2,occ:2,s:'Full'},
+  {id:'hr2',no:'102',fl:'1st',type:'Triple',cap:3,occ:2,s:'Available'},
+  {id:'hr3',no:'201',fl:'2nd',type:'Single',cap:1,occ:1,s:'Full'},
+  {id:'hr4',no:'202',fl:'2nd',type:'Double',cap:2,occ:0,s:'Vacant'},
+  {id:'hr5',no:'301',fl:'3rd',type:'Triple',cap:3,occ:3,s:'Full'},
+];
+const hostelStudentsData = [
+  {id:'hs1',n:'Arjun Singh',rm:'101',c:'10-A',s:'Checked In'},
+  {id:'hs2',n:'Rohit Das',rm:'102',c:'11-B',s:'Checked In'},
+  {id:'hs3',n:'Priya Sharma',rm:'201',c:'9-C',s:'On Leave'},
+  {id:'hs4',n:'Amit Kumar',rm:'301',c:'12-A',s:'Checked In'},
+  {id:'hs5',n:'Sneha Patel',rm:'102',c:'10-B',s:'Checked In'},
+];
+const hostelComplaintsData = [
+  {id:'hc1',t:'Water leakage in Room 201',by:'Arjun Singh',sev:'High',s:'Active'},
+  {id:'hc2',t:'Fan not working — Room 301',by:'Amit Kumar',sev:'Medium',s:'In Progress'},
+  {id:'hc3',t:'Mess food quality issue',by:'Rohit Das',sev:'Low',s:'Resolved'},
+];
+const examsListData = [
+  {id:'ex1',n:'Mid-Term Mathematics',t:'Written',cls:'Grade 10',d:'Dec 16–18',s:'Scheduled'},
+  {id:'ex2',n:'Mid-Term Science',t:'Written',cls:'Grade 10',d:'Dec 19–20',s:'Scheduled'},
+  {id:'ex3',n:'Practical — Physics',t:'Practical',cls:'Grade 11',d:'Dec 22',s:'Upcoming'},
+  {id:'ex4',n:'Unit Test — English',t:'MCQ',cls:'Grade 9',d:'Dec 14',s:'Completed'},
+  {id:'ex5',n:'Lab Exam — Chemistry',t:'Lab',cls:'Grade 12',d:'Dec 23',s:'Upcoming'},
+];
+const modulesConfig = [
+  {k:'fee',l:'💵 Fee Management',on:true},{k:'transport',l:'🚌 Transport',on:true},
+  {k:'library',l:'📚 Library',on:true},{k:'hostel',l:'🏠 Hostel',on:false},
+  {k:'exams',l:'📝 Exams',on:true},{k:'live_class',l:'📹 Live Classes',on:false},
+  {k:'chat',l:'💬 Chat/Messaging',on:true},{k:'sports',l:'⚽ Sports',on:true},
+  {k:'payroll',l:'💳 Payroll',on:true},{k:'biometric',l:'📱 Biometric',on:false},
+  {k:'parent_app',l:'👨‍👩‍👧 Parent App',on:true},{k:'sms',l:'📱 SMS Gateway',on:true},
+  {k:'digital_lib',l:'📖 Digital Library',on:false},{k:'homework',l:'📝 Homework',on:true},
+  {k:'report_cards',l:'📄 Report Cards',on:true},{k:'cctv',l:'📷 CCTV',on:false},
+];
+
+function renderWhitelabel(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🎨</span> White Labeling</div>
+    <div class="notice info"><span class="notice-icon">ℹ️</span><span class="notice-text">Customize branding for each school tenant. Changes apply <strong>immediately</strong> after save.</span></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🏫 App Identity</div></div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">App Name</label><input class="form-control" value="EduSHAMIIT"></div>
+          <div class="form-group"><label class="form-label">Tagline</label><input class="form-control" value="AI-Powered Admin Suite"></div>
+          <div class="form-group"><label class="form-label">Support Email</label><input class="form-control" value="support@edushamiit.in"></div>
+          <div class="form-group"><label class="form-label">Custom Domain</label><input class="form-control" value="admin.edushamiit.in"></div>
+          <div class="form-group full"><label class="form-label">Footer Text</label><input class="form-control" value="© 2024 EduSHAMIIT Technologies Pvt Ltd"></div>
+        </div>
+        <div class="form-actions"><button class="btn-sm btn-primary-sm" onclick="showToast('✅','Branding saved!','success')">💾 Save Changes</button></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🎨 Theme Colors</div></div>
+        ${[{l:'Primary',v:'#6366F1'},{l:'Secondary',v:'#8B5CF6'},{l:'Accent',v:'#F59E0B'},{l:'Success',v:'#10B981'},{l:'Danger',v:'#F43F5E'},{l:'Background',v:'#0A0D1A'}].map(c=>`
+          <div class="metric-row">
+            <span class="metric-label">${c.l}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:20px;height:20px;border-radius:4px;background:${c.v};border:1px solid var(--border)"></div>
+              <span class="metric-value" style="font-size:12px">${c.v}</span>
+            </div>
+          </div>
+        `).join('')}
+        <div class="form-actions" style="margin-top:12px"><button class="btn-sm btn-primary-sm" onclick="showToast('🎨','Theme updated!','success')">🎨 Apply Theme</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📧 Email Branding</div></div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">From Name</label><input class="form-control" value="EduSHAMIIT Admin"></div>
+        <div class="form-group"><label class="form-label">Reply-To</label><input class="form-control" value="noreply@edushamiit.in"></div>
+        <div class="form-group full"><label class="form-label">Email Header HTML</label><textarea class="form-control" rows="2">&lt;div style="background:#6366F1;padding:16px;text-align:center;color:white"&gt;EduSHAMIIT&lt;/div&gt;</textarea></div>
+      </div>
+      <div class="form-actions"><button class="btn-sm btn-primary-sm" onclick="showToast('📧','Email template saved!','success')">💾 Save Template</button></div>
+    </div>
+  `;
+}
+
+function renderServers(el) {
+  const schools = [{n:'DPS Noida',cpu:42,ram:58,api:'12.4K',s:'Healthy'},{n:'DPS Jewar',cpu:68,ram:72,api:'8.2K',s:'Healthy'},{n:'DPS Ghaziabad',cpu:85,ram:88,api:'15.1K',s:'Warning'},{n:'DPS Lucknow',cpu:32,ram:44,api:'6.8K',s:'Healthy'}];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📡</span> Server Monitor</div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">⏱️</div><div class="stat-value">99.97%</div><div class="stat-label">Uptime (30d)</div><div class="stat-change up">↑ +0.02%</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">⚡</div><div class="stat-value">142ms</div><div class="stat-label">Avg Latency</div><div class="stat-change up">↑ -8ms improved</div></div>
+      <div class="stat-card gold"><div class="stat-icon">📡</div><div class="stat-value">842K</div><div class="stat-label">API Calls (30d)</div><div class="stat-change up">↑ +12% vs last month</div></div>
+      <div class="stat-card rose"><div class="stat-icon">🔒</div><div class="stat-value">0</div><div class="stat-label">Security Alerts</div><div class="stat-change up">↑ All clear</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏫 Per-School Resource Usage</div></div>
+      <table class="data-table"><thead><tr><th>School</th><th>CPU</th><th>RAM</th><th>API Calls</th><th>Status</th></tr></thead>
+      <tbody>${schools.map(s=>`<tr>
+        <td><span class="avatar-name">${s.n}</span></td>
+        <td><div class="progress-bar" style="width:80px"><div class="progress-fill ${s.cpu>80?'gold':'blue'}" style="width:${s.cpu}%"></div></div><span style="font-size:11px;margin-left:6px">${s.cpu}%</span></td>
+        <td><div class="progress-bar" style="width:80px"><div class="progress-fill ${s.ram>80?'gold':'blue'}" style="width:${s.ram}%"></div></div><span style="font-size:11px;margin-left:6px">${s.ram}%</span></td>
+        <td>${s.api}</td>
+        <td><span class="badge ${s.s==='Healthy'?'badge-green':'badge-gold'}">${s.s}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderAudit(el) {
+  const logs = [
+    {u:'Arjun Verma',a:'Deleted test school account',t:'2 mins ago',l:'⚠️',sev:'warn'},
+    {u:'Priya Mishra',a:'Exported fee report for Q3',t:'15 mins ago',l:'📤',sev:'info'},
+    {u:'Dr. Sanjay Gupta',a:'Approved 3 leave requests',t:'1 hour ago',l:'✅',sev:'success'},
+    {u:'System',a:'Automated backup completed',t:'3 hours ago',l:'💾',sev:'info'},
+    {u:'Rakesh Sharma',a:'Processed November payroll',t:'5 hours ago',l:'💳',sev:'info'},
+    {u:'Meena Patel',a:'Onboarded new teacher — Amit Das',t:'Yesterday',l:'👤',sev:'success'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🔒</span> Audit Log</div>
+    <div class="notice info"><span class="notice-icon">🔒</span><span class="notice-text">All admin actions are recorded. Logs retained for <strong>365 days</strong>.</span></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📋 Recent Activity</div><div class="card-action" onclick="showToast('📤','Audit exported!','info')">📤 Export</div></div>
+      <table class="data-table"><thead><tr><th></th><th>User</th><th>Action</th><th>Time</th></tr></thead>
+      <tbody>${logs.map(l=>`<tr><td>${l.l}</td><td class="avatar-name">${l.u}</td><td style="color:var(--text-secondary)">${l.a}</td><td style="color:var(--text-muted);font-size:11px">${l.t}</td></tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderBilling(el) {
+  const plans = [
+    {n:'DPS Noida',plan:'Enterprise',mrr:'₹2.4L',exp:'Mar 2025',s:'Active'},
+    {n:'DPS Jewar',plan:'Pro',mrr:'₹1.8L',exp:'Jun 2025',s:'Active'},
+    {n:'DPS Ghaziabad',plan:'Enterprise',mrr:'₹2.4L',exp:'Dec 2024',s:'Expiring'},
+    {n:'DPS Lucknow',plan:'Starter',mrr:'₹0.6L',exp:'Sep 2025',s:'Active'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">💳</span> Billing & Subscriptions</div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">💰</div><div class="stat-value">₹7.2L</div><div class="stat-label">MRR</div><div class="stat-change up">↑ +8%</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">📈</div><div class="stat-value">₹86.4L</div><div class="stat-label">ARR</div><div class="stat-change up">↑ +18% YoY</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🏫</div><div class="stat-value">12</div><div class="stat-label">Active Subscriptions</div><div class="stat-change up">↑ +2 new</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">1</div><div class="stat-label">Expiring Soon</div><div class="stat-change down">↓ DPS Ghaziabad</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🏫 Subscription Details</div></div>
+      <table class="data-table"><thead><tr><th>School</th><th>Plan</th><th>MRR</th><th>Expiry</th><th>Status</th></tr></thead>
+      <tbody>${plans.map(p=>`<tr><td class="avatar-name">${p.n}</td><td><span class="badge badge-blue">${p.plan}</span></td><td>${p.mrr}</td><td>${p.exp}</td><td><span class="badge ${p.s==='Active'?'badge-green':'badge-gold'}">${p.s}</span></td></tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderApis(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🔌</span> API Management</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🔑 API Keys</div></div>
+        ${[{n:'Production',k:'sk_live_••••E5Fg'},{n:'Test',k:'sk_test_••••B2hK'},{n:'Webhook Secret',k:'whsec_••••F8mN'}].map(k=>`
+          <div class="metric-row"><span class="metric-label">${k.n}</span><span class="metric-value" style="font-family:monospace;font-size:12px">${k.k}</span></div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📊 Usage (30 Days)</div></div>
+        ${[{l:'Total Requests',v:'842,102'},{l:'Success Rate',v:'99.8%'},{l:'Avg Latency',v:'142ms'},{l:'Rate Limit Hits',v:'23'}].map(m=>`
+          <div class="metric-row"><span class="metric-label">${m.l}</span><span class="metric-value">${m.v}</span></div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📈 Endpoint Usage</div></div>
+      <table class="data-table"><thead><tr><th>Endpoint</th><th>Calls</th><th>Avg Latency</th><th>Status</th></tr></thead>
+      <tbody>
+        ${[{e:'/api/v1/students',c:'312K',l:'98ms',s:'Healthy'},{e:'/api/v1/fees',c:'186K',l:'124ms',s:'Healthy'},{e:'/api/v1/attendance',c:'245K',l:'87ms',s:'Healthy'},{e:'/api/v1/reports',c:'42K',l:'340ms',s:'Warning'}].map(e=>`
+          <tr><td style="font-family:monospace;font-size:12px">${e.e}</td><td>${e.c}</td><td>${e.l}</td><td><span class="badge ${e.s==='Healthy'?'badge-green':'badge-gold'}">${e.s}</span></td></tr>
+        `).join('')}
+      </tbody></table>
+    </div>
+  `;
+}
+
+function renderGroups(el) {
+  const groups = [
+    {id:'g1',n:'Delhi NCR Group',owner:'Priya Mishra',cnt:5,s:'Active'},
+    {id:'g2',n:'UP East Group',owner:'Rajesh Kumar',cnt:4,s:'Active'},
+    {id:'g3',n:'Rajasthan Group',owner:'Anita Joshi',cnt:3,s:'Active'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🏢</span> School Groups</div>
+    <div class="flex-between mb-16"><div></div>
+      <button class="btn-sm btn-primary-sm" onclick="openModal('Add School Group','<div class=\\'form-grid\\'><div class=\\'form-group\\'><label class=\\'form-label\\'>Group Name</label><input class=\\'form-control\\' placeholder=\\'e.g. South India Group\\'></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Owner/Director</label><input class=\\'form-control\\' placeholder=\\'Name\\'></div></div>','<button class=\\'btn-sm btn-primary-sm\\' onclick=\\'closeModal();showToast(\"✅\",\"Group created!\",\"success\")\\'>Create Group</button><button class=\\'btn-sm btn-secondary-sm\\' onclick=\\'closeModal()\\'>Cancel</button>')">+ New Group</button>
+    </div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Group</th><th>Owner</th><th>Schools</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${groups.map(g=>`<tr>
+        <td class="avatar-name">${g.n}</td><td>${g.owner}</td><td><span class="badge badge-blue">${g.cnt} schools</span></td>
+        <td><span class="badge badge-green">${g.s}</span></td>
+        <td><span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📋','Viewing ${g.n}','info')">View</span> · <span style="color:var(--accent-gold);cursor:pointer;font-size:12px" onclick="showToast('✏️','Editing ${g.n}','info')">Edit</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderModules(el) {
+  const schools = [{id:'s1',n:'DPS Noida'},{id:'s2',n:'DPS Jewar'},{id:'s3',n:'DPS Ghaziabad'},{id:'s4',n:'DPS Lucknow'}];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🧩</span> Module Toggle</div>
+    <div class="notice info"><span class="notice-icon">🧩</span><span class="notice-text">Enable or disable modules <strong>per school</strong>. Changes take effect immediately.</span></div>
+    ${schools.map(s=>`
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">🏫 ${s.n}</div></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          ${modulesConfig.map(m=>`
+            <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center;font-size:12px">
+              <span>${m.l}</span>
+              <div style="width:32px;height:18px;border-radius:9px;cursor:pointer;position:relative;background:${m.on?'var(--accent-primary)':'var(--bg-elevated)'};transition:background 0.2s" onclick="this.style.background=this.style.background.includes('6366f1')?'var(--bg-elevated)':'var(--accent-primary)';showToast('🧩','Module toggled for ${s.n}','info')">
+                <div style="width:14px;height:14px;border-radius:50%;background:white;position:absolute;top:2px;${m.on?'right:2px':'left:2px'};transition:all 0.2s"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderHostelRooms(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🚪</span> Hostel Rooms</div>
+    <div class="flex-between mb-16"><div></div>
+      <button class="btn-sm btn-primary-sm" onclick="openModal('Add Room','<div class=\\'form-grid\\'><div class=\\'form-group\\'><label class=\\'form-label\\'>Room Number</label><input class=\\'form-control\\' placeholder=\\'e.g. 301\\'></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Floor</label><select class=\\'form-control\\'><option>1st</option><option>2nd</option><option>3rd</option></select></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Type</label><select class=\\'form-control\\'><option>Single</option><option>Double</option><option>Triple</option></select></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Capacity</label><input class=\\'form-control\\' placeholder=\\'2\\'></div></div>','<button class=\\'btn-sm btn-primary-sm\\' onclick=\\'closeModal();showToast(\"✅\",\"Room added!\",\"success\")\\'>Add Room</button><button class=\\'btn-sm btn-secondary-sm\\' onclick=\\'closeModal()\\'>Cancel</button>')">+ Add Room</button>
+    </div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Room</th><th>Floor</th><th>Type</th><th>Occupancy</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${hostelRoomsData.map(r=>`<tr>
+        <td class="avatar-name">${r.no}</td><td>${r.fl}</td><td><span class="badge badge-blue">${r.type}</span></td>
+        <td>${r.occ}/${r.cap}</td>
+        <td><span class="badge ${r.s==='Vacant'?'badge-green':r.s==='Available'?'badge-gold':'badge-gray'}">${r.s}</span></td>
+        <td><span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📋','Room ${r.no} details','info')">View</span> · <span style="color:var(--accent-gold);cursor:pointer;font-size:12px" onclick="showToast('✏️','Editing room','info')">Edit</span> · <span style="color:var(--accent-rose);cursor:pointer;font-size:12px" onclick="showConfirm('Delete Room ${r.no}?','This will remove the room record.',()=>{showToast('🗑️','Room deleted','error')})">Del</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderHostelStudents(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">👧</span> Hostel Boarders</div>
+    <div class="flex-between mb-16"><div></div>
+      <button class="btn-sm btn-primary-sm" onclick="openModal('Admit Boarder','<div class=\\'form-grid\\'><div class=\\'form-group\\'><label class=\\'form-label\\'>Student Name</label><input class=\\'form-control\\' placeholder=\\'Full name\\'></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Room</label><input class=\\'form-control\\' placeholder=\\'101\\'></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Class</label><input class=\\'form-control\\' placeholder=\\'10-A\\'></div></div>','<button class=\\'btn-sm btn-primary-sm\\' onclick=\\'closeModal();showToast(\"✅\",\"Boarder admitted!\",\"success\")\\'>Admit</button><button class=\\'btn-sm btn-secondary-sm\\' onclick=\\'closeModal()\\'>Cancel</button>')">+ Admit Boarder</button>
+    </div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Student</th><th>Room</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${hostelStudentsData.map(s=>`<tr>
+        <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(139,92,246,0.15);color:#8b5cf6">${s.n[0]}</div><div><div class="avatar-name">${s.n}</div></div></div></td>
+        <td>${s.rm}</td><td>${s.c}</td>
+        <td><span class="badge ${s.s==='Checked In'?'badge-green':'badge-gold'}">${s.s}</span></td>
+        <td><span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📋','Viewing ${s.n}','info')">View</span> · <span style="color:var(--accent-gold);cursor:pointer;font-size:12px" onclick="showToast('✏️','Editing','info')">Edit</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderHostelComplaints(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📋</span> Hostel Complaints</div>
+    <div class="flex-between mb-16"><div></div>
+      <button class="btn-sm btn-danger-sm" onclick="openModal('Report Issue','<div class=\\'form-grid\\'><div class=\\'form-group full\\'><label class=\\'form-label\\'>Issue Description</label><textarea class=\\'form-control\\' placeholder=\\'Describe the issue...\\'></textarea></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Reported By</label><input class=\\'form-control\\' placeholder=\\'Student name\\'></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Severity</label><select class=\\'form-control\\'><option>Low</option><option>Medium</option><option>High</option></select></div></div>','<button class=\\'btn-sm btn-primary-sm\\' onclick=\\'closeModal();showToast(\"✅\",\"Complaint filed!\",\"success\")\\'>Submit</button><button class=\\'btn-sm btn-secondary-sm\\' onclick=\\'closeModal()\\'>Cancel</button>')">🚨 Report Issue</button>
+    </div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Issue</th><th>Reported By</th><th>Severity</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${hostelComplaintsData.map(c=>`<tr>
+        <td class="avatar-name">${c.t}</td><td>${c.by}</td>
+        <td><span class="badge ${c.sev==='High'?'badge-red':c.sev==='Medium'?'badge-gold':'badge-gray'}">${c.sev}</span></td>
+        <td><span class="badge ${c.s==='Resolved'?'badge-green':c.s==='Active'?'badge-red':'badge-gold'}">${c.s}</span></td>
+        <td><span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📋','Viewing complaint','info')">View</span> · <span style="color:var(--accent-gold);cursor:pointer;font-size:12px" onclick="showToast('✏️','Editing','info')">Edit</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderMess(el) {
+  const meals = [
+    {m:'Breakfast',t:'7:00 – 8:30 AM',menu:'Poha, Idli, Tea, Milk, Fruits',s:'Done'},
+    {m:'Lunch',t:'12:30 – 2:00 PM',menu:'Rice, Dal, Roti, Sabzi, Salad, Curd',s:'In Progress'},
+    {m:'Snack',t:'4:30 – 5:30 PM',menu:'Samosa, Tea, Biscuits, Juice',s:'Upcoming'},
+    {m:'Dinner',t:'7:30 – 9:00 PM',menu:'Roti, Paneer, Rice, Dal, Ice Cream',s:'Upcoming'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🍽️</span> Mess Management</div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📋 Today's Menu — ${new Date().toLocaleDateString('en-IN',{weekday:'long',month:'short',day:'numeric'})}</div></div>
+      <table class="data-table"><thead><tr><th>Meal</th><th>Time</th><th>Menu</th><th>Status</th></tr></thead>
+      <tbody>${meals.map(m=>`<tr>
+        <td class="avatar-name">🍽️ ${m.m}</td><td>${m.t}</td><td style="color:var(--text-secondary);max-width:300px">${m.menu}</td>
+        <td><span class="badge ${m.s==='Done'?'badge-green':m.s==='In Progress'?'badge-blue':'badge-gray'}">${m.s}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderHostelAttend(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">✔️</span> Hostel Attendance</div>
+    <div class="stats-grid">
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">468</div><div class="stat-label">Checked In</div><div class="stat-change up">↑ 97.5%</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🏖️</div><div class="stat-value">8</div><div class="stat-label">On Leave</div><div class="stat-change up">↑ Approved</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">4</div><div class="stat-label">Missing</div><div class="stat-change down">↓ Alert sent</div></div>
+      <div class="stat-card blue"><div class="stat-icon">👧</div><div class="stat-value">480</div><div class="stat-label">Total Boarders</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📋 Today's Log</div></div>
+      <table class="data-table"><thead><tr><th>Student</th><th>Room</th><th>Check-In</th><th>Status</th></tr></thead>
+      <tbody>${hostelStudentsData.map(s=>`<tr>
+        <td><div class="avatar-cell"><div class="mini-avatar" style="background:rgba(16,185,129,0.15);color:#10b981">${s.n[0]}</div><div class="avatar-name">${s.n}</div></div></td>
+        <td>${s.rm}</td><td>${s.s==='Checked In'?'7:15 AM':'—'}</td>
+        <td><span class="badge ${s.s==='Checked In'?'badge-green':'badge-gold'}">${s.s}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderExams(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📝</span> Examinations</div>
+    <div class="flex-between mb-16"><div></div>
+      <button class="btn-sm btn-primary-sm" onclick="openModal('Schedule Exam','<div class=\\'form-grid\\'><div class=\\'form-group\\'><label class=\\'form-label\\'>Exam Name</label><input class=\\'form-control\\' placeholder=\\'e.g. Mid-Term Maths\\'></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Type</label><select class=\\'form-control\\'><option>Written</option><option>MCQ</option><option>Practical</option><option>Lab</option><option>Viva</option></select></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Classes</label><input class=\\'form-control\\' placeholder=\\'e.g. Grade 10\\'></div><div class=\\'form-group\\'><label class=\\'form-label\\'>Dates</label><input class=\\'form-control\\' placeholder=\\'Dec 16-22\\'></div></div>','<button class=\\'btn-sm btn-primary-sm\\' onclick=\\'closeModal();showToast(\"✅\",\"Exam scheduled!\",\"success\")\\'>Schedule</button><button class=\\'btn-sm btn-secondary-sm\\' onclick=\\'closeModal()\\'>Cancel</button>')">+ Schedule Exam</button>
+    </div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Exam</th><th>Type</th><th>Classes</th><th>Dates</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${examsListData.map(e=>`<tr>
+        <td class="avatar-name">${e.n}</td><td><span class="badge badge-blue">${e.t}</span></td><td>${e.cls}</td><td>${e.d}</td>
+        <td><span class="badge ${e.s==='Completed'?'badge-green':e.s==='Scheduled'?'badge-gold':'badge-cyan'}">${e.s}</span></td>
+        <td><span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📋','Viewing exam','info')">View</span> · <span style="color:var(--accent-gold);cursor:pointer;font-size:12px" onclick="showToast('✏️','Editing','info')">Edit</span> · <span style="color:var(--accent-rose);cursor:pointer;font-size:12px" onclick="showConfirm('Cancel this exam?','This will notify all involved.',()=>{showToast('🗑️','Exam cancelled','error')})">Cancel</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderResults(el) {
+  const results = [
+    {e:'Mid-Term Nov 2024',cls:'Grade 10',avg:'72.4%',top:'Aryan Mehta (96%)',cnt:280},
+    {e:'Unit Test Oct 2024',cls:'Grade 11',avg:'68.8%',top:'Riya Gupta (94%)',cnt:240},
+    {e:'Half-Yearly Sep 2024',cls:'Grade 9',avg:'74.2%',top:'Sam Khan (92%)',cnt:320},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📊</span> Results</div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Exam</th><th>Class</th><th>Students</th><th>Avg Score</th><th>Topper</th><th>Actions</th></tr></thead>
+      <tbody>${results.map(r=>`<tr>
+        <td class="avatar-name">${r.e}</td><td>${r.cls}</td><td>${r.cnt}</td>
+        <td><span class="badge badge-blue">${r.avg}</span></td><td style="color:var(--accent-gold)">${r.top}</td>
+        <td><span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📊','Viewing results','info')">View</span> · <span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📤','Exporting','info')">Export</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderReportCards(el) {
+  const cards = [
+    {c:'Grade 10',cnt:280,gen:280,s:'Generated'},{c:'Grade 11',cnt:240,gen:180,s:'In Progress'},
+    {c:'Grade 12',cnt:220,gen:0,s:'Pending'},{c:'Grade 9',cnt:320,gen:320,s:'Generated'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📄</span> Report Cards</div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Grade</th><th>Students</th><th>Generated</th><th>Progress</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${cards.map(c=>`<tr>
+        <td class="avatar-name">${c.c}</td><td>${c.cnt}</td><td>${c.gen}/${c.cnt}</td>
+        <td><div class="progress-bar" style="width:100px"><div class="progress-fill ${c.s==='Generated'?'emerald':c.s==='In Progress'?'blue':'gold'}" style="width:${(c.gen/c.cnt*100).toFixed(0)}%"></div></div></td>
+        <td><span class="badge ${c.s==='Generated'?'badge-green':c.s==='In Progress'?'badge-blue':'badge-gold'}">${c.s}</span></td>
+        <td>${c.s==='Generated'?'<span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast(\'📤\',\'Downloading...\',\'info\')">Download</span>':'<span style="color:var(--accent-gold);cursor:pointer;font-size:12px" onclick="showToast(\'⏳\',\'Generating...\',\'warn\')">Generate</span>'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderExamSchedule(el) {
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📅</span> Exam Schedule</div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📅 Mid-Term Exams — December 2024</div></div>
+      <table class="data-table"><thead><tr><th>Date</th><th>Subject</th><th>Class</th><th>Time</th><th>Hall</th></tr></thead>
+      <tbody>
+        ${[{d:'Dec 16',s:'Mathematics',c:'Grade 10',t:'9:00 – 12:00',h:'Hall A'},{d:'Dec 17',s:'Science',c:'Grade 10',t:'9:00 – 12:00',h:'Hall A'},{d:'Dec 18',s:'English',c:'Grade 10',t:'9:00 – 11:00',h:'Hall B'},{d:'Dec 19',s:'Hindi',c:'Grade 10',t:'9:00 – 11:00',h:'Hall B'},{d:'Dec 20',s:'Social Science',c:'Grade 10',t:'9:00 – 12:00',h:'Hall A'},{d:'Dec 22',s:'Physics Practical',c:'Grade 11',t:'10:00 – 1:00',h:'Lab 1'}].map(e=>`
+          <tr><td class="avatar-name">${e.d}</td><td>${e.s}</td><td>${e.c}</td><td>${e.t}</td><td><span class="badge badge-blue">${e.h}</span></td></tr>
+        `).join('')}
+      </tbody></table>
+    </div>
+  `;
+}
+
+function renderExamRooms(el) {
+  const rooms = [
+    {r:'Hall A',cap:60,exam:'Mid-Term Maths',inv:'Mr. Sharma, Ms. Gupta'},{r:'Hall B',cap:60,exam:'Mid-Term English',inv:'Mr. Kumar, Ms. Patel'},
+    {r:'Room 101',cap:30,exam:'Practical Physics',inv:'Dr. Singh'},{r:'Lab 1',cap:20,exam:'Chemistry Lab',inv:'Ms. Nair'},
+    {r:'Hall C',cap:50,exam:'—',inv:'Available'},{r:'Room 201',cap:30,exam:'—',inv:'Available'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🏠</span> Hall Allocation</div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Room</th><th>Capacity</th><th>Assigned Exam</th><th>Invigilators</th><th>Status</th></tr></thead>
+      <tbody>${rooms.map(r=>`<tr>
+        <td class="avatar-name">${r.r}</td><td>${r.cap} seats</td><td>${r.exam}</td><td style="color:var(--text-secondary);font-size:12px">${r.inv}</td>
+        <td><span class="badge ${r.exam==='—'?'badge-green':'badge-blue'}">${r.exam==='—'?'Available':'Allocated'}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderLiveClass(el) {
+  const classes = [
+    {s:'Physics — Grade 12',t:'Dr. Priya Mehta',st:'Live',v:42},{s:'Maths — Grade 10',t:'Ravi Kumar',st:'Scheduled 2:00 PM',v:0},
+    {s:'English — Grade 9',t:'Sunita Devi',st:'Completed',v:38},{s:'Chemistry — Grade 11',t:'Dr. Amit Das',st:'Live',v:28},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📹</span> Live Classes</div>
+    <div class="stats-grid">
+      <div class="stat-card rose"><div class="stat-icon">● </div><div class="stat-value">2</div><div class="stat-label">Live Now</div></div>
+      <div class="stat-card blue"><div class="stat-icon">📅</div><div class="stat-value">5</div><div class="stat-label">Scheduled Today</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">12</div><div class="stat-label">Completed Today</div></div>
+      <div class="stat-card gold"><div class="stat-icon">👀</div><div class="stat-value">70</div><div class="stat-label">Active Viewers</div></div>
+    </div>
+    <div class="card">
+      <table class="data-table"><thead><tr><th>Class</th><th>Teacher</th><th>Viewers</th><th>Status</th></tr></thead>
+      <tbody>${classes.map(c=>`<tr>
+        <td class="avatar-name">${c.s}</td><td>${c.t}</td><td>${c.v>0?c.v:'—'}</td>
+        <td><span class="badge ${c.st==='Live'?'badge-red':c.st==='Completed'?'badge-green':'badge-gray'}"><span class="status-dot ${c.st==='Live'?'red':c.st==='Completed'?'green':'blue'}"></span> ${c.st}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderChatAdmin(el) {
+  const chats = [
+    {n:'All Staff Group',m:'Meeting at 3 PM',t:'2m ago',cnt:186},{n:'Principal Office',m:'Compliance update',t:'1hr ago',cnt:4},
+    {n:'Parents — Grade 10',m:'Fee reminder',t:'3hr ago',cnt:280},{n:'Transport Team',m:'Route 4 delay update',t:'5hr ago',cnt:18},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">💬</span> Messaging</div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">💬 Active Conversations</div><div class="card-action" onclick="showToast('💬','New group created','info')">+ New Group</div></div>
+      ${chats.map(c=>`
+        <div class="activity-item" style="cursor:pointer" onclick="showToast('💬','Opening ${c.n}','info')">
+          <div class="activity-icon" style="background:rgba(16,185,129,0.15)">💬</div>
+          <div class="activity-content">
+            <div class="activity-text"><strong>${c.n}</strong> · ${c.cnt} members</div>
+            <div class="activity-time">${c.m} · ${c.t}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderDigitalLib(el) {
+  const resources = [
+    {t:'NCERT Solutions — Class 12',f:'PDF',v:342,sz:'24 MB'},{t:'Video Lectures — Physics',f:'Video',v:128,sz:'1.2 GB'},
+    {t:'Question Bank — Mathematics',f:'PDF',v:256,sz:'8 MB'},{t:'Science Experiments Playlist',f:'Video',v:89,sz:'680 MB'},
+    {t:'English Grammar Workbook',f:'PDF',v:184,sz:'12 MB'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📖</span> Digital Library</div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">📚</div><div class="stat-value">248</div><div class="stat-label">Total Resources</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">📄</div><div class="stat-value">186</div><div class="stat-label">PDF Documents</div></div>
+      <div class="stat-card gold"><div class="stat-icon">🎥</div><div class="stat-value">62</div><div class="stat-label">Video Lectures</div></div>
+      <div class="stat-card rose"><div class="stat-icon">👀</div><div class="stat-value">12.4K</div><div class="stat-label">Total Views</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📚 Resources</div><div class="card-action" onclick="showToast('📤','Upload started','info')">+ Upload</div></div>
+      <table class="data-table"><thead><tr><th>Resource</th><th>Format</th><th>Size</th><th>Views</th><th>Actions</th></tr></thead>
+      <tbody>${resources.map(r=>`<tr>
+        <td><div class="avatar-cell"><div class="mini-avatar" style="background:${r.f==='PDF'?'rgba(99,102,241,0.15)':'rgba(245,158,11,0.15)'};font-size:14px">${r.f==='PDF'?'📄':'🎥'}</div><div class="avatar-name">${r.t}</div></div></td>
+        <td><span class="badge ${r.f==='PDF'?'badge-blue':'badge-gold'}">${r.f}</span></td><td>${r.sz}</td><td>${r.v}</td>
+        <td><span style="color:var(--accent-primary);cursor:pointer;font-size:12px" onclick="showToast('📥','Downloading...','info')">Download</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderPatrol(el) {
+  const patrols = [
+    {t:'Morning Round',a:'Main Gate + Corridors',tm:'6:00 – 7:00 AM',g:'Ram Singh',s:'Done'},
+    {t:'Mid-Day Check',a:'Library + Labs',tm:'12:00 – 12:30 PM',g:'Suresh Kumar',s:'Done'},
+    {t:'Evening Round',a:'All exits + parking',tm:'4:00 – 5:00 PM',g:'Ram Singh',s:'Upcoming'},
+    {t:'Night Watch',a:'Full campus perimeter',tm:'8:00 PM – 6:00 AM',g:'Night Team (3)',s:'Upcoming'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🚶</span> Patrol Schedule</div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📋 Today's Schedule</div></div>
+      <table class="data-table"><thead><tr><th>Round</th><th>Area</th><th>Time</th><th>Guard</th><th>Status</th></tr></thead>
+      <tbody>${patrols.map(p=>`<tr>
+        <td class="avatar-name">${p.t}</td><td style="color:var(--text-secondary)">${p.a}</td><td>${p.tm}</td><td>${p.g}</td>
+        <td><span class="badge ${p.s==='Done'?'badge-green':'badge-gray'}">${p.s}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderSLA(el) {
+  const slas = [
+    {l:'Critical (<2hr)',target:'95%',actual:95,met:true},{l:'High (<4hr)',target:'90%',actual:88,met:false},
+    {l:'Medium (<8hr)',target:'85%',actual:92,met:true},{l:'Low (<24hr)',target:'80%',actual:97,met:true},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">📊</span> SLA Dashboard</div>
+    <div class="stats-grid">
+      <div class="stat-card emerald"><div class="stat-icon">✅</div><div class="stat-value">93%</div><div class="stat-label">Overall SLA Met</div><div class="stat-change up">↑ +2%</div></div>
+      <div class="stat-card blue"><div class="stat-icon">🎫</div><div class="stat-value">342</div><div class="stat-label">Total Tickets (30d)</div></div>
+      <div class="stat-card gold"><div class="stat-icon">⏱️</div><div class="stat-value">2.1h</div><div class="stat-label">Avg Resolution</div><div class="stat-change up">↑ -0.3h</div></div>
+      <div class="stat-card rose"><div class="stat-icon">⚠️</div><div class="stat-value">8</div><div class="stat-label">SLA Breaches</div><div class="stat-change down">↓ +2 this week</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📊 SLA Compliance by Priority</div></div>
+      <table class="data-table"><thead><tr><th>Priority</th><th>Target</th><th>Actual</th><th>Progress</th><th>Status</th></tr></thead>
+      <tbody>${slas.map(s=>`<tr>
+        <td class="avatar-name">${s.l}</td><td>${s.target}</td><td>${s.actual}%</td>
+        <td><div class="progress-bar" style="width:100px"><div class="progress-fill ${s.met?'emerald':'gold'}" style="width:${s.actual}%"></div></div></td>
+        <td><span class="badge ${s.met?'badge-green':'badge-red'}">${s.met?'Met':'Breach'}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
+function renderFitness(el) {
+  const tests = [
+    {n:'BMI Assessment',d:'Last: Nov 15',cnt:'2,840 tested',next:'Jan 10',s:'Completed'},
+    {n:'Endurance Test',d:'Last: Oct 20',cnt:'1,200 tested',next:'Jan 15',s:'Completed'},
+    {n:'Flexibility Test',d:'Scheduled',cnt:'All students',next:'Jan 10',s:'Upcoming'},
+    {n:'Sprint (100m)',d:'Last: Sep 5',cnt:'800 tested',next:'Feb 1',s:'Completed'},
+  ];
+  el.innerHTML = `
+    <div class="section-heading"><span class="sh-icon">🏃</span> Fitness Tracker</div>
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="stat-icon">🏃</div><div class="stat-value">2,840</div><div class="stat-label">Students Tested</div></div>
+      <div class="stat-card emerald"><div class="stat-icon">💪</div><div class="stat-value">78%</div><div class="stat-label">Avg Fitness Score</div><div class="stat-change up">↑ +3%</div></div>
+      <div class="stat-card gold"><div class="stat-icon">📋</div><div class="stat-value">4</div><div class="stat-label">Test Categories</div></div>
+      <div class="stat-card rose"><div class="stat-icon">📅</div><div class="stat-value">Jan 10</div><div class="stat-label">Next Assessment</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📋 Fitness Tests</div></div>
+      <table class="data-table"><thead><tr><th>Test</th><th>Last Run</th><th>Coverage</th><th>Next</th><th>Status</th></tr></thead>
+      <tbody>${tests.map(t=>`<tr>
+        <td class="avatar-name">${t.n}</td><td>${t.d}</td><td>${t.cnt}</td><td>${t.next}</td>
+        <td><span class="badge ${t.s==='Completed'?'badge-green':'badge-cyan'}">${t.s}</span></td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+  `;
+}
+
 // ========== ROLE SWITCH (overridden to control UI) ==========
 const _origSwitchRole = switchRole;
 
 // ========== INIT ==========
 // Pre-select Finance on login screen
 (function initLogin() {
-  const defaultIdx = { super_admin:0,director:1,principal:2,finance:3,admin_mgr:4,hr:5,transport:6,library:7,sports:8,security:9,support:10,driver:11 };
+  const defaultIdx = { super_admin:0,director:1,principal:2,finance:3,admin_mgr:4,hr:5,transport:6,library:7,sports:8,security:9,support:10,driver:11,hostel:12,exam_ctrl:13 };
   const btns = document.querySelectorAll('.role-btn');
   btns.forEach(b => {
     b.addEventListener('click', function() {
