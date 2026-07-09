@@ -211,15 +211,25 @@ def require_any_role(*allowed_roles: str):
             )
         return user
     return role_checker
-
-
 # Pre-configured role checkers for common roles
 require_teacher = require_role("teacher")
 require_student = require_role("student")
-require_admin = require_role("admin")
+require_admin = require_any_role(
+    "admin", "super_admin", "director", "principal", "finance", "hr", 
+    "transport", "library", "security", "sports", "support", "driver", 
+    "hostel", "exam_ctrl"
+)
 
 # Admin sub-roles
 # student_admin: manages student-side data; admin can also access everything.
-require_student_admin = require_any_role("admin", "student_admin")
+require_student_admin = require_any_role(
+    "admin", "student_admin", "super_admin", "director", "principal", "finance", 
+    "hr", "transport", "library", "security", "sports", "support", "driver", 
+    "hostel", "exam_ctrl"
+)
 # teacher_admin: manages teacher-side data; admin can also access everything.
-require_teacher_admin = require_any_role("admin", "teacher_admin")
+require_teacher_admin = require_any_role(
+    "admin", "teacher_admin", "super_admin", "director", "principal", "finance", 
+    "hr", "transport", "library", "security", "sports", "support", "driver", 
+    "hostel", "exam_ctrl"
+)

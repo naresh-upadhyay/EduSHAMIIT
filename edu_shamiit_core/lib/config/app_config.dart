@@ -32,7 +32,7 @@ class AppConfig {
   /// Base URL for the backend API
   static String get baseUrl {
     if (_isProduction) return _productionApiUrl;
-    return 'http://$_host';
+    return 'http://$_host:8082';
   }
 
   /// API base URL with /api prefix

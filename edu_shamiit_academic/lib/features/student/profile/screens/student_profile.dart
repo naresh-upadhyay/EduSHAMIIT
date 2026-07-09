@@ -9,13 +9,13 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:edu_shamiit_academic/shared/widgets/nav_helper.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
-class StudentProfile extends ConsumerStatefulWidget {
-  const StudentProfile({super.key});
+class StudentProfileScreen extends ConsumerStatefulWidget {
+  const StudentProfileScreen({super.key});
   @override
-  ConsumerState<StudentProfile> createState() => _StudentProfileState();
+  ConsumerState<StudentProfileScreen> createState() => _StudentProfileScreenState();
 }
 
-class _StudentProfileState extends ConsumerState<StudentProfile> {
+class _StudentProfileScreenState extends ConsumerState<StudentProfileScreen> {
   Future<void> _pickAvatar() async {
     final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery, maxWidth: 1000, imageQuality: 90);

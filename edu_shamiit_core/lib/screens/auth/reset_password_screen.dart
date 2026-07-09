@@ -6,59 +6,37 @@ import 'dart:convert';
 import 'package:edu_shamiit_core/config/app_config.dart';
 import 'package:edu_shamiit_core/constants/app_gradients.dart';
 
-class ResetPasswordScreen extends ConsumerStatefulWidget {
+class SharedResetPasswordScreen extends ConsumerStatefulWidget {
   final String email;
   final String otp;
+  final bool isAdmin;
 
-  const ResetPasswordScreen({
+  const SharedResetPasswordScreen({
     super.key,
     required this.email,
     required this.otp,
+    this.isAdmin = false,
   });
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() =>
-      _ResetPasswordScreenState();
+  ConsumerState<SharedResetPasswordScreen> createState() =>
+      _SharedResetPasswordScreenState();
 }
 
-class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
+class _SharedResetPasswordScreenState
+    extends ConsumerState<SharedResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _newPasswordController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _obscureNewPassword = true;
+  bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  double _passwordStrength = 0;
 
   @override
   void dispose() {
-    _newPasswordController.dispose();
+    _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
-  }
-
-  void _calculatePasswordStrength(String password) {
-    double strength = 0;
-    if (password.length >= 8) strength += 0.25;
-    if (password.contains(RegExp(r'[A-Z]'))) strength += 0.25;
-    if (password.contains(RegExp(r'[a-z]'))) strength += 0.25;
-    if (password.contains(RegExp(r'[0-9]'))) strength += 0.15;
-    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength += 0.1;
-    setState(() {
-      _passwordStrength = strength;
-    });
-  }
-
-  Color _getStrengthColor() {
-    if (_passwordStrength < 0.5) return Colors.red;
-    if (_passwordStrength < 0.75) return Colors.orange;
-    return Colors.green;
-  }
-
-  String _getStrengthText() {
-    if (_passwordStrength < 0.5) return 'Weak';
-    if (_passwordStrength < 0.75) return 'Medium';
-    return 'Strong';
   }
 
   Future<void> _resetPassword() async {
@@ -75,7 +53,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         body: jsonEncode({
           'identifier': widget.email,
           'otp': widget.otp,
-          'new_password': _newPasswordController.text,
+          'new_password': _passwordController.text,
         }),
       );
 
@@ -84,7 +62,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       if (!mounted) return;
 
       if (data['success'] == true) {
-        // Navigate to success screen
         context.pushReplacement('/password-reset-success');
       } else {
         _showError(data['detail'] ?? 'Failed to reset password');
@@ -139,11 +116,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                       alignment: Alignment.centerLeft,
                       child: IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white70, size: 20),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Logo Header
                     _buildLogoHeader(),
                     const SizedBox(height: 24),
@@ -171,80 +149,57 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Password Field
                             _buildTextField(
-                              controller: _newPasswordController,
+                              controller: _passwordController,
                               label: 'New Password',
-                              hint: 'Enter new password',
-                              icon: Icons.lock_outlined,
-                              obscureText: _obscureNewPassword,
+                              hint: 'At least 8 characters, Upper, Lower, Number',
+                              icon: Icons.lock_outline_rounded,
+                              obscureText: _obscurePassword,
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscureNewPassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  color: Colors.white38,
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: const Color(0xFF94A3B8),
                                   size: 18,
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscureNewPassword = !_obscureNewPassword;
-                                  });
-                                },
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                               ),
-                              onChanged: (value) => _calculatePasswordStrength(value),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter a password';
+                                  return 'Password is required';
                                 }
                                 if (value.length < 8) {
                                   return 'Password must be at least 8 characters';
                                 }
-                                if (!value.contains(RegExp(r'[A-Z]'))) {
-                                  return 'Password must contain an uppercase letter';
-                                }
-                                if (!value.contains(RegExp(r'[a-z]'))) {
-                                  return 'Password must contain a lowercase letter';
-                                }
-                                if (!value.contains(RegExp(r'[0-9]'))) {
-                                  return 'Password must contain a number';
-                                }
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 12),
-                            // Password strength indicator
-                            if (_newPasswordController.text.isNotEmpty) ...[
-                              _buildStrengthIndicator(),
-                              const SizedBox(height: 24),
-                            ] else ...[
-                              const SizedBox(height: 12),
-                            ],
+                            const SizedBox(height: 18),
+
+                            // Confirm Password Field
                             _buildTextField(
                               controller: _confirmPasswordController,
                               label: 'Confirm Password',
-                              hint: 'Confirm your password',
-                              icon: Icons.lock_outlined,
+                              hint: 'Repeat your password',
+                              icon: Icons.lock_outline_rounded,
                               obscureText: _obscureConfirmPassword,
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscureConfirmPassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  color: Colors.white38,
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: const Color(0xFF94A3B8),
                                   size: 18,
                                 ),
-                                onPressed: () {
-                                  setState(() {
+                                onPressed: () => setState(() =>
                                     _obscureConfirmPassword =
-                                        !_obscureConfirmPassword;
-                                  });
-                                },
+                                        !_obscureConfirmPassword),
                               ),
                               validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please confirm your password';
-                                }
-                                if (value != _newPasswordController.text) {
+                                if (value != _passwordController.text) {
                                   return 'Passwords do not match';
                                 }
                                 return null;
@@ -252,16 +207,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                             ),
                             const SizedBox(height: 28),
 
-                            // Reset Action Button
-                            _buildResetButton(),
+                            // Action button
+                            _buildActionButton(),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-
-                    // Back to Login Link
-                    _buildFooterLink(),
                   ],
                 ),
               ),
@@ -302,7 +253,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         ),
         const SizedBox(height: 16),
         const Text(
-          'Set New Password',
+          'Reset Password',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w800,
@@ -312,7 +263,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Create a strong password for your account',
+          'Please enter a new password for\n${widget.email}',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
@@ -323,55 +274,67 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     );
   }
 
-  Widget _buildStrengthIndicator() {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 4,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: _passwordStrength,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      color: _getStrengthColor(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _getStrengthText(),
-              style: TextStyle(
-                color: _getStrengthColor(),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
         Text(
-          'Include uppercase, lowercase, number & special character',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.4),
-            fontSize: 11,
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          validator: validator,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+                color: Colors.white.withValues(alpha: 0.3), fontSize: 13),
+            prefixIcon: Icon(icon, color: const Color(0xFF818CF8), size: 18),
+            suffixIcon: suffixIcon,
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.05),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide:
+                  BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide:
+                  BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide:
+                  const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+            ),
+            errorStyle: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildResetButton() {
+  Widget _buildActionButton() {
     return Container(
       width: double.infinity,
       height: 50,
@@ -414,82 +377,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 ),
               ),
       ),
-    );
-  }
-
-  Widget _buildFooterLink() {
-    return TextButton(
-      onPressed: () => context.pop(),
-      child: const Text(
-        'Back to Login',
-        style: TextStyle(
-          color: Color(0xFF818CF8),
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool? obscureText,
-    Widget? suffixIcon,
-    ValueChanged<String>? onChanged,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText ?? false,
-          validator: validator,
-          onChanged: onChanged,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 13),
-            prefixIcon: Icon(icon, color: const Color(0xFF818CF8), size: 18),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.05),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide:
-                  BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide:
-                  BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
-            ),
-            errorStyle: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

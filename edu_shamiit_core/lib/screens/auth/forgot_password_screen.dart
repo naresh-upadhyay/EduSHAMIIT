@@ -6,15 +6,21 @@ import 'dart:convert';
 import 'package:edu_shamiit_core/config/app_config.dart';
 import 'package:edu_shamiit_core/constants/app_gradients.dart';
 
-class ForgotPasswordScreen extends ConsumerStatefulWidget {
-  const ForgotPasswordScreen({super.key});
+class SharedForgotPasswordScreen extends ConsumerStatefulWidget {
+  final bool isAdmin;
+
+  const SharedForgotPasswordScreen({
+    super.key,
+    this.isAdmin = false,
+  });
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() =>
-      _ForgotPasswordScreenState();
+  ConsumerState<SharedForgotPasswordScreen> createState() =>
+      _SharedForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
+class _SharedForgotPasswordScreenState
+    extends ConsumerState<SharedForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isLoading = false;
@@ -49,7 +55,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         // Navigate to OTP verification screen
         context.push(
           '/otp-verification',
-          extra: {'email': _emailController.text.trim()},
+          extra: {
+            'email': _emailController.text.trim(),
+            'isLogin': false,
+            'role': null,
+          },
         );
       } else {
         _showError(data['detail'] ?? 'Failed to send OTP');
@@ -104,11 +114,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       alignment: Alignment.centerLeft,
                       child: IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white70, size: 20),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Logo Header
                     _buildLogoHeader(),
                     const SizedBox(height: 24),
@@ -252,7 +263,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 13),
+            hintStyle: TextStyle(
+                color: Colors.white.withValues(alpha: 0.3), fontSize: 13),
             prefixIcon: Icon(icon, color: const Color(0xFF818CF8), size: 18),
             filled: true,
             fillColor: Colors.white.withValues(alpha: 0.05),
@@ -268,7 +280,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+              borderSide:
+                  const BorderSide(color: Color(0xFF6366F1), width: 1.5),
             ),
             errorStyle: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
             contentPadding: const EdgeInsets.symmetric(

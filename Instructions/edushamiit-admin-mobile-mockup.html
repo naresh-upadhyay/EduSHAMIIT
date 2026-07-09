@@ -553,14 +553,42 @@ let isOnline=true;
 const ROLES={
   super_admin:{n:'Super Admin',i:'🛡️',dn:'Rahul Kapoor',id:'SA-001',em:'superadmin@edushamiit.in',g:'linear-gradient(160deg,#0B0F19,#1E1B4B)',
     nav:[{i:'⚡',l:'Home',s:'home'},{i:'🏫',l:'Schools',s:'schools'},{i:'👥',l:'Users',s:'users'},{i:'📊',l:'Infra Monitor',s:'monitoring'},{i:'⚙️',l:'Config',s:'config'}],
-    qa:[{i:'🎨',l:'White Label',s:'whitelabel',c:'#FFF7ED'},{i:'🧩',l:'Module Toggle',s:'modules',c:'#FAF5FF'},{i:'⛓️',l:'Workflows',s:'workflow_builder',c:'#EEF2FF'},{i:'⚙️',l:'Automations',s:'automation_builder',c:'#ECFDF5'},{i:'🛡️',l:'Permissions',s:'permission_matrix',c:'#FEF2F2'},{i:'📊',l:'Real-Time',s:'realtime',c:'#F0FDF4'},{i:'💡',l:'Smart Insights',s:'insights',c:'#FFFBEB'},{i:'🏢',l:'Groups',s:'groups',c:'#EFF6FF'},{i:'💳',l:'Billing',s:'billing',c:'#FEF3C7'},{i:'🔌',l:'APIs',s:'apis',c:'#F8FAFC'},{i:'🔒',l:'Audit Log',s:'audit',c:'#FEF2F2'}],
+    qa:[
+      {i:'🎨',l:'White Label',s:'whitelabel',c:'#FFF7ED'},
+      {i:'🧩',l:'Module Toggle',s:'modules',c:'#FAF5FF'},
+      {i:'⛓️',l:'Workflows',s:'workflow_builder',c:'#EEF2FF'},
+      {i:'⚙️',l:'Automations',s:'automation_builder',c:'#ECFDF5'},
+      {i:'🛡️',l:'Permissions',s:'permission_matrix',c:'#FEF2F2'},
+      {i:'📊',l:'Real-Time',s:'realtime',c:'#F0FDF4'},
+      {i:'💡',l:'Smart Insights',s:'insights',c:'#FFFBEB'},
+      {i:'🏢',l:'Groups',s:'groups',c:'#EFF6FF'},
+      {i:'🔌',l:'APIs',s:'apis',c:'#F8FAFC'},
+      {i:'🔒',l:'Audit Log',s:'audit',c:'#FEF2F2'},
+      {i:'📋',l:'Roles & Modules',s:'roles_templates',c:'#FAF5FF'},
+      {i:'🤖',l:'AI Ops Dashboard',s:'ai_ops',c:'#EEF2FF'},
+      {i:'📡',l:'Global Tenants',s:'tenant_monitor',c:'#E0F2FE'},
+      {i:'🧾',l:'Billing & Invoices',s:'billing_invoices',c:'#FFF7ED'},
+      {i:'📢',l:'Announcements',s:'platform_announce',c:'#FEF2F2'},
+      {i:'🚀',l:'Tenant Onboard',s:'tenant_onboarding',c:'#F1F5F9'},
+      {i:'💳',l:'SaaS Plans',s:'subscriptions_plans',c:'#FEF3C7'},
+      {i:'👤',l:'Impersonate/Support',s:'impersonation_support',c:'#FDF4FF'}
+    ],
     st:[{v:'12',l:'Schools',c:'#fff'},{v:'28.4K',l:'Students',c:'#10B981'},{v:'1,840',l:'Staff',c:'#F59E0B'},{v:'99.9%',l:'Uptime',c:'#fff'}],
-    tk:[{t:'3 schools need renewal',s:'billing',u:1},{t:'Server: Noida 68% CPU',s:'monitoring',u:1},{t:'2 CNAME pending config',s:'whitelabel',u:0}]},
+    tk:[{t:'3 schools need renewal',s:'billing_invoices',u:1},{t:'Server: Noida 68% CPU',s:'monitoring',u:1},{t:'2 CNAME pending config',s:'whitelabel',u:0}]},
   director:{n:'Director',i:'👑',dn:'Vikram Malhotra',id:'DIR-001',em:'director@edushamiit.in',g:'linear-gradient(135deg,#7F1D1D,#B91C1C)',
     nav:[{i:'⚡',l:'Home',s:'home'},{i:'🏫',l:'Branches',s:'branches'},{i:'💰',l:'Finance',s:'fin_overview'},{i:'📊',l:'Analytics',s:'analytics'},{i:'👤',l:'Profile',s:'profile'}],
-    qa:[{i:'💰',l:'Finance',s:'fin_overview',c:'#FEF3C7'},{i:'👥',l:'Staff',s:'staff',c:'#F0FDF4'},{i:'📊',l:'Report Builder',s:'report_builder',c:'#FAF5FF'},{i:'⛓️',l:'Approval Log',s:'approval_log',c:'#EEF2FF'},{i:'📁',l:'Doc Center',s:'doc_center',c:'#F0FDF4'},{i:'📅',l:'Calendar Center',s:'calendar_center',c:'#EEF2FF'},{i:'🏆',l:'Sports',s:'sports',c:'#F0FDF4'},{i:'⚙️',l:'Settings',s:'settings',c:'#F1F5F9'}],
+    qa:[
+      {i:'🏢',l:'Org Setup',s:'org_setup',c:'#EFF6FF'},
+      {i:'📜',l:'Policy Compliance',s:'policy_compliance',c:'#ECFDF5'},
+      {i:'👥',l:'Board Meetings',s:'board_meetings',c:'#EEF2FF'},
+      {i:'📂',l:'Staff Directory',s:'staff',c:'#F0FDF4'},
+      {i:'🛡️',l:'Roles & Perms',s:'permission_matrix',c:'#FEF2F2'},
+      {i:'📊',l:'Multi-School Analytics',s:'analytics',c:'#FAF5FF'},
+      {i:'🔑',l:'Delegations',s:'approval_delegation',c:'#FFF7ED'},
+      {i:'🎨',l:'White Label',s:'whitelabel',c:'#FFFBEB'}
+    ],
     st:[{v:'4',l:'Branches',c:'#fff'},{v:'8,200',l:'Students',c:'#10B981'},{v:'₹4.2Cr',l:'Revenue',c:'#F59E0B'},{v:'92%',l:'Fee Rate',c:'#fff'}],
-    tk:[{t:'Agra needs new principal',s:'staff',u:1},{t:'PO #1024 pending signature',s:'doc_center',u:1}]},
+    tk:[{t:'Agra needs new principal',s:'staff',u:1},{t:'POSH safety policy review',s:'policy_compliance',u:1}]},
   principal:{n:'Principal',i:'🎓',dn:'Dr. Meera Nair',id:'PR-001',em:'principal@edushamiit.in',g:'linear-gradient(135deg,#065F46,#059669)',
     nav:[{i:'⚡',l:'Home',s:'home'},{i:'📖',l:'Academic',s:'academic'},{i:'👥',l:'Staff',s:'staff'},{i:'📊',l:'Reports',s:'analytics'},{i:'👤',l:'Profile',s:'profile'}],
     qa:[{i:'📖',l:'Academic',s:'academic',c:'#EEF2FF'},{i:'📝',l:'Exams',s:'exams',c:'#FEF3C7'},{i:'🌴',l:'Approve Leave',s:'leave',c:'#FFF7ED'},{i:'💵',l:'Fees',s:'fees',c:'#FEF3C7'},{i:'📡',l:'GPS Live',s:'realtime',c:'#EFF6FF'},{i:'📹',l:'Live Class',s:'live_class',c:'#FAF5FF'},{i:'📅',l:'Calendar',s:'calendar_center',c:'#EEF2FF'},{i:'💬',l:'Comm Center',s:'comm_center',c:'#EFF6FF'}],
@@ -671,7 +699,58 @@ const D={
   school_assets:[{id:'SA1',t:'Classroom Desks & Chairs',qty:840,c:'Good'},{id:'SA2',t:'Digital Projectors',qty:24,c:'Good'},{id:'SA3',t:'Magnetic Whiteboards',qty:36,c:'Fair'},{id:'SA4',t:'Sports Kits',qty:85,c:'Replace'}],
   branch_revenues:[{id:'BR1',n:'EduSHAMIIT Jewar',stu:2840,rate:'87%',rev:'₹24.8L'},{id:'BR2',n:'EduSHAMIIT Noida',stu:3200,rate:'94%',rev:'₹34.5L'},{id:'BR3',n:'Shami Intl Agra',stu:1420,rate:'72%',rev:'₹12.2L'}],
   live_classes:[{id:'LC1',s:'Physics — Grade 12',t:'Dr. Priya Mehta',st:'Live',v:42},{id:'LC2',s:'Maths — Grade 10',t:'Ravi Kumar',st:'Scheduled 2:00 PM',v:0},{id:'LC3',s:'English — Grade 9',t:'Sunita Devi',st:'Completed',v:38}],
-  chat_channels:[{id:'CH1',n:'All Staff Group',m:'Meeting at 3 PM',t:'2m',cnt:186},{id:'CH2',n:'Principal Office',m:'Compliance update',t:'1hr',cnt:4},{id:'CH3',n:'Parents — Grade 10',m:'Fee reminder',t:'3hr',cnt:280}]
+  chat_channels:[{id:'CH1',n:'All Staff Group',m:'Meeting at 3 PM',t:'2m',cnt:186},{id:'CH2',n:'Principal Office',m:'Compliance update',t:'1hr',cnt:4},{id:'CH3',n:'Parents — Grade 10',m:'Fee reminder',t:'3hr',cnt:280}],
+  roles_templates:[
+    {id:'RT1',n:'K-12 Academy Package',roles:'Teacher, Principal, Finance, HR',mods:'fees, transport, exams, class_live',s:'Active'},
+    {id:'RT2',n:'Primary Pre-School Preset',roles:'Teacher, Admin, Driver',mods:'transport, sms, meals',s:'Active'},
+    {id:'RT3',n:'Hostel Boarding High School',roles:'Teacher, Warden, Security',mods:'hostel, exams, library, cctv',s:'Active'}
+  ],
+  ai_anomalies:[
+    {id:'AA1',t:'LLM high temperature response skew',det:'Temperature parameter set > 0.8 yielded 12 hallucinated records',s:'Alert'},
+    {id:'AA2',t:'Token rate limit reached sector 14',det:'School ID Jewar triggered 82 parallel OCR transcriptions',s:'Alert'}
+  ],
+  tenant_instances:[
+    {id:'TI1',n:'EduSHAMIIT Jewar Campus',cpu:'18%',lat:'12ms',s:'Active'},
+    {id:'TI2',n:'EduSHAMIIT Noida Campus',cpu:'68%',lat:'45ms',s:'Active'},
+    {id:'TI3',n:'Shami Intl Agra Instance',cpu:'4%',lat:'8ms',s:'Active'}
+  ],
+  billing_invoices:[
+    {id:'BI1',n:'EduSHAMIIT Jewar Campus',amt:'₹24,000',dt:'Jan 15, 2026',s:'Pending'},
+    {id:'BI2',n:'EduSHAMIIT Noida Campus',amt:'₹34,500',dt:'Jan 10, 2026',s:'Paid'},
+    {id:'BI3',n:'Shami Intl Agra Instance',amt:'₹12,200',dt:'Jan 28, 2026',s:'Pending'}
+  ],
+  platform_announcements:[
+    {id:'PA1',t:'Scheduled System Maintenance',m:'SaaS Portal down for migrations on Dec 25, 02:00 - 04:00 AM IST',tgt:'All Tenants',s:'Active'},
+    {id:'PA2',t:'New Live Class Release v2.4',m:'Screen sharing and OCR annotation now active for classrooms',tgt:'Teachers & Wardens',s:'Active'}
+  ],
+  tenant_onboarding:[
+    {id:'TO1',n:'EduSHAMIIT Lucknow Campus',stg:'Data Migration',p:72,s:'In Progress'},
+    {id:'TO2',n:'SHAMIIT International Patna',stg:'Domain Setup',p:15,s:'In Progress'},
+    {id:'TO3',n:'St. Xavier Dehradun (SaaS)',stg:'Complete',p:100,s:'Active'}
+  ],
+  subscriptions_plans:[
+    {id:'SP1',n:'SaaS Growth Tier',pr:'₹14,500/mo',limit:'Up to 1000 students',s:'Active'},
+    {id:'SP2',n:'SaaS Professional Tier',pr:'₹28,00,000/yr',limit:'Up to 3000 students',s:'Active'},
+    {id:'SP3',n:'SaaS Enterprise Custom',pr:'₹52,000/mo',limit:'Unlimited student profiles',s:'Active'}
+  ],
+  org_setup:[
+    {id:'ORG1',n:'EduSHAMIIT Main Trust',reg:'REG-2024-88',hq:'Noida, India',s:'Active'},
+    {id:'ORG2',n:'Sunrise Education Trust',reg:'REG-2019-12',hq:'Delhi, India',s:'Active'}
+  ],
+  policies:[
+    {id:'POL1',n:'Child Protection & Safety Policy',v:'v2.4',d:'Dec 2026',s:'Active'},
+    {id:'POL2',n:'POSH Compliance Code',v:'v1.8',d:'Jun 2026',s:'Active'},
+    {id:'POL3',n:'Anti-Bullying Guidelines',v:'v3.0',d:'Nov 2026',s:'Active'}
+  ],
+  board_meetings:[
+    {id:'BM1',t:'Q3 Strategic Review',dt:'Dec 28, 2026',loc:'Board Room A / Hybrid',s:'Scheduled'},
+    {id:'BM2',t:'SaaS Budget Allocation 2027',dt:'Nov 14, 2026',loc:'Noida HQ Room 4',s:'Completed'},
+    {id:'BM3',t:'Trustee AGM & Compliance Review',dt:'Jan 18, 2027',loc:'Auditorium',s:'Planning'}
+  ],
+  approval_delegations:[
+    {id:'AD1',n:'Dr. Meera Nair',r:'Principal',auth:'Financial approvals upto ₹5L',dt:'Dec 15 - Dec 30',s:'Active'},
+    {id:'AD2',n:'Kavya Sharma',r:'Finance Head',auth:'SaaS Invoice Signing',dt:'Dec 01 - Dec 10',s:'Expired'}
+  ]
 };
 
 // ═══ STATE & WINDOW MANAGEMENT ═══
@@ -4413,6 +4492,420 @@ PN.chat_admin=()=>{
     </div>
     <div class="fb" onclick="go('ai')">🤖</div>
     ${nav2('academic')}
+  `;
+  return h;
+};
+
+PN.roles_templates=()=>{
+  let h=top2('Roles & Modules Templates','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FAF5FF;color:#7C3AED" onclick="aR('roles_templates',[{k:'n',l:'Template Name',p:'e.g. Primary School'},{k:'roles',l:'Default Roles',p:'e.g. Teacher, Admin'},{k:'mods',l:'Included Modules',p:'e.g. fees, transport, exams, class_live'}],'Create Template','📋','#FAF5FF')">+ Add Template</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">📋 SaaS Preset Templates</div>
+        ${D.roles_templates.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FAF5FF">📋</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">Roles: ${x.roles}</div>
+              <div class="ls" style="color:var(--p)">Modules: ${x.mods}</div>
+              ${crud('roles_templates',x.id,x.n)}
+            </div>
+            ${bd(x.s||'Active')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('config')}
+  `;
+  return h;
+};
+
+PN.ai_ops=()=>{
+  let h=top2('AI Ops Dashboard','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="padding:7px">
+        <div class="ct">🤖 LLM Model Latency & Token Usage</div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
+            <span><b>Model Inference Latency</b></span>
+            <span>242ms (Optimal)</span>
+          </div>
+          <div class="pb" style="height:5px"><div class="pf" style="width:24%;background:#10B981"></div></div>
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
+            <span><b>Token Quota Consumed (Monthly)</b></span>
+            <span>4,242,880 / 10,000,000</span>
+          </div>
+          <div class="pb" style="height:5px"><div class="pf" style="width:42%;background:#4F46E5"></div></div>
+        </div>
+      </div>
+      
+      <div class="dc" style="display:flex;gap:4px;padding:7px">
+        <button class="btn-p" style="flex:1;font-size:9.5px;padding:8px" onclick="T('🔄','AI Cache Flushed successfully')">Flush AI Cache</button>
+        <button class="btn-p" style="flex:1;font-size:9.5px;padding:8px;background:var(--bg-card);color:var(--t1);border:1px solid var(--bd)" onclick="T('⚙️','Model temperature tuned to 0.2')">Tune Temperature</button>
+      </div>
+
+      <div class="dc" style="padding:7px">
+        <div class="ct">🚨 AI Anomaly Alert Logs</div>
+        ${D.ai_anomalies.map(x=>`
+          <div class="li" style="padding:6px 0;border-bottom:1px solid var(--bd)">
+            <div class="lc" style="background:#FEF2F2;color:#EF4444">⚠️</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.t}</b></div>
+              <div class="ls">Details: ${x.det}</div>
+            </div>
+            ${bd('Alert')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('config')}
+  `;
+  return h;
+};
+
+PN.tenant_monitor=()=>{
+  let h=top2('Global Tenants Monitor','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="background:rgba(20,184,166,0.03);text-align:center;padding:12px;margin:7px">
+        <div style="font-size:8.5px;color:var(--t3);text-transform:uppercase">Global Health Status</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:900;color:#10B981;margin-top:2px">ALL TENANTS HEALTHY</div>
+        <div style="font-size:8.5px;color:var(--t2);margin-top:2px">Total Active Connections: <b>1,842</b> · DB QPS: <b>248/s</b></div>
+      </div>
+
+      <div class="dc" style="padding:7px">
+        <div class="ct">📡 School Tenant Instances</div>
+        ${D.tenant_instances.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#E0F2FE">📡</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">CPU: ${x.cpu} · Query Latency: ${x.lat}</div>
+              ${crud('tenant_instances',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('schools')}
+  `;
+  return h;
+};
+
+PN.billing_invoices=()=>{
+  let h=top2('Billing & Invoices','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#059669" onclick="aR('billing_invoices',[{k:'n',l:'School Branch',p:'e.g. Jewar Campus'},{k:'amt',l:'Invoice Amount',p:'₹24,000'},{k:'dt',l:'Due Date',p:'e.g. Jan 15, 2026'}],'Create Invoice','🧾','#ECFDF5')">+ Raise Invoice</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">🧾 Active SaaS Invoices</div>
+        ${D.billing_invoices.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FFF7ED">🧾</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> · ${x.amt}</div>
+              <div class="ls">Due Date: ${x.dt}</div>
+              ${crud('billing_invoices',x.id,x.n)}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              ${bd(x.s)}
+              ${x.s==='Pending'?`<button class="cb2" style="font-size:6.5px;padding:2px 4px;background:#ECFDF5;color:#059669" onclick="event.stopPropagation();D.billing_invoices.find(z=>z.id==='${x.id}').s='Paid';T('✅','Invoice marked Paid');go('sub','billing_invoices')">Collect</button>`:''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('schools')}
+  `;
+  return h;
+};
+
+PN.platform_announce=()=>{
+  let h=top2('Platform Announcements','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FEF2F2;color:#EF4444" onclick="aR('platform_announcements',[{k:'t',l:'Broadcast Title',p:'Title'},{k:'m',l:'Message Content',p:'Enter details...'},{k:'tgt',l:'Target Audience',p:'e.g. All Teachers'}],'New Broadcast','📢','#FEF2F2')">+ New Broadcast</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">📢 Active Platform System Broadcasts</div>
+        ${D.platform_announcements.map(x=>`
+          <div class="li" style="flex-direction:column;align-items:stretch;gap:4px;padding:8px 0;border-bottom:1px solid var(--bd)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:700;font-size:10px">${x.t}</span>
+              <span class="badge bg" style="font-size:6px">${x.tgt}</span>
+            </div>
+            <div style="font-size:9px;color:var(--t2)">"${x.m}"</div>
+            <div style="display:flex;justify-content:flex-end">${crud('platform_announcements',x.id,x.t)}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('config')}
+  `;
+  return h;
+};
+
+PN.tenant_onboarding=()=>{
+  let h=top2('Tenant Onboarding','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#EFF6FF;color:#0369A1" onclick="aR('tenant_onboarding',[{k:'n',l:'School Name',p:'Name'},{k:'stg',l:'Current Stage',type:'select',opts:['Domain Setup','Admin Onboard','Data Migration']},{k:'p',l:'Progress %',p:'30'}],'Register New Tenant','🚀','#EFF6FF')">+ Onboard School</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">🚀 Active Onboarding Funnel</div>
+        ${D.tenant_onboarding.map(x=>`
+          <div class="li" style="flex-direction:column;align-items:stretch;gap:6px;padding:8px 0;border-bottom:1px solid var(--bd)">
+            <div style="display:flex;justify-content:space-between">
+              <div><b>${x.n}</b><div style="font-size:7px;color:var(--t3)">Stage: ${x.stg}</div></div>
+              ${bd(x.p === 100 || x.p === '100' ? 'Active' : 'In Progress')}
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="pb" style="flex:1;height:5px"><div class="pf" style="width:${x.p}%;background:var(--p)"></div></div>
+              <span style="font-size:7px;font-weight:700">${x.p}%</span>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:4px">
+              <button class="cb2" style="font-size:6px;background:#ECFDF5;color:#059669" onclick="event.stopPropagation();D.tenant_onboarding.find(z=>z.id==='${x.id}').p=100;D.tenant_onboarding.find(z=>z.id==='${x.id}').stg='Complete';T('🚀','Tenant onboarding complete!');go('sub','tenant_onboarding')">Promote Complete</button>
+              ${crud('tenant_onboarding',x.id,x.n)}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('schools')}
+  `;
+  return h;
+};
+
+PN.subscriptions_plans=()=>{
+  let h=top2('SaaS subscription plans','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FEF3C7;color:#D97706" onclick="aR('subscriptions_plans',[{k:'n',l:'Plan Name',p:'e.g. Ultimate Pro'},{k:'pr',l:'Price',p:'₹42,000/mo'},{k:'limit',l:'Student Limits',p:'e.g. 5000 students'}],'Create Plan','💳','#FEF3C7')">+ Add Plan</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">💳 Active Billing Tiers & Plans</div>
+        ${D.subscriptions_plans.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FEF3C7">💳</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> · <span style="color:#059669;font-weight:700">${x.pr}</span></div>
+              <div class="ls">Limits: ${x.limit}</div>
+              ${crud('subscriptions_plans',x.id,x.n)}
+            </div>
+            ${bd(x.s||'Active')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('schools')}
+  `;
+  return h;
+};
+
+PN.impersonation_support=()=>{
+  let h=top2('Support & Impersonation','linear-gradient(160deg,#0B0F19,#1E1B4B)');
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="padding:7px">
+        <div class="ct">👥 Global User Directory Search</div>
+        <div class="fg" style="margin-bottom:8px">
+          <input class="fg-inp" placeholder="Search staff, driver, principal name..." onkeyup="filterImpersonationList(this.value)">
+        </div>
+        <div id="impersonation_users_list">
+          ${D.users.map(u=>`
+            <div class="li" style="padding:6px 0;border-bottom:1px solid var(--bd)">
+              <div class="lc" style="background:#EFF6FF">👤</div>
+              <div style="flex:1">
+                <div class="lt"><b>${u.n}</b> (${u.r})</div>
+                <div class="ls">${u.e}</div>
+              </div>
+              <button class="cb2" style="background:var(--p);color:#fff;font-size:7px;padding:3px 6px" onclick="event.stopPropagation();triggerImpersonate('${u.r}','${u.n}')">Impersonate</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('users')}
+  `;
+  return h;
+};
+
+function filterImpersonationList(val){
+  const q = val.toLowerCase();
+  const el = document.getElementById('impersonation_users_list');
+  if(!el) return;
+  const filtered = D.users.filter(u=>u.n.toLowerCase().includes(q) || u.r.toLowerCase().includes(q));
+  el.innerHTML = filtered.map(u=>`
+    <div class="li" style="padding:6px 0;border-bottom:1px solid var(--bd)">
+      <div class="lc" style="background:#EFF6FF">👤</div>
+      <div style="flex:1">
+        <div class="lt"><b>${u.n}</b> (${u.r})</div>
+        <div class="ls">${u.e}</div>
+      </div>
+      <button class="cb2" style="background:var(--p);color:#fff;font-size:7px;padding:3px 6px" onclick="event.stopPropagation();triggerImpersonate('${u.r}','${u.n}')">Impersonate</button>
+    </div>
+  `).join('');
+}
+
+function triggerImpersonate(roleLabel, displayName){
+  const mapped = {
+    'Super Admin': 'super_admin',
+    'Director': 'director',
+    'Principal': 'principal',
+    'Finance': 'finance',
+    'HR': 'hr',
+    'Driver': 'driver',
+    'Hostel Warden': 'hostel',
+    'Exam Controller': 'exam_ctrl'
+  };
+  const key = mapped[roleLabel] || 'super_admin';
+  role = key;
+  T('👤', `Impersonating: ${displayName} (${roleLabel})`);
+  go('home');
+}
+
+PN.org_setup=()=>{
+  let h=top2('Organization Setup','linear-gradient(135deg,#7F1D1D,#B91C1C)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#EFF6FF;color:#1E3A5F" onclick="aR('org_setup',[{k:'n',l:'Trust Entity Name',p:'Name'},{k:'reg',l:'Registration Number',p:'e.g. REG-2024'},{k:'hq',l:'HQ Office Location',p:'City'}],'Create Entity','🏢','#EFF6FF')">+ Add Entity</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">🏢 Corporate Holding Entities</div>
+        ${D.org_setup.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EFF6FF">🏢</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">Reg No: ${x.reg} · HQ: ${x.hq}</div>
+              ${crud('org_setup',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('profile')}
+  `;
+  return h;
+};
+
+PN.policy_compliance=()=>{
+  let h=top2('Policy & Compliance','linear-gradient(135deg,#7F1D1D,#B91C1C)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#059669" onclick="aR('policies',[{k:'n',l:'Policy Title',p:'Title'},{k:'v',l:'Version',p:'e.g. v1.0'},{k:'d',l:'Last Reviewed Date',p:'Date'}],'Publish Policy','📜','#ECFDF5')">+ Publish Policy</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">📜 Corporate Safety & Conduct Policies</div>
+        ${D.policies.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#ECFDF5">📜</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">Version: ${x.v} · Reviewed: ${x.d}</div>
+              ${crud('policies',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('profile')}
+  `;
+  return h;
+};
+
+PN.board_meetings=()=>{
+  let h=top2('Board Meetings Schedule','linear-gradient(135deg,#7F1D1D,#B91C1C)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#EEF2FF;color:#4F46E5" onclick="aR('board_meetings',[{k:'t',l:'Meeting Agenda',p:'Agenda title'},{k:'dt',l:'Date & Time',p:'e.g. Dec 28, 2026'},{k:'loc',l:'Meeting Room / Link',p:'Room A / Zoom'}],'Schedule Meeting','👥','#EEF2FF')">+ Schedule Meeting</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">👥 Trustees Board Meetings</div>
+        ${D.board_meetings.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EEF2FF">👥</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.t}</b></div>
+              <div class="ls">Date: ${x.dt} · Venue: ${x.loc}</div>
+              ${crud('board_meetings',x.id,x.t)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('profile')}
+  `;
+  return h;
+};
+
+PN.approval_delegation=()=>{
+  let h=top2('Approval Delegations','linear-gradient(135deg,#7F1D1D,#B91C1C)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FFF7ED;color:#C2410C" onclick="aR('approval_delegations',[{k:'n',l:'Delegate Name',p:'Name'},{k:'r',l:'Role Designation',p:'e.g. Principal'},{k:'auth',l:'Delegated Authority Scope',p:'e.g. Invoicing'},{k:'dt',l:'Duration',p:'e.g. Dec 15 - Dec 30'}],'Delegate Authority','🔑','#FFF7ED')">+ Delegate Sign-off</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">🔑 Active Authority Delegation Matrix</div>
+        ${D.approval_delegations.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FFF7ED">🔑</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> (${x.r})</div>
+              <div class="ls">Scope: ${x.auth}</div>
+              <div class="ls" style="color:var(--p)">Validity: ${x.dt}</div>
+              ${crud('approval_delegations',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('profile')}
   `;
   return h;
 };

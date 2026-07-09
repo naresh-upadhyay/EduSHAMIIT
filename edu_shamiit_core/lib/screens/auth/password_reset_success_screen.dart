@@ -4,14 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_core/constants/app_gradients.dart';
 
-class PasswordResetSuccessScreen extends ConsumerStatefulWidget {
-  const PasswordResetSuccessScreen({super.key});
+class SharedPasswordResetSuccessScreen extends ConsumerStatefulWidget {
+  final bool isAdmin;
+
+  const SharedPasswordResetSuccessScreen({
+    super.key,
+    this.isAdmin = false,
+  });
 
   @override
-  ConsumerState<PasswordResetSuccessScreen> createState() => _PasswordResetSuccessScreenState();
+  ConsumerState<SharedPasswordResetSuccessScreen> createState() =>
+      _SharedPasswordResetSuccessScreenState();
 }
 
-class _PasswordResetSuccessScreenState extends ConsumerState<PasswordResetSuccessScreen>
+class _SharedPasswordResetSuccessScreenState
+    extends ConsumerState<SharedPasswordResetSuccessScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -116,7 +123,7 @@ class _PasswordResetSuccessScreenState extends ConsumerState<PasswordResetSucces
                             ),
                           ),
                           const SizedBox(height: 32),
-                          
+
                           // Success text
                           FadeTransition(
                             opacity: _fadeAnimation,
@@ -132,7 +139,7 @@ class _PasswordResetSuccessScreenState extends ConsumerState<PasswordResetSucces
                             ),
                           ),
                           const SizedBox(height: 12),
-                          
+
                           FadeTransition(
                             opacity: _fadeAnimation,
                             child: Text(
@@ -145,14 +152,14 @@ class _PasswordResetSuccessScreenState extends ConsumerState<PasswordResetSucces
                             ),
                           ),
                           const SizedBox(height: 36),
-                          
+
                           // Go to login button
                           FadeTransition(
                             opacity: _fadeAnimation,
                             child: _buildLoginButton(),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // Security tip
                           FadeTransition(
                             opacity: _fadeAnimation,

@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:edu_shamiit_core/providers/auth_provider.dart';
-import 'package:edu_shamiit_core/providers/role_provider.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_academic/features/shared/splash/screens/splash_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/login/screens/login_screen.dart';
-import 'package:edu_shamiit_academic/features/shared/login/screens/forgot_password_screen.dart';
-import 'package:edu_shamiit_academic/features/shared/login/screens/otp_verification_screen.dart';
-import 'package:edu_shamiit_academic/features/shared/login/screens/reset_password_screen.dart';
-import 'package:edu_shamiit_academic/features/shared/login/screens/password_reset_success_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/settings/screens/settings_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/ai_chat/screens/ai_chat_screen.dart';
 import 'package:edu_shamiit_academic/features/shared/documents/screens/documents_screen.dart';
@@ -152,7 +147,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/forgot-password',
-      builder: (_, __) => const ForgotPasswordScreen(),
+      builder: (_, __) => const SharedForgotPasswordScreen(isAdmin: false),
     ),
     GoRoute(
       path: '/otp-verification',
@@ -161,10 +156,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         final email = args?['email'] as String? ?? '';
         final isLogin = args?['isLogin'] as bool? ?? false;
         final role = args?['role'] as UserRole?;
-        return OtpVerificationScreen(
+        return SharedOtpVerificationScreen(
           email: email,
           isLogin: isLogin,
           role: role,
+          isAdmin: false,
         );
       },
     ),
@@ -174,12 +170,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         final args = state.extra as Map<String, dynamic>?;
         final email = args?['email'] as String? ?? '';
         final otp = args?['otp'] as String? ?? '';
-        return ResetPasswordScreen(email: email, otp: otp);
+        return SharedResetPasswordScreen(email: email, otp: otp, isAdmin: false);
       },
     ),
     GoRoute(
       path: '/password-reset-success',
-      builder: (_, __) => const PasswordResetSuccessScreen(),
+      builder: (_, __) => const SharedPasswordResetSuccessScreen(isAdmin: false),
     ),
     GoRoute(
       path: '/settings',
@@ -250,7 +246,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
         GoRoute(
           path: '/student/profile',
-          pageBuilder: (_, __) => const NoTransitionPage(child: StudentProfile()),
+          pageBuilder: (_, __) => const NoTransitionPage(child: StudentProfileScreen()),
         ),
         GoRoute(
           path: '/student/leave-application',

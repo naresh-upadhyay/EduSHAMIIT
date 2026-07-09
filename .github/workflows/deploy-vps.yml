@@ -32,6 +32,8 @@ jobs:
             rm project.zip && \
             find /root/app -type f -name "*.sh" -exec chmod +x {} + && \
             find /root/app -type f \( -name "*.sh" -o -name "*.exs" -o -name "*.sql" -o -name "*.conf" -o -name "*.yml" -o -name "*.yaml" \) -exec sed -i "s/\r$//" {} + && \
+            export NGINX_SSL_CERT_PATH=/home/user/conf/web/eduapi.shamiit.com/ssl/eduapi.shamiit.com.pem && \
+            export NGINX_SSL_KEY_PATH=/home/user/conf/web/eduapi.shamiit.com/ssl/eduapi.shamiit.com.key && \
             docker compose down && \
             docker compose up -d --build && \
             docker cp /root/app/run_migrations.py edushamiit-api:/app/run_migrations.py && \

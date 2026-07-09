@@ -521,8 +521,8 @@ services:
       - "7880:7880"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro,z
-      - /home/user/conf/web/eduapi.shamiit.com/ssl/eduapi.shamiit.com.pem:/etc/letsencrypt/live/eduapi.shamiit.com/fullchain.pem:ro
-      - /home/user/conf/web/eduapi.shamiit.com/ssl/eduapi.shamiit.com.key:/etc/letsencrypt/live/eduapi.shamiit.com/privkey.pem:ro
+      - ${NGINX_SSL_CERT_PATH:-./nginx/certs/live/edushamiitapi.shamiit.com/fullchain.pem}:/etc/letsencrypt/live/eduapi.shamiit.com/fullchain.pem:ro
+      - ${NGINX_SSL_KEY_PATH:-./nginx/certs/live/edushamiitapi.shamiit.com/privkey.pem}:/etc/letsencrypt/live/eduapi.shamiit.com/privkey.pem:ro
     depends_on:
       - api
       - kong

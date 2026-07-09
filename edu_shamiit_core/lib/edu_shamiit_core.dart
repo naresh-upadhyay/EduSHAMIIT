@@ -52,3 +52,9 @@ export 'widgets/calendar_picker.dart';
 export 'widgets/responsive_content.dart';
 export 'widgets/in_app_notification_overlay.dart';
 export 'widgets/image_preview_dialog.dart';
+
+// Shared Auth Screens
+export 'screens/auth/forgot_password_screen.dart';
+export 'screens/auth/otp_verification_screen.dart';
+export 'screens/auth/reset_password_screen.dart';
+export 'screens/auth/password_reset_success_screen.dart';

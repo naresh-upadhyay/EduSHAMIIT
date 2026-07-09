@@ -169,7 +169,11 @@ async def login(request: LoginRequest):
         p = profile.data
 
         # Enforce role matching if role is requested
-        admin_roles = {"admin", "teacher_admin", "student_admin"}
+        admin_roles = {
+            "admin", "teacher_admin", "student_admin", "super_admin", "director", 
+            "principal", "finance", "hr", "transport", "library", "security", 
+            "sports", "support", "driver", "hostel", "exam_ctrl"
+        }
         req_role = request.role.lower()
         profile_role = p["role"].lower()
         roles_match = (req_role == profile_role) or (req_role in admin_roles and profile_role in admin_roles)
@@ -906,7 +910,11 @@ async def verify_login_otp(request: VerifyLoginOtpRequest):
             
         user_id = user["id"]
         
-        admin_roles = {"admin", "teacher_admin", "student_admin"}
+        admin_roles = {
+            "admin", "teacher_admin", "student_admin", "super_admin", "director", 
+            "principal", "finance", "hr", "transport", "library", "security", 
+            "sports", "support", "driver", "hostel", "exam_ctrl"
+        }
         req_role = request.role.lower() if request.role else ""
         user_role = user["role"].lower()
         roles_match = (req_role == user_role) or (req_role in admin_roles and user_role in admin_roles)

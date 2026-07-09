@@ -8,24 +8,27 @@ import 'package:edu_shamiit_core/constants/app_gradients.dart';
 import 'package:edu_shamiit_core/providers/auth_provider.dart';
 import 'package:edu_shamiit_core/providers/role_provider.dart';
 
-class OtpVerificationScreen extends ConsumerStatefulWidget {
+class SharedOtpVerificationScreen extends ConsumerStatefulWidget {
   final String email;
   final bool isLogin;
   final UserRole? role;
+  final bool isAdmin;
 
-  const OtpVerificationScreen({
+  const SharedOtpVerificationScreen({
     super.key,
     required this.email,
     this.isLogin = false,
     this.role,
+    this.isAdmin = false,
   });
 
   @override
-  ConsumerState<OtpVerificationScreen> createState() =>
-      _OtpVerificationScreenState();
+  ConsumerState<SharedOtpVerificationScreen> createState() =>
+      _SharedOtpVerificationScreenState();
 }
 
-class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
+class _SharedOtpVerificationScreenState
+    extends ConsumerState<SharedOtpVerificationScreen> {
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
@@ -78,22 +81,27 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     try {
       if (widget.isLogin) {
         final success = await ref.read(authProvider.notifier).signInWithOtp(
-          email: widget.email,
-          otp: _otp,
-          role: widget.role ?? UserRole.student,
-        );
+              email: widget.email,
+              otp: _otp,
+              role: widget.role ?? (widget.isAdmin ? UserRole.superAdmin : UserRole.student),
+            );
 
         if (!mounted) return;
 
         if (success) {
-          final userRole = ref.read(authProvider).role;
-          if (userRole == UserRole.teacher) {
-            context.go('/teacher/dashboard');
+          if (widget.isAdmin) {
+            context.go('/dashboard');
           } else {
-            context.go('/student/dashboard');
+            final userRole = ref.read(authProvider).role;
+            if (userRole == UserRole.teacher) {
+              context.go('/teacher/dashboard');
+            } else {
+              context.go('/student/dashboard');
+            }
           }
         } else {
-          final errorMessage = ref.read(authProvider).error ?? 'OTP verification failed';
+          final errorMessage =
+              ref.read(authProvider).error ?? 'OTP verification failed';
           _showError(errorMessage);
           _clearOtp();
         }
@@ -112,7 +120,6 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
         if (!mounted) return;
 
         if (data['success'] == true) {
-          // Navigate to reset password screen
           context.pushReplacement(
             '/reset-password',
             extra: {
@@ -243,11 +250,12 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                       alignment: Alignment.centerLeft,
                       child: IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white70, size: 20),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Logo Header
                     _buildLogoHeader(),
                     const SizedBox(height: 24),
@@ -373,18 +381,21 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               filled: true,
               fillColor: Colors.white.withValues(alpha: 0.05),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    BorderSide(color: Colors.white.withValues(alpha: 0.08)),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    BorderSide(color: Colors.white.withValues(alpha: 0.08)),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: Color(0xFF6366F1), width: 1.5),
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
             ),
             onChanged: (value) {
               if (value.isNotEmpty && index < 5) {
@@ -414,8 +425,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           Text(
             'Resend OTP in $_formattedTime',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
-              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.4),
+              fontSize: 13,
             ),
           )
         else
@@ -425,7 +436,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               'Resend OTP',
               style: TextStyle(
                 color: Color(0xFF818CF8),
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
             ),
