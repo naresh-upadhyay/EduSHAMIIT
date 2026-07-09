@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SHAMIIT EduOS — World-Class School/College Admin Platform | Architecture Mind Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#070914; --bg2:#0d1024; --panel:#0f1330cc; --panel-solid:#11152e;
+  --line:#242a52; --text:#e8ebff; --muted:#8b91c4; --accent:#7c8cff;
+  --glow:0 0 40px rgba(124,140,255,.25);
+  --platform:#8b5cf6; --director:#6366f1; --principal:#3b82f6; --admin:#06b6d4;
+  --finance:#10b981; --hr:#f59e0b; --transport:#f97316; --library:#14b8a6;
+  --security:#ef4444; --sports:#84cc16; --support:#ec4899; --driver:#eab308; --hostel:#a855f7;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:radial-gradient(ellipse at top, #131736 0%, #070914 60%);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;overflow-x:hidden;}
+a{color:var(--accent);}
+.wrap{max-width:1700px;margin:0 auto;padding:18px 22px 60px;}
+header{padding:22px 4px 10px;}
+header h1{font-size:26px;margin:0 0 6px;background:linear-gradient(90deg,#a78bfa,#60a5fa,#34d399);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:.3px;}
+header p{margin:0;color:var(--muted);font-size:14px;max-width:1100px;line-height:1.5;}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.badge{font-size:11px;padding:4px 10px;border:1px solid var(--line);border-radius:20px;color:var(--muted);background:#12163188;}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 10px;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(6px);}
+.toolbar input[type=text]{flex:1;min-width:180px;background:#0b0e22;border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13px;}
+.chip{cursor:pointer;font-size:12px;padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:#0b0e22;color:var(--muted);transition:.15s;user-select:none;white-space:nowrap;}
+.chip:hover{color:var(--text);border-color:var(--accent);}
+.chip.active{color:#fff;border-color:transparent;box-shadow:var(--glow);}
+.btn{cursor:pointer;font-size:12px;padding:8px 14px;border-radius:9px;border:1px solid var(--line);background:linear-gradient(180deg,#1a2040,#12162e);color:var(--text);}
+.btn:hover{border-color:var(--accent);}
+
+.stage{perspective:1600px;margin-top:8px;}
+.graph-frame{position:relative;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:
+  radial-gradient(circle at 20% 20%, #171c3d 0%, transparent 60%),
+  radial-gradient(circle at 80% 80%, #131a33 0%, transparent 55%),
+  #0a0c1e;
+  transform-style:preserve-3d; transition:transform .15s ease-out;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.7), inset 0 0 120px rgba(124,140,255,.04);
+}
+#network{width:100%;height:640px;}
+.hint{position:absolute;bottom:10px;left:14px;font-size:11px;color:var(--muted);background:#00000066;padding:5px 10px;border-radius:8px;pointer-events:none;}
+.legend{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:5px;background:#00000055;padding:10px 12px;border-radius:10px;font-size:11px;max-height:610px;overflow:auto;}
+.legend .row{display:flex;align-items:center;gap:6px;color:var(--muted);}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;}
+
+.panel-area{display:grid;grid-template-columns:1fr;gap:14px;margin-top:16px;}
+.detail{background:var(--panel-solid);border:1px solid var(--line);border-radius:16px;padding:20px 22px;min-height:120px;}
+.detail h2{margin:0 0 4px;font-size:19px;}
+.detail .tag{display:inline-block;font-size:11px;padding:3px 9px;border-radius:6px;margin-right:6px;margin-bottom:10px;color:#fff;}
+.detail .lead{color:var(--muted);font-size:13.5px;margin-bottom:14px;line-height:1.55;}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;}
+.block h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px;}
+.block ul{margin:0;padding-left:18px;font-size:13px;color:#cfd3f5;line-height:1.7;}
+.block code{background:#0b0e22;border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:12px;color:#9fe6c7;}
+.flowline{font-size:12.5px;color:#cfd3f5;padding:6px 10px;background:#0b0e2299;border-left:3px solid var(--accent);border-radius:6px;margin-bottom:6px;}
+.empty{color:var(--muted);font-size:14px;padding:30px;text-align:center;}
+
+section.section{margin-top:34px;}
+section.section h2.h{font-size:19px;margin:0 0 14px;display:flex;align-items:center;gap:10px;}
+section.section h2.h::before{content:'';width:5px;height:20px;background:linear-gradient(180deg,#a78bfa,#60a5fa);border-radius:3px;}
+
+.wf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;}
+.wf-card{background:var(--panel-solid);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
+.wf-card h4{margin:0 0 10px;font-size:14.5px;color:#fff;}
+.wf-steps{display:flex;flex-direction:column;gap:0;}
+.wf-step{display:flex;gap:10px;align-items:flex-start;padding:6px 0;position:relative;}
+.wf-step:not(:last-child)::after{content:'';position:absolute;left:11px;top:26px;bottom:-6px;width:1px;background:var(--line);}
+.wf-num{width:23px;height:23px;border-radius:50%;background:#171c3d;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--accent);flex:none;}
+.wf-txt{font-size:12.5px;color:#cfd3f5;line-height:1.5;padding-top:2px;}
+.wf-txt b{color:#fff;}
+
+.arch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
+.arch-card{background:var(--panel-solid);border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
+.arch-card h4{margin:0 0 8px;font-size:14px;color:#fff;}
+.arch-card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.6;}
+
+table.dbtable{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.dbtable th,table.dbtable td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
+table.dbtable th{color:var(--accent);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.05em;}
+table.dbtable td{color:#cfd3f5;}
+.scrollbox{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:12px;}
+
+footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12px;padding-top:20px;border-top:1px solid var(--line);}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:#242a52;border-radius:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🏫 SHAMIIT EduOS — World-Class School/College Admin Platform</h1>
+    <p>An architect-level mind map of a multi-tenant, AI-powered School/College ERP: who does what, what screen they touch, what data moves where, and how it lands in your DB & API. Built for <b>Flutter</b> (frontend) + <b>FastAPI</b> (backend) + <b>Supabase Postgres</b> (DB/Auth/Storage/Realtime). Click any node in the graph below to inspect it in architect-level detail.</p>
+    <div class="badges">
+      <span class="badge">Multi-tenant SaaS</span>
+      <span class="badge">13 Roles</span>
+      <span class="badge">RBAC + Hierarchical inheritance</span>
+      <span class="badge">Module-based licensing</span>
+      <span class="badge">Supabase RLS-first design</span>
+      <span class="badge">AI-augmented workflows</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input id="search" type="text" placeholder="🔍 Search a role, screen, table, or keyword…">
+    <span class="chip active" data-filter="all">All</span>
+    <span id="chipRow"></span>
+    <span class="btn" id="resetBtn">⟲ Reset View</span>
+    <span class="btn" id="expandBtn">⤢ Expand All Screens</span>
+  </div>
+
+  <div class="stage">
+    <div class="graph-frame" id="frame">
+      <div id="network">
+        <div id="network-loading-status" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;color:var(--muted);font-size:14px;font-family:'Segoe UI',system-ui,sans-serif;">⚡ Loading Interactive Architecture Map...</div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="hint">Drag to pan • Scroll to zoom • Click a role to reveal its screens • Click a screen for full detail</div>
+    </div>
+  </div>
+
+  <div class="panel-area">
+    <div class="detail" id="detail">
+      <div class="empty">👋 Click <b>Super Admin</b>, <b>Director</b>, <b>Principal</b>, or any operational role to see its screens, actions, data flow, DB tables & API routes here.</div>
+    </div>
+  </div>
+
+  <section class="section">
+    <h2 class="h">Core Cross-Role Workflows (Sequential Data Flow)</h2>
+    <div class="wf-grid" id="workflows"></div>
+  </section>
+
+  <section class="section">
+    <h2 class="h">Multi-Tenant Platform Architecture</h2>
+    <div class="arch-grid" id="arch"></div>
+  </section>
+
+  <section class="section">
+    <h2 class="h">RBAC Permission Model</h2>
+    <div class="arch-card" style="padding:18px 20px;">
+      <p style="font-size:13px;line-height:1.8;color:#cfd3f5;">
+      Use <b>Hierarchical RBAC (HRBAC)</b>, not flat RBAC — permissions inherit down the org chart (Super Admin → Director → Principal → Dept Heads → Staff), which mirrors how real schools work and keeps admin effort low as you onboard more tenants.<br><br>
+      <b>Permission = (Role × Module × Action × Scope).</b> Action ∈ {view, create, edit, delete, approve, export, assign}. Scope ∈ {own, department, school, group-of-schools, platform}. Store as a <code>role_permissions</code> table so Directors can build <i>custom roles</i> per school without touching code (e.g. "Front Office Coordinator" = Admin module minus Finance).<br><br>
+      Enforce it twice: (1) <b>Postgres Row-Level-Security</b> in Supabase, keyed off <code>auth.uid() → staff.user_id → staff.school_id/role_id</code> so even a leaked API key can't leak cross-tenant data; (2) <b>FastAPI dependency</b> (<code>Depends(require_permission("finance.fee.collect"))</code>) that checks a cached permission set from Redis/Supabase for fast, explicit checks at the route layer. Never trust the Flutter client for authorization — it only hides UI it can't use.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2 class="h">Core Database Schema (Supabase Postgres)</h2>
+    <div class="scrollbox"><table class="dbtable" id="dbtable"></table></div>
+  </section>
+
+  <footer>Architected as a companion to your existing Academic app (students/teachers). This app owns Admin · Operations · Finance · HR · Facilities. Share a common <code>tenants</code>, <code>schools</code>, <code>users</code>, <code>staff</code> schema between both apps via Supabase so student/teacher data and admin data stay one source of truth.</footer>
+</div>
+
+<script>
+/* ============================= DATA MODEL ============================= */
+const CAT = {
+  platform:{color:'#8b5cf6',label:'Super Admin (Platform Owner)'},
+  director:{color:'#6366f1',label:'Director (Multi-School Owner)'},
+  principal:{color:'#3b82f6',label:'Principal (School Head)'},
+  admin:{color:'#06b6d4',label:'Admin / Front Office & Manager'},
+  finance:{color:'#10b981',label:'Finance'},
+  hr:{color:'#f59e0b',label:'HR'},
+  transport:{color:'#f97316',label:'Transport'},
+  library:{color:'#14b8a6',label:'Library'},
+  security:{color:'#ef4444',label:'Security'},
+  sports:{color:'#84cc16',label:'Sports'},
+  support:{color:'#ec4899',label:'Support / Helpdesk'},
+  driver:{color:'#eab308',label:'Driver'},
+  hostel:{color:'#a855f7',label:'Hostel / Warden'},
+};
+
+const ROLES = [
+{ id:'platform', cat:'platform', name:'Super Admin', icon:'🛡️', reportsTo:null,
+  tagline:'Owns the SaaS. Sells & configures the product for every school/group on the platform.',
+  description:'The application owner (you / SHAMIIT). Operates one level above every school — manages tenants (schools/groups), subscription plans, module licensing, billing, platform-wide monitoring, and impersonation for support. Never touches a single school\'s day-to-day data unless invited in for support.',
+  screens:[
+    {name:'Tenant Onboarding Wizard', purpose:'Create a new School/Group tenant: legal name, board (CBSE/ICSE/State/IB), campuses, admin contact, trial or paid plan.', actions:['Create tenant','Set custom subdomain (xyz.shamiit.com)','Assign initial Director login','Set data region'], api:'POST /platform/tenants', db:'tenants, tenant_admins'},
+    {name:'Subscription & Plan Builder', purpose:'Define pricing tiers (Basic/Growth/Enterprise) and toggle which modules a tenant can access.', actions:['Create/edit plans','Toggle modules (Transport, Hostel, Library…)','Set seat limits (staff/students)','Attach Razorpay/Stripe plan id'], api:'POST /platform/plans, PATCH /platform/tenants/{id}/modules', db:'plans, tenant_modules, tenant_subscriptions'},
+    {name:'Billing & Invoices Console', purpose:'Track MRR/ARR, generate invoices, handle upgrades/downgrades, dunning for failed payments.', actions:['View revenue dashboard','Issue invoice/credit note','Suspend tenant on non-payment','Apply discount/coupon'], api:'GET /platform/billing/summary', db:'invoices, payments, subscription_events'},
+    {name:'Global Tenant Monitor', purpose:'Cross-tenant health dashboard: active users, storage used, API error rate, uptime per school.', actions:['View usage analytics','Set storage/API quotas','Flag anomalous tenant'], api:'GET /platform/tenants/{id}/usage', db:'usage_metrics, audit_logs'},
+    {name:'Role & Module Template Manager', purpose:'Maintain the master list of roles (this mind map!) and default permission templates every new tenant inherits.', actions:['Edit master role templates','Publish new module version','Push permission-schema migration'], api:'PATCH /platform/role-templates', db:'role_templates, module_registry'},
+    {name:'Impersonation / Support Console', purpose:'Securely log in "as" a Director/Principal (with consent + full audit trail) to debug an issue.', actions:['Start impersonation session (time-boxed)','View full audit trail of impersonated actions'], api:'POST /platform/impersonate', db:'impersonation_sessions, audit_logs'},
+    {name:'Platform Announcements & Release Notes', purpose:'Push in-app banners, feature announcements, forced-update notices to all tenants or a segment.', actions:['Compose announcement','Target by plan/segment','Schedule release'], api:'POST /platform/announcements', db:'announcements'},
+    {name:'AI Ops Dashboard (Premium)', purpose:'Cross-tenant AI insight: churn-risk schools, feature adoption gaps, anomaly detection on fee/attendance patterns.', actions:['View churn-risk score','Review AI-flagged anomalies'], api:'GET /platform/ai/insights', db:'ai_insights_platform'},
+  ],
+  premium:['Usage-based billing add-on (per-SMS/WhatsApp credit)','White-label branding per tenant','Data residency selection (India/EU)','SOC2-style audit export','AI churn prediction'],
+  manages:['director'],
+  sends:[{to:'director', data:'Tenant provisioning, module entitlements, plan limits'}],
+  receives:[{from:'director', data:'Usage feedback, upgrade requests, support tickets'}]
+},
+
+{ id:'director', cat:'director', name:'Director', icon:'🏛️', reportsTo:'platform',
+  tagline:'Owns one or many schools under a group. Full customization authority within their tenant.',
+  description:'The business owner of the school/group. Configures organization structure (single school or multi-campus group), creates roles beyond the defaults, assigns staff to roles, sets policy (fee structure, academic calendar, branding) and gets consolidated cross-school analytics. Delegates day-to-day running to Principals.',
+  screens:[
+    {name:'Organization Setup', purpose:'Define group structure: one or many schools/campuses under this Director, each with its own address, board affiliation, logo.', actions:['Add/edit campus','Set campus-level branding','Assign a Principal per campus'], api:'POST /org/schools', db:'schools, campuses'},
+    {name:'Role & Permission Builder', purpose:'Take the platform\'s default 13 roles and customize: rename, merge, split, or invent new roles (e.g. "Vice Principal") with exact module × action permissions.', actions:['Clone/edit role','Set permission matrix','Assign role to staff member'], api:'POST /org/roles, POST /org/staff/{id}/assign-role', db:'roles, role_permissions, staff_roles'},
+    {name:'Staff Directory & Invite', purpose:'Central roster of every employee across all campuses; invite via email/phone, deactivate, transfer between campuses.', actions:['Invite staff','Bulk import CSV','Transfer staff cross-campus','Deactivate/offboard'], api:'POST /org/staff/invite', db:'staff, staff_school_map'},
+    {name:'Multi-School Analytics Dashboard', purpose:'Consolidated KPIs across all campuses: enrollment, revenue, attendance %, staff attrition, complaint resolution time.', actions:['Compare campus performance','Drill into a single campus','Export board-ready report'], api:'GET /org/analytics/overview', db:'analytics_rollups (materialized views)'},
+    {name:'Policy & Compliance Center', purpose:'Set org-wide policy: fee structure templates, leave policy, code of conduct, document retention rules.', actions:['Publish policy doc','Set fee template','Set academic year calendar'], api:'POST /org/policies', db:'policies, fee_templates, academic_calendars'},
+    {name:'Approval Delegation Matrix', purpose:'Decide what a Principal can approve solo vs what needs Director sign-off (e.g. discounts >20%, expenses >₹1L).', actions:['Set approval thresholds','Set escalation chain'], api:'PATCH /org/approval-rules', db:'approval_rules'},
+    {name:'Brand & White-label Settings', purpose:'Upload logo, set brand colors, custom domain, parent-app splash screen — flows down to every campus unless overridden.', actions:['Upload brand kit','Set custom domain'], api:'PATCH /org/branding', db:'tenant_branding'},
+    {name:'Board Meeting / Governance Log (Premium)', purpose:'Track trustee/board decisions, minutes, and link them to policy changes for audit trail.', actions:['Log meeting minutes','Attach resolution to policy'], api:'POST /org/governance/minutes', db:'governance_logs'},
+  ],
+  premium:['Cross-campus AI benchmarking','Custom role builder with drag-and-drop permission matrix','Board/investor report generator (PDF/PPT auto-export)','Multi-currency for international campuses'],
+  manages:['principal'],
+  sends:[{to:'principal', data:'Policies, fee templates, staff assignments, approval thresholds'}],
+  receives:[{from:'principal', data:'Campus KPIs, escalations, budget requests'}]
+},
+
+{ id:'principal', cat:'principal', name:'Principal', icon:'🎓', reportsTo:'director',
+  tagline:'Owner of a single school. Monitors every department and assigns/tracks tasks to staff.',
+  description:'Runs one campus end-to-end. Sees a unified command-center view of academics-adjacent operations (admin, finance, HR, transport, library, security, sports, hostel), assigns tasks/approves requests raised by department heads, and is the final in-school escalation point before Director.',
+  screens:[
+    {name:'Principal Command Center (Home)', purpose:'Single-glance dashboard: today\'s attendance %, pending approvals, fee collection %, open tickets, bus delays, incidents, birthdays.', actions:['Drill into any widget','Mark priority alert as read'], api:'GET /school/{id}/dashboard', db:'analytics_rollups, notifications'},
+    {name:'Staff Task Assignment Board', purpose:'Kanban-style board to assign tasks to any staff member/department, set due date & priority, track completion.', actions:['Create task','Assign to staff/department','Set recurring task','Mark complete/reopen'], api:'POST /school/{id}/tasks', db:'tasks, task_assignees, task_comments'},
+    {name:'Department Monitoring Views', purpose:'Tabbed drill-down into Finance / HR / Transport / Library / Security / Sports / Hostel — each shows that dept\'s live KPIs.', actions:['View department KPI','Open department\'s pending approvals'], api:'GET /school/{id}/departments/{dept}', db:'per-module rollup views'},
+    {name:'Approval Inbox', purpose:'Unified inbox for everything needing Principal sign-off: leave requests, fee waivers, expense claims, purchase orders, event budgets.', actions:['Approve/reject with comment','Delegate to Vice Principal','Bulk-approve'], api:'POST /school/{id}/approvals/{id}/decision', db:'approval_requests, approval_history'},
+    {name:'Staff Performance & Attendance', purpose:'View staff check-in/out, leave balance, performance review status across all departments.', actions:['View staff attendance calendar','Trigger performance review cycle'], api:'GET /school/{id}/staff/attendance', db:'staff_attendance, performance_reviews'},
+    {name:'Incident & Discipline Register', purpose:'Log and track serious incidents (safety, discipline, complaints) escalated from any department, with resolution workflow.', actions:['Log incident','Assign investigator','Close with resolution note'], api:'POST /school/{id}/incidents', db:'incidents, incident_actions'},
+    {name:'Circulars & Announcements', purpose:'Broadcast notices to staff/parents/students segmented by department, class, or role.', actions:['Compose circular','Target audience','Schedule send','Track read receipts'], api:'POST /school/{id}/circulars', db:'circulars, circular_reads'},
+    {name:'Budget & Expense Overview', purpose:'See department-wise budget vs actual spend, approve high-value purchase requests.', actions:['View budget vs actual','Approve PO above threshold'], api:'GET /school/{id}/finance/budget-summary', db:'budgets, purchase_orders'},
+    {name:'AI Insight Feed (Premium)', purpose:'AI-generated daily brief: attendance anomalies, fee-default risk students, staff burnout signals, bus route inefficiencies.', actions:['Review AI insight','Convert insight to task'], api:'GET /school/{id}/ai/briefing', db:'ai_insights_school'},
+  ],
+  premium:['AI daily briefing digest (WhatsApp/email)','Predictive fee-default risk score','Staff workload/burnout heatmap','Voice-to-task ("Hey EduOS, remind Transport to fix Bus 4")'],
+  manages:['admin','finance','hr','transport','library','security','sports','support','hostel'],
+  sends:[{to:'admin/finance/hr/…', data:'Tasks, approvals, policy enforcement, budgets'}],
+  receives:[{from:'department heads', data:'KPIs, escalations, approval requests, incident reports'}]
+},
+
+{ id:'admin', cat:'admin', name:'Admin / Manager', icon:'🗂️', reportsTo:'principal',
+  tagline:'Front-office & general operations — admissions intake, records, front-desk, vendor management.',
+  description:'Runs day-to-day front-office and general administration: admission enquiries → conversion, ID cards, document verification, front-desk visitor logging (co-owned with Security), inventory/stationery, vendor & AMC contracts, and general staff-request handling.',
+  screens:[
+    {name:'Admission Enquiry Pipeline (CRM)', purpose:'Kanban pipeline: Enquiry → Campus Tour → Application → Document Verify → Offer → Admitted, synced to your Academic app on conversion.', actions:['Log enquiry','Move stage','Send offer letter','Convert to student (push to Academic app)'], api:'POST /school/{id}/admissions/leads', db:'admission_leads, admission_stage_history'},
+    {name:'Document Verification Desk', purpose:'Checklist-based verification of Aadhaar, birth cert, previous marksheets, TC — with upload + status.', actions:['Upload doc','Mark verified/rejected','Request re-upload'], api:'POST /school/{id}/admissions/{id}/documents', db:'documents, document_verifications'},
+    {name:'ID Card & Certificate Generator', purpose:'Bulk-generate student/staff ID cards, bonafide certs, TC, character certs from templates.', actions:['Generate single/bulk','Edit template','e-Sign & issue'], api:'POST /school/{id}/documents/generate', db:'certificate_templates, issued_certificates'},
+    {name:'Front Desk / Visitor Log', purpose:'Log walk-in visitors, parent meetings, courier — hands off to Security\'s gate-pass system for physical entry.', actions:['Log visitor','Book meeting slot with staff','Notify staff of visitor arrival'], api:'POST /school/{id}/frontdesk/visitors', db:'visitor_logs (shared w/ security)'},
+    {name:'Inventory & Stationery Store', purpose:'Track consumables (stationery, lab supplies, uniforms) stock in/out, reorder alerts.', actions:['Stock in/out','Set reorder threshold','Raise purchase request to Finance'], api:'POST /school/{id}/inventory/txn', db:'inventory_items, inventory_txns'},
+    {name:'Vendor & AMC Contract Manager', purpose:'Track vendor contracts (cleaning, RO, AC, generator), renewal dates, service tickets.', actions:['Add vendor','Set renewal reminder','Log service call'], api:'POST /school/{id}/vendors', db:'vendors, vendor_contracts, service_tickets'},
+    {name:'General Staff Request Desk', purpose:'Catch-all form for staff to raise generic operational requests (room booking, repairs, supplies) routed to the right department.', actions:['Raise request','Auto-route by category','Track SLA'], api:'POST /school/{id}/requests', db:'general_requests'},
+  ],
+  premium:['OCR auto-fill from Aadhaar/marksheet photo','WhatsApp-bot admission enquiry capture','Auto-reorder inventory via supplier API'],
+  manages:[],
+  sends:[{to:'finance', data:'Admission → fee-plan trigger, purchase requests'},{to:'principal', data:'Admission funnel KPIs'}],
+  receives:[{from:'principal', data:'Tasks, policy'},{from:'security', data:'Visitor sign-in data'}]
+},
+
+{ id:'finance', cat:'finance', name:'Finance', icon:'💰', reportsTo:'principal',
+  tagline:'Fee collection, payroll, vendor payments, budgets — the money layer of the school.',
+  description:'Owns all money movement: student fee structure & collection (online/offline), staff payroll, expense/PO approval chain, vendor payments, and financial reporting up to Principal/Director. Integrates with payment gateways (Razorpay/PayU/Stripe) and accounting export (Tally/Zoho Books).',
+  screens:[
+    {name:'Fee Structure Builder', purpose:'Define fee heads (tuition, transport, hostel, exam) per class/course, term-wise or annual, with discount/scholarship rules.', actions:['Create fee plan','Attach class/course','Set installment schedule','Apply scholarship rule'], api:'POST /school/{id}/finance/fee-plans', db:'fee_plans, fee_heads, fee_installments'},
+    {name:'Fee Collection Console', purpose:'Record online (auto via gateway webhook) and offline (cash/cheque) payments, issue receipts, track dues.', actions:['Record offline payment','Generate receipt (PDF)','Send payment reminder','Issue partial waiver (needs approval if > limit)'], api:'POST /school/{id}/finance/payments', db:'fee_payments, receipts, payment_gateway_events'},
+    {name:'Defaulter & Reminder Engine', purpose:'Auto-list overdue fees, trigger SMS/WhatsApp/email reminders on a schedule, escalate chronic defaulters to Principal.', actions:['View defaulter list','Trigger reminder batch','Escalate case'], api:'GET /school/{id}/finance/defaulters', db:'fee_payments (status=overdue), reminder_logs'},
+    {name:'Payroll Processor', purpose:'Monthly payroll run: basic + allowances − deductions (PF/ESI/TDS/loan), payslip generation, bank-file export.', actions:['Run payroll','Edit one-off adjustment','Generate payslips','Export bank transfer file'], api:'POST /school/{id}/finance/payroll/run', db:'payroll_runs, payslips, salary_structures'},
+    {name:'Expense & Purchase Order Workflow', purpose:'Staff raises expense/PO → Finance verifies budget → Principal/Director approves per threshold → payment recorded.', actions:['Create PO','Verify against budget','Record payment','Attach invoice'], api:'POST /school/{id}/finance/expenses', db:'expenses, purchase_orders, budget_lines'},
+    {name:'Vendor Payments', purpose:'Pay transport fuel, canteen supplier, AMC vendors; track TDS deduction.', actions:['Schedule vendor payment','Mark paid','Generate TDS certificate'], api:'POST /school/{id}/finance/vendor-payments', db:'vendor_payments'},
+    {name:'Financial Reports & Reconciliation', purpose:'Daily cash-book, bank reconciliation, P&L by campus, GST/TDS reports for statutory filing.', actions:['Generate report','Reconcile bank statement (CSV import)','Export to Tally/Zoho'], api:'GET /school/{id}/finance/reports', db:'ledger_entries (double-entry)'},
+    {name:'Scholarship & Concession Approval', purpose:'Review scholarship applications, apply sibling/staff-ward/merit discounts with audit trail.', actions:['Review application','Apply discount %','Route above-threshold to Principal'], api:'POST /school/{id}/finance/scholarships', db:'scholarships, discount_rules'},
+  ],
+  premium:['Predictive cash-flow forecasting (AI)','Auto-reconciliation via bank statement parsing (AI/OCR)','Multi-gateway smart routing (lowest fee)','Parent EMI/BNPL fee financing partner integration'],
+  manages:[],
+  sends:[{to:'principal', data:'Collection %, budget vs actual, defaulter escalations'},{to:'hr', data:'Payroll confirmation'},{to:'academic app', data:'Fee-hold status (blocks report card if unpaid, configurable)'}],
+  receives:[{from:'admin', data:'New admissions → auto fee-plan trigger'},{from:'hr', data:'Approved salary structure, attendance for payroll'},{from:'transport/hostel', data:'Usage-based fee components'}]
+},
+
+{ id:'hr', cat:'hr', name:'HR', icon:'👥', reportsTo:'principal',
+  tagline:'Staff lifecycle — hiring, onboarding, attendance, leave, performance, exit.',
+  description:'Owns the full staff lifecycle across all departments: recruitment, onboarding/offboarding, attendance & leave management, performance appraisal cycles, and policy/document compliance (contracts, background checks). Feeds approved attendance & salary structure to Finance for payroll.',
+  screens:[
+    {name:'Recruitment Pipeline (ATS)', purpose:'Post openings, track applicants Kanban-style: Applied → Shortlisted → Interview → Offer → Hired, with interview scheduling.', actions:['Post job','Move candidate stage','Schedule interview','Send offer letter'], api:'POST /school/{id}/hr/jobs', db:'job_postings, applicants, interviews'},
+    {name:'Staff Onboarding Checklist', purpose:'New-hire checklist: documents, bank details, ID card request (→ Admin), asset issue (laptop, RFID), induction training.', actions:['Assign checklist','Mark step complete','Trigger ID card + asset requests'], api:'POST /school/{id}/hr/onboarding', db:'onboarding_tasks'},
+    {name:'Attendance & Leave Management', purpose:'Biometric/RFID/geo check-in sync, leave application → approval chain (reporting manager → HR), leave balance ledger.', actions:['View attendance calendar','Approve/reject leave','Configure leave policy (CL/SL/EL)'], api:'POST /school/{id}/hr/leave-requests/{id}/decision', db:'staff_attendance, leave_requests, leave_balances'},
+    {name:'Salary Structure & Revision', purpose:'Define CTC breakup per staff (basic, HRA, allowances), process annual increments/promotions.', actions:['Set salary structure','Process increment','Approve promotion'], api:'POST /school/{id}/hr/salary-structures', db:'salary_structures, increment_history'},
+    {name:'Performance Appraisal Cycle', purpose:'Configure appraisal cycle (self + manager review), 360° feedback, goal tracking, rating rollup to Principal.', actions:['Launch appraisal cycle','Submit review','Finalize rating'], api:'POST /school/{id}/hr/appraisals', db:'appraisal_cycles, appraisal_reviews'},
+    {name:'Document & Compliance Vault', purpose:'Store contracts, police verification, background check status, statutory compliance docs (PF/ESI registration) with expiry alerts.', actions:['Upload document','Set expiry reminder','Mark compliance verified'], api:'POST /school/{id}/hr/documents', db:'staff_documents, compliance_checks'},
+    {name:'Exit / Offboarding Workflow', purpose:'Resignation → clearance from all departments (Finance, Admin, Library, Transport) → full & final settlement → deactivate access.', actions:['Initiate exit','Route department clearances','Trigger F&F to Finance','Revoke system access'], api:'POST /school/{id}/hr/exits', db:'exit_requests, clearance_checklist'},
+    {name:'Staff Directory & Org Chart', purpose:'Searchable staff directory with department/role, auto-generated org chart from role hierarchy.', actions:['View/edit profile','View org chart'], api:'GET /school/{id}/hr/staff', db:'staff, staff_roles'},
+  ],
+  premium:['AI resume screening & shortlisting','Attrition-risk prediction','Automated shift/substitute-teacher scheduling','WhatsApp-based leave application bot'],
+  manages:[],
+  sends:[{to:'finance', data:'Approved attendance & salary structure for payroll run'},{to:'admin', data:'ID card & asset requests for new hires'},{to:'principal', data:'Attrition, leave, appraisal KPIs'}],
+  receives:[{from:'all departments', data:'Leave requests, exit clearance sign-offs'}]
+},
+
+{ id:'transport', cat:'transport', name:'Transport', icon:'🚌', reportsTo:'principal',
+  tagline:'Routes, buses, driver assignment, live tracking, and transport fee sync.',
+  description:'Manages the entire bus fleet: route/stop planning, vehicle & driver assignment, RFID/GPS live tracking, maintenance schedule, and incident handling. Publishes real-time bus location to the parent app and pushes transport fee components to Finance.',
+  screens:[
+    {name:'Route & Stop Planner', purpose:'Design routes with ordered stops, ETA per stop, capacity, map overlay.', actions:['Create route','Add/reorder stops','Set stop ETA','Assign bus + driver to route'], api:'POST /school/{id}/transport/routes', db:'routes, stops, route_stops'},
+    {name:'Fleet & Vehicle Registry', purpose:'Vehicle master: registration, capacity, insurance/fitness/permit expiry, fuel type.', actions:['Add vehicle','Set document expiry alerts','Mark under maintenance'], api:'POST /school/{id}/transport/vehicles', db:'vehicles, vehicle_documents'},
+    {name:'Student-Route Allotment', purpose:'Assign students to a route/stop, generate transport fee component sent to Finance.', actions:['Allot student to stop','Change stop mid-year','Trigger fee-plan update'], api:'POST /school/{id}/transport/allotments', db:'student_transport_allotments'},
+    {name:'Live GPS Tracking Dashboard', purpose:'Real-time map of all buses in transit, delay alerts, geofence breach alerts, pushed to Parent app.', actions:['View live map','Send delay broadcast','Trigger geofence alert'], api:'GET /school/{id}/transport/live', db:'vehicle_gps_pings (high-frequency, TimescaleDB/partitioned)'},
+    {name:'RFID Boarding Log', purpose:'Student taps RFID card on boarding/alighting; auto-notifies parent, feeds attendance-adjacent safety log.', actions:['View boarding log','Manual override entry'], api:'POST /transport/rfid/scan', db:'boarding_events'},
+    {name:'Maintenance & Fuel Log', purpose:'Service history, fuel fill-ups, expense entries synced to Finance vendor payments.', actions:['Log service','Log fuel fill','Raise repair PO'], api:'POST /school/{id}/transport/maintenance', db:'maintenance_logs, fuel_logs'},
+    {name:'Driver Assignment & Roster', purpose:'Assign drivers to routes/shifts, track license expiry, substitute-driver handling.', actions:['Assign driver to route','Set substitute','Alert on license expiry'], api:'POST /school/{id}/transport/driver-roster', db:'driver_roster'},
+    {name:'Transport Incident Log', purpose:'Log breakdowns, accidents, behavioral incidents on bus; escalate to Principal/Security if serious.', actions:['Log incident','Escalate to Principal'], api:'POST /school/{id}/transport/incidents', db:'transport_incidents'},
+  ],
+  premium:['AI route optimization (fuel & time)','Predictive maintenance from telemetry','Live ETA push notifications to parents','Driver behavior scoring (harsh braking/speed via telematics)'],
+  manages:['driver'],
+  sends:[{to:'finance', data:'Transport fee component per student'},{to:'principal', data:'Fleet health, delay/incident KPIs'},{to:'driver', data:'Route + roster assignment'}],
+  receives:[{from:'driver', data:'Live GPS ping, trip start/end confirmation'},{from:'admin/finance', data:'New student allotment requests'}]
+},
+
+{ id:'library', cat:'library', name:'Library', icon:'📚', reportsTo:'principal',
+  tagline:'Catalog, issue/return, fines, and reading analytics.',
+  description:'Owns the library catalog and circulation: book/resource inventory with barcode/RFID, issue-return workflow with due-date & fine rules, reservation queueing, and reading-habit analytics shared with Principal/Academic side.',
+  screens:[
+    {name:'Catalog Management', purpose:'Add/edit books & digital resources: ISBN, author, subject, copies, shelf location, barcode/RFID tag.', actions:['Add book (ISBN lookup autofill)','Bulk import CSV','Print barcode labels'], api:'POST /school/{id}/library/books', db:'library_books, book_copies'},
+    {name:'Issue / Return Desk', purpose:'Scan student/staff ID + book barcode to issue; auto-calc due date; return with fine calculation if overdue.', actions:['Issue book','Return book','Renew (if no reservation queue)','Waive fine (needs Finance sync if paid)'], api:'POST /school/{id}/library/circulation', db:'circulation_records, fines'},
+    {name:'Reservation & Hold Queue', purpose:'Students reserve a currently-issued book; auto-notify when available.', actions:['Place hold','Cancel hold','Notify on availability'], api:'POST /school/{id}/library/holds', db:'book_holds'},
+    {name:'Fine Management', purpose:'Auto-generate overdue fines per policy, collect (cash or push to Finance/parent app for online pay).', actions:['View outstanding fines','Collect fine','Push to Finance for online collection'], api:'GET /school/{id}/library/fines', db:'fines (linked to fee_payments if online)'},
+    {name:'Digital Resource / e-Library', purpose:'Manage e-books, past papers, video resources with class/subject tagging and access control.', actions:['Upload resource','Set access by class/role','Track views/downloads'], api:'POST /school/{id}/library/digital-resources', db:'digital_resources, resource_access_logs'},
+    {name:'Reading Analytics & Reports', purpose:'Most-borrowed books, reading-habit trends per class, overdue report for Principal.', actions:['View analytics dashboard','Export overdue report'], api:'GET /school/{id}/library/analytics', db:'analytics_rollups'},
+  ],
+  premium:['AI book recommendation per student reading level','Auto barcode/ISBN metadata fetch','Self-checkout kiosk mode (RFID)'],
+  manages:[],
+  sends:[{to:'finance', data:'Fine collection (if routed online)'},{to:'principal', data:'Circulation & overdue KPIs'}],
+  receives:[{from:'academic app', data:'Class/subject list for resource tagging'}]
+},
+
+{ id:'security', cat:'security', name:'Security', icon:'🛂', reportsTo:'principal',
+  tagline:'Gate pass, visitor management, CCTV alerts, and emergency protocols.',
+  description:'Owns physical safety: visitor/gate-pass management (co-owned front desk with Admin), student early-pickup authorization, CCTV/incident alert triage, emergency (fire/lockdown) drill and broadcast, and daily security-guard duty roster.',
+  screens:[
+    {name:'Visitor & Gate Pass Desk', purpose:'ID-verify + photo-capture every visitor, print gate pass with time-in, notify staff being visited.', actions:['Register visitor','Print gate pass','Log time-out','Blacklist a visitor'], api:'POST /school/{id}/security/visitors', db:'visitor_logs, gate_passes'},
+    {name:'Student Early-Pickup Authorization', purpose:'Verify parent/guardian identity (photo/OTP) against authorized pickup list before releasing a student mid-day.', actions:['Verify pickup request','Approve/deny release','Log release event → notify parent+Principal'], api:'POST /school/{id}/security/pickup-requests/{id}/decision', db:'pickup_requests, authorized_guardians'},
+    {name:'Guard Duty Roster & Patrol Log', purpose:'Assign guards to gates/shifts, log patrol checkpoints (QR scan based).', actions:['Assign shift','Log patrol checkpoint scan','Mark absentee guard'], api:'POST /school/{id}/security/roster', db:'guard_roster, patrol_logs'},
+    {name:'CCTV / Incident Alert Triage', purpose:'Receive AI/CCTV-flagged alerts (unrecognized person, restricted-zone breach), triage and escalate.', actions:['Acknowledge alert','Escalate to Principal/Police','Close as false-positive'], api:'POST /school/{id}/security/alerts/{id}/triage', db:'security_alerts'},
+    {name:'Emergency & Drill Management', purpose:'Configure fire/lockdown/evacuation drill schedules, one-tap emergency broadcast to all staff/parents.', actions:['Schedule drill','Trigger emergency broadcast','Log drill completion & response time'], api:'POST /school/{id}/security/emergency-broadcast', db:'emergency_events, drill_logs'},
+    {name:'Asset & Access Card Management', purpose:'Issue/deactivate RFID access cards for staff/students, track lost-card reissue.', actions:['Issue card','Deactivate lost card','Set zone access level'], api:'POST /school/{id}/security/access-cards', db:'access_cards'},
+  ],
+  premium:['AI facial-recognition gate entry (opt-in, consent-gated)','Weapon/intrusion detection via CCTV AI','One-tap panic-button escalation to local police API'],
+  manages:[],
+  sends:[{to:'principal', data:'Incident escalations, emergency events'},{to:'admin', data:'Shared visitor log'}],
+  receives:[{from:'admin', data:'Pre-registered visitor/meeting bookings'},{from:'hr', data:'Guard staff roster base data'}]
+},
+
+{ id:'sports', cat:'sports', name:'Sports', icon:'🏆', reportsTo:'principal',
+  tagline:'Teams, events, equipment, and achievement records.',
+  description:'Owns co-curricular sports operations: team formation & practice scheduling, inter/intra-school tournament management, equipment inventory, and student achievement records that feed the Academic app\'s co-curricular profile.',
+  screens:[
+    {name:'Team & Roster Management', purpose:'Form teams per sport/age-category, assign coach, track roster and practice schedule.', actions:['Create team','Add student to roster','Assign coach','Set practice slot (checks ground booking)'], api:'POST /school/{id}/sports/teams', db:'sports_teams, team_members'},
+    {name:'Facility / Ground Booking', purpose:'Book shared facilities (ground, court, pool) avoiding conflicts across teams/PE classes.', actions:['Book slot','Resolve conflict','Recurring booking'], api:'POST /school/{id}/sports/facility-bookings', db:'facilities, facility_bookings'},
+    {name:'Tournament / Event Manager', purpose:'Create inter/intra-school events, fixtures, scoring, results, and certificate generation.', actions:['Create event','Generate fixtures','Record scores/results','Auto-generate certificates'], api:'POST /school/{id}/sports/events', db:'sports_events, fixtures, results'},
+    {name:'Equipment Inventory', purpose:'Track sports equipment stock, issue to teams/students, damage/loss log.', actions:['Issue equipment','Return/log damage','Reorder request to Admin'], api:'POST /school/{id}/sports/equipment', db:'sports_equipment, equipment_issues'},
+    {name:'Achievement & Certificate Records', purpose:'Log medals/achievements per student, push to Academic app\'s co-curricular profile & transcript.', actions:['Log achievement','Generate certificate','Sync to Academic profile'], api:'POST /school/{id}/sports/achievements', db:'achievements'},
+    {name:'Fitness / Health Assessment', purpose:'Periodic fitness test records (BMI, endurance) shared with parents and school nurse if applicable.', actions:['Record assessment','Flag health concern → notify Principal/parent'], api:'POST /school/{id}/sports/fitness', db:'fitness_assessments'},
+  ],
+  premium:['AI fixture/scheduling optimizer (avoid clashes)','Video highlight auto-clipping for events','Talent-scouting analytics across years'],
+  manages:[],
+  sends:[{to:'academic app', data:'Co-curricular achievement records'},{to:'principal', data:'Event calendar, equipment budget needs'}],
+  receives:[{from:'admin', data:'Equipment procurement status'}]
+},
+
+{ id:'support', cat:'support', name:'Support / Helpdesk', icon:'🎧', reportsTo:'principal',
+  tagline:'Unified ticketing for parents, students & staff — routes issues to the right department.',
+  description:'The single front door for "something isn\'t working" — parent complaints, IT issues, facility repairs, general queries. Categorizes, routes, and SLA-tracks tickets across every other department (Finance billing query → Finance, bus late → Transport, etc.), and closes the loop with the requester.',
+  screens:[
+    {name:'Omni-channel Ticket Inbox', purpose:'Unified inbox pulling tickets from parent app, WhatsApp, email, phone-log, walk-in — one queue.', actions:['Triage new ticket','Assign category','Set priority'], api:'POST /school/{id}/support/tickets', db:'tickets, ticket_channels'},
+    {name:'Auto-Routing Rules Engine', purpose:'Category-based auto-assignment to the right department queue (Transport, Finance, Facility/Admin, IT).', actions:['Configure routing rule','Manual re-route','Escalate on SLA breach'], api:'PATCH /school/{id}/support/routing-rules', db:'routing_rules'},
+    {name:'SLA & Escalation Tracker', purpose:'Track first-response and resolution SLA per category, auto-escalate to Principal if breached.', actions:['View SLA dashboard','Manual escalate'], api:'GET /school/{id}/support/sla', db:'ticket_sla_events'},
+    {name:'Knowledge Base / FAQ Manager', purpose:'Publish self-serve FAQs for parents (fee dates, uniform policy, holiday list) reducing ticket volume.', actions:['Publish FAQ','Track deflection rate'], api:'POST /school/{id}/support/kb', db:'kb_articles'},
+    {name:'IT Asset & Access Support', purpose:'Handle staff IT issues — password reset, device issue, software access request.', actions:['Log IT issue','Reset access (via Admin/Super Admin API)','Close ticket'], api:'POST /school/{id}/support/it-tickets', db:'it_tickets'},
+    {name:'Satisfaction & Feedback Loop', purpose:'Post-resolution CSAT survey, feedback trends by department.', actions:['Send CSAT survey','View feedback trend'], api:'GET /school/{id}/support/csat', db:'csat_responses'},
+  ],
+  premium:['AI ticket auto-categorization & suggested reply','WhatsApp-native ticketing bot','Sentiment analysis on parent complaints'],
+  manages:[],
+  sends:[{to:'transport/finance/admin/library/…', data:'Routed tickets by category'},{to:'principal', data:'SLA breach escalations, satisfaction trends'}],
+  receives:[{from:'all departments', data:'Ticket status updates for closing the loop'}]
+},
+
+{ id:'driver', cat:'driver', name:'Driver', icon:'🚍', reportsTo:'transport',
+  tagline:'Mobile-first role — runs the assigned route and reports live status.',
+  description:'Field role operating almost entirely from a lightweight Flutter mobile view: sees today\'s assigned route, starts/ends trip (which streams GPS), marks student boarding/alighting if RFID reader is unavailable, and reports incidents/breakdowns instantly to Transport.',
+  screens:[
+    {name:'Today\'s Route (Mobile Home)', purpose:'Shows assigned route, stop sequence, ETA, and student headcount per stop for the day.', actions:['View route','Start trip','End trip'], api:'GET /driver/me/today-route', db:'routes, driver_roster'},
+    {name:'Trip Start/End & GPS Streaming', purpose:'One-tap trip start begins GPS ping streaming (every 5-10s) to Transport\'s live dashboard & parent app.', actions:['Start trip (begin GPS stream)','Pause/resume','End trip'], api:'POST /driver/trips/{id}/start', db:'vehicle_gps_pings, trips'},
+    {name:'Manual Boarding Marker', purpose:'Fallback manual tap-list if RFID reader is down — mark student boarded/alighted per stop.', actions:['Mark boarded','Mark alighted','Mark absent (no-show)'], api:'POST /driver/trips/{id}/boarding', db:'boarding_events'},
+    {name:'Incident / Breakdown Report', purpose:'One-tap incident report with photo upload — auto-alerts Transport & Principal for serious issues.', actions:['Report breakdown','Report behavioral incident','Attach photo'], api:'POST /driver/trips/{id}/incident', db:'transport_incidents'},
+    {name:'Trip History & Documents', purpose:'View past trip logs, license/document expiry status, digital copies of RC/insurance for roadside checks.', actions:['View trip history','View own documents'], api:'GET /driver/me/documents', db:'vehicle_documents, driver_documents'},
+  ],
+  premium:['Offline-first trip logging (syncs when signal returns)','Voice-based incident reporting','In-app SOS button with live location share'],
+  manages:[],
+  sends:[{to:'transport', data:'Live GPS, trip status, incident reports'}],
+  receives:[{from:'transport', data:'Route & roster assignment, broadcast alerts'}]
+},
+
+{ id:'hostel', cat:'hostel', name:'Hostel / Warden', icon:'🛏️', reportsTo:'principal',
+  tagline:'Room allotment, mess, in/out register, and boarder discipline.',
+  description:'Owns residential operations for boarding students: room/bed allotment, mess menu & attendance, daily in/out (leave) register with parent notification, and discipline/health incident logging for boarders — with hostel fee component synced to Finance.',
+  screens:[
+    {name:'Room & Bed Allotment', purpose:'Manage hostel blocks/rooms/beds inventory, allot students, handle room-change requests.', actions:['Allot bed','Process room-change request','Mark bed vacant'], api:'POST /school/{id}/hostel/allotments', db:'hostel_blocks, rooms, beds, bed_allotments'},
+    {name:'Mess Menu & Attendance', purpose:'Weekly mess menu planning, meal attendance tracking for catering-cost reconciliation.', actions:['Publish weekly menu','Mark meal attendance','Log dietary restriction'], api:'POST /school/{id}/hostel/mess-menu', db:'mess_menus, meal_attendance'},
+    {name:'In/Out (Gate) Register', purpose:'Log boarder outings/home visits with parent consent, expected return time, auto-alert if overdue.', actions:['Log out-pass request','Approve/deny','Mark returned','Alert on overdue return'], api:'POST /school/{id}/hostel/outpasses', db:'hostel_outpasses'},
+    {name:'Warden Duty Roster', purpose:'Night-duty warden schedule per block, handover notes between shifts.', actions:['Assign duty','Log shift handover note'], api:'POST /school/{id}/hostel/duty-roster', db:'warden_roster'},
+    {name:'Health & Discipline Log', purpose:'Log illness/infirmary visits and disciplinary incidents for boarders, escalate serious cases to Principal/parent.', actions:['Log health visit','Log discipline incident','Escalate to Principal'], api:'POST /school/{id}/hostel/incidents', db:'hostel_health_logs, hostel_discipline_logs'},
+    {name:'Hostel Fee & Inventory Sync', purpose:'Confirm room-category-based fee component to Finance; track hostel asset inventory (beds, furniture).', actions:['Confirm fee component','Log asset damage'], api:'POST /school/{id}/hostel/fee-sync', db:'hostel_fee_components'},
+  ],
+  premium:['RFID-based automatic in/out logging','Parent app real-time out-pass approval (digital consent)','Mess wastage analytics'],
+  manages:[],
+  sends:[{to:'finance', data:'Hostel fee component per boarder'},{to:'principal', data:'Occupancy, discipline & health escalations'}],
+  receives:[{from:'admin', data:'New boarder admission trigger'},{from:'security', data:'Shared gate movement data for boarders'}]
+},
+];
+
+const WORKFLOWS = [
+  { name:'🧾 Student Admission → Fee → Academic Enrollment', steps:[
+    ['Admin','Logs enquiry in Admission Pipeline, schedules campus tour'],
+    ['Admin','Verifies documents, moves lead to "Offer" stage, sends offer letter'],
+    ['Finance','Auto-triggered fee plan created on "Admitted" status (tuition + optional transport/hostel)'],
+    ['Parent App','Parent pays via gateway → webhook updates Finance ledger, receipt auto-issued'],
+    ['Academic App','On full/first-installment payment, student record pushed to Academic app (roll no, class, section)'],
+    ['Principal','Sees updated enrollment KPI on dashboard'],
+  ]},
+  { name:'🙋 Staff Leave Request → Payroll Impact', steps:[
+    ['Staff (any role)','Applies for leave from mobile/web'],
+    ['HR','Reviews against leave balance & policy, routes to reporting manager if configured'],
+    ['Department Head / Principal','Approves or rejects with comment'],
+    ['HR','Leave balance ledger updated, attendance record adjusted'],
+    ['Finance','Unpaid-leave days auto-deducted in next Payroll Run'],
+  ]},
+  { name:'🚌 Transport Fee → Live Tracking Loop', steps:[
+    ['Admin/Finance','Student allotted to a bus route (transport fee auto-added to fee plan)'],
+    ['Transport','Confirms allotment, assigns to route/stop capacity'],
+    ['Driver','Starts trip each morning → GPS streams live'],
+    ['Parent App','Sees live bus location + gets stop-arrival push notification'],
+    ['Transport','Delay/incident triggers alert to Principal + affected parents'],
+  ]},
+  { name:'🚨 Visitor / Early Pickup Safety Chain', steps:[
+    ['Admin','Logs a scheduled parent meeting at front desk (optional pre-registration)'],
+    ['Security','Verifies visitor ID at gate, prints gate pass, notifies staff being visited'],
+    ['Security','If it\'s an early pickup: verifies guardian against authorized list (photo/OTP)'],
+    ['Security','Approves release → notifies Parent app + Principal + Academic app (marks early-leave attendance)'],
+  ]},
+  { name:'💵 Expense / Purchase Order Approval Chain', steps:[
+    ['Any Department Head','Raises a Purchase Order / expense claim with invoice attachment'],
+    ['Finance','Verifies against department budget line'],
+    ['Principal','Approves if within their threshold (e.g. up to ₹1,00,000)'],
+    ['Director','Auto-escalated for approval if above Principal\'s threshold'],
+    ['Finance','Records payment, updates ledger & vendor payment status'],
+  ]},
+  { name:'🏢 New Tenant → Live School (Platform Onboarding)', steps:[
+    ['Super Admin','Creates tenant, selects plan & module entitlements, sets custom subdomain'],
+    ['Super Admin','Invites the Director via email with a secure setup link'],
+    ['Director','Completes org setup: campuses, branding, fee templates, academic calendar'],
+    ['Director','Invites Principal(s) per campus; builds/customizes role permissions'],
+    ['Principal','Invites remaining staff (Admin, Finance, HR, Transport…) who each land on their own role-scoped dashboard'],
+  ]},
+  { name:'🧳 Staff Exit → Full & Final Settlement', steps:[
+    ['Staff/HR','Initiates resignation/termination workflow'],
+    ['HR','Routes clearance checklist to Finance, Admin, Library, Transport, Hostel (if applicable)'],
+    ['Each Department','Confirms no dues/pending assets (library books returned, advance settled, ID card surrendered)'],
+    ['Finance','Processes Full & Final settlement, generates relieving letter'],
+    ['Super Admin API (via HR)','Staff system access revoked across all modules'],
+  ]},
+  { name:'🎫 Parent Complaint → Resolution Loop', steps:[
+    ['Parent App','Raises a ticket (e.g. "bus was 30 min late")'],
+    ['Support','Auto-routing engine assigns ticket to Transport queue based on category'],
+    ['Transport','Investigates, responds within SLA, updates ticket status'],
+    ['Support','Closes loop with parent, sends CSAT survey'],
+    ['Principal','Sees SLA-breach trend if this becomes a recurring pattern'],
+  ]},
+];
+
+const ARCH = [
+  {h:'Multi-Tenancy Model', p:'Row-based multi-tenancy in one shared Supabase Postgres cluster: every table carries a tenant_id/school_id. RLS policies filter every query by the JWT\'s tenant claim. Cheaper & easier to maintain than schema-per-tenant; move to isolated DB only for a very large Enterprise customer.'},
+  {h:'Auth Strategy', p:'Supabase Auth (email/phone OTP + optional SSO for Enterprise) issues a JWT containing user_id, tenant_id, school_id[], and role_id. FastAPI validates the JWT, loads the permission set (cached in Redis) on every request.'},
+  {h:'API Layering', p:'FastAPI routers namespaced by module: /platform/*, /org/*, /school/{id}/finance/*, etc. Every route wrapped in a require_permission("module.action") dependency; business logic in a service layer so Flutter, admin web, and future integrations share one contract.'},
+  {h:'Realtime Layer', p:'Supabase Realtime (Postgres CDC) powers live features: bus GPS dashboard, approval-inbox badge counts, ticket updates — pushed straight to Flutter via websockets without polling.'},
+  {h:'Module Licensing', p:'A tenant_modules table gates feature access at both UI (Flutter reads entitlements on login to hide nav items) and API (dependency checks tenant plan before executing) layers — so Super Admin can upsell "Hostel Module" without a redeploy.'},
+  {h:'Notification Fabric', p:'Central notifications service (FastAPI + a queue like Supabase Edge Functions/Celery) fans out to Push (FCM), WhatsApp Business API, SMS, and Email — every workflow above emits events into this one fabric instead of each module reinventing messaging.'},
+  {h:'Audit & Compliance', p:'Every state-changing API call writes to an append-only audit_logs table (who, what, before/after diff, IP) — essential for impersonation sessions, approvals, and Indian data-protection (DPDP Act) compliance.'},
+  {h:'AI Layer', p:'A shared "ai-gateway" FastAPI service wraps LLM calls (insight briefings, defaulter prediction, ticket routing, resume screening) so every module calls one internal API rather than embedding vendor SDKs everywhere — makes model-swapping and cost-tracking trivial.'},
+  {h:'Shared Core with Academic App', p:'tenants, schools, users, staff, students, academic_calendars tables are the single source of truth consumed by BOTH this Admin app and your existing Academic app — avoid duplicating student/staff master data.'},
+];
+
+const DBROWS = [
+ ['tenants','Platform','One row per school/group customer: plan, subdomain, region, status'],
+ ['tenant_modules','Platform','Which modules (transport, hostel, library…) a tenant has licensed'],
+ ['subscriptions / invoices','Platform','Billing state, MRR tracking, payment history'],
+ ['schools / campuses','Org','Individual campuses under a Director\'s tenant'],
+ ['roles / role_permissions','RBAC','Custom & default roles with module×action×scope permission matrix'],
+ ['staff / staff_roles','People','Employee master + which role(s)/campus they hold'],
+ ['users','Auth','Supabase auth-linked identity, shared with Academic app'],
+ ['students','Shared','Owned primarily by Academic app; Admin app reads for fee/transport/hostel linkage'],
+ ['tasks / task_assignees','Ops','Principal → staff task assignment board'],
+ ['approval_requests / approval_history','Ops','Unified approval inbox across leave, expense, fee-waiver, PO'],
+ ['fee_plans / fee_payments / receipts','Finance','Fee structure, collection, receipts'],
+ ['payroll_runs / payslips / salary_structures','Finance','Payroll processing'],
+ ['expenses / purchase_orders / budgets','Finance','Spend approval chain'],
+ ['leave_requests / leave_balances','HR','Leave lifecycle'],
+ ['job_postings / applicants / interviews','HR','Recruitment ATS'],
+ ['routes / stops / vehicles / driver_roster','Transport','Fleet & route master data'],
+ ['vehicle_gps_pings','Transport','High-frequency live location (partition by day)'],
+ ['boarding_events','Transport','RFID/manual boarding log'],
+ ['library_books / circulation_records / fines','Library','Catalog & circulation'],
+ ['visitor_logs / gate_passes / pickup_requests','Security','Physical access & safety'],
+ ['sports_teams / sports_events / achievements','Sports','Co-curricular records'],
+ ['tickets / routing_rules / ticket_sla_events','Support','Helpdesk ticketing'],
+ ['hostel_blocks / rooms / beds / bed_allotments','Hostel','Residential allotment'],
+ ['hostel_outpasses','Hostel','Boarder in/out register'],
+ ['circulars / announcements','Comms','Broadcast messaging'],
+ ['notifications','Comms','Fan-out log for push/SMS/WhatsApp/email'],
+ ['audit_logs','Compliance','Append-only trail of every sensitive action'],
+ ['ai_insights_school / ai_insights_platform','AI','Cached AI-generated insights per scope'],
+];
+
+/* Render Workflows */
+const wfEl = document.getElementById('workflows');
+WORKFLOWS.forEach(wf=>{
+  const card = document.createElement('div'); card.className='wf-card';
+  card.innerHTML = `<h4>${wf.name}</h4><div class="wf-steps">${wf.steps.map((s,i)=>`
+    <div class="wf-step"><div class="wf-num">${i+1}</div><div class="wf-txt"><b>${s[0]}</b> — ${s[1]}</div></div>`).join('')}</div>`;
+  wfEl.appendChild(card);
+});
+
+/* Render Arch cards */
+const archEl = document.getElementById('arch');
+ARCH.forEach(a=>{
+  const card = document.createElement('div'); card.className='arch-card';
+  card.innerHTML = `<h4>${a.h}</h4><p>${a.p}</p>`;
+  archEl.appendChild(card);
+});
+
+/* Render DB table */
+const dbEl = document.getElementById('dbtable');
+dbEl.innerHTML = `<tr><th>Table Group</th><th>Domain</th><th>Purpose</th></tr>` +
+  DBROWS.map(r=>`<tr><td><code>${r[0]}</code></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+
+/* ============================= LIBRARY LOADER & FALLBACKS ============================= */
+const sources = [
+  'vis-network.min.js',
+  'https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/vis-network.min.js',
+  'https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.9/vis-network.min.js'
+];
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = () => {
+      if (typeof vis !== 'undefined') {
+        resolve();
+      } else {
+        reject(new Error('Loaded script but "vis" global object is undefined'));
+      }
+    };
+    script.onerror = () => reject(new Error(`Failed to load ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function startApp() {
+  const statusEl = document.getElementById('network-loading-status');
+  for (let i = 0; i < sources.length; i++) {
+    const src = sources[i];
+    try {
+      if (statusEl) {
+        statusEl.textContent = `⚡ Loading Interactive Map (Source ${i + 1}/${sources.length})...`;
+      }
+      await loadScript(src);
+      console.log(`Successfully loaded vis-network from: ${src}`);
+      initNetwork();
+      return;
+    } catch (err) {
+      console.warn(`Source ${i + 1} (${src}) failed to load:`, err);
+    }
+  }
+  if (statusEl) {
+    statusEl.innerHTML = `<div style="color:#ef4444;text-align:center;padding:20px;line-height:1.5;">
+      ❌ Failed to load interactive map library.<br>
+      <span style="font-size:12px;color:var(--muted)">Please check your network connection or try a different browser.</span>
+    </div>`;
+  }
+}
+
+startApp();
+
+function initNetwork() {
+  /* ============================= RENDER ============================= */
+  const nodes = new vis.DataSet();
+  const edges = new vis.DataSet();
+  let screenNodesShown = {}; // roleId -> bool
+
+  nodes.add({id:'root', label:'SHAMIIT\nEduOS', shape:'dot', size:46,
+    color:{background:'#111633', border:'#7c8cff', highlight:{background:'#171d45',border:'#a5b4ff'}},
+    font:{color:'#fff', size:16, face:'Segoe UI', bold:true}, borderWidth:3,
+    shadow:{enabled:true, color:'rgba(124,140,255,.55)', size:25}});
+
+  ROLES.forEach(r=>{
+    const c = CAT[r.cat].color;
+    nodes.add({id:r.id, label:r.icon+'\n'+r.name, shape:'dot', size: r.cat==='platform'?38: r.cat==='director'?34: r.cat==='principal'?32:26,
+      color:{background:c, border:'#fff2', highlight:{background:c, border:'#fff'}},
+      font:{color:'#fff', size:13, face:'Segoe UI', bold:true},
+      borderWidth:2, shadow:{enabled:true, color:c+'88', size:18}});
+    const parent = r.reportsTo || 'root';
+    edges.add({from:parent, to:r.id, color:{color:'#333a66', highlight:'#7c8cff'}, width:2, smooth:{type:'curvedCW', roundness:0.15}});
+  });
+  // link root->platform explicitly (already handled since platform.reportsTo=null -> root)
+
+  const container = document.getElementById('network');
+  const data = {nodes, edges};
+  const options = {
+    physics:{ stabilization:true, barnesHut:{gravitationalConstant:-9000, springLength:170, springConstant:0.02, avoidOverlap:0.6} },
+    interaction:{ hover:true, tooltipDelay:120 },
+    edges:{ smooth:true },
+    layout:{ improvedLayout:true }
+  };
+  const network = new vis.Network(container, data, options);
+
+  function roleById(id){ return ROLES.find(r=>r.id===id); }
+
+  function catBadge(cat){
+    return `<span class="tag" style="background:${CAT[cat].color}">${CAT[cat].label}</span>`;
+  }
+
+  function renderRoleDetail(r){
+    const c = CAT[r.cat].color;
+    let html = `<h2>${r.icon} ${r.name}</h2>${catBadge(r.cat)}<div class="lead"><b>${r.tagline}</b><br>${r.description}</div>`;
+    html += `<div class="grid2">`;
+    html += `<div class="block"><h3>📱 Key Screens (${r.screens.length})</h3><ul>${r.screens.map(s=>`<li><b>${s.name}</b></li>`).join('')}</ul></div>`;
+    html += `<div class="block"><h3>🔗 Data Flow — Sends</h3>${r.sends.map(s=>`<div class="flowline">→ <b>${s.to}</b>: ${s.data}</div>`).join('')||'<span style="color:var(--muted)">—</span>'}</div>`;
+    html += `<div class="block"><h3>🔗 Data Flow — Receives</h3>${r.receives.map(s=>`<div class="flowline">← <b>${s.from}</b>: ${s.data}</div>`).join('')||'<span style="color:var(--muted)">—</span>'}</div>`;
+    html += `<div class="block"><h3>⭐ Premium / AI Features</h3><ul>${r.premium.map(p=>`<li>${p}</li>`).join('')}</ul></div>`;
+    html += `</div>`;
+    html += `<div style="margin-top:16px;font-size:12.5px;color:var(--muted)">Click this node again on the graph to collapse its screens, or click any screen-node for full field/API/DB detail.</div>`;
+    document.getElementById('detail').innerHTML = html;
+  }
+
+  function renderScreenDetail(screen, role){
+    const c = CAT[role.cat].color;
+    let html = `<h2>${screen.name}</h2><span class="tag" style="background:${c}">${role.icon} ${role.name}</span>`;
+    html += `<div class="lead">${screen.purpose}</div>`;
+    html += `<div class="grid2">`;
+    html += `<div class="block"><h3>⚙️ Actions on this screen</h3><ul>${screen.actions.map(a=>`<li>${a}</li>`).join('')}</ul></div>`;
+    html += `<div class="block"><h3>🔌 Sample API</h3><ul><li><code>${screen.api}</code></li></ul></div>`;
+    html += `<div class="block"><h3>🗄️ DB Tables Touched</h3><ul>${screen.db.split(', ').map(t=>`<li><code>${t}</code></li>`).join('')}</ul></div>`;
+    html += `</div>`;
+    document.getElementById('detail').innerHTML = html;
+  }
+
+  function addScreenNodes(role){
+    if(screenNodesShown[role.id]) return;
+    screenNodesShown[role.id] = true;
+    const c = CAT[role.cat].color;
+    role.screens.forEach((s,i)=>{
+      const sid = role.id+'::'+i;
+      nodes.add({id:sid, label:s.name.length>22? s.name.slice(0,20)+'…': s.name, shape:'box',
+        color:{background:'#12162e', border:c, highlight:{background:'#1a2040', border:'#fff'}},
+        font:{color:'#dfe2ff', size:11}, margin:8, borderWidth:1.5, shapeProperties:{borderRadius:6},
+        shadow:{enabled:true, color:c+'55', size:10}});
+      edges.add({id:'e-'+sid, from:role.id, to:sid, color:{color:c+'99'}, width:1.5, dashes:[2,3], length:110});
+    });
+  }
+  function removeScreenNodes(role){
+    if(!screenNodesShown[role.id]) return;
+    screenNodesShown[role.id] = false;
+    role.screens.forEach((s,i)=>{
+      const sid = role.id+'::'+i;
+      try{ nodes.remove(sid); }catch(e){}
+    });
+  }
+
+  network.on('click', function(params){
+    if(params.nodes.length===0) return;
+    const id = params.nodes[0];
+    if(id==='root'){
+      document.getElementById('detail').innerHTML = `<div class="lead" style="font-size:15px">🏫 <b>SHAMIIT EduOS</b> — the umbrella platform. Every role below flows from here. Click Super Admin to start at the top of the hierarchy.</div>`;
+      return;
+    }
+    if(id.includes('::')){
+      const [roleId, idx] = id.split('::');
+      const role = roleById(roleId);
+      renderScreenDetail(role.screens[idx], role);
+      return;
+    }
+    const role = roleById(id);
+    if(!role) return;
+    renderRoleDetail(role);
+    if(screenNodesShown[id]) removeScreenNodes(role); else addScreenNodes(role);
+    network.fit({nodes:[id, ...role.screens.map((s,i)=>id+'::'+i)].filter(n=>nodes.get(n)), animation:{duration:500}});
+  });
+
+  /* Legend */
+  const legendEl = document.getElementById('legend');
+  legendEl.innerHTML = '';
+  Object.entries(CAT).forEach(([k,v])=>{
+    const row = document.createElement('div'); row.className='row';
+    row.innerHTML = `<span class="dot" style="background:${v.color}"></span>${v.label}`;
+    legendEl.appendChild(row);
+  });
+
+  /* Filter chips */
+  const chipRow = document.getElementById('chipRow');
+  chipRow.innerHTML = '';
+  Object.entries(CAT).forEach(([k,v])=>{
+    const chip = document.createElement('span'); chip.className='chip'; chip.dataset.filter=k;
+    chip.style.borderColor = v.color+'55'; chip.textContent = v.label.split(' (')[0];
+    chip.onclick = ()=>{
+      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      const role = ROLES.find(r=>r.cat===k);
+      network.focus(role.id, {scale:1.1, animation:{duration:500}});
+      network.selectNodes([role.id]);
+      renderRoleDetail(role);
+      if(!screenNodesShown[role.id]) addScreenNodes(role);
+      setTimeout(()=>network.fit({nodes:[role.id, ...role.screens.map((s,i)=>role.id+'::'+i)]}),150);
+    };
+    chipRow.appendChild(chip);
+  });
+  document.querySelector('.chip[data-filter=all]').onclick = ()=>{
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    document.querySelector('.chip[data-filter=all]').classList.add('active');
+    network.fit({animation:{duration:500}});
+  };
+
+  /* Search */
+  document.getElementById('search').addEventListener('input', e=>{
+    const q = e.target.value.toLowerCase().trim();
+    if(!q) return;
+    for(const r of ROLES){
+      if(r.name.toLowerCase().includes(q)){
+        network.focus(r.id, {scale:1.1, animation:{duration:400}}); return;
+      }
+      for(let i=0;i<r.screens.length;i++){
+        if(r.screens[i].name.toLowerCase().includes(q) || r.screens[i].db.toLowerCase().includes(q)){
+          if(!screenNodesShown[r.id]) addScreenNodes(r);
+          setTimeout(()=>network.focus(r.id+'::'+i, {scale:1.3, animation:{duration:400}}), 120);
+          return;
+        }
+      }
+    }
+  });
+
+  /* Reset / Expand all */
+  document.getElementById('resetBtn').onclick = ()=>{
+    ROLES.forEach(r=> removeScreenNodes(r));
+    network.fit({animation:{duration:500}});
+    document.getElementById('detail').innerHTML = `<div class="empty">👋 Click <b>Super Admin</b>, <b>Director</b>, <b>Principal</b>, or any operational role to see its screens, actions, data flow, DB tables & API routes here.</div>`;
+  };
+  document.getElementById('expandBtn').onclick = ()=>{
+    ROLES.forEach(r=> addScreenNodes(r));
+    setTimeout(()=>network.fit({animation:{duration:600}}), 200);
+  };
+
+  /* subtle 3D tilt following mouse */
+  const frame = document.getElementById('frame');
+  frame.addEventListener('mousemove', e=>{
+    const rect = frame.getBoundingClientRect();
+    const x = (e.clientX-rect.left)/rect.width - 0.5;
+    const y = (e.clientY-rect.top)/rect.height - 0.5;
+    frame.style.transform = `rotateY(${x*3}deg) rotateX(${-y*3}deg)`;
+  });
+  frame.addEventListener('mouseleave', ()=>{ frame.style.transform = 'rotateY(0deg) rotateX(0deg)'; });
+
+  /* initial view */
+  network.once('stabilizationIterationsDone', ()=> network.fit({animation:false}));
+}
+</script>
+</body>
+</html>

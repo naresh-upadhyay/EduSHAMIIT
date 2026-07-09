@@ -613,7 +613,18 @@ const ROLES={
     tk:[{t:'Morning Route Departure',s:'my_route',u:1}]},
   hostel:{n:'Hostel Warden',i:'🏠',dn:'Geeta Mishra',id:'HW-011',em:'hostel@edushamiit.in',g:'linear-gradient(135deg,#78350F,#D97706)',
     nav:[{i:'⚡',l:'Home',s:'home'},{i:'🏠',l:'Rooms',s:'hostel_rooms'},{i:'👧',l:'Students',s:'hostel_students'},{i:'📊',l:'Reports',s:'analytics'},{i:'👤',l:'Profile',s:'profile'}],
-    qa:[{i:'🏠',l:'Rooms',s:'hostel_rooms',c:'#FFF7ED'},{i:'👧',l:'Boarders',s:'hostel_students',c:'#FDF4FF'},{i:'🍽️',l:'Mess Menu',s:'mess',c:'#ECFDF5'},{i:'📋',l:'Complaints',s:'hostel_complaints',c:'#FEF2F2'},{i:'🚪',l:'Attend Log',s:'hostel_attend',c:'#FEF3C7'}],
+    qa:[
+      {i:'🏠',l:'Rooms & Beds',s:'hostel_rooms',c:'#FFF7ED'},
+      {i:'👧',l:'Boarders',s:'hostel_students',c:'#FDF4FF'},
+      {i:'🍽️',l:'Mess Menu',s:'mess',c:'#ECFDF5'},
+      {i:'🚪',l:'Attend Log',s:'hostel_attend',c:'#FEF3C7'},
+      {i:'🚶',l:'Gate Register',s:'hostel_gate_register',c:'#EEF2FF'},
+      {i:'💸',l:'Hostel Fees',s:'hostel_fees',c:'#E0F2FE'},
+      {i:'📦',l:'Inventory',s:'hostel_inventory',c:'#F1F5F9'},
+      {i:'🏥',l:'Discipline',s:'hostel_health_discipline',c:'#FEE2E2'},
+      {i:'📋',l:'Duty Roster',s:'hostel_roster',c:'#FAF5FF'},
+      {i:'⚠️',l:'Complaints',s:'hostel_complaints',c:'#FEF2F2'}
+    ],
     st:[{v:'120',l:'Rooms',c:'#fff'},{v:'480',l:'Boarders',c:'#10B981'},{v:'4',l:'Vacant',c:'#F59E0B'},{v:'2',l:'Compls.',c:'#EF4444'}],
     tk:[{t:'2 unresolved complaints',s:'hostel_complaints',u:1}]},
   exam_ctrl:{n:'Exam Controller',i:'📝',dn:'Dr. Anil Kumar',id:'EX-012',em:'exams@edushamiit.in',g:'linear-gradient(135deg,#1E3A5F,#2563EB)',
@@ -642,7 +653,25 @@ const D={
   hostel_rooms:[{id:'HR1',no:'101',fl:'1st',type:'Double',cap:2,occ:2,s:'Full'},{id:'HR2',no:'102',fl:'1st',type:'Triple',cap:3,occ:2,s:'Available'},{id:'HR3',no:'201',fl:'2nd',type:'Double',cap:2,occ:0,s:'Vacant'},{id:'HR4',no:'202',fl:'2nd',type:'Single',cap:1,occ:1,s:'Full'},{id:'HR5',no:'301',fl:'3rd',type:'Triple',cap:3,occ:3,s:'Full'}],
   hostel_students:[{id:'HS1',n:'Arjun Singh',rm:'101',c:'10-A',s:'Checked In'},{id:'HS2',n:'Neha Sharma',rm:'101',c:'10-B',s:'Checked In'},{id:'HS3',n:'Rohit Das',rm:'102',c:'11-A',s:'Checked In'},{id:'HS4',n:'Priya Patel',rm:'102',c:'11-B',s:'On Leave'},{id:'HS5',n:'Amit Kumar',rm:'202',c:'12-A',s:'Checked In'}],
   hostel_complaints:[{id:'HC1',t:'Water leak in Room 201',by:'Arjun Singh',s:'Open',sev:'Medium'},{id:'HC2',t:'WiFi not working Floor 3',by:'Rohit Das',s:'In Progress',sev:'High'}],
-  exams_list:[{id:'EX1',n:'Mid-Term Dec 2024',t:'Written',cls:'All',d:'Dec 16–22',s:'Upcoming'},{id:'EX2',n:'Unit Test — Nov 2024',t:'MCQ',cls:'Grade 10',d:'Nov 18–20',s:'Completed'},{id:'EX3',n:'Practical — Dec 2024',t:'Lab',cls:'Grade 11–12',d:'Dec 23–25',s:'Planning'}]
+  exams_list:[{id:'EX1',n:'Mid-Term Dec 2024',t:'Written',cls:'All',d:'Dec 16–22',s:'Upcoming'},{id:'EX2',n:'Unit Test — Nov 2024',t:'MCQ',cls:'Grade 10',d:'Nov 18–20',s:'Completed'},{id:'EX3',n:'Practical — Dec 2024',t:'Lab',cls:'Grade 11–12',d:'Dec 23–25',s:'Planning'}],
+  applicants:[{id:'APPL-01',n:'Aman Verma',r:'Chemistry Teacher',d:'Science',sal:'45000',s:'Interview'},{id:'APPL-02',n:'Shruti Sen',r:'Primary Coordinator',d:'Admin',sal:'50000',s:'Offered'},{id:'APPL-03',n:'Kunal Dev',r:'Physical Instructor',d:'Sports',sal:'38000',s:'Applied'}],
+  routes:[{id:'R-01',n:'Route 1 (Jewar Main)',stops:'6 stops',eta:'07:45 AM',cap:'48/52',s:'Active'},{id:'R-03',n:'Route 3 (Noida Expressway)',stops:'8 stops',eta:'08:00 AM',cap:'45/48',s:'Active'},{id:'R-06',n:'Route 6 (Yamuna Expressway)',stops:'4 stops',eta:'07:30 AM',cap:'0/52',s:'Maintenance'}],
+  teams:[{id:'T1',n:'Under-17 Cricket Team',c:'Ankit Tomar',r:'15 players',s:'Active'},{id:'T2',n:'Under-15 Football Team',c:'Ravi Kumar',r:'18 players',s:'Active'},{id:'T3',n:'Junior Swim Squad',c:'Sunita Devi',r:'8 athletes',s:'Planning'}],
+  hostel_beds:[{id:'HB1',n:'Arjun Singh',rm:'101',bed:'Bed A',s:'Allocated'},{id:'HB2',n:'Neha Sharma',rm:'101',bed:'Bed B',s:'Allocated'},{id:'HB3',n:'Rohit Das',rm:'102',bed:'Bed A',s:'Allocated'},{id:'HB4',n:'Priya Patel',rm:'102',bed:'Bed B',s:'Allocated'}],
+  hostel_gate_register:[{id:'HG1',n:'Arjun Singh',rm:'101',d:'OUT',tm:'17:12'},{id:'HG2',n:'Neha Sharma',rm:'101',d:'IN',tm:'16:45'},{id:'HG3',n:'Amit Kumar',rm:'202',d:'OUT',tm:'18:00'}],
+  hostel_fees:[{id:'HF1',n:'Arjun Singh',rm:'101',a:'₹18,000',s:'Paid'},{id:'HF2',n:'Rohit Das',rm:'102',a:'₹18,000',s:'Pending'},{id:'HF3',n:'Amit Kumar',rm:'202',a:'₹16,000',s:'Paid'}],
+  hostel_inventory:[{id:'HI1',t:'Single Beds',qty:150,c:'Good'},{id:'HI2',t:'Pillows',qty:300,c:'Good'},{id:'HI3',t:'Bed Sheets',qty:400,c:'Fair'},{id:'HI4',t:'Ceiling Fans',qty:120,c:'Replace'}],
+  hostel_health_discipline:[{id:'HHD1',n:'Arjun Singh',t:'High fever & dry cough',cat:'Medical',s:'Medium'},{id:'HHD2',n:'Rohit Das',t:'Late return from playground',cat:'Discipline',s:'Low'}],
+  hostel_roster:[{id:'HRO1',n:'Geeta Mishra',sh:'Day Shift',dt:'Monday - Friday'},{id:'HRO2',n:'Sanjay Singh',sh:'Night Shift',dt:'Monday - Sunday'},{id:'HRO3',n:'Anita Tomar',sh:'Night Shift',dt:'Weekends'}],
+  mess:[{id:'M1',m:'Breakfast',t:'07:00 - 08:30 AM',menu:'Poha, Idli, Tea, Milk',c:242},{id:'M2',m:'Lunch',t:'12:30 - 02:00 PM',menu:'Rice, Dal, Roti, Sabzi',c:410},{id:'M3',m:'Snacks',t:'04:30 - 05:30 PM',menu:'Samosa, Tea, Biscuits',c:186},{id:'M4',m:'Dinner',t:'07:30 - 09:00 PM',menu:'Roti, Paneer, Rice, Dal',c:380}],
+  hostel_attend:[{id:'HA1',n:'Arjun Singh',st:'Breakfast',tm:'07:22 AM'},{id:'HA2',n:'Neha Sharma',st:'Breakfast',tm:'07:45 AM'},{id:'HA3',n:'Rohit Das',st:'Breakfast',tm:'08:05 AM'}],
+  academic_classes:[{id:'AC1',n:'Grade 10-A',c:'CBSE',rate:'94.2%',s:'Active'},{id:'AC2',n:'Grade 10-B',c:'CBSE',rate:'92.8%',s:'Active'},{id:'AC3',n:'Grade 11-A',c:'CBSE',rate:'91.5%',s:'Active'}],
+  compliance_audits:[{id:'CA1',t:'Fire Safety Certification',d:'Dec 15, 2026',s:'Pending'},{id:'CA2',t:'Building Stability Audit',d:'Valid',s:'Done'},{id:'CA3',t:'CBSE Affiliation Renewal',d:'Mar 2027',s:'Done'}],
+  records_certificates:[{id:'RC1',n:'Transfer Certificates',cnt:12,s:'Active'},{id:'RC2',n:'Character Certificates',cnt:8,s:'Active'},{id:'RC3',n:'Migration Certificates',cnt:3,s:'Active'}],
+  school_assets:[{id:'SA1',t:'Classroom Desks & Chairs',qty:840,c:'Good'},{id:'SA2',t:'Digital Projectors',qty:24,c:'Good'},{id:'SA3',t:'Magnetic Whiteboards',qty:36,c:'Fair'},{id:'SA4',t:'Sports Kits',qty:85,c:'Replace'}],
+  branch_revenues:[{id:'BR1',n:'EduSHAMIIT Jewar',stu:2840,rate:'87%',rev:'₹24.8L'},{id:'BR2',n:'EduSHAMIIT Noida',stu:3200,rate:'94%',rev:'₹34.5L'},{id:'BR3',n:'Shami Intl Agra',stu:1420,rate:'72%',rev:'₹12.2L'}],
+  live_classes:[{id:'LC1',s:'Physics — Grade 12',t:'Dr. Priya Mehta',st:'Live',v:42},{id:'LC2',s:'Maths — Grade 10',t:'Ravi Kumar',st:'Scheduled 2:00 PM',v:0},{id:'LC3',s:'English — Grade 9',t:'Sunita Devi',st:'Completed',v:38}],
+  chat_channels:[{id:'CH1',n:'All Staff Group',m:'Meeting at 3 PM',t:'2m',cnt:186},{id:'CH2',n:'Principal Office',m:'Compliance update',t:'1hr',cnt:4},{id:'CH3',n:'Parents — Grade 10',m:'Fee reminder',t:'3hr',cnt:280}]
 };
 
 // ═══ STATE & WINDOW MANAGEMENT ═══
@@ -2813,6 +2842,899 @@ PN.library=()=>{let h=top2('Library','linear-gradient(135deg,#581C87,#7C3AED)');
 PN.visitors=()=>{let h=top2('Visitors','linear-gradient(135deg,#134E4A,#0F766E)');h+=`<div class="sb2"><div class="ab" style="margin-top:7px"><button class="abtn" style="background:#ECFDF5;color:#059669" onclick="aR('visitors',[{k:'n',l:'Visitor Name',p:'Full name'},{k:'p',l:'Purpose',type:'select',opts:['Parent Meeting','Fee Payment','Admission','Delivery','Official']}],'Register Visitor','🪪','#ECFDF5')">+ Register</button></div><div class="dc" style="padding:7px">${D.visitors.map(v=>`<div class="li"><div class="lc" style="background:${v.s==='Waiting'?'#FFF7ED':'#ECFDF5'}">${v.s==='Inside'?'🏠':v.s==='Waiting'?'⏳':'✅'}</div><div style="flex:1"><div class="lt">${v.n}</div><div class="ls">${v.p} · In ${v.in} · Out ${v.out}</div>${crud('visitors',v.id,v.n)}</div>${bd(v.s)}</div>`).join('')}</div><div class="spc"></div><div class="spc"></div></div><div class="fb" onclick="go('ai')">🤖</div>${nav2('visitors')}`;return h;};
 PN.incidents=()=>{let h=top2('Incidents','linear-gradient(135deg,#7F1D1D,#DC2626)');h+=`<div class="sb2"><div class="ab" style="margin-top:7px"><button class="abtn" style="background:#FEF2F2;color:#EF4444" onclick="aR('incidents',[{k:'t',l:'Incident Type',p:'Describe'},{k:'loc',l:'Location',p:'Where'},{k:'sev',l:'Severity',type:'select',opts:['Low','Medium','High','Critical']}],'Report Incident','🚨','#FEF2F2')">🚨 Report</button></div><div class="dc" style="padding:7px">${D.incidents.map(i=>`<div class="li"><div class="lc" style="background:${i.s==='Active'?'#FEF2F2':'#F1F5F9'}">${i.s==='Active'?'🔴':i.s==='Investigating'?'🟡':'✅'}</div><div style="flex:1"><div class="lt">${i.t}</div><div class="ls">${i.loc} · ${i.sev}</div>${crud('incidents',i.id,i.t)}</div>${bd(i.s)}</div>`).join('')}</div><div class="spc"></div></div><div class="fb" onclick="go('ai')">🤖</div>${nav2('incidents')}`;return h;};
 
+PN.admissions=()=>{
+  let h=top2('Admissions CRM','linear-gradient(135deg,#0F766E,#14B8A6)');
+  h+=`
+    <div class="sb2">
+      <div style="background:linear-gradient(135deg,#0F766E,#14B8A6);padding:0 14px 10px">
+        ${stat([{v:D.admissions.length,l:'Total Leads',c:'#fff'},{v:'2',l:'Selected',c:'#10B981'},{v:'1',l:'Pending',c:'#F59E0B'},{v:'1',l:'Waitlist',c:'#fff'}])}
+      </div>
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#0F766E" onclick="aR('admissions',[{k:'n',l:'Student Name',p:'Name'},{k:'g',l:'Grade',p:'Grade 1-12'},{k:'sc',l:'Entrance Score',p:'e.g. 85/100'}],'Add Lead','📝','#ECFDF5')">+ New Lead</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">Pipeline Leads</div>
+        ${D.admissions.map(a=>`
+          <div class="li">
+            <div class="lc" style="background:rgba(20,184,166,0.1);color:#0F766E;font-weight:700;font-size:9px">${a.n[0]}</div>
+            <div style="flex:1">
+              <div class="lt">${a.n} · ${a.g}</div>
+              <div class="ls">Entrance Score: ${a.sc}</div>
+              ${crud('admissions',a.id,a.n)}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              ${bd(a.s)}
+              <div style="display:flex;gap:3px">
+                <button class="cb2" style="font-size:6.5px;padding:2px 4px;background:#ECFDF5;color:#059669" onclick="event.stopPropagation();D.admissions.find(x=>x.id==='${a.id}').s='Selected';T('✅','${a.n} Selected');go('sub','admissions')">Select</button>
+                <button class="cb2" style="font-size:6.5px;padding:2px 4px;background:#FFF7ED;color:#D97706" onclick="event.stopPropagation();D.admissions.find(x=>x.id==='${a.id}').s='Waitlist';T('⏳','${a.n} Waitlisted');go('sub','admissions')">Waitlist</button>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('admissions')}
+  `;
+  return h;
+};
+
+PN.accounts=()=>{
+  let h=top2('Accounts & Ledger','linear-gradient(135deg,#3730A3,#6366F1)');
+  const accountsList = [
+    {l:'Tuition Fees',v:'₹48,20,000',t:'Income'},
+    {l:'Transport Fees',v:'₹8,40,000',t:'Income'},
+    {l:'Staff Salaries',v:'₹22,40,000',t:'Expense'},
+    {l:'Infrastructure',v:'₹4,50,000',t:'Expense'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📒 Double Entry Ledger Summary</div>
+        ${accountsList.map(x=>`
+          <div class="mr" style="font-size:9.5px;padding:5px 0;border-bottom:1px solid var(--bd)">
+            <div><b>${x.l}</b><div style="font-size:7px;color:var(--t3)">${x.t} Account</div></div>
+            <span style="font-weight:700;color:${x.t==='Income'?'#059669':'#EF4444'}">${x.v}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="dc">
+        <button class="btn-p btn-save" onclick="T('📂','Exporting Tally compliant XML...')">Export to Tally ERP</button>
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fees')}
+  `;
+  return h;
+};
+
+PN.budget=()=>{
+  let h=top2('Budget & Spend','linear-gradient(135deg,#3730A3,#6366F1)');
+  const budgets = [
+    {d:'Academics',a:'₹10,00,000',s:'₹6,42,000',p:64},
+    {d:'Infrastructure',a:'₹15,00,000',s:'₹12,80,000',p:85},
+    {d:'Transport Fleet',a:'₹8,00,000',s:'₹4,20,000',p:52},
+    {d:'Sports & Events',a:'₹4,00,000',s:'₹1,80,000',p:45}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📊 FY 2026 Budget Consumed</div>
+        ${budgets.map(b=>`
+          <div style="margin-top:8px">
+            <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
+              <span><b>${b.d}</b></span>
+              <span style="color:var(--t2)">${b.s} / ${b.a}</span>
+            </div>
+            <div class="pb" style="height:5px"><div class="pf" style="width:${b.p}%;background:${b.p>80?'var(--d)':'var(--p)'}"></div></div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fees')}
+  `;
+  return h;
+};
+PN.expenses = () => PN.budget();
+
+PN.approval_log=()=>{
+  let h=top2('Approvals Board','linear-gradient(135deg,#3730A3,#6366F1)');
+  const pending = [
+    {id:'AP-104',t:'Leave Request',by:'Sunita Devi',desc:'Personal Leave (1 day)',c:'#D97706'},
+    {id:'AP-105',t:'Purchase Order',by:'Ankit Tomar',desc:'10 Footballs (₹4,500)',c:'#4F46E5'},
+    {id:'AP-106',t:'Fee Waiver',by:'Dr. Priya Mehta',desc:'Aryan Mehta - 20% concession',c:'#10B981'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📥 Pending Principal/Finance Sign-offs</div>
+        ${pending.map(p=>`
+          <div class="li" style="flex-direction:column;align-items:stretch;gap:5px;padding:8px 0;border-bottom:1px solid var(--bd)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="tg" style="background:${p.c}">${p.t}</div>
+              <span style="font-size:8px;color:var(--t3)">${p.id}</span>
+            </div>
+            <div style="font-size:10px;font-weight:700">${p.desc}</div>
+            <div style="font-size:8.5px;color:var(--t2)">Submitted by: <b>${p.by}</b></div>
+            <div style="display:flex;gap:5px;margin-top:4px">
+              <button class="abtn" style="background:#ECFDF5;color:#059669;flex:1" onclick="T('✅','Approved ${p.id}')">Approve</button>
+              <button class="abtn" style="background:#FEF2F2;color:#EF4444;flex:1" onclick="T('❌','Rejected ${p.id}')">Reject</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fees')}
+  `;
+  return h;
+};
+
+PN.recruit=()=>{
+  let h=top2('Recruitment ATS','linear-gradient(135deg,#6D28D9,#7C3AED)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#F3E8FF;color:#7C3AED" onclick="T('💼','New job posting created')">+ New Job</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">Active Candidates</div>
+        ${D.applicants.map(a=>`
+          <div class="li">
+            <div class="lc" style="background:rgba(109,40,217,0.1);color:#7C3AED;font-weight:900;font-size:9px">${a.n[0]}</div>
+            <div style="flex:1">
+              <div class="lt"><b>${a.n}</b></div>
+              <div class="ls">${a.r} · Score: ${a.sal}</div>
+              ${crud('applicants',a.id,a.n)}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              ${bd(a.s)}
+              <div style="display:flex;gap:2px">
+                <button class="cb2" style="font-size:6.5px;padding:2px 4px;background:#ECFDF5;color:#059669" onclick="T('🎉','Offer letter sent to ${a.n}')">Offer</button>
+                <button class="cb2" style="font-size:6.5px;padding:2px 4px;background:#FEF2F2;color:#EF4444" onclick="T('❌','Candidate rejected')">Reject</button>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('staff')}
+  `;
+  return h;
+};
+
+PN.performance=()=>{
+  let h=top2('Performance Reviews','linear-gradient(135deg,#6D28D9,#7C3AED)');
+  const reviews = [
+    {n:'Dr. Priya Mehta',r:'Science HOD',s:'Excellent',sc:'9.4/10',p:94},
+    {n:'Ravi Kumar',r:'Maths Teacher',s:'Very Good',sc:'8.5/10',p:85},
+    {n:'Sunita Devi',r:'English Teacher',s:'Average',sc:'6.8/10',p:68}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📈 Staff Appraisals Cycle 2026</div>
+        ${reviews.map(r=>`
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
+              <span><b>${r.n}</b> (${r.r})</span>
+              <span style="color:var(--p);font-weight:700">${r.sc}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="pb" style="flex:1;height:5px"><div class="pf" style="width:${r.p}%;background:var(--p)"></div></div>
+              <span class="badge ${r.p>90?'badge-green':r.p>80?'badge-blue':'badge-gold'}" style="font-size:6px">${r.s}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('staff')}
+  `;
+  return h;
+};
+
+PN.routes=()=>{
+  let h=top2('Route Planner','linear-gradient(135deg,#0E7490,#06B6D4)');
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="padding:7px">
+        <div class="ct">Planned Bus Routes</div>
+        ${D.routes.map(r=>`
+          <div class="li">
+            <div class="lc" style="background:rgba(6,182,212,0.1);color:#0E7490">🚌</div>
+            <div style="flex:1">
+              <div class="lt"><b>${r.n}</b></div>
+              <div class="ls">${r.stops} · Start: ${r.eta} · Cap: ${r.cap}</div>
+              ${crud('routes',r.id,r.n)}
+            </div>
+            ${bd(r.s)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fleet')}
+  `;
+  return h;
+};
+
+PN.drivers=()=>{
+  let h=top2('Driver Roster','linear-gradient(135deg,#0E7490,#06B6D4)');
+  const list = [
+    {n:'Ramesh Kumar',lic:'DL-12026001',exp:'12/2028',rt:'Route 1',s:'Active'},
+    {n:'Suresh Singh',lic:'UP-16202588',exp:'04/2027',rt:'Route 3',s:'Active'},
+    {n:'Dinesh Yadav',lic:'UP-82202341',exp:'09/2026',rt:'Route 6',s:'On Leave'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">👤 Drivers Roster</div>
+        ${list.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EFF6FF">👤</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">License: ${x.lic} · Expiry: ${x.exp} · Route: ${x.rt}</div>
+            </div>
+            ${bd(x.s==='Active'?'On Duty':'On Leave')}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fleet')}
+  `;
+  return h;
+};
+
+PN.tracking=()=>{
+  let h=top2('Live GPS Tracking','linear-gradient(135deg,#0E7490,#06B6D4)');
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="padding:8px">
+        <div class="ct">📡 Fleet Telemetry (Live Simulation)</div>
+        <div style="border:1.5px solid var(--bd);background:#0F172A;border-radius:12px;height:120px;position:relative;overflow:hidden;margin-bottom:8px">
+          <div style="position:absolute;top:50%;left:10%;right:10%;height:3px;background:rgba(255,255,255,0.1);transform:translateY(-50%)"></div>
+          <div style="position:absolute;top:50%;left:10%;width:60%;height:3px;background:var(--g);transform:translateY(-50%);animation:scan-horizontal 4s infinite linear"></div>
+          <div style="position:absolute;left:10%;top:50%;width:8px;height:8px;background:#4F46E5;border-radius:50%;transform:translate(-50%,-50%)" title="School Gateway"></div>
+          <div style="position:absolute;left:40%;top:50%;width:6px;height:6px;background:#FFF7ED;border-radius:50%;transform:translate(-50%,-50%)" title="Stop 1"></div>
+          <div style="position:absolute;left:70%;top:50%;width:6px;height:6px;background:#FFF7ED;border-radius:50%;transform:translate(-50%,-50%)" title="Stop 2"></div>
+          <div style="position:absolute;left:60%;top:50%;width:12px;height:12px;background:#10B981;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #10B981;animation:bk 1s infinite alternate;display:flex;align-items:center;justify-content:center;color:#fff;font-size:7px">🚌</div>
+          <div style="position:absolute;bottom:6px;left:8px;font-size:7.5px;color:rgba(255,255,255,0.4)">Simulating Bus 1: Jewar Express Route</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;padding:4px 0;border-bottom:1px solid var(--bd)">
+          <span><b>Active Streams</b></span>
+          <span style="color:var(--g);font-weight:700">22 Buses GPS streaming</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:9.5px;padding:4px 0">
+          <span><b>Average Speed</b></span>
+          <span style="font-weight:700">42 km/h</span>
+        </div>
+      </div>
+      <div class="dc">
+        <button class="btn-p btn-del" onclick="T('🚨','SOS Alert dispatched to Principal')">Trigger Fleet panic SOS</button>
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fleet')}
+  `;
+  return h;
+};
+
+PN.fuel=()=>{
+  let h=top2('Maintenance & Fuel','linear-gradient(135deg,#0E7490,#06B6D4)');
+  const logs = [
+    {id:'F-101',v:'DL-01-AB-1234',l:'82 Liters',a:'₹8,200',d:'Dec 8'},
+    {id:'M-102',v:'UP-16-CD-5678',l:'Engine Service',a:'₹14,500',d:'Dec 5'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">⛽ Fuel & Service Log</div>
+        ${logs.map(x=>`
+          <div class="mr" style="font-size:9.5px;padding:5px 0;border-bottom:1px solid var(--bd)">
+            <div><b>${x.v}</b><div style="font-size:7.5px;color:var(--t3)">${x.l} on ${x.d}</div></div>
+            <span style="font-weight:700;color:var(--d)">${x.a}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fleet')}
+  `;
+  return h;
+};
+PN.fuel_log = () => PN.fuel();
+
+PN.issued=()=>{
+  let h=top2('Books Issued','linear-gradient(135deg,#581C87,#7C3AED)');
+  const issuedList = [
+    {b:'Physics NCERT XII',n:'Aryan Mehta',d:'Dec 24',s:'Active'},
+    {b:'Wings of Fire',n:'Riya Gupta',d:'Dec 15',s:'Overdue'},
+    {b:'The Alchemist',n:'Sam Khan',d:'Dec 28',s:'Active'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="padding:7px">
+        <div class="ct">Circulation Records</div>
+        ${issuedList.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FAF5FF">📄</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.b}</b></div>
+              <div class="ls">Issued to: ${x.n} · Due: ${x.d}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              ${bd(x.s)}
+              ${x.s==='Overdue'?`<button class="cb2" style="font-size:6px;background:#FEF2F2;color:#EF4444" onclick="T('🔔','Return reminder SMS triggered')">Remind</button>`:''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('library')}
+  `;
+  return h;
+};
+
+PN.overdue=()=>{
+  let h=top2('Fines & Overdues','linear-gradient(135deg,#581C87,#7C3AED)');
+  const overdues = [
+    {b:'Chemistry NCERT XI',n:'Vikram Nair',dy:5,f:'₹50'},
+    {b:'Wings of Fire',n:'Riya Gupta',dy:12,f:'₹120'},
+    {b:'Maths Part II',n:'Neha Joshi',dy:2,f:'₹20'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">⚠️ Outstanding Book Fines</div>
+        ${overdues.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FEF2F2;color:#EF4444">⚠️</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.b}</b></div>
+              <div class="ls">Borrower: ${x.n} · ${x.dy} days overdue</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:700;color:var(--d);font-size:10px">${x.f}</div>
+              <button class="cb2" style="font-size:6.5px;padding:2px 4px;margin-top:2px;background:#F1F5F9;color:var(--t2)" onclick="T('💸','Fine collected offline')">Collect</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('library')}
+  `;
+  return h;
+};
+
+PN.digital_lib=()=>{
+  let h=top2('Digital Library','linear-gradient(135deg,#581C87,#7C3AED)');
+  const resources = [
+    {n:'Physics Lab Manual Grade 12',sz:'4.2 MB',t:'PDF'},
+    {n:'CBSE Sample Papers 2026',sz:'1.8 MB',t:'PDF'},
+    {n:'Calculus Lecture Video Series',sz:'145 MB',t:'MP4'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📂 Digital Assets</div>
+        ${resources.map(x=>`
+          <div class="li" onclick="T('📥','Downloading file ${x.n}')">
+            <div class="lc" style="background:#FAF5FF">📁</div>
+            <div style="flex:1">
+              <div class="lt">${x.n}</div>
+              <div class="ls">${x.t} · Size: ${x.sz}</div>
+            </div>
+            <span style="font-size:8px;color:var(--p);font-weight:700">Download ➔</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('library')}
+  `;
+  return h;
+};
+
+PN.cctv=()=>{
+  let h=top2('CCTV Surveillance','linear-gradient(135deg,#7F1D1D,#DC2626)');
+  h+=`
+    <div class="sb2" style="padding:10px 0">
+      <div class="dc" style="padding:8px">
+        <div class="ct">📸 Security Camera Feed Grid</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">
+          ${['Gate 1 Main', 'Front Lobby', 'Back Yard', 'Library Corrid'].map(c=>`
+            <div style="position:relative;background:#0F172A;border:1px solid var(--bd);height:60px;border-radius:8px;display:flex;align-items:center;justify-content:center">
+              <span style="font-size:8px;color:var(--t3)">${c}</span>
+              <div style="position:absolute;top:4px;left:4px;display:flex;align-items:center;gap:2px;background:rgba(0,0,0,0.5);padding:1px 3px;border-radius:4px">
+                <span style="width:4px;height:4px;background:#EF4444;border-radius:50%;display:inline-block;animation:bk 1s infinite"></span>
+                <span style="font-size:6px;color:#fff;font-weight:700">LIVE</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="ct">🚨 Realtime AI Detection Log</div>
+        <div style="background:rgba(239,68,68,0.06);border-left:3px solid var(--d);padding:6px;border-radius:4px;font-size:9px;line-height:1.4">
+          <b>AI Trigger (1m ago)</b>: Person without ID badge observed near <b>Gate 1</b>. Triage needed.
+        </div>
+      </div>
+      <div class="dc" style="display:flex;gap:4px">
+        <button class="btn-p btn-add" style="flex:1;font-size:9.5px;padding:8px" onclick="T('✅','Triage: Guard dispatched to Gate 1')">Dispatch Guard</button>
+        <button class="btn-p btn-del" style="flex:1;font-size:9.5px;padding:8px" onclick="T('🚨','Lockdown initialized')">Lockdown Gate</button>
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('visitors')}
+  `;
+  return h;
+};
+
+PN.access=()=>{
+  let h=top2('Access Control','linear-gradient(135deg,#7F1D1D,#DC2626)');
+  const logs = [
+    {n:'Dr. Priya Mehta',t:'Science Wing Gate',tm:'09:42 AM',s:'Granted'},
+    {n:'Aryan Mehta (Student)',t:'Library Gate',tm:'09:40 AM',s:'Granted'},
+    {n:'Unknown Badge',t:'Server Room Gate',tm:'09:35 AM',s:'Denied'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📡 RFID Gate Access Logs</div>
+        ${logs.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#F1F5F9">🪪</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">${x.t} · ${x.tm}</div>
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('visitors')}
+  `;
+  return h;
+};
+
+PN.patrol=()=>{
+  let h=top2('Guard Patrols','linear-gradient(135deg,#7F1D1D,#DC2626)');
+  const checkpoints = [
+    {n:'Checkpoint A - Front Gate',t:'Checked 10m ago',s:'Ok'},
+    {n:'Checkpoint B - Hostel Block',t:'Checked 22m ago',s:'Ok'},
+    {n:'Checkpoint C - Playground',t:'Overdue by 5m',s:'Overdue'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">🏃 Guard Duty Checkpoints</div>
+        ${checkpoints.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#F1F5F9">🏃</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">${x.t}</div>
+            </div>
+            ${bd(x.s==='Ok'?'Active':'Overdue')}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('visitors')}
+  `;
+  return h;
+};
+
+PN.teams=()=>{
+  let h=top2('Sports Teams','linear-gradient(135deg,#14532D,#16A34A)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#14532D" onclick="T('🏆','Team recruitment wizard opened')">+ Form Team</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">Registered Sports Teams</div>
+        ${D.teams.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#F0FDF4">🏆</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">Coach: ${x.c} · ${x.r}</div>
+              ${crud('teams',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('sports')}
+  `;
+  return h;
+};
+
+PN.fitness=()=>{
+  let h=top2('Fitness Log','linear-gradient(135deg,#14532D,#16A34A)');
+  const list = [
+    {n:'Aryan Mehta',bmi:'18.2',st:'Normal',f:'Excellent'},
+    {n:'Riya Gupta',bmi:'20.5',st:'Normal',f:'Good'},
+    {n:'Sam Khan',bmi:'16.1',st:'Underweight',f:'Fair'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📊 Student Physical Assessments</div>
+        ${list.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#F0FDF4">📊</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">BMI: ${x.bmi} · ${x.st}</div>
+            </div>
+            ${bd(x.f)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('sports')}
+  `;
+  return h;
+};
+
+PN.livechat=()=>{
+  let h=top2('Helpdesk Chat','linear-gradient(135deg,#0369A1,#0EA5E9)');
+  const chats = [
+    {n:'Meera Sen (Parent)',m:'My child\'s bus Route 1 GPS is showing offline...',t:'Just Now',unread:true},
+    {n:'Rakesh Kumar (Driver)',m:'I have completed morning trip for Route 3.',t:'10m ago',unread:false},
+    {n:'Vikram Nair (Teacher)',m:'Need approval for library request.',t:'2hr ago',unread:false}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="padding:6px">
+        <div class="ct">💬 Live Conversations</div>
+        ${chats.map(c=>`
+          <div class="li" style="padding:8px 0;border-bottom:1px solid var(--bd)" onclick="T('💬','Opening chat with ${c.n}')">
+            <div class="lc" style="background:#EFF6FF">💬</div>
+            <div style="flex:1">
+              <div class="lt"><b>${c.n}</b></div>
+              <div class="ls" style="${c.unread?'font-weight:700;color:var(--t)':''}">${c.m}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <span style="font-size:7.5px;color:var(--t3)">${c.t}</span>
+              ${c.unread?`<div style="width:6px;height:6px;background:var(--p);border-radius:50%"></div>`:''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('tickets')}
+  `;
+  return h;
+};
+
+PN.sla=()=>{
+  let h=top2('SLA Metrics','linear-gradient(135deg,#0369A1,#0EA5E9)');
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📊 Ticket Resolution Performance</div>
+        ${[{l:'Avg Response Time',v:'14 mins'},{l:'Avg Resolution Time',v:'2.4 hours'},{l:'SLA Met %',v:'94.8%'}].map(x=>`
+          <div class="mr">
+            <div style="font-weight:600">${x.l}</div>
+            <div style="font-weight:700">${x.v}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('tickets')}
+  `;
+  return h;
+};
+
+PN.my_route=()=>{
+  let h=top2("Today's Route","linear-gradient(135deg,#374151,#6B7280)");
+  const stops = [
+    {n:'Jewar Crossing',t:'07:15 AM',cnt:12,s:'Completed'},
+    {n:'Yamuna Enclave Sector 4',t:'07:30 AM',cnt:15,s:'Completed'},
+    {n:'Noida Sector 150 Stop',t:'07:45 AM',cnt:25,s:'Boarding'},
+    {n:'SHAMIIT School Campus',t:'08:15 AM',cnt:0,s:'Pending'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="background:rgba(79,70,229,0.03);text-align:center;padding:12px">
+        <div style="font-size:8.5px;color:var(--t3);text-transform:uppercase;letter-spacing:0.04em">Trip Status</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:900;color:var(--p);margin-top:2px" id="trip-state">IN TRANSIT</div>
+        <button class="btn-p btn-save" style="margin:8px auto 0;width:120px;padding:6px;font-size:10px" id="trip-btn" onclick="toggleTripState()">End Trip Run</button>
+      </div>
+      <div class="dc" style="padding:8px">
+        <div class="ct">Stop Sequence</div>
+        <div class="timeline" style="padding-top:4px">
+          ${stops.map(s=>`
+            <div class="timeline-item">
+              <div class="timeline-dot" style="background:${s.s==='Completed'?'#10B981':s.s==='Boarding'?'#F59E0B':'#CBD5E1'}"></div>
+              <div class="timeline-body">
+                <div style="display:flex;justify-content:space-between">
+                  <span><b>${s.n}</b></span>
+                  <span style="font-size:8px;color:var(--t3)">${s.t}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+                  <span style="font-size:8px;color:var(--t2)">Students: ${s.cnt}</span>
+                  ${s.s==='Boarding'?`<button class="cb2" style="font-size:6px;padding:2px 5px;background:#EFF6FF;color:#0369A1" onclick="go('sub','my_students')">Manual Board</button>`:bd(s.s)}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('my_route')}
+  `;
+  return h;
+};
+
+PN.my_students=()=>{
+  let h=top2("Boarding Marker","linear-gradient(135deg,#374151,#6B7280)");
+  const students = [
+    {id:'HS1',n:'Arjun Singh',st:'Stop 1',s:'Boarded'},
+    {id:'HS2',n:'Neha Sharma',st:'Stop 1',s:'Absent'},
+    {id:'HS3',n:'Rohit Das',st:'Stop 2',s:'Pending'},
+    {id:'HS4',n:'Priya Patel',st:'Stop 2',s:'Pending'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc" style="padding:8px">
+        <div class="ct">Student Roster - Stop 2</div>
+        ${students.map(x=>`
+          <div class="li" style="padding:6px 0;border-bottom:1px solid var(--bd)">
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">Allotment: ${x.st}</div>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="cb2" style="background:${x.s==='Boarded'?'#ECFDF5':'#F1F5F9'};color:${x.s==='Boarded'?'#059669':'#475569'}" onclick="T('✅','${x.n} Boarded')">Board</button>
+              <button class="cb2" style="background:${x.s==='Absent'?'#FEF2F2':'#F1F5F9'};color:${x.s==='Absent'?'#EF4444':'#475569'}" onclick="T('❌','${x.n} marked Absent')">No Show</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('my_route')}
+  `;
+  return h;
+};
+
+PN.trip_log=()=>{
+  let h=top2('Trip History','linear-gradient(135deg,#374151,#6B7280)');
+  const trips = [
+    {dt:'Dec 9',t:'Morning Run',d:'1h 10m',c:'Complete'},
+    {dt:'Dec 8',t:'Evening Run',d:'1h 22m',c:'Complete'},
+    {dt:'Dec 8',t:'Morning Run',d:'1h 05m',c:'Complete'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📅 Completed Trips</div>
+        ${trips.map(x=>`
+          <div class="mr">
+            <div style="font-weight:600">${x.t}<div class="ls">${x.dt} · Duration: ${x.d}</div></div>
+            ${bd(x.c)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('my_route')}
+  `;
+  return h;
+};
+
+PN.sos=()=>{
+  let h=top2('Emergency SOS','linear-gradient(135deg,#374151,#6B7280)');
+  h+=`
+    <div style="margin:14px;text-align:center">
+      <div style="width:70px;height:70px;background:#EF4444;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px;box-shadow:0 4px 16px rgba(239,68,68,.4);cursor:pointer" onclick="T('🚨','SOS Emergency Alert Dispatched to School Command Center!')">🚨</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;color:#EF4444">EMERGENCY SOS</div>
+      <div style="font-size:9px;color:var(--t3)">Tap to alert admin, principal, & local emergency services</div>
+    </div>
+  `;
+  return h;
+};
+
+PN.mess=()=>{
+  let h=top2('Mess & Meals','linear-gradient(135deg,#78350F,#D97706)');
+  const meals = [
+    {m:'Breakfast',t:'07:00 - 08:30 AM',menu:'Poha, Idli, Tea, Milk',c:242},
+    {m:'Lunch',t:'12:30 - 02:00 PM',menu:'Rice, Dal, Roti, Sabzi',c:410},
+    {m:'Snacks',t:'04:30 - 05:30 PM',menu:'Samosa, Tea, Biscuits',c:186},
+    {m:'Dinner',t:'07:30 - 09:00 PM',menu:'Roti, Paneer, Rice, Dal',c:380}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">🍳 Meal Attendance & Menu</div>
+        ${meals.map(m=>`
+          <div class="li" style="flex-direction:column;align-items:stretch;gap:4px;padding:8px 0;border-bottom:1px solid var(--bd)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:700;font-size:10px">${m.m}</span>
+              <span class="badge bg" style="font-size:6px">${m.c} check-ins</span>
+            </div>
+            <div style="font-size:9.5px;color:var(--t2)">Menu: ${m.menu}</div>
+            <div style="font-size:7.5px;color:var(--t3)">Timing: ${m.t}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.hostel_attend=()=>{
+  let h=top2('Mess Attendance','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">👤 Mess Check-in Roster</div>
+        ${[{n:'Arjun Singh',st:'Breakfast',tm:'07:22 AM'},{n:'Neha Sharma',st:'Breakfast',tm:'07:45 AM'},{n:'Rohit Das',st:'Breakfast',tm:'08:05 AM'}].map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FFF7ED">👤</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">${x.st} Checked In</div>
+            </div>
+            <span style="font-size:8px;color:var(--t3)">${x.tm}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.results=()=>{
+  let h=top2('Exam Results','linear-gradient(135deg,#1E3A5F,#2563EB)');
+  const res = [
+    {n:'Mid-Term Exam Dec',cls:'Grade 10',avg:78,max:'Aryan Mehta (98/100)'},
+    {n:'Unit Test II Oct',cls:'Grade 10',avg:84,max:'Riya Gupta (95/100)'},
+    {n:'Mid-Term Exam Dec',cls:'Grade 9',avg:72,max:'Sam Khan (92/100)'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📊 Class Average Performance %</div>
+        ${res.map(r=>`
+          <div style="margin-top:8px">
+            <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
+              <span><b>${r.n}</b> · ${r.cls}</span>
+              <span style="font-weight:700">${r.avg}%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="pb" style="flex:1;height:5px"><div class="pf" style="width:${r.avg}%;background:#2563EB"></div></div>
+              <span style="font-size:7px;color:var(--t3);white-space:nowrap">Top: ${r.max.split(' ')[0]}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('exams')}
+  `;
+  return h;
+};
+
+PN.report_cards=()=>{
+  let h=top2('Report Cards','linear-gradient(135deg,#1E3A5F,#2563EB)');
+  const list = [
+    {c:'Grade 10-A',stu:'32',s:'Pending Signature'},
+    {c:'Grade 10-B',stu:'28',s:'Pending Signature'},
+    {c:'Grade 9-A',stu:'30',s:'Signed'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">✍️ Report Card Sign-offs</div>
+        ${list.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EEF2FF">✍️</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.c}</b></div>
+              <div class="ls">${x.stu} students report cards</div>
+            </div>
+            ${x.s==='Signed'?bd('Active'):`<button class="cb2" style="background:var(--p);color:#fff" onclick="T('✍️','Digitally signed report cards for ${x.c}')">Sign</button>`}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('exams')}
+  `;
+  return h;
+};
+
+PN.exam_schedule=()=>{
+  let h=top2('Exam Timetable','linear-gradient(135deg,#1E3A5F,#2563EB)');
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">📅 Exam Timetable Schedule</div>
+        ${D.exams_list.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EEF2FF">📅</div>
+            <div style="flex:1">
+              <div class="lt">${x.n}</div>
+              <div class="ls">${x.t} · ${x.cls} · ${x.d}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('exams')}
+  `;
+  return h;
+};
+
+PN.exam_rooms=()=>{
+  let h=top2('Room Allocations','linear-gradient(135deg,#1E3A5F,#2563EB)');
+  const rooms = [
+    {r:'Exam Hall A',cap:'60 desks',e:'Maths Exam Grade 10'},
+    {r:'Exam Hall B',cap:'60 desks',e:'Science Exam Grade 12'},
+    {r:'Room 101',cap:'30 desks',e:'Practical Physics Grade 11'}
+  ];
+  h+=`
+    <div class="sb2">
+      <div class="dc">
+        <div class="ct">🏢 Exam Seating Allocations</div>
+        ${rooms.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EEF2FF">🏢</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.r}</b> · Cap: ${x.cap}</div>
+              <div class="ls">Allotment: ${x.e}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('exams')}
+  `;
+  return h;
+};
+
+function toggleTripState(){
+  const btn = document.getElementById('trip-btn');
+  const state = document.getElementById('trip-state');
+  if(state.textContent==='IN TRANSIT'){
+    state.textContent = 'TRIP COMPLETED';
+    state.style.color = 'var(--g)';
+    btn.textContent = 'Start Trip Run';
+    T('✅','Trip completed successfully and parents notified.');
+  } else {
+    state.textContent = 'IN TRANSIT';
+    state.style.color = 'var(--p)';
+    btn.textContent = 'End Trip Run';
+    T('🚌','Trip started! Live GPS streaming active.');
+  }
+}
+
 // 13. Accessibility Settings & Modal Builder
 function showAccessibilityMenu(){
   Mo(`
@@ -2951,9 +3873,282 @@ const crud=(tb,id,lb)=>`
   </div>`;
 
 // ─── SPECIFIC ERP ACTION DICTIONARIES (White label, servers, apis, hostel, exams) ───
-PN.hostel_rooms=()=>{let h=top2('Hostel Rooms','linear-gradient(135deg,#78350F,#D97706)');h+=`<div class="sb2"><div class="ab" style="margin-top:7px"><button class="abtn" style="background:#FFF7ED;color:#D97706" onclick="aR('hostel_rooms',[{k:'no',l:'Room Number',p:'e.g. 301'},{k:'fl',l:'Floor',type:'select',opts:['1st','2nd','3rd']},{k:'type',l:'Type',type:'select',opts:['Single','Double','Triple']},{k:'cap',l:'Capacity',p:'2'}],'Add Room','🏠','#FFF7ED')">+ Room</button></div><div class="dc" style="padding:7px">${D.hostel_rooms.map(r=>`<div class="li"><div class="lc" style="background:#FFF7ED">🚪</div><div style="flex:1"><div class="lt">Room ${r.no} · ${r.fl} Floor</div><div class="ls">${r.type} · ${r.occ}/${r.cap} occupied</div>${crud('hostel_rooms',r.id,'Room '+r.no)}</div>${bd(r.s)}</div>`).join('')}</div><div class="spc"></div></div><div class="fb" onclick="go('ai')">🤖</div>${nav2('hostel_rooms')}`;return h;};
-PN.hostel_students=()=>{let h=top2('Hostel Boarders','linear-gradient(135deg,#78350F,#D97706)');h+=`<div class="sb2"><div class="ab" style="margin-top:7px"><button class="abtn" style="background:#FFF7ED;color:#D97706" onclick="aR('hostel_students',[{k:'n',l:'Student Name',p:'Full name'},{k:'rm',l:'Room',p:'101'},{k:'c',l:'Class',p:'10-A'}],'Admit Boarder','👧','#FDF4FF')">+ Admit</button></div><div class="dc" style="padding:7px">${D.hostel_students.map(s=>`<div class="li"><div class="lc" style="background:#FDF4FF;color:#7C3AED;font-weight:700;font-size:9px;font-family:'Outfit',sans-serif">${s.n[0]}</div><div style="flex:1"><div class="lt">${s.n} · ${s.c}</div><div class="ls">Room ${s.rm}</div>${crud('hostel_students',s.id,s.n)}</div>${bd(s.s)}</div>`).join('')}</div><div class="spc"></div></div><div class="fb" onclick="go('ai')">🤖</div>${nav2('hostel_students')}`;return h;};
-PN.hostel_complaints=()=>{let h=top2('Complaints','linear-gradient(135deg,#78350F,#D97706)');h+=`<div class="sb2"><div class="ab" style="margin-top:7px"><button class="abtn" style="background:#FEF2F2;color:#EF4444" onclick="aR('hostel_complaints',[{k:'t',l:'Issue',p:'Describe'},{k:'by',l:'Reported By',p:'Student name'},{k:'sev',l:'Severity',type:'select',opts:['Low','Medium','High']}],'Report Issue','📋','#FEF2F2')">+ Report</button></div><div class="dc" style="padding:7px">${D.hostel_complaints.map(c=>`<div class="li"><div class="lc" style="background:${c.sev==='High'?'#FEF2F2':'#FFF7ED'}">${c.sev==='High'?'🔴':'🟡'}</div><div style="flex:1"><div class="lt">${c.t}</div><div class="ls">By: ${c.by} · ${c.sev}</div>${crud('hostel_complaints',c.id,c.t)}</div>${bd(c.s)}</div>`).join('')}</div><div class="spc"></div></div><div class="fb" onclick="go('ai')">🤖</div>${nav2('hostel_complaints')}`;return h;};
+PN.hostel_rooms=()=>{
+  let h=top2('Rooms & Beds','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div style="display:flex;margin:10px 14px 4px;background:rgba(0,0,0,0.05);border-radius:8px;padding:2px">
+        <button id="hr_tab_rooms" class="abtn" style="flex:1;background:#FFF7ED;color:#78350F;margin:0;font-size:9.5px;font-weight:700;border:none" onclick="showHostelRoomsTab('rooms')">Rooms</button>
+        <button id="hr_tab_beds" class="abtn" style="flex:1;background:transparent;color:var(--t2);margin:0;font-size:9.5px;border:none" onclick="showHostelRoomsTab('beds')">Bed Allocations</button>
+      </div>
+
+      <div id="hostel_rooms_list_panel">
+        <div class="ab" style="margin-top:7px">
+          <button class="abtn" style="background:#FFF7ED;color:#D97706" onclick="aR('hostel_rooms',[{k:'no',l:'Room Number',p:'e.g. 301'},{k:'fl',l:'Floor',type:'select',opts:['1st','2nd','3rd']},{k:'type',l:'Type',type:'select',opts:['Single','Double','Triple']},{k:'cap',l:'Capacity',p:'2'}],'Add Room','🏠','#FFF7ED')">+ Add Room</button>
+        </div>
+        <div class="dc" style="padding:7px">
+          ${D.hostel_rooms.map(r=>`
+            <div class="li">
+              <div class="lc" style="background:#FFF7ED">🚪</div>
+              <div style="flex:1">
+                <div class="lt">Room ${r.no} · ${r.fl} Floor</div>
+                <div class="ls">${r.type} · ${r.occ}/${r.cap} occupied</div>
+                ${crud('hostel_rooms',r.id,'Room '+r.no)}
+              </div>
+              ${bd(r.s)}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div id="hostel_beds_panel" style="display:none">
+        <div class="ab" style="margin-top:7px">
+          <button class="abtn" style="background:#FFF7ED;color:#D97706" onclick="aR('hostel_beds',[{k:'n',l:'Boarder Name',p:'Name'},{k:'rm',l:'Room Number',p:'e.g. 101'},{k:'bed',l:'Bed No.',p:'e.g. Bed A'}],'Allocate Bed','🛏️','#FFF7ED')">+ Allocate Bed</button>
+        </div>
+        <div class="dc" style="padding:7px">
+          ${D.hostel_beds.map(b=>`
+            <div class="li">
+              <div class="lc" style="background:#FFE4E6">🛏️</div>
+              <div style="flex:1">
+                <div class="lt"><b>${b.n}</b></div>
+                <div class="ls">Room ${b.rm} · ${b.bed}</div>
+                ${crud('hostel_beds',b.id,b.n)}
+              </div>
+              ${bd(b.s||'Allocated')}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.hostel_students=()=>{
+  let h=top2('Hostel Boarders','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FFF7ED;color:#D97706" onclick="aR('hostel_students',[{k:'n',l:'Student Name',p:'Full name'},{k:'rm',l:'Room',p:'101'},{k:'c',l:'Class',p:'10-A'}],'Admit Boarder','👧','#FDF4FF')">+ Admit</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        ${D.hostel_students.map(s=>`
+          <div class="li">
+            <div class="lc" style="background:#FDF4FF;color:#7C3AED;font-weight:700;font-size:9px;font-family:'Outfit',sans-serif">${s.n[0]}</div>
+            <div style="flex:1">
+              <div class="lt">${s.n} · ${s.c}</div>
+              <div class="ls">Room ${s.rm}</div>
+              ${crud('hostel_students',s.id,s.n)}
+            </div>
+            ${bd(s.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_students')}
+  `;
+  return h;
+};
+
+PN.hostel_gate_register=()=>{
+  let h=top2('Hostel Gate Register','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#059669" onclick="aR('hostel_gate_register',[{k:'n',l:'Student Name',p:'Name'},{k:'rm',l:'Room No.',p:'e.g. 102'},{k:'d',l:'Direction',type:'select',opts:['OUT','IN']},{k:'tm',l:'Time',p:'17:30'}],'Log Entry/Exit','🚪','#ECFDF5')">+ Log Movement</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        ${D.hostel_gate_register.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:${x.d==='OUT'?'#FEF2F2':'#ECFDF5'};color:${x.d==='OUT'?'#EF4444':'#059669'}">${x.d==='OUT'?'➔':'➔'}</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> · Room ${x.rm}</div>
+              <div class="ls">Direction: <b>${x.d}</b> · Time: ${x.tm}</div>
+              ${crud('hostel_gate_register',x.id,x.n)}
+            </div>
+            ${bd(x.d==='OUT'?'Checked Out':'Checked In')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.hostel_fees=()=>{
+  let h=top2('Hostel Fees','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#059669" onclick="aR('hostel_fees',[{k:'n',l:'Student Name',p:'Name'},{k:'rm',l:'Room No.',p:'e.g. 101'},{k:'a',l:'Amount',p:'₹18,000'},{k:'s',l:'Status',type:'select',opts:['Paid','Pending']}],'Add Fee Record','💸','#ECFDF5')">+ Add Record</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        ${D.hostel_fees.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FFF7ED">💸</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> · Room ${x.rm}</div>
+              <div class="ls">Amount: ${x.a}/month</div>
+              ${crud('hostel_fees',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.hostel_inventory=()=>{
+  let h=top2('Hostel Inventory','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#EFF6FF;color:#0369A1" onclick="aR('hostel_inventory',[{k:'t',l:'Item Name',p:'e.g. Bedsheets'},{k:'qty',l:'Quantity',p:'e.g. 150'},{k:'c',l:'Condition',type:'select',opts:['Good','Fair','Replace']}],'Add Inventory','📦','#EFF6FF')">+ Add Item</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        ${D.hostel_inventory.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#F1F5F9">📦</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.t}</b></div>
+              <div class="ls">Quantity Available: ${x.qty} units</div>
+              ${crud('hostel_inventory',x.id,x.t)}
+            </div>
+            ${bd(x.c)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.hostel_health_discipline=()=>{
+  let h=top2('Health & Discipline','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FEF2F2;color:#EF4444" onclick="aR('hostel_health_discipline',[{k:'n',l:'Student Name',p:'Name'},{k:'t',l:'Incident/Condition',p:'e.g. Mild Fever'},{k:'cat',l:'Category',type:'select',opts:['Medical','Discipline']},{k:'s',l:'Severity',type:'select',opts:['Low','Medium','High']}],'Report Incident','🏥','#FEF2F2')">+ Log Incident</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        ${D.hostel_health_discipline.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:${x.cat==='Medical'?'#FEF2F2':'#FFF7ED'};color:${x.cat==='Medical'?'#EF4444':'#D97706'}">${x.cat==='Medical'?'🏥':'⚠️'}</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> · ${x.cat}</div>
+              <div class="ls">${x.t} · Severity: ${x.s}</div>
+              ${crud('hostel_health_discipline',x.id,x.n)}
+            </div>
+            ${bd(x.s==='High'?'High':x.s==='Medium'?'Fair':'Good')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.hostel_roster=()=>{
+  let h=top2('Warden Duty Roster','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FAF5FF;color:#7C3AED" onclick="aR('hostel_roster',[{k:'n',l:'Warden Name',p:'Name'},{k:'sh',l:'Shift',type:'select',opts:['Day Shift','Night Shift']},{k:'dt',l:'Dates Allotted',p:'e.g. Monday - Friday'}],'Allocate Duty Shift','📅','#FAF5FF')">+ Assign Shift</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        ${D.hostel_roster.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FAF5FF">📅</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">${x.sh} · Shift Timing: ${x.dt}</div>
+              ${crud('hostel_roster',x.id,x.n)}
+            </div>
+            ${bd(x.sh==='Night Shift'?'High':'Active')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_rooms')}
+  `;
+  return h;
+};
+
+PN.hostel_complaints=()=>{
+  let h=top2('Complaints','linear-gradient(135deg,#78350F,#D97706)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FEF2F2;color:#EF4444" onclick="aR('hostel_complaints',[{k:'t',l:'Issue',p:'Describe'},{k:'by',l:'Reported By',p:'Student name'},{k:'sev',l:'Severity',type:'select',opts:['Low','Medium','High']}],'Report Issue','📋','#FEF2F2')">+ Report</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        ${D.hostel_complaints.map(c=>`
+          <div class="li">
+            <div class="lc" style="background:${c.sev==='High'?'#FEF2F2':'#FFF7ED'}">${c.sev==='High'?'🔴':'🟡'}</div>
+            <div style="flex:1">
+              <div class="lt">${c.t}</div>
+              <div class="ls">By: ${c.by} · ${c.sev}</div>
+              ${crud('hostel_complaints',c.id,c.t)}
+            </div>
+            ${bd(c.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('hostel_complaints')}
+  `;
+  return h;
+};
+
+function showHostelRoomsTab(tab){
+  const tr = document.getElementById('hr_tab_rooms');
+  const tb = document.getElementById('hr_tab_beds');
+  const pr = document.getElementById('hostel_rooms_list_panel');
+  const pb = document.getElementById('hostel_beds_panel');
+  if(!tr || !tb || !pr || !pb) return;
+  if(tab === 'rooms'){
+    tr.style.background = '#FFF7ED';
+    tr.style.color = '#78350F';
+    tr.style.fontWeight = '700';
+    tb.style.background = 'transparent';
+    tb.style.color = 'var(--t2)';
+    tb.style.fontWeight = '400';
+    pr.style.display = 'block';
+    pb.style.display = 'none';
+  } else {
+    tb.style.background = '#FFF7ED';
+    tb.style.color = '#78350F';
+    tb.style.fontWeight = '700';
+    tr.style.background = 'transparent';
+    tr.style.color = 'var(--t2)';
+    tr.style.fontWeight = '400';
+    pr.style.display = 'none';
+    pb.style.display = 'block';
+  }
+}
 PN.exams=()=>{let h=top2('Exams','linear-gradient(135deg,#1E3A5F,#2563EB)');h+=`<div class="sb2"><div class="ab" style="margin-top:7px"><button class="abtn" style="background:#EEF2FF;color:#2563EB" onclick="aR('exams_list',[{k:'n',l:'Exam Name',p:'e.g. Mid-Term'},{k:'t',l:'Type',type:'select',opts:['Written','MCQ','Practical','Lab','Viva']},{k:'cls',l:'Classes',p:'e.g. Grade 10'},{k:'d',l:'Dates',p:'Dec 16–22'}],'Schedule Exam','📝','#EEF2FF')">+ Exam</button></div><div class="dc" style="padding:7px">${D.exams_list.map(e=>`<div class="li"><div class="lc" style="background:#EEF2FF">📝</div><div style="flex:1"><div class="lt">${e.n}</div><div class="ls">${e.t} · ${e.cls} · ${e.d}</div>${crud('exams_list',e.id,e.n)}</div>${bd(e.s)}</div>`).join('')}</div><div class="spc"></div></div><div class="fb" onclick="go('ai')">🤖</div>${nav2('exams')}`;return h;};
 
 PN.profile=()=>{
@@ -3012,6 +4207,215 @@ function showAnnounceModal(){
     </div>
   `);
 }
+PN.academic=()=>{
+  let h=top2('Academics Portal','linear-gradient(135deg,#065F46,#059669)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#065F46" onclick="aR('academic_classes',[{k:'n',l:'Class Name',p:'e.g. Grade 12-C'},{k:'c',l:'Board affiliation',p:'CBSE'},{k:'rate',l:'Target Pass Rate',p:'95%'}],'Add Academic Class','📖','#ECFDF5')">+ Add Class</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">📖 Academic Classes & Sections</div>
+        ${D.academic_classes.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#ECFDF5">📖</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> · Board: ${x.c}</div>
+              <div class="ls">Average Pass Rate: <b>${x.rate}</b></div>
+              ${crud('academic_classes',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('academic')}
+  `;
+  return h;
+};
+
+PN.compliance=()=>{
+  let h=top2('Compliance & Audit','linear-gradient(135deg,#065F46,#059669)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#065F46" onclick="aR('compliance_audits',[{k:'t',l:'Compliance Audit Title',p:'Title'},{k:'d',l:'Due Date/Validity',p:'Validity date'},{k:'s',l:'Status',type:'select',opts:['Done','Pending']}],'Add Compliance Audit','✅','#ECFDF5')">+ Add Audit</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">✅ Statutory Compliance Records</div>
+        ${D.compliance_audits.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:${x.s==='Done'?'#ECFDF5':'#FEF2F2'}">${x.s==='Done'?'✅':'⏳'}</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.t}</b></div>
+              <div class="ls">Validity/Due Date: ${x.d}</div>
+              ${crud('compliance_audits',x.id,x.t)}
+            </div>
+            ${bd(x.s==='Done'?'Approved':'Pending')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('academic')}
+  `;
+  return h;
+};
+
+PN.records=()=>{
+  let h=top2('Student Registry Records','linear-gradient(135deg,#1E3A5F,#3B82F6)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#EEF2FF;color:#1E3A5F" onclick="aR('records_certificates',[{k:'n',l:'Certificate Category',p:'e.g. TC'},{k:'cnt',l:'Issued Volume',p:'12'}],'New Certificate Log','📄','#EEF2FF')">+ Log Issue</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">📋 Academic Certifications Log</div>
+        ${D.records_certificates.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EEF2FF">📄</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">Volume Issued (Current Month): ${x.cnt} certs</div>
+              ${crud('records_certificates',x.id,x.n)}
+            </div>
+            ${bd(x.s)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('records')}
+  `;
+  return h;
+};
+
+PN.inventory=()=>{
+  let h=top2('School Assets Registry','linear-gradient(135deg,#1E3A5F,#3B82F6)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#EFF6FF;color:#1E3A5F" onclick="aR('school_assets',[{k:'t',l:'Asset Name',p:'Item'},{k:'qty',l:'Quantity Available',p:'100'},{k:'c',l:'Condition status',type:'select',opts:['Good','Fair','Replace']}],'Add School Asset','📦','#EFF6FF')">+ Add Asset</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">📦 Classroom & Campus Assets</div>
+        ${D.school_assets.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#EFF6FF">📦</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.t}</b></div>
+              <div class="ls">Quantity Allotted: ${x.qty} units</div>
+              ${crud('school_assets',x.id,x.t)}
+            </div>
+            ${bd(x.c)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('records')}
+  `;
+  return h;
+};
+
+PN.fin_overview=()=>{
+  let h=top2('Finance & Revenue Overview','linear-gradient(135deg,#7F1D1D,#B91C1C)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#FEF2F2;color:#7F1D1D" onclick="aR('branch_revenues',[{k:'n',l:'School Branch Name',p:'Name'},{k:'stu',l:'Student Enrolment',p:'1000'},{k:'rev',l:'Total Fees Collected',p:'₹20L'}],'Add Revenue Stream','🏫','#FEF2F2')">+ Add Branch Log</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">💰 Branch Enrolments & Revenue collections</div>
+        ${D.branch_revenues.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#FEF3C7">🏫</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b></div>
+              <div class="ls">${x.stu} students enrolled · Fee target collection: <b>${x.rate||'90%'}</b></div>
+              ${crud('branch_revenues',x.id,x.n)}
+            </div>
+            <span style="font-weight:700;color:#059669">${x.rev}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="dc">
+        <div class="ct">📊 Revenue Month-on-Month Timeline (₹Cr)</div>
+        ${bars([32,45,28,52,68,55,78,62,72,58,82,76],'rgba(185,28,28,.5)')}
+        <div class="cl" style="margin-top:4px">${'JFMAMJJASOND'.split('').map(m=>`<span>${m}</span>`).join('')}</div>
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('fin_overview')}
+  `;
+  return h;
+};
+
+PN.live_class=()=>{
+  let h=top2('Live Class Schedule','linear-gradient(135deg,#065F46,#059669)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#065F46" onclick="aR('live_classes',[{k:'s',l:'Subject & Grade',p:'e.g. Maths Grade 10'},{k:'t',l:'Instructor Name',p:'Name'},{k:'st',l:'Schedule Status',type:'select',opts:['Live','Scheduled','Completed']}],'Schedule Live Class','📹','#ECFDF5')">+ Schedule Class</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">📹 Live Stream Classes log</div>
+        ${D.live_classes.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:${x.st==='Live'?'#FEF2F2':'#F1F5F9'}">
+              <div class="ld" style="background:${x.st==='Live'?'#EF4444':'#94A3B8'}"></div>
+            </div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.s}</b></div>
+              <div class="ls">${x.t} · Status: ${x.st}</div>
+              ${crud('live_classes',x.id,x.s)}
+            </div>
+            ${x.st==='Live'?`<div class="badge bg" style="background:#EF4444;color:#fff;animation:bk 1s infinite alternate">● Live</div>`:bd(x.st)}
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('academic')}
+  `;
+  return h;
+};
+
+PN.chat_admin=()=>{
+  let h=top2('Admin Messaging Rooms','linear-gradient(135deg,#065F46,#059669)');
+  h+=`
+    <div class="sb2">
+      <div class="ab" style="margin-top:7px">
+        <button class="abtn" style="background:#ECFDF5;color:#065F46" onclick="aR('chat_channels',[{k:'n',l:'Group Name',p:'Name'},{k:'m',l:'Latest Message',p:'Hello...'},{k:'cnt',l:'Member count',p:'100'}],'Create Message Group','💬','#ECFDF5')">+ Create Room</button>
+      </div>
+      <div class="dc" style="padding:7px">
+        <div class="ct">💬 Messaging Channels</div>
+        ${D.chat_channels.map(x=>`
+          <div class="li">
+            <div class="lc" style="background:#ECFDF5">💬</div>
+            <div style="flex:1">
+              <div class="lt"><b>${x.n}</b> · ${x.cnt} members</div>
+              <div class="ls">Last: "${x.m}" · ${x.t||'Just Now'}</div>
+              ${crud('chat_channels',x.id,x.n)}
+            </div>
+            <span style="font-size:8px;color:var(--t3)">${x.t||'Active'}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="spc"></div>
+    </div>
+    <div class="fb" onclick="go('ai')">🤖</div>
+    ${nav2('academic')}
+  `;
+  return h;
+};
 
 PN.announce=()=>{let h=top2('Announcements','linear-gradient(135deg,#991B1B,#EF4444)');h+=`<div class="sb2"><div class="ab" style="margin-top:7px"><button class="abtn" style="background:#FEF2F2;color:#EF4444" onclick="showAnnounceModal()">📢 New</button></div>${[{t:'Fee Reminder — Dec 2024',r:'2,840 recipients'},{t:'Sports Day Registration',r:'1,420 recipients'},{t:'Christmas Holiday',r:'All staff'}].map(a=>`<div style="margin:0 14px 5px;background:var(--bg-card);border-radius:11px;padding:9px;box-shadow:0 1px 3px rgba(0,0,0,.02);border:1px solid var(--bd)"><div class="lt">${a.t}</div><div class="ls">${a.r}</div></div>`).join('')}<div class="spc"></div></div><div class="fb" onclick="go('ai')">🤖</div>${nav2('announce')}`;return h;};
 PN.settings=()=>{
