@@ -71,6 +71,9 @@ class _GateScannerTabState extends State<GateScannerTab> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -78,16 +81,19 @@ class _GateScannerTabState extends State<GateScannerTab> {
         children: [
           Text(
             'Biometric Gate Scanner Console',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Outfit',
-                ),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Outfit',
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Monitor real-time student check-ins, RFID cards logs, and gate security exceptions.',
-            style: TextStyle(color: Color(0xFF94A3B8)),
+            style: TextStyle(
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              fontFamily: 'Outfit',
+            ),
           ),
           const SizedBox(height: 32),
 
@@ -95,56 +101,62 @@ class _GateScannerTabState extends State<GateScannerTab> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0F172A),
-                  Color(0xFF1E293B),
-                ],
-              ),
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Biometric & RFID Hardware Simulator',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Outfit',
+                  ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
+                LayoutBuilder(builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 700;
+                  final buttons = [
                     ElevatedButton.icon(
                       onPressed: () => _simulateScan('Nidhi Patel',
                           'Student (10B)', 'Main Gate 1', 'RFID Card', true),
-                      icon: const Icon(Icons.credit_card_rounded),
-                      label: const Text('Simulate Student Tap (RFID)'),
+                      icon: const Icon(Icons.credit_card_rounded, size: 16),
+                      label: const Text('Student Tap (RFID)', style: TextStyle(fontSize: 11)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF3B82F6),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    if (!isWide) const SizedBox(height: 10) else const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () => _simulateScan('Mr. Aniket Das',
                           'Teacher', 'Staff Entry', 'Fingerprint', true),
-                      icon: const Icon(Icons.fingerprint_rounded),
-                      label: const Text('Simulate Staff Scanner'),
+                      icon: const Icon(Icons.fingerprint_rounded, size: 16),
+                      label: const Text('Staff Scanner', style: TextStyle(fontSize: 11)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF10B981),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    if (!isWide) const SizedBox(height: 10) else const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () => _simulateScan(
                           'Intruder Check',
@@ -152,17 +164,26 @@ class _GateScannerTabState extends State<GateScannerTab> {
                           'Main Gate 1',
                           'Camera Face Scan',
                           false),
-                      icon: const Icon(Icons.warning_amber_rounded),
-                      label: const Text('Simulate Access Exception'),
+                      icon: const Icon(Icons.warning_amber_rounded, size: 16),
+                      label: const Text('Access Exception', style: TextStyle(fontSize: 11)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
-                  ],
-                ),
+                  ];
+
+                  if (isWide) {
+                    return Row(children: buttons);
+                  } else {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: buttons,
+                    );
+                  }
+                }),
               ],
             ),
           ),
@@ -172,19 +193,31 @@ class _GateScannerTabState extends State<GateScannerTab> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF13182C),
+              color: theme.cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Active Scan Logs (Live Connection)',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Outfit',
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ListView.builder(
@@ -199,53 +232,69 @@ class _GateScannerTabState extends State<GateScannerTab> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F1222),
+                        color: isDark ? const Color(0xFF0F1222) : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isApproved
-                              ? Colors.transparent
-                              : Colors.red.withValues(alpha: 0.2),
+                              ? (isDark ? Colors.white10 : const Color(0xFFE2E8F0))
+                              : Colors.red.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                isApproved
-                                    ? Icons.check_circle_outline_rounded
-                                    : Icons.cancel_outlined,
-                                color: isApproved
-                                    ? const Color(0xFF10B981)
-                                    : Colors.red,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    log['name'],
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isApproved
+                                      ? Icons.check_circle_outline_rounded
+                                      : Icons.cancel_outlined,
+                                  color: isApproved
+                                      ? const Color(0xFF10B981)
+                                      : Colors.red,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        log['name'],
+                                        style: TextStyle(
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          fontFamily: 'Outfit',
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "${log['role']}  •  ${log['gate']}  •  Via ${log['method']}",
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                          fontSize: 11,
+                                          fontFamily: 'Outfit',
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "${log['role']}  •  ${log['gate']}  •  Via ${log['method']}",
-                                    style: const TextStyle(
-                                        color: Color(0xFF94A3B8), fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 12),
                           Text(
                             log['time'],
                             style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500),
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                              fontFamily: 'Outfit',
+                            ),
                           ),
                         ],
                       ),

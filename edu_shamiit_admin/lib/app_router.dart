@@ -1,14 +1,30 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_admin/screens/login_screen.dart';
 import 'package:edu_shamiit_admin/screens/dashboard_screen.dart';
+import 'package:edu_shamiit_admin/screens/role_dashboards/super_admin_dashboard_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/infra/infra_monitor_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/config/system_config_screen.dart';
+import 'package:edu_shamiit_admin/screens/tabs/finance_tab.dart';
+import 'package:edu_shamiit_admin/screens/tabs/defaulters_tab.dart';
+import 'package:edu_shamiit_admin/screens/tabs/staff_tab.dart';
+import 'package:edu_shamiit_admin/screens/tabs/admissions_tab.dart';
+import 'package:edu_shamiit_admin/screens/tabs/gate_scanner_tab.dart';
+import 'package:edu_shamiit_admin/screens/tabs/support_tab.dart';
+import 'package:edu_shamiit_admin/screens/tabs/system_control_tab.dart';
+import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_screens.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
+
+final adminShellKey = GlobalKey<NavigatorState>(debugLabel: 'adminShell');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: '/dashboard',
+    initialLocation: '/admin/dashboard',
     redirect: (context, state) {
       final loggedIn = authState.isAuthenticated;
       final path = state.matchedLocation;
@@ -22,7 +38,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
       if (loggedIn && isPublic) {
-        return '/dashboard';
+        return '/admin/dashboard';
       }
       return null;
     },
@@ -65,7 +81,122 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => const AdminDashboardScreen(),
+        redirect: (_, __) => '/admin/dashboard',
+      ),
+      ShellRoute(
+        navigatorKey: adminShellKey,
+        builder: (context, state, child) => AdminDashboardScreen(child: child),
+        routes: [
+          GoRoute(
+            path: '/admin/dashboard',
+            pageBuilder: (_, __) => const NoTransitionPage(child: SuperAdminDashboardScreen()),
+          ),
+          GoRoute(
+            path: '/admin/schools',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AdminSchoolsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/users',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AdminUsersScreen()),
+          ),
+          GoRoute(
+            path: '/admin/infra',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AdminInfraMonitorScreen()),
+          ),
+          GoRoute(
+            path: '/admin/config',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AdminSystemConfigScreen()),
+          ),
+          // Sub-routes for the operational tabs
+          GoRoute(
+            path: '/admin/finance',
+            pageBuilder: (_, __) => const NoTransitionPage(child: FinanceTab()),
+          ),
+          GoRoute(
+            path: '/admin/defaulters',
+            pageBuilder: (_, __) => const NoTransitionPage(child: DefaultersTab()),
+          ),
+          GoRoute(
+            path: '/admin/staff',
+            pageBuilder: (_, __) => const NoTransitionPage(child: StaffTab()),
+          ),
+          GoRoute(
+            path: '/admin/admissions',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AdmissionsTab()),
+          ),
+          GoRoute(
+            path: '/admin/gate-scanner',
+            pageBuilder: (_, __) => const NoTransitionPage(child: GateScannerTab()),
+          ),
+          GoRoute(
+            path: '/admin/support',
+            pageBuilder: (_, __) => const NoTransitionPage(child: SupportTab()),
+          ),
+          GoRoute(
+            path: '/admin/system-control',
+            pageBuilder: (_, __) => const NoTransitionPage(child: SystemControlTab()),
+          ),
+          GoRoute(
+            path: '/admin/white-label',
+            pageBuilder: (_, __) => const NoTransitionPage(child: WhiteLabelScreen()),
+          ),
+          GoRoute(
+            path: '/admin/modules',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ModuleToggleScreen()),
+          ),
+          GoRoute(
+            path: '/admin/workflows',
+            pageBuilder: (_, __) => const NoTransitionPage(child: WorkflowsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/automations',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AutomationsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/permissions',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PermissionsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/real-time',
+            pageBuilder: (_, __) => const NoTransitionPage(child: RealTimeScreen()),
+          ),
+          GoRoute(
+            path: '/admin/insights',
+            pageBuilder: (_, __) => const NoTransitionPage(child: SmartInsightsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/groups',
+            pageBuilder: (_, __) => const NoTransitionPage(child: GroupsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/apis',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ApisScreen()),
+          ),
+          GoRoute(
+            path: '/admin/audit-log',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AuditLogScreen()),
+          ),
+          GoRoute(
+            path: '/admin/roles',
+            pageBuilder: (_, __) => const NoTransitionPage(child: RolesModulesScreen()),
+          ),
+          GoRoute(
+            path: '/admin/ai-ops',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AiOpsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/announcements',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AnnouncementsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/onboard',
+            pageBuilder: (_, __) => const NoTransitionPage(child: TenantOnboardScreen()),
+          ),
+          GoRoute(
+            path: '/admin/saas-plans',
+            pageBuilder: (_, __) => const NoTransitionPage(child: SaasPlansScreen()),
+          ),
+        ],
       ),
     ],
   );

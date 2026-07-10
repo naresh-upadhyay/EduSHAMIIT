@@ -1,4 +1,4 @@
-"""
+﻿"""
 Email Service - Handles sending emails via SMTP with retry logic and logging.
 """
 import smtplib
@@ -6,6 +6,7 @@ import logging
 import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.header import Header
 from typing import Optional, Dict, Any
 from app.config import settings
 
@@ -31,10 +32,11 @@ class EmailService:
         msg = MIMEMultipart('alternative')
         msg['From'] = self.email_from
         msg['To'] = to_email
-        msg['Subject'] = subject
+        # Encode subject as UTF-8 per RFC 2047 so special chars render correctly in all mail clients
+        msg['Subject'] = Header(subject, 'utf-8')
         
-        # Add HTML content
-        msg.attach(MIMEText(html_content, 'html'))
+        # Attach HTML with explicit utf-8 charset so body text renders correctly
+        msg.attach(MIMEText(html_content, 'html', 'utf-8'))
         
         return msg
     
@@ -525,6 +527,205 @@ class EmailService:
         subject = "EduSHAMIIT Secure Login Code"
         return self._send_email(to_email, subject, html_content)
 
+
+    def send_renewal_warning_email(
+        self,
+        to_email: str,
+        owner_name: str,
+        school_name: str,
+        expiry_date: str,
+        start_date: str = "N/A",
+        days_remaining: str = "N/A",
+        tier: str = "Premium",
+        status: str = "ACTIVE",
+        billing_label: str = "N/A",
+        max_students: int = 0,
+        mail_plan_code: str = "N/A",
+        mail_monthly_limit: int = 0,
+        mail_emails_sent: int = 0,
+    ) -> bool:
+        """Send an enterprise-grade subscription renewal warning email to the school owner."""
+        subject = f"[ACTION REQUIRED] Subscription Expiring Soon - {school_name}"
+
+        # Urgency color based on days remaining
+        try:
+            days_int = int(days_remaining)
+            urgency_color = "#ef4444" if days_int <= 30 else ("#f59e0b" if days_int <= 90 else "#10b981")
+        except Exception:
+            urgency_color = "#f59e0b"
+
+        # Mail usage percentage bar
+        mail_usage_pct = 0
+        try:
+            if mail_monthly_limit > 0:
+                mail_usage_pct = min(int((mail_emails_sent / mail_monthly_limit) * 100), 100)
+        except Exception:
+            pass
+        mail_bar_color = "#ef4444" if mail_usage_pct >= 80 else ("#f59e0b" if mail_usage_pct >= 50 else "#4f46e5")
+
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subscription Renewal Warning</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f0f2f5;font-family:'Segoe UI',Roboto,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f2f5;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="620" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+          <!-- HEADER -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#4f46e5 0%,#312e81 100%);padding:32px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <div style="font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:6px;">EduSHAMIIT SaaS Platform</div>
+                    <div style="font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Subscription Renewal Notice</div>
+                  </td>
+                  <td align="right">
+                    <span style="display:inline-block;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:#ffffff;letter-spacing:1px;">{status}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- ALERT BANNER -->
+          <tr>
+            <td style="background:#fffbeb;border-left:4px solid #f59e0b;padding:14px 40px;">
+              <p style="margin:0;font-size:13px;color:#92400e;">
+                <strong>Action Required:</strong>&nbsp; Your subscription for <strong>{school_name}</strong>
+                expires on <strong style="color:#b45309;">{expiry_date}</strong>.
+                There are <strong style="color:{urgency_color};">{days_remaining} day(s)</strong> remaining.
+                Renew now to avoid any service interruption.
+              </p>
+            </td>
+          </tr>
+
+          <!-- BODY -->
+          <tr>
+            <td style="padding:36px 40px 0 40px;">
+              <p style="margin:0 0 6px 0;font-size:16px;font-weight:600;color:#1e1b4b;">Dear {owner_name},</p>
+              <p style="margin:0 0 28px 0;font-size:14px;color:#475569;line-height:1.7;">
+                We are writing to inform you that the EduSHAMIIT subscription for your institution is
+                scheduled to expire soon. Please review your current plan details below and take action
+                to ensure uninterrupted access for your students, faculty, and administrative staff.
+              </p>
+
+              <!-- ERP SUBSCRIPTION SECTION -->
+              <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6366f1;margin-bottom:12px;">ERP Subscription Details</div>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+                <tr style="background:#f8fafc;">
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;width:42%;border-bottom:1px solid #e2e8f0;">Institution Name</td>
+                  <td style="padding:13px 20px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">{school_name}</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;border-bottom:1px solid #e2e8f0;">Subscription Tier</td>
+                  <td style="padding:13px 20px;font-size:13px;border-bottom:1px solid #e2e8f0;">
+                    <span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;">{tier}</span>
+                  </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;border-bottom:1px solid #e2e8f0;">Active Since</td>
+                  <td style="padding:13px 20px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">{start_date}</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;border-bottom:1px solid #e2e8f0;">Expiry Date</td>
+                  <td style="padding:13px 20px;font-size:13px;font-weight:700;border-bottom:1px solid #e2e8f0;">
+                    <span style="color:{urgency_color};">{expiry_date}</span>
+                    &nbsp;<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">{days_remaining} days left</span>
+                  </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;border-bottom:1px solid #e2e8f0;">Billing Rate</td>
+                  <td style="padding:13px 20px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">{billing_label}</td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;">Max Enrolled Students</td>
+                  <td style="padding:13px 20px;font-size:13px;color:#0f172a;font-weight:600;">{max_students:,} students</td>
+                </tr>
+              </table>
+
+              <!-- MAIL SUBSCRIPTION SECTION -->
+              <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#6366f1;margin-bottom:12px;">Transactional Mail Subscription</div>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+                <tr style="background:#f8fafc;">
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;width:42%;border-bottom:1px solid #e2e8f0;">Mail Plan</td>
+                  <td style="padding:13px 20px;font-size:13px;border-bottom:1px solid #e2e8f0;">
+                    <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;">{mail_plan_code}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;border-bottom:1px solid #e2e8f0;">Monthly Allowance</td>
+                  <td style="padding:13px 20px;font-size:13px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">{mail_monthly_limit:,} emails / month</td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                  <td style="padding:13px 20px;font-size:13px;color:#64748b;font-weight:500;">This Month's Usage</td>
+                  <td style="padding:13px 20px;">
+                    <div style="font-size:12px;color:#0f172a;font-weight:600;margin-bottom:6px;">{mail_emails_sent:,} / {mail_monthly_limit:,} &nbsp;({mail_usage_pct}% used)</div>
+                    <div style="background:#e2e8f0;border-radius:999px;height:6px;width:100%;max-width:240px;">
+                      <div style="background:{mail_bar_color};border-radius:999px;height:6px;width:{mail_usage_pct}%;"></div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- NEXT STEPS -->
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;margin-bottom:28px;">
+                <div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:8px;">Recommended Next Steps</div>
+                <ul style="margin:0;padding-left:18px;font-size:13px;color:#15803d;line-height:1.8;">
+                  <li>Log in to the EduSHAMIIT Admin Dashboard to renew your subscription.</li>
+                  <li>Choose from our Starter, Growth, or Enterprise plans for the best value.</li>
+                  <li>Contact our billing team if you need a custom quotation or invoice.</li>
+                </ul>
+              </div>
+
+              <!-- CTA -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:36px;">
+                <tr>
+                  <td align="center">
+                    <a href="http://localhost:50555/#/admin/schools"
+                       style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#312e81);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:8px;font-size:15px;font-weight:700;letter-spacing:0.5px;box-shadow:0 4px 14px rgba(79,70,229,0.35);">
+                      Renew Subscription Now
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top:10px;">
+                    <a href="mailto:support@edushamiit.com" style="font-size:12px;color:#6366f1;text-decoration:none;">Or contact billing support</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-size:11px;color:#94a3b8;line-height:1.6;">
+                    This is an automated notification from the <strong>EduSHAMIIT Billing &amp; Subscription System</strong>.<br/>
+                    You are receiving this because you are the registered owner of <strong>{school_name}</strong>.<br/>
+                    &copy; 2026 EduSHAMIIT Inc. &nbsp;|&nbsp;
+                    <a href="mailto:support@edushamiit.com" style="color:#6366f1;text-decoration:none;">support@edushamiit.com</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+        return self._send_email(to_email, subject, html_content)
 
 
 # Singleton instance

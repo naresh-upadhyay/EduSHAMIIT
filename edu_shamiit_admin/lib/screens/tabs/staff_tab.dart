@@ -75,22 +75,30 @@ class _StaffTabState extends ConsumerState<StaffTab> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final theme = Theme.of(context);
+            final isDark = theme.brightness == Brightness.dark;
+
             return AlertDialog(
-              backgroundColor: const Color(0xFF13182C),
+              backgroundColor: theme.colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Assign Classes to Teacher',
                     style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '$teacherName ($teacherEmail)',
-                    style:
-                        const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontFamily: 'Outfit'),
                   ),
                 ],
               ),
@@ -100,10 +108,14 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Select Classes:',
                       style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w500),
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Outfit',
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -119,10 +131,11 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                           labelStyle: TextStyle(
                             color: isSelected
                                 ? Colors.white
-                                : const Color(0xFF94A3B8),
+                                : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                             fontWeight: FontWeight.bold,
+                            fontSize: 12,
                           ),
-                          backgroundColor: const Color(0xFF0F1222),
+                          backgroundColor: isDark ? const Color(0xFF0F1222) : const Color(0xFFF1F5F9),
                           onSelected: (selected) {
                             setDialogState(() {
                               if (selected) {
@@ -140,10 +153,8 @@ class _StaffTabState extends ConsumerState<StaffTab> {
               ),
               actions: [
                 TextButton(
-                  onPressed:
-                      isSubmitting ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: Color(0xFF64748B))),
+                  onPressed: isSubmitting ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
                 ),
                 ElevatedButton(
                   onPressed: isSubmitting || selectedClasses.isEmpty
@@ -162,16 +173,14 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                                 Navigator.of(context).pop();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                      content: Text(
-                                          'Classes successfully assigned to teacher!')),
+                                      content: Text('Classes successfully assigned to teacher!')),
                                 );
                               }
                             } else {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(res['detail'] ??
-                                        'Failed to assign classes'),
+                                    content: Text(res['detail'] ?? 'Failed to assign classes'),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -194,18 +203,16 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
-                    disabledBackgroundColor:
-                        const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                    disabledBackgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: isSubmitting
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : const Text('Assign',
-                          style: TextStyle(color: Colors.white)),
+                      : const Text('Assign', style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -217,6 +224,9 @@ class _StaffTabState extends ConsumerState<StaffTab> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -225,16 +235,19 @@ class _StaffTabState extends ConsumerState<StaffTab> {
           // Header
           Text(
             'Staff Directory & Assignments',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Outfit',
-                ),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Outfit',
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'List teachers, view profile details, and assign class schedules dynamically.',
-            style: TextStyle(color: Color(0xFF94A3B8)),
+            style: TextStyle(
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              fontFamily: 'Outfit',
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -244,17 +257,18 @@ class _StaffTabState extends ConsumerState<StaffTab> {
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     hintText: 'Search staff by name...',
                     hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                    prefixIcon:
-                        const Icon(Icons.search, color: Color(0xFF94A3B8)),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
                     filled: true,
-                    fillColor: const Color(0xFF13182C),
+                    fillColor: theme.cardColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: isDark
+                          ? BorderSide.none
+                          : const BorderSide(color: Color(0xFFE2E8F0), width: 1),
                     ),
                   ),
                   onSubmitted: (_) => _fetchTeachers(),
@@ -266,8 +280,7 @@ class _StaffTabState extends ConsumerState<StaffTab> {
                 icon: const Icon(Icons.search),
                 label: const Text('Search'),
                 style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -284,82 +297,94 @@ class _StaffTabState extends ConsumerState<StaffTab> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage != null
-                    ? Center(
-                        child: Text(_errorMessage!,
-                            style: const TextStyle(color: Colors.red)))
+                    ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
                     : _teachers.isEmpty
                         ? const Center(
-                            child: Text('No teachers found',
-                                style: TextStyle(color: Color(0xFF94A3B8))))
+                            child: Text(
+                            'No teachers found',
+                            style: TextStyle(color: Color(0xFF94A3B8)),
+                          ))
                         : ListView.builder(
                             itemCount: _teachers.length,
                             itemBuilder: (context, index) {
-                              final teacher =
-                                  _teachers[index] as Map<String, dynamic>;
+                              final teacher = _teachers[index] as Map<String, dynamic>;
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 16),
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF13182C),
+                                  color: theme.cardColor,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.05)),
+                                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                                  ),
+                                  boxShadow: [
+                                    if (!isDark)
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.04),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                  ],
                                 ),
                                 child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundImage:
-                                              teacher['avatar_url'] != null
-                                                  ? NetworkImage(
-                                                      teacher['avatar_url'])
-                                                  : null,
-                                          backgroundColor:
-                                              const Color(0xFF4F46E5)
-                                                  .withValues(alpha: 0.1),
-                                          child: teacher['avatar_url'] == null
-                                              ? const Icon(Icons.person,
-                                                  color: Color(0xFF4F46E5))
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              teacher['full_name'] ?? 'No Name',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                              ),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            backgroundImage: teacher['avatar_url'] != null &&
+                                                    (teacher['avatar_url'].toString().startsWith('http://') ||
+                                                     teacher['avatar_url'].toString().startsWith('https://'))
+                                                ? NetworkImage(teacher['avatar_url'])
+                                                : null,
+                                            backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                                            child: teacher['avatar_url'] == null ||
+                                                    (!teacher['avatar_url'].toString().startsWith('http://') &&
+                                                     !teacher['avatar_url'].toString().startsWith('https://'))
+                                                ? const Icon(Icons.person, color: Color(0xFF4F46E5))
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  teacher['full_name'] ?? 'No Name',
+                                                  style: TextStyle(
+                                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                    fontFamily: 'Outfit',
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${teacher['email']}  •  ${teacher['specialization'] ?? 'General Specialist'}',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF64748B),
+                                                    fontSize: 11,
+                                                    fontFamily: 'Outfit',
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${teacher['email']}  •  ${teacher['specialization'] ?? 'General Specialist'}',
-                                              style: const TextStyle(
-                                                  color: Color(0xFF94A3B8),
-                                                  fontSize: 13),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 12),
                                     ElevatedButton.icon(
-                                      onPressed: () =>
-                                          _showAssignClassesDialog(teacher),
-                                      icon: const Icon(Icons.add_task_rounded,
-                                          size: 18),
-                                      label: const Text('Assign Classes'),
+                                      onPressed: () => _showAssignClassesDialog(teacher),
+                                      icon: const Icon(Icons.add_task_rounded, size: 16),
+                                      label: const Text('Assign Classes', style: TextStyle(fontSize: 11)),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF4F46E5),
+                                        backgroundColor: const Color(0xFF4F46E5),
                                         foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                     ),
                                   ],

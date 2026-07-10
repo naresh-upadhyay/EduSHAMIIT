@@ -12,9 +12,14 @@ void main() async {
   // Initialize Cache Service
   await CacheService().init();
 
+  final container = ProviderContainer();
+  // Await auth restoration before the app UI starts
+  await container.read(authProvider.notifier).initialize();
+
   runApp(
-    const ProviderScope(
-      child: EduShamiitAdminApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const EduShamiitAdminApp(),
     ),
   );
 }
@@ -31,8 +36,8 @@ class EduShamiitAdminApp extends ConsumerWidget {
       title: 'EduSHAMIIT Admin Suite',
       debugShowCheckedModeBanner: false,
       themeMode: (settings.settings?.darkMode ?? false) ? ThemeMode.dark : ThemeMode.light,
-      theme: getTeacherTheme(brightness: Brightness.light),
-      darkTheme: getTeacherTheme(brightness: Brightness.dark),
+      theme: getStudentTheme(brightness: Brightness.light),
+      darkTheme: getStudentTheme(brightness: Brightness.dark),
       routerConfig: router,
     );
   }
