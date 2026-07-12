@@ -17,6 +17,274 @@ vault_router = APIRouter()
 require_super_admin_or_director = require_any_role("super_admin", "director")
 
 # ===========================================================
+# Roles CRUD Schemas & Endpoints
+# ===========================================================
+from pydantic import BaseModel
+
+class RoleCreateRequest(BaseModel):
+    name: str
+    code: Optional[str] = None
+    description: Optional[str] = None
+    permissions: List[str] = []
+    draft_permissions: Optional[List[str]] = None
+    status: Optional[str] = "Active"
+
+class RoleUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+    permissions: Optional[List[str]] = None
+    draft_permissions: Optional[List[str]] = None
+    status: Optional[str] = None
+
+def count_allowed_permissions(perms_list: list) -> int:
+    if not perms_list:
+        return 0
+    count = 0
+    for p in perms_list:
+        p_str = str(p)
+        if ":" in p_str and p_str.endswith(":allow"):
+            count += 1
+    return count
+
+def check_pending_publish(perms: list, draft: list) -> bool:
+    if not draft:
+        return False
+    p_set = set(str(x) for x in perms if ":" in str(x))
+    d_set = set(str(x) for x in draft if ":" in str(x))
+    return p_set != d_set
+
+def augment_role_metadata(role: dict) -> dict:
+    if role.get("name") == "super_admin":
+        role["permissions_count"] = 108
+        role["draft_permissions_count"] = 108
+        role["has_pending_publish"] = False
+    else:
+        perms = role.get("permissions") or []
+        draft = role.get("draft_permissions") or []
+        role["permissions_count"] = count_allowed_permissions(perms)
+        role["draft_permissions_count"] = count_allowed_permissions(draft)
+        role["has_pending_publish"] = check_pending_publish(perms, draft)
+    return role
+
+@router.get("/roles")
+async def list_roles(
+    user=Depends(require_super_admin_or_director),
+):
+    """List all application roles and calculate dynamic user counts per role."""
+    sb = get_supabase()
+    
+    # 1. Fetch roles
+    roles_res = await sb.table("app_roles").select("*").order("name").aexecute()
+    roles = roles_res.data or []
+    
+    # 2. Get user counts per role dynamically from profiles table
+    try:
+        profiles_res = await sb.table("profiles").select("role").aexecute()
+        profiles = profiles_res.data or []
+        
+        role_counts = {}
+        for p in profiles:
+            role_name = p.get("role")
+            if role_name:
+                role_counts[role_name] = role_counts.get(role_name, 0) + 1
+                
+        for r in roles:
+            r["user_count"] = role_counts.get(r["name"], 0)
+            augment_role_metadata(r)
+    except Exception as e:
+        print(f"Error fetching role user counts: {e}", flush=True)
+        for r in roles:
+            r["user_count"] = 0
+            augment_role_metadata(r)
+            
+    # All system permissions that can be assigned
+    system_permissions = [
+        "view_courses",
+        "submit_assignments",
+        "view_grades",
+        "view_attendance",
+        "grade_assignments",
+        "manage_classes",
+        "manage_users",
+        "view_reports",
+        "manage_admissions",
+        "manage_infra",
+        "manage_roles",
+        "manage_finance",
+        "manage_staff",
+        "manage_payroll",
+        "manage_transport",
+        "manage_library",
+        "view_logs",
+        "manage_sports",
+        "manage_support",
+        "manage_hostel",
+        "manage_exams"
+    ]
+            
+    return {
+        "success": True,
+        "data": roles,
+        "system_permissions": system_permissions
+    }
+
+@router.post("/roles")
+async def create_role(
+    req: RoleCreateRequest,
+    user=Depends(require_super_admin_or_director),
+):
+    """Create a new custom user role."""
+    sb = get_supabase()
+    
+    role_name = req.name.strip()
+    if not role_name:
+        raise HTTPException(status_code=400, detail="Role name cannot be empty")
+        
+    # Check if role name already exists (case-insensitive check)
+    exists = await sb.table("app_roles").select("id").ilike("name", role_name).aexecute()
+    if exists.data:
+        raise HTTPException(status_code=400, detail=f"Role with name '{role_name}' already exists")
+        
+    role_code = req.code.strip() if req.code else f"ROLE_{role_name.upper().replace(' ', '_')}"
+    # Check if role code already exists
+    code_exists = await sb.table("app_roles").select("id").eq("code", role_code).aexecute()
+    if code_exists.data:
+        raise HTTPException(status_code=400, detail=f"Role with code '{role_code}' already exists")
+        
+    # Insert new role
+    payload = {
+        "name": role_name,
+        "code": role_code,
+        "description": req.description,
+        "permissions": req.permissions,
+        "draft_permissions": req.draft_permissions or req.permissions or [],
+        "is_custom": True,
+        "status": req.status or "Active"
+    }
+    
+    res = await sb.table("app_roles").insert(payload).aexecute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to create role")
+        
+    res_data = augment_role_metadata(res.data[0])
+    return {"success": True, "data": res_data}
+
+@router.put("/roles/{role_id}")
+async def update_role(
+    role_id: str,
+    req: RoleUpdateRequest,
+    user=Depends(require_super_admin_or_director),
+):
+    """Update custom or system role details."""
+    sb = get_supabase()
+    
+    # 1. Fetch current role
+    role_res = await sb.table("app_roles").select("*").eq("id", role_id).aexecute()
+    if not role_res.data:
+        raise HTTPException(status_code=404, detail="Role not found")
+        
+    curr_role = role_res.data[0]
+    
+    payload = {}
+    # Prevent changing name or code of core system roles (is_custom = False)
+    if not curr_role["is_custom"]:
+        if req.name and req.name.strip() != curr_role["name"]:
+            raise HTTPException(status_code=400, detail="Cannot rename built-in system roles")
+        if req.code and req.code.strip() != curr_role["code"]:
+            raise HTTPException(status_code=400, detail="Cannot modify built-in system role codes")
+    else:
+        if req.name:
+            new_name = req.name.strip()
+            if new_name != curr_role["name"]:
+                # Ensure new name is unique
+                exists = await sb.table("app_roles").select("id").ilike("name", new_name).aexecute()
+                if exists.data:
+                    raise HTTPException(status_code=400, detail=f"Role with name '{new_name}' already exists")
+                payload["name"] = new_name
+        if req.code:
+            new_code = req.code.strip()
+            if new_code != curr_role["code"]:
+                # Ensure new code is unique
+                exists = await sb.table("app_roles").select("id").eq("code", new_code).aexecute()
+                if exists.data:
+                    raise HTTPException(status_code=400, detail=f"Role with code '{new_code}' already exists")
+                payload["code"] = new_code
+
+    if req.permissions is not None:
+        payload["permissions"] = req.permissions
+    if req.draft_permissions is not None:
+        payload["draft_permissions"] = req.draft_permissions
+    if req.description is not None:
+        payload["description"] = req.description
+    if req.status is not None:
+        payload["status"] = req.status
+        
+    if not payload:
+        return {"success": True, "data": augment_role_metadata(curr_role)}
+        
+    res = await sb.table("app_roles").update(payload).eq("id", role_id).aexecute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to update role")
+        
+    res_data = augment_role_metadata(res.data[0])
+    return {"success": True, "data": res_data}
+
+@router.post("/roles/{role_id}/publish")
+async def publish_role_permissions(
+    role_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Publish draft permissions to active permissions."""
+    sb = get_supabase()
+    
+    # 1. Fetch current role
+    role_res = await sb.table("app_roles").select("*").eq("id", role_id).aexecute()
+    if not role_res.data:
+        raise HTTPException(status_code=404, detail="Role not found")
+        
+    curr_role = role_res.data[0]
+    draft_perms = curr_role.get("draft_permissions") or []
+    
+    # 2. Update permissions to match draft_permissions
+    res = await sb.table("app_roles").update({
+        "permissions": draft_perms
+    }).eq("id", role_id).aexecute()
+    
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to publish permissions")
+        
+    res_data = augment_role_metadata(res.data[0])
+    return {"success": True, "data": res_data}
+
+@router.delete("/roles/{role_id}")
+async def delete_role(
+    role_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Delete a custom user role."""
+    sb = get_supabase()
+    
+    # 1. Fetch current role
+    role_res = await sb.table("app_roles").select("*").eq("id", role_id).aexecute()
+    if not role_res.data:
+        raise HTTPException(status_code=404, detail="Role not found")
+        
+    curr_role = role_res.data[0]
+    
+    # Block deleting built-in roles
+    if not curr_role["is_custom"]:
+        raise HTTPException(status_code=400, detail="Cannot delete built-in core system roles")
+        
+    # Check if any user is currently assigned this role
+    users_with_role = await sb.table("profiles").select("id").eq("role", curr_role["name"]).aexecute()
+    if users_with_role.data:
+        raise HTTPException(status_code=400, detail=f"Cannot delete role '{curr_role['name']}' as it is currently assigned to users")
+        
+    await sb.table("app_roles").delete().eq("id", role_id).aexecute()
+    return {"success": True, "message": f"Role '{curr_role['name']}' deleted successfully"}
+
+# ===========================================================
 # Schools CRUD
 # ===========================================================
 

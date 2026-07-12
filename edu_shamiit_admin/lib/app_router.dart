@@ -8,6 +8,7 @@ import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/infra/infra_monitor_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/config/system_config_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/roles/admin_roles_screen.dart';
 import 'package:edu_shamiit_admin/screens/tabs/finance_tab.dart';
 import 'package:edu_shamiit_admin/screens/tabs/defaulters_tab.dart';
 import 'package:edu_shamiit_admin/screens/tabs/staff_tab.dart';
@@ -106,6 +107,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/config',
             pageBuilder: (_, __) => const NoTransitionPage(child: AdminSystemConfigScreen()),
+          ),
+          GoRoute(
+            path: '/admin/roles',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AdminRolesScreen()),
           ),
           // Sub-routes for the operational tabs
           GoRoute(

@@ -58,6 +58,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/infra',
         section: NavSection.core),
     _NavItem(
+        icon: Icons.admin_panel_settings_outlined,
+        label: 'Manage Roles',
+        route: '/admin/roles',
+        section: NavSection.core),
+    _NavItem(
         icon: Icons.settings_outlined,
         label: 'System Config',
         route: '/admin/config',
