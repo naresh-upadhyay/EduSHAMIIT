@@ -2,8 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+import time
+import asyncio
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, schools_admin
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin
 
 
 @asynccontextmanager
@@ -44,6 +46,59 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+async def log_api_request_to_db(path: str, method: str, status_code: int, response_time_ms: float, ip_address: str, user_id: str = None):
+    try:
+        from app.services.supabase_client import get_supabase
+        sb = get_supabase()
+        await sb.table("api_request_logs").insert({
+            "path": path,
+            "method": method,
+            "status_code": status_code,
+            "response_time_ms": response_time_ms,
+            "ip_address": ip_address,
+            "user_id": user_id
+        }).aexecute()
+    except Exception as e:
+        print(f"[API Gateway Logging] Failed to save log: {e}", flush=True)
+
+@app.middleware("http")
+async def api_gateway_logging_middleware(request: Request, call_next):
+    path = request.url.path
+    if not path.startswith("/api/"):
+        return await call_next(request)
+        
+    if "gateway" in path:
+        return await call_next(request)
+
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        status_code = response.status_code if hasattr(response, "status_code") else 200
+        return response
+    except Exception as e:
+        status_code = 500
+        raise e
+    finally:
+        process_time = (time.time() - start_time) * 1000.0
+        ip_address = request.client.host if request.client else "unknown"
+        user_id = None
+        try:
+            from app.middleware.auth import get_current_user_optional
+            user = await get_current_user_optional(request)
+            if user:
+                user_id = user.get("id")
+        except Exception:
+            pass
+            
+        asyncio.create_task(log_api_request_to_db(
+            path=path,
+            method=request.method,
+            status_code=status_code,
+            response_time_ms=process_time,
+            ip_address=ip_address,
+            user_id=user_id
+        ))
 
 @app.middleware("http")
 async def add_request_host_middleware(request: Request, call_next):
@@ -234,8 +289,8 @@ app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(students_admin.router, prefix="/api/admin/students", tags=["Student Admin"])
 app.include_router(teachers_admin.router, prefix="/api/admin/teachers", tags=["Teacher Admin"])
-app.include_router(schools_admin.router, prefix="/api/admin/schools", tags=["Schools Admin"])
-app.include_router(schools_admin.vault_router, prefix="/api/admin", tags=["Vault Admin"])
+app.include_router(superadmin.router, prefix="/api/admin/schools", tags=["Schools Admin"])
+app.include_router(superadmin.vault_router, prefix="/api/admin", tags=["Vault Admin"])
 app.include_router(calls.router, prefix="/api", tags=["Calls"])
 app.include_router(live_classes.router, prefix="/api", tags=["Live Classes"])
 

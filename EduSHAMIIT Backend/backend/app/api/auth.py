@@ -175,9 +175,11 @@ async def login(request: LoginRequest):
             "principal", "finance", "hr", "transport", "library", "security", 
             "sports", "support", "driver", "hostel", "exam_ctrl"
         }
-        req_role = request.role.lower()
-        profile_role = p["role"].lower()
-        roles_match = (req_role == profile_role) or (req_role in admin_roles and profile_role in admin_roles)
+        req_role = request.role.lower() if request.role else None
+        profile_role = p["role"].lower() if p.get("role") else ""
+        roles_match = True
+        if req_role:
+            roles_match = (req_role == profile_role) or (req_role in admin_roles and profile_role in admin_roles)
 
         if request.role and not roles_match:
             raise HTTPException(

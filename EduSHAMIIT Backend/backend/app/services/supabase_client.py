@@ -473,7 +473,7 @@ class TableQuery:
             else:
                 response = client.get(url, headers=headers, params=params)
 
-        if response.status_code not in (200, 201, 204):
+        if response.status_code not in (200, 201, 204, 206):
             raise Exception(f"Operation failed: {response.text}")
 
         data = response.json() if response.status_code != 204 else []
@@ -495,7 +495,7 @@ class TableQuery:
         else:
             response = await client.get(url, headers=headers, params=params)
 
-        if response.status_code not in (200, 201, 204):
+        if response.status_code not in (200, 201, 204, 206):
             raise Exception(f"Operation failed: {response.text}")
 
         data = response.json() if response.status_code != 204 else []

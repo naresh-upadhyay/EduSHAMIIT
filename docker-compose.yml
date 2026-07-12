@@ -505,6 +505,7 @@ services:
     volumes:
       - "./EduSHAMIIT Backend/backend/app:/app/app"
       - "./volumes/assets:/app/assets"
+      - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - edushamiit-net
 

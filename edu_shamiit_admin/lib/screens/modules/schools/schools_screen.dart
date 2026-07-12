@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminSchoolsScreen extends StatefulWidget {
   const AdminSchoolsScreen({super.key});

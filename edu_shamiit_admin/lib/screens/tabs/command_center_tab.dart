@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
 class CommandCenterTab extends StatelessWidget {
   const CommandCenterTab({super.key});
