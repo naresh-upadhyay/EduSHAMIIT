@@ -11,6 +11,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     print("EduSHAMIIT API starting up...")
     print("AI Assistant: Shami")
+    
+    # Synchronize Supabase Vault secrets into environment variables and start scheduler
+    try:
+        from app.services.supabase_client import start_vault_sync_scheduler
+        import asyncio
+        asyncio.create_task(start_vault_sync_scheduler(15))
+    except Exception as e:
+        print(f"[Lifespan] Failed to start vault sync scheduler: {e}", flush=True)
+
     try:
         from app.services.minio_client import minio_client, cleanup_orphaned_recordings_from_storage
         minio_client.ensure_bucket_and_public_policy()
@@ -49,6 +58,68 @@ async def add_request_host_middleware(request: Request, call_next):
     finally:
         reset_request_host(token)
     return response
+
+@app.middleware("http")
+async def enforce_modules_middleware(request: Request, call_next):
+    path = request.url.path
+    if not path.startswith("/api/"):
+        return await call_next(request)
+
+    # Exclude open/unauthenticated endpoints and modules config endpoints
+    if any(p in path for p in ["/api/auth", "/health", "/api/admin/schools/modules/all"]):
+        return await call_next(request)
+
+    try:
+        from app.services.supabase_client import get_supabase
+        from fastapi.responses import JSONResponse
+        
+        sb = get_supabase()
+        
+        # Fetch enabled modules
+        modules_res = await sb.table("modules").select("id, endpoints, is_enabled").aexecute()
+        modules = modules_res.data or []
+
+        # Find if global module is disabled
+        disabled_endpoints = []
+        for m in modules:
+            if not m.get("is_enabled", True):
+                endpoints = m.get("endpoints", [])
+                if isinstance(endpoints, list):
+                    disabled_endpoints.extend(endpoints)
+
+        for pattern in disabled_endpoints:
+            clean_pattern = pattern.rstrip("/")
+            if path == clean_pattern or path.startswith(clean_pattern + "/"):
+                return JSONResponse(
+                    status_code=403,
+                    content={"success": False, "detail": "Access Denied: This feature's module is currently disabled globally by Super Admin."}
+                )
+
+        # Check if disabled for the specific school
+        from app.middleware.auth import get_current_user_optional
+        user = await get_current_user_optional(request)
+        if user and user.get("school_id"):
+            school_id = user.get("school_id")
+            school_res = await sb.table("schools").select("module_toggles").eq("id", school_id).single().aexecute()
+            school_data = school_res.data
+            if school_data:
+                module_toggles = school_data.get("module_toggles") or {}
+                for m in modules:
+                    mod_id = m.get("id")
+                    if module_toggles.get(mod_id) is False:
+                        endpoints = m.get("endpoints", [])
+                        if isinstance(endpoints, list):
+                            for pattern in endpoints:
+                                clean_pattern = pattern.rstrip("/")
+                                if path == clean_pattern or path.startswith(clean_pattern + "/"):
+                                    return JSONResponse(
+                                        status_code=403,
+                                        content={"success": False, "detail": "Access Denied: This feature is not enabled for your school."}
+                                    )
+    except Exception as e:
+        print(f"Error in enforce_modules_middleware: {e}", flush=True)
+
+    return await call_next(request)
 
 import traceback
 from fastapi import Request, HTTPException
@@ -164,6 +235,7 @@ app.include_router(documents.router, prefix="/api/documents", tags=["Documents"]
 app.include_router(students_admin.router, prefix="/api/admin/students", tags=["Student Admin"])
 app.include_router(teachers_admin.router, prefix="/api/admin/teachers", tags=["Teacher Admin"])
 app.include_router(schools_admin.router, prefix="/api/admin/schools", tags=["Schools Admin"])
+app.include_router(schools_admin.vault_router, prefix="/api/admin", tags=["Vault Admin"])
 app.include_router(calls.router, prefix="/api", tags=["Calls"])
 app.include_router(live_classes.router, prefix="/api", tags=["Live Classes"])
 

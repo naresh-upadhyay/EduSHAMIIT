@@ -131,6 +131,24 @@ class AdminInfraMonitorScreen extends StatelessWidget {
             _buildServiceItem(context, 'LiveKit Media Gateway', '99.8% Uptime', 'Healthy', const Color(0xFF10B981)),
 
             const SizedBox(height: 24),
+
+            // Network Ping Telemetry Feed
+            Text(
+              'Network Ping Telemetry Feed',
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Outfit',
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildServiceItem(context, 'Noida Primary DB Node', '12ms Ping', 'Healthy', const Color(0xFF10B981)),
+            _buildServiceItem(context, 'Delhi Cluster Replica', '18ms Ping', 'Healthy', const Color(0xFF10B981)),
+            _buildServiceItem(context, 'White Label DNS Router', '45ms Ping', 'Healthy', const Color(0xFF10B981)),
+            _buildServiceItem(context, 'Biometric Sync Webhook', '540ms Ping', 'Slow Response', const Color(0xFFF59E0B)),
+
+            const SizedBox(height: 24),
             // Live Server Log
             Text(
               'Live System Logs',

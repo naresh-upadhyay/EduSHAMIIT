@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from app.services.supabase_client import get_supabase
 from app.services.email_service import get_email_service
 from app.config import settings
@@ -19,6 +19,7 @@ import uuid
 import random
 import logging
 import re
+from app.middleware.auth import get_current_user
 
 router = APIRouter()
 
@@ -260,15 +261,46 @@ async def register(request: RegisterRequest):
         if existing.data:
             raise Exception("Email already exists")
 
+        # Except superadmin, check that school is present and not suspended
+        is_superadmin = request.role.lower() == "super_admin"
+        
+        if not is_superadmin:
+            if not request.school_id:
+                raise Exception("School/Institution is required for non-superadmin roles")
+            school_res = await sb.table("schools").select("subscription_status").eq("id", request.school_id).maybe_single().aexecute()
+            if not school_res.data:
+                raise Exception("The specified school/institute does not exist")
+            if school_res.data.get("subscription_status") == "suspended":
+                raise Exception("Cannot create user: The school/institute is suspended")
+
         auth_response = await sb.auth().admin_create_user({
             "email": request.email,
             "password": request.password,
+            "app_metadata": {
+                "role": request.role
+            }
         })
+
+        # Generate role-specific prefix
+        role_lower = request.role.lower()
+        if "student" in role_lower:
+            prefix = "STU"
+        elif "teacher" in role_lower:
+            prefix = "TEA"
+        elif "super" in role_lower:
+            prefix = "SUP"
+        elif "admin" in role_lower:
+            prefix = "ADM"
+        elif role_lower in ["principal", "director"]:
+            prefix = "MGT"
+        else:
+            prefix = role_lower[:3].upper()
+        generated_user_id = f"{prefix}-{uuid.uuid4().hex[:6].upper()}"
 
         await sb.table("profiles").insert({
             "id": auth_response.user.id,
-            "school_id": request.school_id,
-            "user_id": f"STU-{uuid.uuid4().hex[:6].upper()}",
+            "school_id": request.school_id if not is_superadmin else None,
+            "user_id": generated_user_id,
             "full_name": request.full_name,
             "email": request.email,
             "role": request.role,
@@ -963,6 +995,430 @@ async def verify_login_otp(request: VerifyLoginOtpRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to verify login OTP: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────
+# ADMIN USER DIRECTORY CRUD
+# ──────────────────────────────────────────────────────────────
+
+class UpdateUserRequest(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    school_id: Optional[str] = None
+    class_name: Optional[str] = None
+    password: Optional[str] = None
+
+
+@router.get("/users",
+    summary="List All Users",
+    description="Retrieve all profiles with optional search and filters. Restricted by school for non-super_admins."
+)
+async def list_users(
+    q: Optional[str] = None,
+    role: Optional[str] = None,
+    school_id: Optional[str] = None,
+    user=Depends(get_current_user)
+):
+    try:
+        sb = get_supabase()
+        
+        # We start by querying the profiles table and joining the schools table to fetch school name and subscription status.
+        query = sb.table("profiles").select("*, schools(name, subscription_status)")
+        
+        caller_role = user.get("role", "").lower()
+        if caller_role != "super_admin":
+            caller_school_id = user.get("school_id")
+            if not caller_school_id:
+                raise HTTPException(status_code=403, detail="Access denied: No school ID associated with your account")
+            query = query.eq("school_id", caller_school_id)
+        else:
+            if school_id:
+                query = query.eq("school_id", school_id)
+                
+        if role and role != "All":
+            query = query.eq("role", role)
+            
+        if q and q.strip():
+            search_str = q.strip()
+            query = query.or_(f"full_name.ilike.%{search_str}%,email.ilike.%{search_str}%,user_id.ilike.%{search_str}%")
+            
+        res = await query.order("created_at", ascending=False).aexecute()
+        users = res.data or []
+        
+        # Format the joined school data
+        formatted_users = []
+        for u in users:
+            school_obj = u.pop("schools", None)
+            if school_obj:
+                u["school_name"] = school_obj.get("name")
+                u["school_status"] = school_obj.get("subscription_status")
+            else:
+                u["school_name"] = "System-wide" if u["role"] == "super_admin" else "Unknown"
+                u["school_status"] = None
+            formatted_users.append(u)
+            
+        return {"success": True, "data": formatted_users}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch users: {str(e)}")
+
+
+@router.put("/users/{user_id}",
+    summary="Update User Profile",
+    description="Update user profile fields and optionally their authentication credentials."
+)
+async def update_user(
+    user_id: str,
+    request: UpdateUserRequest,
+    user=Depends(get_current_user)
+):
+    try:
+        sb = get_supabase()
+        
+        # Check if profile exists
+        profile_res = await sb.table("profiles").select("*").eq("id", user_id).maybe_single().aexecute()
+        if not profile_res.data:
+            raise HTTPException(status_code=404, detail="User profile not found")
+            
+        current_profile = profile_res.data
+        
+        # Permission check
+        caller_role = user.get("role", "").lower()
+        if caller_role != "super_admin":
+            if current_profile.get("school_id") != user.get("school_id"):
+                raise HTTPException(status_code=403, detail="Access denied: Cannot update user from another school")
+                
+        # Prepare profile updates
+        update_data = {}
+        if request.full_name is not None:
+            update_data["full_name"] = request.full_name
+        if request.class_name is not None:
+            update_data["class"] = request.class_name
+            
+        new_role = request.role or current_profile.get("role")
+        new_school_id = request.school_id or current_profile.get("school_id")
+        
+        if request.role is not None:
+            update_data["role"] = request.role
+            
+        if request.school_id is not None:
+            update_data["school_id"] = request.school_id if new_role.lower() != "super_admin" else None
+            new_school_id = update_data["school_id"]
+            
+        # Check school suspension status if role is not superadmin
+        if new_role.lower() != "super_admin":
+            if not new_school_id:
+                raise HTTPException(status_code=400, detail="School ID is required for non-superadmin roles")
+            school_res = await sb.table("schools").select("subscription_status").eq("id", new_school_id).maybe_single().aexecute()
+            if not school_res.data:
+                raise HTTPException(status_code=400, detail="The specified school/institute does not exist")
+            if school_res.data.get("subscription_status") == "suspended":
+                raise HTTPException(status_code=400, detail="Cannot update user: The school/institute is suspended")
+                
+        # Check if email is changing
+        email_changed = False
+        if request.email and request.email.lower() != current_profile.get("email", "").lower():
+            existing = await sb.table("profiles").select("id").eq("email", request.email).neq("id", user_id).maybe_single().aexecute()
+            if existing.data:
+                raise HTTPException(status_code=400, detail="Email already exists in another profile")
+            update_data["email"] = request.email
+            email_changed = True
+            
+        # Update Supabase Auth if role, email or password changes
+        if request.role is not None or email_changed or request.password:
+            try:
+                client = await sb.get_async_client()
+                admin_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+                headers = {
+                    "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                    "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                    "Content-Type": "application/json"
+                }
+                json_payload = {}
+                if email_changed:
+                    json_payload["email"] = request.email
+                if request.password:
+                    json_payload["password"] = request.password
+                if request.role is not None:
+                    json_payload["app_metadata"] = {
+                        "role": request.role
+                    }
+                    
+                auth_res = await client.put(admin_url, headers=headers, json=json_payload, timeout=10.0)
+                if auth_res.status_code != 200:
+                    raise Exception(auth_res.json().get("message", "Auth update failed"))
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to update authentication details: {str(e)}")
+                
+        # Save profile update in database
+        if update_data:
+            update_data["updated_at"] = datetime.utcnow().isoformat()
+            await sb.table("profiles").update(update_data).eq("id", user_id).aexecute()
+            
+        return {"success": True, "message": "User updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update user: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────
+# BULK IMPORT ENDPOINT
+# ──────────────────────────────────────────────────────────────
+
+class BulkImportUser(BaseModel):
+    full_name: str
+    email: str
+    phone: Optional[str] = None
+    password: str
+    class_name: Optional[str] = None
+
+
+class BulkImportRequest(BaseModel):
+    school_id: Optional[str] = None
+    role: str
+    users: List[BulkImportUser]
+
+
+@router.post("/bulk-import",
+    summary="Bulk Import Users",
+    description="Import a list of users under a specific role and school. Validates school presence and suspension."
+)
+async def bulk_import_users(
+    request: BulkImportRequest,
+    user=Depends(get_current_user)
+):
+    try:
+        # Verify permission (only super_admin or admin can import)
+        caller_role = user.get("role", "").lower()
+        if caller_role != "super_admin" and request.school_id != user.get("school_id"):
+            raise HTTPException(status_code=403, detail="Access denied: Cannot import users to another school")
+            
+        sb = get_supabase()
+        
+        # 1. Validation (suspension check)
+        is_superadmin = request.role.lower() == "super_admin"
+        if not is_superadmin:
+            if not request.school_id:
+                raise HTTPException(status_code=400, detail="School ID is required for non-superadmin users")
+            school_res = await sb.table("schools").select("subscription_status").eq("id", request.school_id).maybe_single().aexecute()
+            if not school_res.data:
+                raise HTTPException(status_code=400, detail="The specified school does not exist")
+            if school_res.data.get("subscription_status") == "suspended":
+                raise HTTPException(status_code=400, detail="Cannot import users: The selected school/institute is suspended")
+                
+        success_count = 0
+        errors = []
+        
+        for u in request.users:
+            try:
+                email = u.email.strip()
+                # Basic validation
+                if not email or "@" not in email:
+                    errors.append({"email": email, "error": "Invalid email address format"})
+                    continue
+                if len(u.password) < 8:
+                    errors.append({"email": email, "error": "Password must be at least 8 characters long"})
+                    continue
+                    
+                # Check existing email in profiles
+                existing = await sb.table("profiles").select("id").eq("email", email).maybe_single().aexecute()
+                if existing.data:
+                    errors.append({"email": email, "error": "Email already exists"})
+                    continue
+                    
+                # Create in auth
+                auth_response = await sb.auth().admin_create_user({
+                    "email": email,
+                    "password": u.password,
+                    "app_metadata": {
+                        "role": request.role
+                    }
+                })
+                
+                # Generate role-specific prefix
+                role_lower = request.role.lower()
+                if "student" in role_lower:
+                    prefix = "STU"
+                elif "teacher" in role_lower:
+                    prefix = "TEA"
+                elif "super" in role_lower:
+                    prefix = "SUP"
+                elif "admin" in role_lower:
+                    prefix = "ADM"
+                elif role_lower in ["principal", "director"]:
+                    prefix = "MGT"
+                else:
+                    prefix = role_lower[:3].upper()
+                generated_user_id = f"{prefix}-{uuid.uuid4().hex[:6].upper()}"
+                
+                # Insert profile
+                await sb.table("profiles").insert({
+                    "id": auth_response.user.id,
+                    "school_id": request.school_id if not is_superadmin else None,
+                    "user_id": generated_user_id,
+                    "full_name": u.full_name,
+                    "email": email,
+                    "role": request.role,
+                    "class": u.class_name,
+                    "phone": u.phone,
+                }).aexecute()
+                
+                success_count += 1
+            except Exception as e:
+                errors.append({"email": u.email, "error": str(e)})
+                
+        return {
+            "success": True,
+            "imported": success_count,
+            "failed": len(errors),
+            "errors": errors
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process bulk import: {str(e)}")
+
+
+# ──────────────────────────────────────────────────────────────
+# BULK UPDATE AND DELETE ENDPOINTS
+# ──────────────────────────────────────────────────────────────
+
+class BulkUpdateRequest(BaseModel):
+    user_ids: List[str]
+    school_id: Optional[str] = None
+    role: Optional[str] = None
+
+
+class BulkDeleteRequest(BaseModel):
+    user_ids: List[str]
+
+
+@router.post("/bulk-update",
+    summary="Bulk Update Users",
+    description="Bulk update users' schools or roles. Restricts access to super_admin."
+)
+async def bulk_update_users(
+    request: BulkUpdateRequest,
+    user=Depends(get_current_user)
+):
+    try:
+        caller_role = user.get("role", "").lower()
+        if caller_role != "super_admin":
+            raise HTTPException(status_code=403, detail="Access denied: Only super_admin can perform bulk updates")
+            
+        sb = get_supabase()
+        
+        # If school_id is provided, validate school is not suspended
+        if request.school_id:
+            school_res = await sb.table("schools").select("subscription_status").eq("id", request.school_id).maybe_single().aexecute()
+            if not school_res.data:
+                raise HTTPException(status_code=400, detail="The specified school/institute does not exist")
+            if school_res.data.get("subscription_status") == "suspended":
+                raise HTTPException(status_code=400, detail="Cannot update users: The selected school/institute is suspended")
+                
+        update_data = {}
+        if request.school_id is not None:
+            update_data["school_id"] = request.school_id if request.school_id != "" else None
+        if request.role is not None:
+            update_data["role"] = request.role
+            
+        if not update_data:
+            return {"success": True, "updated": 0, "failed": 0, "errors": []}
+            
+        success_count = 0
+        errors = []
+        
+        for uid in request.user_ids:
+            try:
+                # Update profiles table
+                await sb.table("profiles").update(update_data).eq("id", uid).aexecute()
+                
+                # If role is updated, sync with auth user app_metadata using GoTrue admin endpoint
+                if "role" in update_data:
+                    admin_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{uid}"
+                    headers = {
+                        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                        "Content-Type": "application/json"
+                    }
+                    json_payload = {
+                        "app_metadata": {
+                            "role": request.role
+                        }
+                    }
+                    async with httpx.AsyncClient() as client:
+                        auth_res = await client.put(admin_url, headers=headers, json=json_payload, timeout=10.0)
+                        if auth_res.status_code != 200:
+                            logging.warning(f"Could not update app_metadata for user {uid} in auth")
+                            
+                success_count += 1
+            except Exception as e:
+                errors.append({"user_id": uid, "error": str(e)})
+                
+        return {
+            "success": True,
+            "updated": success_count,
+            "failed": len(errors),
+            "errors": errors
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process bulk update: {str(e)}")
+
+
+@router.post("/bulk-delete",
+    summary="Bulk Delete Users",
+    description="Bulk delete users from Supabase Auth and profiles. Restricts access to super_admin."
+)
+async def bulk_delete_users(
+    request: BulkDeleteRequest,
+    user=Depends(get_current_user)
+):
+    try:
+        caller_role = user.get("role", "").lower()
+        if caller_role != "super_admin":
+            raise HTTPException(status_code=403, detail="Access denied: Only super_admin can perform bulk delete")
+            
+        sb = get_supabase()
+        success_count = 0
+        errors = []
+        
+        for uid in request.user_ids:
+            try:
+                # Delete from Supabase Auth
+                admin_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{uid}"
+                headers = {
+                    "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                    "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+                }
+                async with httpx.AsyncClient() as client:
+                    auth_res = await client.delete(admin_url, headers=headers, timeout=10.0)
+                    if auth_res.status_code not in [200, 204, 404]:
+                        raise Exception(f"Auth deletion failed with status {auth_res.status_code}")
+                        
+                # Delete from profiles table
+                await sb.table("profiles").delete().eq("id", uid).aexecute()
+                
+                success_count += 1
+            except Exception as e:
+                errors.append({"user_id": uid, "error": str(e)})
+                
+        return {
+            "success": True,
+            "deleted": success_count,
+            "failed": len(errors),
+            "errors": errors
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process bulk delete: {str(e)}")
+
+
 
 
 

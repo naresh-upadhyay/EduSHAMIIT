@@ -171,6 +171,8 @@ class AuthClient:
         }
         if "user_metadata" in user_data:
             payload["user_metadata"] = user_data["user_metadata"]
+        if "app_metadata" in user_data:
+            payload["app_metadata"] = user_data["app_metadata"]
 
         response = await client.post(
             f"{self.client.auth_url}/admin/users",
@@ -611,4 +613,49 @@ async def check_and_award_achievements(sb, school_id: str, student_id: str, trig
         await evaluate_and_update_student_badges(sb, school_id, student_id)
     except Exception as e:
         print(f"Error checking achievements: {str(e)}", flush=True)
+
+
+async def sync_vault_secrets_to_environ():
+    """Fetch decrypted secrets from Supabase Vault and sync them to os.environ and settings."""
+    try:
+        sb = get_supabase()
+        res = await sb.rpc("get_all_decrypted_secrets").aexecute()
+        if res.data:
+            for item in res.data:
+                name = item.get("secret_name")
+                val = item.get("secret_value")
+                if name and val is not None:
+                    # Clean any surrounding whitespace/quotes
+                    val_str = str(val).strip().strip("'\"")
+                    # Inject directly into os.environ
+                    os.environ[name] = val_str
+                    # Also sync to Settings model if the attribute exists
+                    if hasattr(settings, name):
+                        setattr(settings, name, val_str)
+            print(f"[Vault Sync] Successfully synchronized {len(res.data)} secrets from Supabase Vault to environment.", flush=True)
+            return True
+        else:
+            print("[Vault Sync] No secrets found in Supabase Vault.", flush=True)
+            return False
+    except Exception as e:
+        print(f"[Vault Sync] Failed to sync secrets from Supabase Vault: {e}", flush=True)
+        return False
+
+
+async def start_vault_sync_scheduler(interval: int = 15):
+    """Background task that runs in every worker to keep vault secrets synchronized."""
+    import asyncio
+    print(f"[Vault Sync Scheduler] Started with interval of {interval} seconds.", flush=True)
+    # Perform initial sync immediately
+    try:
+        await sync_vault_secrets_to_environ()
+    except Exception as e:
+        print(f"[Vault Sync Scheduler] Initial sync failed: {e}", flush=True)
+
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await sync_vault_secrets_to_environ()
+        except Exception as e:
+            print(f"[Vault Sync Scheduler] Error during synchronization loop: {e}", flush=True)
 

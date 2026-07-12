@@ -548,7 +548,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
                         crossAxisCount: crossCount,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        mainAxisExtent: 320,
+                        mainAxisExtent: 345,
                       ),
                       itemCount: filteredList.length,
                       itemBuilder: (context, index) {
@@ -574,6 +574,8 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
     final ownerEmail =
         school['owner_email'] as String? ?? 'No email configured';
     final ownerName = school['owner_name'] as String? ?? 'No name';
+    final maxStudents = school['max_students'] ?? 1000;
+    final existingUsers = school['existing_users'] ?? 0;
 
     Color statusColor = const Color(0xFF10B981);
     Color statusBg = const Color(0xFF10B981).withValues(alpha: 0.1);
@@ -720,6 +722,8 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
           _buildDetailRow('Active Period', '$startDateStr - $endDateStr'),
           _buildDetailRow(
               'Subscription Price', '₹$rate / ${_formatPricingModel(pricing)}'),
+          _buildDetailRow(
+              'User Capacity', '$existingUsers / $maxStudents Enrolled'),
 
           // Expiring warning alert banner
           if (showExpiryWarning)

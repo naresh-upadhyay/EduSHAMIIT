@@ -10,6 +10,7 @@ from app.middleware.auth import (
 from app.services.supabase_client import get_supabase
 
 router = APIRouter()
+vault_router = APIRouter()
 
 # Verify director/super_admin access
 require_super_admin_or_director = require_any_role("super_admin", "director")
@@ -22,10 +23,34 @@ require_super_admin_or_director = require_any_role("super_admin", "director")
 async def list_schools(
     user=Depends(require_super_admin_or_director),
 ):
-    """List all schools/institutes in the system with subscription info."""
+    """List all schools/institutes in the system with subscription info and student counts."""
     sb = get_supabase()
+    
+    # 1. Fetch schools
     res = await sb.table("schools").select("*").order("name").aexecute()
     schools = res.data or []
+    
+    # 2. Fetch profiles to count them
+    try:
+        profiles_res = await sb.table("profiles").select("school_id").aexecute()
+        profiles = profiles_res.data or []
+        
+        # Aggregate counts by school_id
+        user_counts = {}
+        for p in profiles:
+            sid = p.get("school_id")
+            if sid:
+                user_counts[sid] = user_counts.get(sid, 0) + 1
+                
+        # Inject counts into response
+        for s in schools:
+            sid = s.get("id")
+            s["existing_users"] = user_counts.get(sid, 0)
+    except Exception as e:
+        print(f"Error fetching user counts: {e}", flush=True)
+        for s in schools:
+            s["existing_users"] = 0
+            
     return {"success": True, "data": {"schools": schools, "count": len(schools)}}
 
 @router.post("")
@@ -145,7 +170,8 @@ async def update_school(
         "subscription_status", "subscription_tier",
         "subscription_start_date", "subscription_end_date",
         "pricing_model", "pricing_rate", "max_students",
-        "owner_name", "owner_email", "send_renewal_reminders"
+        "owner_name", "owner_email", "send_renewal_reminders",
+        "module_toggles"
     ]:
         if key in payload:
             update_data[key] = payload[key]
@@ -598,3 +624,203 @@ async def delete_plan(
         return {"success": True, "detail": "Subscription plan deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete plan: {str(e)}")
+
+# ===========================================================
+# Modules Master Registry CRUD
+# ===========================================================
+
+@router.get("/modules/all")
+async def list_all_modules(
+    user=Depends(require_super_admin_or_director),
+):
+    """List all modules registered in the system."""
+    sb = get_supabase()
+    res = await sb.table("modules").select("*").order("name").aexecute()
+    return {"success": True, "data": res.data or []}
+
+@router.post("/modules/all")
+async def create_module(
+    payload: dict,
+    user=Depends(require_super_admin_or_director),
+):
+    """Create a new system module."""
+    module_id = payload.get("id")
+    name = payload.get("name")
+    if not module_id or not name:
+        raise HTTPException(status_code=400, detail="Module ID and Name are required")
+    
+    sb = get_supabase()
+    check = await sb.table("modules").select("id").eq("id", module_id).aexecute()
+    if check.data:
+        raise HTTPException(status_code=400, detail="Module ID already exists")
+
+    module_data = {
+        "id": module_id,
+        "name": name,
+        "description": payload.get("description", ""),
+        "icon": payload.get("icon", "extension"),
+        "screens": payload.get("screens", []),
+        "endpoints": payload.get("endpoints", []),
+        "is_enabled": payload.get("is_enabled", True)
+    }
+    
+    res = await sb.table("modules").insert(module_data).aexecute()
+    return {"success": True, "data": res.data}
+
+@router.put("/modules/all/{module_id}")
+async def update_module(
+    module_id: str,
+    payload: dict,
+    user=Depends(require_super_admin_or_director),
+):
+    """Update system module details and configurations."""
+    sb = get_supabase()
+    check = await sb.table("modules").select("id").eq("id", module_id).aexecute()
+    if not check.data:
+        raise HTTPException(status_code=404, detail="Module not found")
+
+    # If deactivating, check if active for any school
+    if payload.get("is_enabled") is False:
+        check_schools = await sb.table("schools").select("id, name, module_toggles").aexecute()
+        active_schools = []
+        for s in (check_schools.data or []):
+            toggles = s.get("module_toggles") or {}
+            if toggles.get(module_id) is True:
+                active_schools.append(s.get("name") or s.get("id"))
+        if active_schools:
+            schools_str = ", ".join(active_schools[:3])
+            if len(active_schools) > 3:
+                schools_str += f" and {len(active_schools) - 3} more"
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "detail": f"Cannot deactivate module '{module_id}' because it is active for: {schools_str}. Please deactivate it for all institutions first."
+                }
+            )
+
+    update_data = {}
+    for key in ["name", "description", "icon", "screens", "endpoints", "is_enabled"]:
+        if key in payload:
+            update_data[key] = payload[key]
+
+    res = await sb.table("modules").update(update_data).eq("id", module_id).aexecute()
+    return {"success": True, "data": res.data}
+
+@router.delete("/modules/all/{module_id}")
+async def delete_module(
+    module_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Delete a system module."""
+    sb = get_supabase()
+    check = await sb.table("modules").select("id").eq("id", module_id).aexecute()
+    if not check.data:
+        raise HTTPException(status_code=404, detail="Module not found")
+
+    # Check if active for any school before deleting
+    check_schools = await sb.table("schools").select("id, name, module_toggles").aexecute()
+    active_schools = []
+    for s in (check_schools.data or []):
+        toggles = s.get("module_toggles") or {}
+        if toggles.get(module_id) is True:
+            active_schools.append(s.get("name") or s.get("id"))
+    if active_schools:
+        schools_str = ", ".join(active_schools[:3])
+        if len(active_schools) > 3:
+            schools_str += f" and {len(active_schools) - 3} more"
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "detail": f"Cannot delete module '{module_id}' because it is active for: {schools_str}. Please deactivate it for all institutions first."
+            }
+        )
+
+    await sb.table("modules").delete().eq("id", module_id).aexecute()
+    return {"success": True, "message": "Module deleted successfully"}
+
+@vault_router.get("/vault/secrets")
+async def list_vault_secrets(
+    user=Depends(require_super_admin_or_director),
+):
+    """List all environment variables and API keys from Supabase Vault."""
+    sb = get_supabase()
+    res = await sb.rpc("get_vault_secrets").aexecute()
+    return {"success": True, "data": res.data}
+
+@vault_router.get("/vault/secrets/{secret_id}/value")
+async def get_vault_secret_val(
+    secret_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Get decrypted secret value by ID."""
+    sb = get_supabase()
+    res = await sb.rpc("get_vault_secret_value", {"secret_id": secret_id}).aexecute()
+    val = res.data
+    if isinstance(val, list):
+        val = val[0] if val else ""
+    return {"success": True, "value": val}
+
+@vault_router.post("/vault/secrets")
+async def create_vault_secret_endpoint(
+    payload: dict,
+    user=Depends(require_super_admin_or_director),
+):
+    """Create a new secret in Supabase Vault."""
+    name = payload.get("name")
+    value = payload.get("value")
+    description = payload.get("description")
+    if not name or not value:
+        raise HTTPException(status_code=400, detail="Name and value are required")
+
+    sb = get_supabase()
+    res = await sb.rpc("create_vault_secret", {
+        "secret_name": name,
+        "secret_value": value,
+        "secret_desc": description
+    }).aexecute()
+    
+    # Sync immediately to os.environ and settings
+    from app.services.supabase_client import sync_vault_secrets_to_environ
+    await sync_vault_secrets_to_environ()
+    
+    return {"success": True, "id": res.data}
+
+@vault_router.put("/vault/secrets/{secret_id}")
+async def update_vault_secret_endpoint(
+    secret_id: str,
+    payload: dict,
+    user=Depends(require_super_admin_or_director),
+):
+    """Update a secret in Supabase Vault."""
+    sb = get_supabase()
+    await sb.rpc("update_vault_secret", {
+        "secret_id": secret_id,
+        "secret_name": payload.get("name"),
+        "secret_value": payload.get("value"),
+        "secret_desc": payload.get("description")
+    }).aexecute()
+    
+    # Sync immediately to os.environ and settings
+    from app.services.supabase_client import sync_vault_secrets_to_environ
+    await sync_vault_secrets_to_environ()
+    
+    return {"success": True, "message": "Secret updated successfully"}
+
+@vault_router.delete("/vault/secrets/{secret_id}")
+async def delete_vault_secret_endpoint(
+    secret_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Delete a secret from Supabase Vault."""
+    sb = get_supabase()
+    await sb.rpc("delete_vault_secret", {"secret_id": secret_id}).aexecute()
+    
+    # Sync immediately to os.environ and settings
+    from app.services.supabase_client import sync_vault_secrets_to_environ
+    await sync_vault_secrets_to_environ()
+    
+    return {"success": True, "message": "Secret deleted successfully"}

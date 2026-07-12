@@ -14,13 +14,7 @@ class SuperAdminDashboardScreen extends ConsumerStatefulWidget {
 
 class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardScreen> {
   final List<Map<String, dynamic>> _quickActions = [
-    {
-      'title': 'White Label',
-      'icon': Icons.palette_outlined,
-      'color': Colors.orangeAccent,
-      'bg': 0xFFFFF7ED,
-      'route': '/admin/white-label',
-    },
+
     {
       'title': 'Module Toggle',
       'icon': Icons.extension_outlined,
@@ -29,11 +23,11 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
       'route': '/admin/modules',
     },
     {
-      'title': 'Workflows',
-      'icon': Icons.account_tree_outlined,
-      'color': Colors.purple,
-      'bg': 0xFFFAF5FF,
-      'route': '/admin/workflows',
+      'title': 'Module Setup',
+      'icon': Icons.settings_applications_outlined,
+      'color': Colors.indigo,
+      'bg': 0xFFEEF2FF,
+      'route': '/admin/modules-config',
     },
     {
       'title': 'Automations',
@@ -42,20 +36,7 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
       'bg': 0xFFECFDF5,
       'route': '/admin/automations',
     },
-    {
-      'title': 'Permissions',
-      'icon': Icons.shield_outlined,
-      'color': Colors.indigo,
-      'bg': 0xFFEEF2FF,
-      'route': '/admin/permissions',
-    },
-    {
-      'title': 'Real-Time',
-      'icon': Icons.bar_chart_outlined,
-      'color': Colors.cyan,
-      'bg': 0xFFEFF6FF,
-      'route': '/admin/real-time',
-    },
+
     {
       'title': 'Smart Insights',
       'icon': Icons.lightbulb_outline,
@@ -63,13 +44,7 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
       'bg': 0xFFFFFBEB,
       'route': '/admin/insights',
     },
-    {
-      'title': 'Groups',
-      'icon': Icons.corporate_fare_outlined,
-      'color': Colors.blue,
-      'bg': 0xFFEFF6FF,
-      'route': '/admin/groups',
-    },
+
     {
       'title': 'APIs',
       'icon': Icons.power_outlined,
@@ -84,20 +59,7 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
       'bg': 0xFFFFF7ED,
       'route': '/admin/audit-log',
     },
-    {
-      'title': 'Roles & Modules',
-      'icon': Icons.assignment_outlined,
-      'color': Colors.deepOrange,
-      'bg': 0xFFFFF7ED,
-      'route': '/admin/roles',
-    },
-    {
-      'title': 'AI Ops Dashboard',
-      'icon': Icons.smart_toy_outlined,
-      'color': Colors.pink,
-      'bg': 0xFFFFE4E6,
-      'route': '/admin/ai-ops',
-    },
+
     {
       'title': 'Global Tenants',
       'icon': Icons.satellite_alt_outlined,
@@ -106,32 +68,11 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
       'route': '/admin/schools',
     },
     {
-      'title': 'Billing & Invoices',
-      'icon': Icons.receipt_long_outlined,
-      'color': Colors.purple,
-      'bg': 0xFFFAF5FF,
-      'route': '/admin/finance',
-    },
-    {
       'title': 'Announcements',
       'icon': Icons.campaign_outlined,
       'color': Colors.redAccent,
       'bg': 0xFFFEF2F2,
       'route': '/admin/announcements',
-    },
-    {
-      'title': 'Tenant Onboard',
-      'icon': Icons.rocket_launch_outlined,
-      'color': Colors.brown,
-      'bg': 0xFFFDF6F0,
-      'route': '/admin/onboard',
-    },
-    {
-      'title': 'SaaS Plans',
-      'icon': Icons.credit_card_outlined,
-      'color': Colors.amber,
-      'bg': 0xFFFFFBEB,
-      'route': '/admin/saas-plans',
     },
     {
       'title': 'Impersonate/Support',

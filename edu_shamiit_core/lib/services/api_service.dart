@@ -151,12 +151,26 @@ class ApiService {
     } else if (response.statusCode == 401) {
       onUnauthorized?.call();
       throw ApiException('Unauthorized: Please login again');
-    } else if (response.statusCode == 403) {
-      throw ApiException('Forbidden: Access denied');
-    } else if (response.statusCode == 404) {
-      throw ApiException('Resource not found');
     } else {
-      throw ApiException('Server error: ${response.statusCode}');
+      String errMsg = 'Server error: ${response.statusCode}';
+      try {
+        if (response.body.isNotEmpty) {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded.containsKey('detail')) {
+            errMsg = decoded['detail'].toString();
+          } else if (decoded is Map && decoded.containsKey('message')) {
+            errMsg = decoded['message'].toString();
+          }
+        }
+      } catch (_) {}
+      
+      if (response.statusCode == 403) {
+        throw ApiException(errMsg.startsWith('Server error:') ? 'Forbidden: Access denied' : errMsg);
+      } else if (response.statusCode == 404) {
+        throw ApiException(errMsg.startsWith('Server error:') ? 'Resource not found' : errMsg);
+      } else {
+        throw ApiException(errMsg);
+      }
     }
   }
 

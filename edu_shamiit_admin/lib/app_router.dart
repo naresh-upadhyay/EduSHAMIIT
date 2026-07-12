@@ -136,66 +136,47 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/system-control',
             pageBuilder: (_, __) => const NoTransitionPage(child: SystemControlTab()),
           ),
-          GoRoute(
-            path: '/admin/white-label',
-            pageBuilder: (_, __) => const NoTransitionPage(child: WhiteLabelScreen()),
-          ),
+
           GoRoute(
             path: '/admin/modules',
             pageBuilder: (_, __) => const NoTransitionPage(child: ModuleToggleScreen()),
           ),
           GoRoute(
-            path: '/admin/workflows',
-            pageBuilder: (_, __) => const NoTransitionPage(child: WorkflowsScreen()),
+            path: '/admin/modules-config',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ModuleConfigScreen()),
           ),
+
           GoRoute(
             path: '/admin/automations',
             pageBuilder: (_, __) => const NoTransitionPage(child: AutomationsScreen()),
           ),
-          GoRoute(
-            path: '/admin/permissions',
-            pageBuilder: (_, __) => const NoTransitionPage(child: PermissionsScreen()),
-          ),
-          GoRoute(
-            path: '/admin/real-time',
-            pageBuilder: (_, __) => const NoTransitionPage(child: RealTimeScreen()),
-          ),
+
+
           GoRoute(
             path: '/admin/insights',
             pageBuilder: (_, __) => const NoTransitionPage(child: SmartInsightsScreen()),
           ),
-          GoRoute(
-            path: '/admin/groups',
-            pageBuilder: (_, __) => const NoTransitionPage(child: GroupsScreen()),
-          ),
+
           GoRoute(
             path: '/admin/apis',
             pageBuilder: (_, __) => const NoTransitionPage(child: ApisScreen()),
           ),
           GoRoute(
+            path: '/admin/vault',
+            pageBuilder: (_, __) => const NoTransitionPage(child: VaultSecretsScreen()),
+          ),
+          GoRoute(
             path: '/admin/audit-log',
             pageBuilder: (_, __) => const NoTransitionPage(child: AuditLogScreen()),
           ),
-          GoRoute(
-            path: '/admin/roles',
-            pageBuilder: (_, __) => const NoTransitionPage(child: RolesModulesScreen()),
-          ),
-          GoRoute(
-            path: '/admin/ai-ops',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AiOpsScreen()),
-          ),
+
+
           GoRoute(
             path: '/admin/announcements',
             pageBuilder: (_, __) => const NoTransitionPage(child: AnnouncementsScreen()),
           ),
-          GoRoute(
-            path: '/admin/onboard',
-            pageBuilder: (_, __) => const NoTransitionPage(child: TenantOnboardScreen()),
-          ),
-          GoRoute(
-            path: '/admin/saas-plans',
-            pageBuilder: (_, __) => const NoTransitionPage(child: SaasPlansScreen()),
-          ),
+
+
         ],
       ),
     ],

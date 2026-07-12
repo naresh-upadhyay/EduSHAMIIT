@@ -15,7 +15,20 @@ class _AdminSystemConfigScreenState extends State<AdminSystemConfigScreen> {
   bool _transportModule = true;
   bool _biometricSync = true;
 
+  late final TextEditingController _titleController;
+  Color _themeColor = const Color(0xFF4F46E5);
+
   @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: 'EduSHAMIIT Portal');
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -61,6 +74,7 @@ class _AdminSystemConfigScreenState extends State<AdminSystemConfigScreen> {
                 ],
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SwitchListTile(
                     title: Text(
@@ -85,41 +99,49 @@ class _AdminSystemConfigScreenState extends State<AdminSystemConfigScreen> {
                     activeTrackColor: const Color(0xFF4F46E5).withValues(alpha: 0.5),
                     contentPadding: EdgeInsets.zero,
                   ),
-                  Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Global Portal Title',
-                        style: TextStyle(
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                          fontSize: 12,
-                        ),
+                  if (_whiteLabelEnabled) ...[
+                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _titleController,
+                      decoration: InputDecoration(
+                        labelText: 'Global Portal Domain Prefix',
+                        hintText: 'e.g. shamiit',
+                        labelStyle: const TextStyle(fontSize: 12),
+                        hintStyle: const TextStyle(fontSize: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      Container(
-                        width: 160,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0B0D19) : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: isDark
-                              ? null
-                              : Border.all(color: const Color(0xFFE2E8F0), width: 1),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'EduSHAMIIT Portal',
-                            style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Primary Branding Color',
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [Colors.indigo, Colors.blue, Colors.green, Colors.teal, Colors.orange, Colors.purple].map((c) {
+                        final isSel = _themeColor == c;
+                        return GestureDetector(
+                          onTap: () => setState(() => _themeColor = c),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 10),
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: c,
+                              shape: BoxShape.circle,
+                              border: isSel ? Border.all(color: isDark ? Colors.black : Colors.white, width: 2) : null,
+                              boxShadow: isSel ? [const BoxShadow(color: Colors.black26, blurRadius: 4)] : null,
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -14,124 +14,194 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
+  static const Map<String, String> _roleLabels = {
+    'super_admin': 'Super Admin',
+    'admin': 'School Admin',
+    'teacher': 'Teacher',
+    'student': 'Student',
+    'parent': 'Parent',
+    'student_admin': 'Student Admin',
+    'teacher_admin': 'Teacher Admin',
+    'director': 'Director',
+    'principal': 'Principal',
+    'finance': 'Finance Staff',
+    'hr': 'HR Manager',
+    'transport': 'Transport Mgr',
+    'library': 'Librarian',
+    'security': 'Security Head',
+    'sports': 'Sports Coach',
+    'support': 'Support Staff',
+    'driver': 'Bus Driver',
+    'hostel': 'Hostel Warden',
+    'exam_ctrl': 'Exam Controller',
+  };
+
   static const _sidebarItems = [
     _NavItem(
         icon: Icons.dashboard_rounded,
         label: 'Dashboard',
-        route: '/admin/dashboard'),
+        route: '/admin/dashboard',
+        section: NavSection.core),
     _NavItem(
         icon: Icons.school_outlined,
         label: 'Schools Directory',
-        route: '/admin/schools'),
+        route: '/admin/schools',
+        section: NavSection.core),
     _NavItem(
         icon: Icons.people_outline_rounded,
         label: 'User Management',
-        route: '/admin/users'),
+        route: '/admin/users',
+        section: NavSection.core),
     _NavItem(
         icon: Icons.analytics_outlined,
         label: 'Infra Monitor',
-        route: '/admin/infra'),
+        route: '/admin/infra',
+        section: NavSection.core),
     _NavItem(
         icon: Icons.settings_outlined,
         label: 'System Config',
-        route: '/admin/config'),
+        route: '/admin/config',
+        section: NavSection.core),
     // Operations
     _NavItem(
         icon: Icons.payments_outlined,
         label: 'Financial Suite',
-        route: '/admin/finance'),
+        route: '/admin/finance',
+        section: NavSection.operations),
     _NavItem(
         icon: Icons.warning_amber_rounded,
         label: 'Fee Defaulters',
-        route: '/admin/defaulters'),
+        route: '/admin/defaulters',
+        section: NavSection.operations),
     _NavItem(
         icon: Icons.people_outline_rounded,
         label: 'Staff Registry',
-        route: '/admin/staff'),
+        route: '/admin/staff',
+        section: NavSection.operations),
     _NavItem(
         icon: Icons.person_add_alt_1_outlined,
         label: 'New Admissions',
-        route: '/admin/admissions'),
+        route: '/admin/admissions',
+        section: NavSection.operations),
     _NavItem(
         icon: Icons.qr_code_scanner_rounded,
         label: 'Gate Scanner Log',
-        route: '/admin/gate-scanner'),
-    _NavItem(
-        icon: Icons.support_agent_rounded,
-        label: 'IT Support Tickets',
-        route: '/admin/support'),
+        route: '/admin/gate-scanner',
+        section: NavSection.operations),
     _NavItem(
         icon: Icons.security_rounded,
         label: 'Security & Controls',
-        route: '/admin/system-control'),
+        route: '/admin/system-control',
+        section: NavSection.operations),
     // Quick Access Modules
-    _NavItem(
-        icon: Icons.palette_outlined,
-        label: 'White Label Branding',
-        route: '/admin/white-label'),
+
     _NavItem(
         icon: Icons.extension_outlined,
         label: 'Module Toggle',
-        route: '/admin/modules'),
+        route: '/admin/modules',
+        section: NavSection.quickAccess),
     _NavItem(
-        icon: Icons.account_tree_outlined,
-        label: 'Academic Workflows',
-        route: '/admin/workflows'),
+        icon: Icons.settings_applications_outlined,
+        label: 'Module Setup',
+        route: '/admin/modules-config',
+        section: NavSection.quickAccess),
     _NavItem(
         icon: Icons.settings_input_component_outlined,
         label: 'Automations Engine',
-        route: '/admin/automations'),
-    _NavItem(
-        icon: Icons.shield_outlined,
-        label: 'Permissions Matrix',
-        route: '/admin/permissions'),
-    _NavItem(
-        icon: Icons.bar_chart_outlined,
-        label: 'Real-Time Telemetry',
-        route: '/admin/real-time'),
+        route: '/admin/automations',
+        section: NavSection.quickAccess),
     _NavItem(
         icon: Icons.lightbulb_outline,
         label: 'AI Smart Insights',
-        route: '/admin/insights'),
-    _NavItem(
-        icon: Icons.corporate_fare_outlined,
-        label: 'Institutional Groups',
-        route: '/admin/groups'),
+        route: '/admin/insights',
+        section: NavSection.quickAccess),
+
     _NavItem(
         icon: Icons.power_outlined,
         label: 'API Gateway',
-        route: '/admin/apis'),
+        route: '/admin/apis',
+        section: NavSection.quickAccess),
+    _NavItem(
+        icon: Icons.vpn_key_outlined,
+        label: 'Vault Secrets',
+        route: '/admin/vault',
+        section: NavSection.quickAccess),
     _NavItem(
         icon: Icons.lock_outline,
         label: 'Security Audit Logs',
-        route: '/admin/audit-log'),
-    _NavItem(
-        icon: Icons.assignment_outlined,
-        label: 'Roles Configuration',
-        route: '/admin/roles'),
-    _NavItem(
-        icon: Icons.smart_toy_outlined,
-        label: 'AI Ops Telemetry',
-        route: '/admin/ai-ops'),
+        route: '/admin/audit-log',
+        section: NavSection.quickAccess),
     _NavItem(
         icon: Icons.campaign_outlined,
         label: 'Announcements',
-        route: '/admin/announcements'),
+        route: '/admin/announcements',
+        section: NavSection.quickAccess),
     _NavItem(
-        icon: Icons.rocket_launch_outlined,
-        label: 'Tenant Onboarding Wizard',
-        route: '/admin/onboard'),
-    _NavItem(
-        icon: Icons.credit_card_outlined,
-        label: 'SaaS Subscription Plans',
-        route: '/admin/saas-plans'),
+        icon: Icons.support_agent_rounded,
+        label: 'IT Support Tickets',
+        route: '/admin/support',
+        section: NavSection.quickAccess),
   ];
 
-  int _selectedIndex(String location) {
-    for (int i = 0; i < _sidebarItems.length; i++) {
-      if (location.startsWith(_sidebarItems[i].route)) return i;
+  List<dynamic> _modules = [];
+  Map<String, dynamic> _schoolToggles = {};
+  bool _isLoadingModules = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchModules();
+  }
+
+  Future<void> _fetchModules() async {
+    try {
+      final res = await ApiService().get('/admin/schools/modules/all', useCache: false);
+      if (res['success'] == true) {
+        setState(() {
+          _modules = res['data'] as List<dynamic>? ?? [];
+        });
+      }
+
+      final user = ref.read(authProvider).userData;
+      final role = user?['role']?.toString().toLowerCase();
+      final schoolId = user?['school_id']?.toString();
+      if (role == 'director' && schoolId != null) {
+        final schoolRes = await ApiService().get('/admin/schools', useCache: false);
+        if (schoolRes['success'] == true) {
+          final schools = schoolRes['data']['schools'] as List<dynamic>? ?? [];
+          final currentSchool = schools.firstWhere((s) => s['id'] == schoolId, orElse: () => null);
+          if (currentSchool != null) {
+            setState(() {
+              _schoolToggles = currentSchool['module_toggles'] as Map<String, dynamic>? ?? {};
+            });
+          }
+        }
+      }
+      
+      setState(() {
+        _isLoadingModules = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingModules = false;
+      });
     }
-    return 0;
+  }
+
+  int _selectedIndex(String location, List<_NavItem> items) {
+    int bestMatchIndex = 0;
+    int maxLen = 0;
+    for (int i = 0; i < items.length; i++) {
+      final route = items[i].route;
+      if (location == route) {
+        return i;
+      }
+      if (location.startsWith(route) && route.length > maxLen) {
+        maxLen = route.length;
+        bestMatchIndex = i;
+      }
+    }
+    return bestMatchIndex;
   }
 
   @override
@@ -143,9 +213,42 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final location = GoRouterState.of(context).uri.toString();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final role = user?['role']?.toString().toLowerCase() ?? 'super_admin';
+
+    final filteredItems = _sidebarItems.where((item) {
+      for (final m in _modules) {
+        final screens = m['screens'] as List<dynamic>? ?? [];
+        if (screens.contains(item.route)) {
+          if (m['is_enabled'] == false) {
+            return false;
+          }
+          if (role == 'director' && _schoolToggles.containsKey(m['id'])) {
+            if (_schoolToggles[m['id']] == false) {
+              return false;
+            }
+          }
+        }
+      }
+
+      if (role == 'super_admin') {
+        // Remove all operations items
+        if (item.section == NavSection.operations) {
+          return false;
+        }
+        return true;
+      } else if (role == 'director') {
+        // Director sees CORE and OPERATIONS
+        if (item.section == NavSection.quickAccess) {
+          return false;
+        }
+        return true;
+      }
+      // Fallback for other roles
+      return item.section == NavSection.core;
+    }).toList();
 
     if (isDesktop) {
-      final selected = _selectedIndex(location);
+      final selected = _selectedIndex(location, filteredItems);
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         body: Row(
@@ -198,42 +301,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   // Navigation Items
                   Expanded(
                     child: ListView.builder(
-                      itemCount: _sidebarItems.length,
+                      itemCount: filteredItems.length,
                       itemBuilder: (context, index) {
-                        final item = _sidebarItems[index];
+                        final item = filteredItems[index];
                         final isSelected = index == selected;
 
-                        // Add section headers
+                        // Add section headers dynamically
                         Widget? header;
-                        if (index == 0) {
+                        final currentSection = item.section;
+                        final prevSection = index > 0 ? filteredItems[index - 1].section : null;
+
+                        if (prevSection != currentSection) {
+                          String headerText = '';
+                          if (currentSection == NavSection.core) {
+                            headerText = 'CORE CONSOLES';
+                          } else if (currentSection == NavSection.operations) {
+                            headerText = 'OPERATIONAL UTILITIES';
+                          } else if (currentSection == NavSection.quickAccess) {
+                            headerText = 'SYSTEM QUICK ACCESS';
+                          }
+
                           header = Padding(
-                            padding: const EdgeInsets.only(left: 12, bottom: 8),
-                            child: Text(
-                              'CORE CONSOLES',
-                              style: TextStyle(
-                                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1),
+                            padding: EdgeInsets.only(
+                              left: 12,
+                              top: index == 0 ? 0 : 16,
+                              bottom: 8,
                             ),
-                          );
-                        } else if (index == 5) {
-                          header = Padding(
-                            padding: const EdgeInsets.only(left: 12, top: 16, bottom: 8),
                             child: Text(
-                              'OPERATIONAL UTILITIES',
-                              style: TextStyle(
-                                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1),
-                            ),
-                          );
-                        } else if (index == 12) {
-                          header = Padding(
-                            padding: const EdgeInsets.only(left: 12, top: 16, bottom: 8),
-                            child: Text(
-                              'SYSTEM QUICK ACCESS',
+                              headerText,
                               style: TextStyle(
                                   color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                                   fontSize: 10,
@@ -311,9 +406,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                   fontSize: 12),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const Text(
-                              'Super Admin',
-                              style: TextStyle(
+                            Text(
+                              _roleLabels[user?['role']?.toString().toLowerCase() ?? ''] ??
+                                  (user?['role']?.toString() ?? 'SUPER ADMIN')
+                                      .replaceAll('_', ' ')
+                                      .toUpperCase(),
+                              style: const TextStyle(
                                   color: Color(0xFF64748B), fontSize: 10),
                             ),
                           ],
@@ -426,13 +524,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
+enum NavSection { core, operations, quickAccess }
+
 class _NavItem {
   final IconData icon;
   final String label;
   final String route;
+  final NavSection section;
   const _NavItem({
     required this.icon,
     required this.label,
     required this.route,
+    required this.section,
   });
 }
