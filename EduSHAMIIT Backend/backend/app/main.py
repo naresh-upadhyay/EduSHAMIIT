@@ -6,7 +6,7 @@ import time
 import asyncio
 
 import json
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights
 
 
 @asynccontextmanager
@@ -382,6 +382,7 @@ app.include_router(audit_logs.router, prefix="/api/admin", tags=["Audit Logs"])
 app.include_router(tickets.router, prefix="/api/admin", tags=["Tickets"])
 app.include_router(announcements.router, prefix="/api/admin/announcements", tags=["Announcements"])
 app.include_router(system_config.router, prefix="/api/admin/system-config", tags=["System Configuration"])
+app.include_router(insights.router, prefix="/api/admin/insights", tags=["AI Smart Insights"])
 app.include_router(calls.router, prefix="/api", tags=["Calls"])
 app.include_router(live_classes.router, prefix="/api", tags=["Live Classes"])
 
