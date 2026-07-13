@@ -35,16 +35,84 @@ def validate_email(email: str) -> str:
     return email
 
 
+def get_security_settings(school_id: Optional[str] = None) -> dict:
+    import psycopg2
+    from app.config import settings
+    
+    default_settings = {
+        "password_policy": "Strong",
+        "session_limit": 5,
+        "failed_attempts_lockout": 5
+    }
+    
+    try:
+        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=3)
+        with conn.cursor() as cur:
+            if school_id:
+                cur.execute(
+                    "SELECT security_settings FROM public.system_configurations WHERE school_id = %s LIMIT 1",
+                    (school_id,)
+                )
+                row = cur.fetchone()
+                if row and row[0]:
+                    return row[0]
+            
+            cur.execute(
+                "SELECT security_settings FROM public.system_configurations WHERE school_id IS NULL LIMIT 1"
+            )
+            row = cur.fetchone()
+            if row and row[0]:
+                return row[0]
+    except Exception as e:
+        logging.warning(f"Error fetching security settings synchronously: {e}")
+    return default_settings
+
+
+def validate_password_complexity(password: str, policy: str):
+    policy = policy.lower()
+    
+    if policy == "simple":
+        if len(password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters long under Simple policy")
+            
+    elif policy == "medium":
+        if len(password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long under Medium policy")
+        if not re.search(r'[a-zA-Z]', password) or not re.search(r'\d', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one letter and one number under Medium policy")
+            
+    elif policy == "enterprise":
+        if len(password) < 10:
+            raise HTTPException(status_code=400, detail="Password must be at least 10 characters long under Enterprise policy")
+        if not re.search(r'[A-Z]', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter under Enterprise policy")
+        if not re.search(r'[a-z]', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter under Enterprise policy")
+        if not re.search(r'\d', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one number under Enterprise policy")
+        if not re.search(r'[^a-zA-Z0-9]', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one special character under Enterprise policy")
+        for i in range(len(password) - 2):
+            if password[i] == password[i+1] == password[i+2]:
+                raise HTTPException(status_code=400, detail="Password must not contain repeating patterns (3 or more consecutive identical characters) under Enterprise policy")
+                
+    else: # Default is "strong"
+        if len(password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters long under Strong policy")
+        if not re.search(r'[A-Z]', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter under Strong policy")
+        if not re.search(r'[a-z]', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter under Strong policy")
+        if not re.search(r'\d', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one number under Strong policy")
+        if not re.search(r'[^a-zA-Z0-9]', password):
+            raise HTTPException(status_code=400, detail="Password must contain at least one special character under Strong policy")
+
+
 def validate_password(password: str) -> str:
-    """Validate password strength"""
-    if len(password) < 8:
-        raise ValueError("Password must be at least 8 characters long")
-    if not re.search(r'[A-Z]', password):
-        raise ValueError("Password must contain at least one uppercase letter")
-    if not re.search(r'[a-z]', password):
-        raise ValueError("Password must contain at least one lowercase letter")
-    if not re.search(r'\d', password):
-        raise ValueError("Password must contain at least one number")
+    """Validate password basic length to support dynamic policies in endpoints"""
+    if len(password) < 6:
+        raise ValueError("Password must be at least 6 characters long")
     return password
 
 
@@ -155,10 +223,69 @@ async def login(request: LoginRequest):
         email = request.email
         password = request.password
 
-        auth_response = await sb.auth().sign_in_with_password({
-            "email": email,
-            "password": password,
-        })
+        # Check lockout status first
+        profile_check = await sb.table("profiles").select("*").eq("email", email).maybe_single().aexecute()
+        p_check = profile_check.data
+        sec_settings = get_security_settings(p_check.get("school_id") if p_check else None)
+        lockout_limit = int(sec_settings.get("failed_attempts_lockout") or 5)
+
+        if p_check:
+            lockout_until_str = p_check.get("lockout_until")
+            if lockout_until_str:
+                try:
+                    lockout_until = datetime.fromisoformat(lockout_until_str.replace("Z", "+00:00"))
+                    if lockout_until > datetime.now(timezone.utc):
+                        diff = lockout_until - datetime.now(timezone.utc)
+                        seconds = int(diff.total_seconds())
+                        minutes = seconds // 60
+                        remaining = f"{minutes}m {seconds % 60}s" if minutes > 0 else f"{seconds}s"
+                        raise HTTPException(
+                            status_code=401,
+                            detail=f"Account temporarily locked due to too many failed login attempts. Try again in {remaining}."
+                        )
+                except Exception as ex:
+                    if isinstance(ex, HTTPException):
+                        raise ex
+
+        try:
+            auth_response = await sb.auth().sign_in_with_password({
+                "email": email,
+                "password": password,
+            })
+        except Exception as auth_err:
+            if p_check:
+                last_failed_str = p_check.get("last_failed_login")
+                reset_attempts = False
+                if last_failed_str:
+                    try:
+                        last_failed = datetime.fromisoformat(last_failed_str.replace("Z", "+00:00"))
+                        if datetime.now(timezone.utc) - last_failed > timedelta(days=1):
+                            reset_attempts = True
+                    except Exception:
+                        pass
+                
+                if reset_attempts:
+                    curr_attempts = 1
+                else:
+                    curr_attempts = int(p_check.get("failed_login_attempts") or 0) + 1
+                
+                updates = {
+                    "failed_login_attempts": curr_attempts,
+                    "last_failed_login": datetime.now(timezone.utc).isoformat()
+                }
+                
+                if curr_attempts >= lockout_limit:
+                    lockout_time = datetime.now(timezone.utc) + timedelta(minutes=15)
+                    updates["lockout_until"] = lockout_time.isoformat()
+                    updates["failed_login_attempts"] = 0
+                    err_msg = "Account locked due to too many failed login attempts. Try again in 15 minutes."
+                else:
+                    err_msg = f"Invalid credentials. {lockout_limit - curr_attempts} attempts remaining before lockout."
+                
+                await sb.table("profiles").update(updates).eq("id", p_check["id"]).aexecute()
+                raise HTTPException(status_code=401, detail=err_msg)
+            else:
+                raise HTTPException(status_code=401, detail="Login failed: Invalid credentials")
 
         user_id = auth_response.user.id
         profile = await sb.table("profiles").select("*").eq("id", user_id).maybe_single().aexecute()
@@ -168,6 +295,13 @@ async def login(request: LoginRequest):
 
         # profile.data is a dict (due to maybe_single in aexecute)
         p = profile.data
+
+        # Reset failed attempts on success
+        await sb.table("profiles").update({
+            "failed_login_attempts": 0,
+            "lockout_until": None,
+            "last_failed_login": None
+        }).eq("id", user_id).aexecute()
 
         # Enforce role matching if role is requested
         admin_roles = {
@@ -199,6 +333,25 @@ async def login(request: LoginRequest):
             JWT_SECRET,
             algorithm=JWT_ALGORITHM,
         )
+
+        # Enforce session limit
+        session_limit = int(sec_settings.get("session_limit") or 5)
+        active_sess_res = await sb.table("user_active_sessions").select("*").eq("user_id", user_id).order("created_at").aexecute()
+        active_sessions = active_sess_res.data or []
+        
+        if len(active_sessions) >= session_limit:
+            prune_count = len(active_sessions) - session_limit + 1
+            oldest_sessions = active_sessions[:prune_count]
+            for old_sess in oldest_sessions:
+                await sb.table("user_active_sessions").delete().eq("id", old_sess["id"]).aexecute()
+                
+        # Register new session
+        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        await sb.table("user_active_sessions").insert({
+            "user_id": user_id,
+            "token": token,
+            "expires_at": expires_at.isoformat()
+        }).aexecute()
 
         return LoginResponse(
             success=True,
@@ -257,6 +410,10 @@ async def register(request: RegisterRequest):
     """Register new user."""
     try:
         sb = get_supabase()
+
+        # Validate password complexity
+        sec_settings = get_security_settings(request.school_id)
+        validate_password_complexity(request.password, sec_settings.get("password_policy", "Strong"))
 
         # Check if email already registered in profiles
         existing = await sb.table("profiles").select("id").eq("email", request.email).maybe_single().aexecute()
@@ -722,6 +879,10 @@ async def reset_password(request: EnhancedResetPasswordRequest):
         user_id = user["id"]
         user_email = user.get("email", identifier)
         full_name = user.get("full_name")
+
+        # Validate password complexity
+        sec_settings = get_security_settings(user.get("school_id"))
+        validate_password_complexity(new_password, sec_settings.get("password_policy", "Strong"))
         
         # Find and verify OTP (accept both pending and verified, as verified means it's been confirmed in the previous step)
         now = datetime.now(timezone.utc).isoformat()

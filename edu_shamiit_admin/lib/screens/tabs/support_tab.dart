@@ -842,14 +842,14 @@ class _SupportTabState extends ConsumerState<SupportTab> {
           dataRowMinHeight: 56,
           dataRowMaxHeight: 72,
           columns: [
-            DataColumn(label: FittedBox(child: Text('Ticket ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
-            DataColumn(label: FittedBox(child: Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
-            DataColumn(label: FittedBox(child: Text('Priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
-            DataColumn(label: FittedBox(child: Text('Requested By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
-            DataColumn(label: FittedBox(child: Text('Institution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
-            DataColumn(label: FittedBox(child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
-            DataColumn(label: FittedBox(child: Text('Updated On', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
-            DataColumn(label: FittedBox(child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A))))),
+            DataColumn(label: Text('Ticket ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+            DataColumn(label: Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+            DataColumn(label: Text('Priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+            DataColumn(label: Text('Requested By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+            DataColumn(label: Text('Institution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+            DataColumn(label: Text('Updated On', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+            DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
           ],
           rows: _tickets.map((ticket) {
             final isSelected = _selectedTicket?['id'] == ticket['id'];

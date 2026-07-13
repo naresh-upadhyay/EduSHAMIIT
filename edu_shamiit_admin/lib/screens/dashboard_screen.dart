@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_admin/widgets/admin_bottom_nav.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
+import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   final Widget child;
@@ -274,32 +275,50 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Brand Header
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.admin_panel_settings_rounded,
-                          color: Color(0xFF4F46E5),
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'EduSHAMIIT Admin',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          fontFamily: 'Outfit',
-                        ),
-                      ),
-                    ],
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final config = ref.watch(systemConfigProvider);
+                      return Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: config?.systemLogo != null
+                                ? Image.network(
+                                    config!.systemLogo!,
+                                    width: 24,
+                                    height: 24,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.admin_panel_settings_rounded,
+                                      color: Color(0xFF4F46E5),
+                                      size: 24,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.admin_panel_settings_rounded,
+                                    color: Color(0xFF4F46E5),
+                                    size: 24,
+                                  ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              config?.systemName ?? 'EduSHAMIIT Admin',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                fontFamily: 'Outfit',
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 30),
 

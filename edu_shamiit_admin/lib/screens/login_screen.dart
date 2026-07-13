@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
+import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
 class AdminLoginScreen extends ConsumerStatefulWidget {
   const AdminLoginScreen({super.key});
@@ -20,6 +21,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   bool _obscurePassword = true;
   UserRole? _selectedRole = UserRole.superAdmin; // Default to Super Admin
   String? _roleErrorText;
+  String? _warningMessage;
 
   // 0: Password Login, 1: OTP Login
   int _activeTab = 0;
@@ -29,6 +31,8 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   @override
   void initState() {
     super.initState();
+    _emailController.addListener(_clearWarning);
+    _passwordController.addListener(_clearWarning);
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -37,8 +41,18 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
     );
   }
 
+  void _clearWarning() {
+    if (_warningMessage != null) {
+      setState(() {
+        _warningMessage = null;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _emailController.removeListener(_clearWarning);
+    _passwordController.removeListener(_clearWarning);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -71,15 +85,25 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
       if (!mounted) return;
 
       if (success) {
+        setState(() {
+          _warningMessage = null;
+        });
         _showSnackBar('Successfully authenticated!', Colors.green);
         context.go('/dashboard');
       } else {
         final errorMessage = ref.read(authProvider).error ??
             'Login failed. Please check your credentials.';
+        setState(() {
+          _warningMessage = errorMessage;
+        });
         _showSnackBar(errorMessage, Colors.red);
       }
     } catch (e) {
-      _showSnackBar('Error: ${e.toString()}', Colors.red);
+      final errorMsg = e.toString();
+      setState(() {
+        _warningMessage = errorMsg;
+      });
+      _showSnackBar('Error: $errorMsg', Colors.red);
     }
   }
 
@@ -286,6 +310,39 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                                     color: Color(0xFFFF5252), fontSize: 12),
                               ),
                             ],
+                            if (_warningMessage != null) ...[
+                              const SizedBox(height: 18),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFFD97706).withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Color(0xFFF59E0B),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        _warningMessage!,
+                                        style: const TextStyle(
+                                          color: Color(0xFFFCD34D),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 24),
 
                             // Action Button
@@ -305,6 +362,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   }
 
   Widget _buildLogoHeader() {
+    final config = ref.watch(systemConfigProvider);
+    final hasLogo = config?.systemLogo != null && config!.systemLogo!.isNotEmpty;
+
     return Column(
       children: [
         // Premium Glow icon
@@ -326,52 +386,66 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
               ),
             ],
           ),
-          child: const Center(
-            child: Icon(
-              Icons.admin_panel_settings_rounded,
-              color: Color(0xFF818CF8),
-              size: 36,
-            ),
+          child: Center(
+            child: hasLogo
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(36),
+                    child: Image.network(
+                      config.systemLogo!,
+                      fit: BoxFit.cover,
+                      width: 72,
+                      height: 72,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: Color(0xFF818CF8),
+                        size: 36,
+                      ),
+                    ),
+                  )
+                : const Icon(
+                    Icons.admin_panel_settings_rounded,
+                    color: Color(0xFF818CF8),
+                    size: 36,
+                  ),
           ),
         ),
         const SizedBox(height: 16),
         // Title Text with Premium Styling
-        RichText(
-          text: const TextSpan(
-            children: [
-              TextSpan(
-                text: 'Admin',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                  fontFamily: 'Outfit',
-                ),
-              ),
-              TextSpan(
-                text: 'Suite',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF818CF8),
-                  letterSpacing: -0.5,
-                  fontFamily: 'Outfit',
-                ),
-              ),
-            ],
+        Text(
+          config?.systemName ?? 'Admin Suite',
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            letterSpacing: -0.5,
+            fontFamily: 'Outfit',
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          'CORE CONTROLLER & ENTERPRISE PORTAL',
+          config?.systemTitle ?? 'CORE CONTROLLER & ENTERPRISE PORTAL',
           style: TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w700,
             color: Colors.white.withValues(alpha: 0.4),
             letterSpacing: 2.0,
+            fontFamily: 'Outfit',
           ),
+          textAlign: TextAlign.center,
         ),
+        if (config?.loginPageMessage != null && config!.loginPageMessage.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+            ),
+            child: RichSystemMessage(text: config.loginPageMessage),
+          ),
+        ],
       ],
     );
   }
@@ -698,6 +772,51 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   letterSpacing: 0.5,
                 ),
               ),
+      ),
+    );
+  }
+}
+
+class RichSystemMessage extends StatelessWidget {
+  final String text;
+  const RichSystemMessage({super.key, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final List<TextSpan> spans = [];
+    final regExp = RegExp(r'(\*\*.*?\*\*|\*.*?\*|<u>.*?</u>|[^\*<]+|[^<]+)');
+    final matches = regExp.allMatches(text);
+
+    for (final match in matches) {
+      final part = match.group(0)!;
+      if (part.startsWith('**') && part.endsWith('**')) {
+        spans.add(TextSpan(
+          text: part.substring(2, part.length - 2),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ));
+      } else if (part.startsWith('*') && part.endsWith('*')) {
+        spans.add(TextSpan(
+          text: part.substring(1, part.length - 1),
+          style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.white70),
+        ));
+      } else if (part.startsWith('<u>') && part.endsWith('</u>')) {
+        spans.add(TextSpan(
+          text: part.substring(3, part.length - 4),
+          style: const TextStyle(decoration: TextDecoration.underline, color: Colors.white),
+        ));
+      } else {
+        spans.add(TextSpan(
+          text: part,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+        ));
+      }
+    }
+
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: const TextStyle(fontSize: 12, height: 1.5, fontFamily: 'Outfit'),
+        children: spans,
       ),
     );
   }

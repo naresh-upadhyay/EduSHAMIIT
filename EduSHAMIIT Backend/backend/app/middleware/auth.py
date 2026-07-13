@@ -101,6 +101,11 @@ async def get_current_user(request: Request) -> dict:
             "email": cached.get("email"),
         }
         if user["id"]:
+            from app.services.supabase_client import get_supabase
+            sb = get_supabase()
+            active_check = await sb.table("user_active_sessions").select("id").eq("token", token).maybe_single().aexecute()
+            if not active_check.data:
+                raise HTTPException(status_code=401, detail="Session invalidated or logged out")
             set_current_user_context(user)
             return user
 
@@ -124,6 +129,12 @@ async def get_current_user(request: Request) -> dict:
 
         if not user["id"]:
             raise HTTPException(status_code=401, detail="Invalid token: missing user ID")
+
+        from app.services.supabase_client import get_supabase
+        sb = get_supabase()
+        active_check = await sb.table("user_active_sessions").select("id").eq("token", token).maybe_single().aexecute()
+        if not active_check.data:
+            raise HTTPException(status_code=401, detail="Session invalidated or logged out")
 
         # 3. Cache the decoded payload for next time
         exp = payload.get("exp", 0)

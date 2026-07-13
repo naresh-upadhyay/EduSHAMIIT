@@ -3,10 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../constants/student_colors.dart';
 import 'responsive_dialog_padding.dart';
 
-ThemeData getStudentTheme({Brightness brightness = Brightness.light}) {
+ThemeData getStudentTheme({Brightness brightness = Brightness.light, Color? primaryColor}) {
   final isDark = brightness == Brightness.dark;
   final baseTheme = isDark ? ThemeData.dark(useMaterial3: true) : ThemeData.light(useMaterial3: true);
   
+  final activePrimary = primaryColor ?? StudentColors.primary;
   final bgColor = isDark ? StudentColors.darkBackground : StudentColors.background;
   final surfaceColor = isDark ? StudentColors.darkSurface : StudentColors.surface;
   final textColor = isDark ? StudentColors.darkText : StudentColors.text;
@@ -15,12 +16,12 @@ ThemeData getStudentTheme({Brightness brightness = Brightness.light}) {
   final borderColor = isDark ? StudentColors.darkBorder : StudentColors.border;
 
   return baseTheme.copyWith(
-    primaryColor: StudentColors.primary,
+    primaryColor: activePrimary,
     scaffoldBackgroundColor: bgColor,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: StudentColors.primary,
+      seedColor: activePrimary,
       brightness: brightness,
-      primary: StudentColors.primary,
+      primary: activePrimary,
       secondary: StudentColors.accent,
       surface: surfaceColor,
       error: StudentColors.error,
@@ -128,7 +129,7 @@ ThemeData getStudentTheme({Brightness brightness = Brightness.light}) {
     // Elevated Button Theme
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: StudentColors.primary,
+        backgroundColor: activePrimary,
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -156,7 +157,7 @@ ThemeData getStudentTheme({Brightness brightness = Brightness.light}) {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: StudentColors.primary, width: 2),
+        borderSide: BorderSide(color: activePrimary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

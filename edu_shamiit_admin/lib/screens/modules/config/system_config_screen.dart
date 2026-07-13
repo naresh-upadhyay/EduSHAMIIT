@@ -1,335 +1,2098 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import 'package:edu_shamiit_core/edu_shamiit_core.dart';
+import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'dart:typed_data';
 
-class AdminSystemConfigScreen extends StatefulWidget {
+class AdminSystemConfigScreen extends ConsumerStatefulWidget {
   const AdminSystemConfigScreen({super.key});
 
   @override
-  State<AdminSystemConfigScreen> createState() => _AdminSystemConfigScreenState();
+  ConsumerState<AdminSystemConfigScreen> createState() =>
+      _AdminSystemConfigScreenState();
 }
 
-class _AdminSystemConfigScreenState extends State<AdminSystemConfigScreen> {
-  bool _whiteLabelEnabled = true;
-  bool _academicModule = true;
-  bool _financeModule = true;
-  bool _hrModule = true;
-  bool _transportModule = true;
-  bool _biometricSync = true;
+class _AdminSystemConfigScreenState
+    extends ConsumerState<AdminSystemConfigScreen>
+    with SingleTickerProviderStateMixin {
+  bool _isLoading = true;
+  bool _isSaving = false;
+  int _activeTab =
+      0; // 0: General, 1: Security, 2: Email & SMS, 3: Modules, 4: Appearance, 5: Payments, 6: Integrations, 7: Backup, 8: Advanced
 
-  late final TextEditingController _titleController;
-  Color _themeColor = const Color(0xFF4F46E5);
+  // Dropdown list options
+  final List<String> _languages = [
+    "English",
+    "Spanish",
+    "Hindi",
+    "Arabic",
+    "French"
+  ];
+  final List<String> _timezones = [
+    "(UTC+05:30) Asia/Kolkata",
+    "(UTC+00:00) UTC",
+    "(UTC-05:00) America/New_York",
+    "(UTC+08:00) Asia/Singapore"
+  ];
+  final List<String> _dateFormats = [
+    "May 24, 2025 (MMM DD, YYYY)",
+    "2025-05-24 (YYYY-MM-DD)",
+    "24/05/2025 (DD/MM/YYYY)"
+  ];
+  final List<String> _timeFormats = [
+    "12 Hour (hh:mm AM/PM)",
+    "24 Hour (HH:mm)"
+  ];
+
+  // System Schools
+  List<dynamic> _schools = [];
+  String _selectedSchoolId = "All Institutions";
+
+  // Telemetry stats
+  Map<String, dynamic> _stats = {
+    "version": "v2.6.1",
+    "environment": "Production",
+    "last_updated": "--",
+    "uptime": "15d 7h 24m",
+    "active_sessions": 156,
+    "storage_used_gb": 238.45,
+    "storage_total_gb": 1000.0,
+    "database_size_gb": 125.72,
+    "total_settings": 18,
+    "enabled_settings": 12,
+    "disabled_settings": 4,
+    "not_configured_settings": 2
+  };
+
+  // Text Controllers
+  final _systemNameController = TextEditingController();
+  final _systemTitleController = TextEditingController();
+  final _systemLogoController = TextEditingController();
+  final _faviconController = TextEditingController();
+  final _loginMessageController = TextEditingController();
+  final _autoLogoutController = TextEditingController();
+  final _sessionTimeoutController = TextEditingController();
+
+  // SMTP Settings
+  final _smtpHostController = TextEditingController();
+  final _smtpPortController = TextEditingController();
+  final _twilioSenderController = TextEditingController();
+
+  // Basic Info States
+  String _defaultLanguage = "English";
+  String _defaultTimezone = "(UTC+05:30) Asia/Kolkata";
+  String _dateFormat = "May 24, 2025 (MMM DD, YYYY)";
+  String _timeFormat = "12 Hour (hh:mm AM/PM)";
+
+  // System Preferences Switches
+  bool _allowNewRegistrations = true;
+  bool _maintenanceMode = false;
+  bool _multiInstitutionSupport = true;
+  bool _dataAnonymization = false;
+  bool _enableTwoFactor = true;
+  bool _emailNotifications = true;
+  bool _smsNotifications = true;
+
+  // JSON columns
+  Map<String, dynamic> _securitySettings = {};
+  Map<String, dynamic> _emailSmsSettings = {};
+  Map<String, dynamic> _modulesSettings = {};
+  Map<String, dynamic> _appearanceSettings = {};
+  Map<String, dynamic> _paymentsSettings = {};
+  Map<String, dynamic> _integrationsSettings = {};
+  Map<String, dynamic> _backupRestoreSettings = {};
+  Map<String, dynamic> _advancedSettings = {};
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: 'EduSHAMIIT Portal');
+    _fetchSchools();
+    _fetchConfig();
+    _fetchStats();
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
+    _systemNameController.dispose();
+    _systemTitleController.dispose();
+    _systemLogoController.dispose();
+    _faviconController.dispose();
+    _loginMessageController.dispose();
+    _autoLogoutController.dispose();
+    _sessionTimeoutController.dispose();
+    _smtpHostController.dispose();
+    _smtpPortController.dispose();
+    _twilioSenderController.dispose();
     super.dispose();
   }
+
+  void _formatTextMessage(String prefix, String suffix) {
+    final text = _loginMessageController.text;
+    final selection = _loginMessageController.selection;
+    if (!selection.isValid) {
+      final newText = "$text$prefix$suffix";
+      _loginMessageController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newText.length),
+      );
+      return;
+    }
+
+    final selectedText = selection.textInside(text);
+    final formatted = "$prefix$selectedText$suffix";
+    final newText =
+        text.replaceRange(selection.start, selection.end, formatted);
+
+    _loginMessageController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: selection.start +
+            prefix.length +
+            selectedText.length +
+            suffix.length,
+      ),
+    );
+  }
+
+  void _showLogoUrlDialog() {
+    final controller = TextEditingController(text: _systemLogoController.text);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Enter System Logo URL"),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: "https://example.com/logo.png",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _systemLogoController.text = controller.text.trim();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Apply"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showFaviconUrlDialog() {
+    final controller = TextEditingController(text: _faviconController.text);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Enter Favicon URL"),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: "https://example.com/favicon.png",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _faviconController.text = controller.text.trim();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Apply"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<Uint8List?> _cropImage(String sourcePath) async {
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Square crop
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Logo',
+          toolbarColor: const Color(0xFF0F172A),
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: 'Crop Logo',
+          aspectRatioLockEnabled: true,
+        ),
+        WebUiSettings(
+          context: context,
+          presentStyle: WebPresentStyle.dialog,
+          size: const CropperSize(width: 220, height: 220),
+          zoomable: true,
+          rotatable: true,
+          scalable: true,
+        ),
+      ],
+    );
+    if (croppedFile != null) {
+      return await croppedFile.readAsBytes();
+    }
+    return null;
+  }
+
+  Future<void> _pickAndUploadImage(String fileType) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+          source: ImageSource.gallery, maxWidth: 1000, imageQuality: 90);
+      if (image == null) return;
+
+      final croppedBytes = await _cropImage(image.path);
+      if (croppedBytes == null) return; // User cancelled crop
+
+      setState(() => _isSaving = true);
+
+      final res = await ApiService().multipartPostBytes(
+        '/admin/system-config/upload?file_type=$fileType',
+        croppedBytes,
+        image.name,
+        'file',
+      );
+
+      setState(() => _isSaving = false);
+
+      if (res['success'] == true && res['data'] != null) {
+        final url = res['data']['url'];
+        setState(() {
+          if (fileType == "logo") {
+            _systemLogoController.text = url;
+          } else {
+            _faviconController.text = url;
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '${fileType == "logo" ? "Logo" : "Favicon"} uploaded and cropped successfully!'),
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e')),
+      );
+    }
+  }
+
+  void _showLogoChangeOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.upload_file_rounded),
+                title: const Text("Upload from computer"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndUploadImage("logo");
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_rounded),
+                title: const Text("Paste image URL"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showLogoUrlDialog();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFaviconChangeOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.upload_file_rounded),
+                title: const Text("Upload from computer"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndUploadImage("favicon");
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_rounded),
+                title: const Text("Paste image URL"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFaviconUrlDialog();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _fetchSchools() async {
+    try {
+      final res = await ApiService().get('/admin/schools');
+      if (res['success'] == true) {
+        setState(() {
+          _schools = res['data']['schools'] ?? [];
+        });
+      }
+    } catch (e) {
+      print("Error fetching schools: $e");
+    }
+  }
+
+  Future<void> _fetchConfig() async {
+    setState(() => _isLoading = true);
+    String url = '/admin/system-config';
+    if (_selectedSchoolId != "All Institutions") {
+      url += '?school_id=$_selectedSchoolId';
+    }
+    try {
+      final res = await ApiService().get(url, useCache: false);
+      if (res['success'] == true && res['data'] != null) {
+        final data = res['data'];
+        setState(() {
+          _systemNameController.text = data['system_name'] ?? 'School ERP';
+          _systemTitleController.text =
+              data['system_title'] ?? 'Next Generation School Management';
+          _systemLogoController.text = data['system_logo'] ?? '';
+          _faviconController.text = data['favicon'] ?? '';
+          _loginMessageController.text = data['login_page_message'] ?? '';
+          _autoLogoutController.text =
+              (data['auto_logout_minutes'] ?? 30).toString();
+          _sessionTimeoutController.text =
+              (data['session_timeout_minutes'] ?? 120).toString();
+
+          _defaultLanguage = data['default_language'] ?? 'English';
+          _defaultTimezone =
+              data['default_timezone'] ?? '(UTC+05:30) Asia/Kolkata';
+          _dateFormat = data['date_format'] ?? 'May 24, 2025 (MMM DD, YYYY)';
+          _timeFormat = data['time_format'] ?? '12 Hour (hh:mm AM/PM)';
+
+          _allowNewRegistrations = data['allow_new_registrations'] ?? true;
+          _maintenanceMode = data['maintenance_mode'] ?? false;
+          _multiInstitutionSupport = data['multi_institution_support'] ?? true;
+          _dataAnonymization = data['data_anonymization'] ?? false;
+          _enableTwoFactor = data['enable_two_factor'] ?? true;
+          _emailNotifications = data['email_notifications'] ?? true;
+          _smsNotifications = data['sms_notifications'] ?? true;
+
+          _securitySettings =
+              Map<String, dynamic>.from(data['security_settings'] ?? {});
+          _emailSmsSettings =
+              Map<String, dynamic>.from(data['email_sms_settings'] ?? {});
+          _modulesSettings =
+              Map<String, dynamic>.from(data['modules_settings'] ?? {});
+          _appearanceSettings =
+              Map<String, dynamic>.from(data['appearance_settings'] ?? {});
+          _paymentsSettings =
+              Map<String, dynamic>.from(data['payments_settings'] ?? {});
+          _integrationsSettings =
+              Map<String, dynamic>.from(data['integrations_settings'] ?? {});
+          _backupRestoreSettings =
+              Map<String, dynamic>.from(data['backup_restore_settings'] ?? {});
+          _advancedSettings =
+              Map<String, dynamic>.from(data['advanced_settings'] ?? {});
+
+          // Load SMTP values to controllers
+          _smtpHostController.text =
+              _emailSmsSettings['smtp_host'] ?? 'smtp.shamiit-infra.com';
+          _smtpPortController.text =
+              (_emailSmsSettings['smtp_port'] ?? 587).toString();
+          _twilioSenderController.text =
+              _emailSmsSettings['twilio_sender'] ?? '+1-888-SHAMIIT';
+
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load system config: $e')),
+      );
+    }
+  }
+
+  Future<void> _fetchStats() async {
+    String url = '/admin/system-config/stats';
+    if (_selectedSchoolId != "All Institutions") {
+      url += '?school_id=$_selectedSchoolId';
+    }
+    try {
+      final res = await ApiService().get(url, useCache: false);
+      if (res['success'] == true && res['data'] != null) {
+        setState(() {
+          _stats = Map<String, dynamic>.from(res['data']);
+        });
+      }
+    } catch (e) {
+      print("Error fetching stats: $e");
+    }
+  }
+
+  Future<void> _saveConfig() async {
+    setState(() => _isSaving = true);
+
+    // Sync SMTP values from controllers
+    _emailSmsSettings['smtp_host'] = _smtpHostController.text.trim();
+    _emailSmsSettings['smtp_port'] =
+        int.tryParse(_smtpPortController.text) ?? 587;
+    _emailSmsSettings['twilio_sender'] = _twilioSenderController.text.trim();
+
+    final payload = {
+      "school_id":
+          _selectedSchoolId == "All Institutions" ? null : _selectedSchoolId,
+      "system_name": _systemNameController.text.trim(),
+      "system_title": _systemTitleController.text.trim(),
+      "system_logo": _systemLogoController.text.trim().isEmpty
+          ? null
+          : _systemLogoController.text.trim(),
+      "favicon": _faviconController.text.trim().isEmpty
+          ? null
+          : _faviconController.text.trim(),
+      "default_language": _defaultLanguage,
+      "default_timezone": _defaultTimezone,
+      "date_format": _dateFormat,
+      "time_format": _timeFormat,
+      "allow_new_registrations": _allowNewRegistrations,
+      "maintenance_mode": _maintenanceMode,
+      "multi_institution_support": _multiInstitutionSupport,
+      "data_anonymization": _dataAnonymization,
+      "enable_two_factor": _enableTwoFactor,
+      "email_notifications": _emailNotifications,
+      "sms_notifications": _smsNotifications,
+      "auto_logout_minutes": int.tryParse(_autoLogoutController.text) ?? 30,
+      "session_timeout_minutes":
+          int.tryParse(_sessionTimeoutController.text) ?? 120,
+      "login_page_message": _loginMessageController.text.trim(),
+      "security_settings": _securitySettings,
+      "email_sms_settings": _emailSmsSettings,
+      "modules_settings": _modulesSettings,
+      "appearance_settings": _appearanceSettings,
+      "payments_settings": _paymentsSettings,
+      "integrations_settings": _integrationsSettings,
+      "backup_restore_settings": _backupRestoreSettings,
+      "advanced_settings": _advancedSettings
+    };
+
+    try {
+      final res = await ApiService().put('/admin/system-config', payload);
+      setState(() => _isSaving = false);
+      if (res['success'] == true) {
+        ref.read(systemConfigProvider.notifier).loadConfig();
+        _fetchStats();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('System configuration saved successfully!'),
+              backgroundColor: Color(0xFF10B981),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save configuration: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _triggerQuickAction(String action) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Triggering $action...'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+    // Simulate API execution
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$action completed successfully!'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'System Configuration Control',
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Outfit',
-          ),
-        ),
-        iconTheme: IconThemeData(
-          color: isDark ? Colors.white : const Color(0xFF0F172A),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // White label branding card
-            _buildSectionHeader(context, 'Branding & Customization'),
-            const SizedBox(height: 10),
-            Material(
-              color: theme.cardColor,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                ),
-              ),
-              shadowColor: Colors.black.withValues(alpha: 0.04),
-              elevation: isDark ? 0 : 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SwitchListTile(
-                      title: Text(
-                        'Enable Tenant White Labeling',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: const Text(
-                        'Allow institutions to apply custom domains, logos, and custom color themes.',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
-                      ),
-                      value: _whiteLabelEnabled,
-                      onChanged: (val) {
-                        setState(() {
-                          _whiteLabelEnabled = val;
-                        });
-                      },
-                      activeThumbColor: const Color(0xFF4F46E5),
-                      activeTrackColor: const Color(0xFF4F46E5).withValues(alpha: 0.5),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    if (_whiteLabelEnabled) ...[
-                      Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _titleController,
-                        decoration: InputDecoration(
-                          labelText: 'Global Portal Domain Prefix',
-                          hintText: 'e.g. shamiit',
-                          labelStyle: const TextStyle(fontSize: 12),
-                          hintStyle: const TextStyle(fontSize: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Primary Branding Color',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [Colors.indigo, Colors.blue, Colors.green, Colors.teal, Colors.orange, Colors.purple].map((c) {
-                          final isSel = _themeColor == c;
-                          return GestureDetector(
-                            onTap: () => setState(() => _themeColor = c),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 10),
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: c,
-                                shape: BoxShape.circle,
-                                border: isSel ? Border.all(color: isDark ? Colors.black : Colors.white, width: 2) : null,
-                                boxShadow: isSel ? [const BoxShadow(color: Colors.black26, blurRadius: 4)] : null,
-                              ),
+      backgroundColor:
+          isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(color: theme.primaryColor))
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(isDark),
+                  const SizedBox(height: 24),
+                  _buildTabsRow(isDark),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left config panel (2/3 width)
+                        Expanded(
+                          flex: 2,
+                          child: SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 24),
+                              child: _buildActiveTabContent(isDark),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Modules toggles card
-            _buildSectionHeader(context, 'Global Modules Registry'),
-            const SizedBox(height: 10),
-            Material(
-              color: theme.cardColor,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                ),
-              ),
-              shadowColor: Colors.black.withValues(alpha: 0.04),
-              elevation: isDark ? 0 : 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _buildToggleRow(
-                        context,
-                        'Academic & Curriculum Engine',
-                        'Timetables, course paths, study plans, live learning',
-                        _academicModule, (val) {
-                      setState(() {
-                        _academicModule = val;
-                      });
-                    }),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    _buildToggleRow(
-                        context,
-                        'Financial & Tuition Ledger',
-                        'Fee collections, recurring plans, defaulters triggers',
-                        _financeModule, (val) {
-                      setState(() {
-                        _financeModule = val;
-                      });
-                    }),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    _buildToggleRow(
-                        context,
-                        'HR & Payroll Registry',
-                        'Teacher salaries, bio logins, attendance tracking, leave manager',
-                        _hrModule, (val) {
-                      setState(() {
-                        _hrModule = val;
-                      });
-                    }),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    _buildToggleRow(
-                        context,
-                        'Logistics & Transport Dispatch',
-                        'Bus routing, driver mapping, live GPS tracker',
-                        _transportModule, (val) {
-                      setState(() {
-                        _transportModule = val;
-                      });
-                    }),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Integrations Card
-            _buildSectionHeader(context, 'Core API & Automation Control'),
-            const SizedBox(height: 10),
-            Material(
-              color: theme.cardColor,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                ),
-              ),
-              shadowColor: Colors.black.withValues(alpha: 0.04),
-              elevation: isDark ? 0 : 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    SwitchListTile(
-                      title: Text(
-                        'Biometric Sync Broker Service',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      subtitle: const Text(
-                        'Automatically synchronize biometric terminals daily between 9:00 - 10:00 AM.',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
-                      ),
-                      value: _biometricSync,
-                      onChanged: (val) {
-                        setState(() {
-                          _biometricSync = val;
-                        });
-                      },
-                      activeThumbColor: const Color(0xFF4F46E5),
-                      activeTrackColor: const Color(0xFF4F46E5).withValues(alpha: 0.5),
-                      contentPadding: EdgeInsets.zero,
+                        // Right status panel (1/3 width)
+                        SizedBox(
+                          width: 380,
+                          child: SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                _buildSystemStatusCard(isDark),
+                                const SizedBox(height: 24),
+                                _buildConfigurationOverviewCard(isDark),
+                                const SizedBox(height: 24),
+                                _buildQuickActionsCard(isDark),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    const SizedBox(height: 12),
-                    _buildConfigValueRow(context, 'SMTP Gateway Endpoint', 'smtp.shamiit-infra.com'),
-                    const SizedBox(height: 10),
-                    _buildConfigValueRow(context, 'Twilio SMS Route', 'Active — +1-888-SHAMIIT'),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 30),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
+  Widget _buildHeader(bool isDark) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Text(
-      title,
-      style: TextStyle(
-        color: isDark ? Colors.white : const Color(0xFF0F172A),
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        fontFamily: 'Outfit',
-      ),
-    );
-  }
-
-  Widget _buildToggleRow(
-      BuildContext context, String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return SwitchListTile(
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isDark ? Colors.white : const Color(0xFF0F172A),
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
-      ),
-      value: value,
-      onChanged: onChanged,
-      activeThumbColor: const Color(0xFF4F46E5),
-      activeTrackColor: const Color(0xFF4F46E5).withValues(alpha: 0.5),
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-    );
-  }
-
-  Widget _buildConfigValueRow(BuildContext context, String label, String value) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-            fontSize: 12,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "System Configuration",
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Outfit',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Manage and configure global system settings for your ERP platform.",
+              style: TextStyle(
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            // Top dropdown: All Institutions
+            Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedSchoolId,
+                  dropdownColor:
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedSchoolId = val;
+                      });
+                      _fetchConfig();
+                      _fetchStats();
+                    }
+                  },
+                  items: [
+                    const DropdownMenuItem(
+                      value: "All Institutions",
+                      child: Text("All Institutions"),
+                    ),
+                    ..._schools.map((s) {
+                      return DropdownMenuItem<String>(
+                        value: s['id'].toString(),
+                        child: Text(s['name'].toString()),
+                      );
+                    })
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Search Input placeholder
+            Container(
+              width: 200,
+              height: 38,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+              ),
+              child: const TextField(
+                decoration: InputDecoration(
+                  hintText: "Search settings...",
+                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
+                  prefixIcon:
+                      Icon(Icons.search_rounded, size: 16, color: Colors.grey),
+                  border: InputBorder.none,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                ),
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Save Changes button
+            ElevatedButton.icon(
+              onPressed: _isSaving ? null : _saveConfig,
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check_rounded,
+                      size: 16, color: Colors.white),
+              label: Text(_isSaving ? "Saving..." : "Save Changes"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabsRow(bool isDark) {
+    final theme = Theme.of(context);
+    final List<Map<String, dynamic>> tabs = [
+      {"label": "General Settings", "icon": Icons.tune_rounded},
+      {"label": "Security", "icon": Icons.security_rounded},
+      {"label": "Email & SMS", "icon": Icons.mail_outline_rounded},
+      {"label": "Modules", "icon": Icons.dashboard_customize_rounded},
+      {"label": "Appearance", "icon": Icons.palette_outlined},
+      {"label": "Payments", "icon": Icons.payment_rounded},
+      {
+        "label": "Integrations",
+        "icon": Icons.integration_instructions_outlined
+      },
+      {"label": "Backup & Restore", "icon": Icons.backup_rounded},
+      {"label": "Advanced", "icon": Icons.settings_suggest_rounded},
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: tabs.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final item = entry.value;
+          final isActive = _activeTab == idx;
+
+          return GestureDetector(
+            onTap: () => setState(() => _activeTab = idx),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? theme.primaryColor
+                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isActive
+                      ? Colors.transparent
+                      : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    item["icon"] as IconData,
+                    size: 14,
+                    color: isActive
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    item["label"] as String,
+                    style: TextStyle(
+                      color: isActive
+                          ? Colors.white
+                          : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildActiveTabContent(bool isDark) {
+    switch (_activeTab) {
+      case 0:
+        return _buildGeneralSettingsTab(isDark);
+      case 1:
+        return _buildSecurityTab(isDark);
+      case 2:
+        return _buildEmailSMSTab(isDark);
+      case 3:
+        return _buildModulesTab(isDark);
+      case 4:
+        return _buildAppearanceTab(isDark);
+      case 5:
+        return _buildPaymentsTab(isDark);
+      case 6:
+        return _buildIntegrationsTab(isDark);
+      case 7:
+        return _buildBackupRestoreTab(isDark);
+      case 8:
+        return _buildAdvancedTab(isDark);
+      default:
+        return _buildGeneralSettingsTab(isDark);
+    }
+  }
+
+  // =========================================================================
+  // Tab UI Builders
+  // =========================================================================
+
+  Widget _buildGeneralSettingsTab(bool isDark) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Basic Information Card
+        _buildConfigCard(
+          isDark,
+          title: "Basic Information",
+          subtitle:
+              "Configure basic system details that will be used across all institutions.",
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildInputField("System Name", _systemNameController,
+                            isDark, "School ERP"),
+                        const SizedBox(height: 16),
+                        _buildInputField("System Title", _systemTitleController,
+                            isDark, "Next Generation School Management"),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                  // Logo container
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "System Logo",
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey),
+                      ),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: () => _showLogoChangeOptions(),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          width: 150,
+                          height: 150,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: isDark
+                                    ? Colors.white10
+                                    : const Color(0xFFE2E8F0)),
+                          ),
+                          child: _systemLogoController.text.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(
+                                    _systemLogoController.text,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.error_outline_rounded,
+                                            size: 24, color: Colors.red),
+                                        SizedBox(height: 8),
+                                        Text("Invalid Image URL",
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.image_search_rounded,
+                                        size: 24,
+                                        color: isDark
+                                            ? Colors.white54
+                                            : Colors.grey),
+                                    const SizedBox(height: 8),
+                                    const Text("Click to upload Logo",
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 2),
+                                    const Text("PNG, JPG or SVG format",
+                                        style: TextStyle(
+                                            fontSize: 8, color: Colors.grey)),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDropdownField(
+                        "Default Language", _defaultLanguage, _languages,
+                        (val) {
+                      if (val != null) setState(() => _defaultLanguage = val);
+                    }, isDark),
+                  ),
+                  const SizedBox(width: 32),
+                  // Favicon
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Favicon",
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF0F172A)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: isDark
+                                        ? Colors.white10
+                                        : const Color(0xFFE2E8F0)),
+                              ),
+                              child: _faviconController.text.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Image.network(
+                                        _faviconController.text,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(
+                                                Icons.error_outline_rounded,
+                                                size: 18,
+                                                color: Colors.red),
+                                      ),
+                                    )
+                                  : Icon(Icons.school_rounded,
+                                      size: 18, color: theme.primaryColor),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton(
+                              onPressed: () => _showFaviconChangeOptions(),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                    color: isDark
+                                        ? Colors.white24
+                                        : const Color(0xFFCBD5E1)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6)),
+                              ),
+                              child: Text("Change",
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black87)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildDropdownField(
+                        "Default Timezone", _defaultTimezone, _timezones,
+                        (val) {
+                      if (val != null) setState(() => _defaultTimezone = val);
+                    }, isDark),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildDropdownField(
+                        "Date Format", _dateFormat, _dateFormats, (val) {
+                      if (val != null) setState(() => _dateFormat = val);
+                    }, isDark),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildDropdownField(
+                        "Time Format", _timeFormat, _timeFormats, (val) {
+                      if (val != null) setState(() => _timeFormat = val);
+                    }, isDark),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
+        const SizedBox(height: 24),
+        // 2. System Preferences Card
+        _buildConfigCard(
+          isDark,
+          title: "System Preferences",
+          subtitle: "Manage global system preferences and behavior.",
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildSwitchRow(
+                        "Allow New Registrations",
+                        "Allow new institutions to register on the system",
+                        _allowNewRegistrations, (val) {
+                      setState(() => _allowNewRegistrations = val);
+                    }, isDark),
+                    const Divider(height: 24, color: Colors.white10),
+                    _buildSwitchRow(
+                        "Maintenance Mode",
+                        "Enable maintenance mode (system will be unavailable)",
+                        _maintenanceMode, (val) {
+                      setState(() => _maintenanceMode = val);
+                    }, isDark),
+                    const Divider(height: 24, color: Colors.white10),
+                    _buildSwitchRow(
+                        "Multi-Institution Support",
+                        "Enable multi-institution (multi-tenant) support",
+                        _multiInstitutionSupport, (val) {
+                      setState(() => _multiInstitutionSupport = val);
+                    }, isDark),
+                    const Divider(height: 24, color: Colors.white10),
+                    _buildSwitchRow(
+                        "Data Anonymization",
+                        "Automatically anonymize old records",
+                        _dataAnonymization, (val) {
+                      setState(() => _dataAnonymization = val);
+                    }, isDark),
+                    const Divider(height: 24, color: Colors.white10),
+                    _buildSwitchRow(
+                        "Enable Two-Factor Authentication",
+                        "Require 2FA for admin and users",
+                        _enableTwoFactor, (val) {
+                      setState(() => _enableTwoFactor = val);
+                    }, isDark),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 48),
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildSwitchRow(
+                        "Email Notifications",
+                        "Enable email notifications for system events",
+                        _emailNotifications, (val) {
+                      setState(() => _emailNotifications = val);
+                    }, isDark),
+                    const Divider(height: 24, color: Colors.white10),
+                    _buildSwitchRow(
+                        "SMS Notifications",
+                        "Enable SMS notifications for alerts",
+                        _smsNotifications, (val) {
+                      setState(() => _smsNotifications = val);
+                    }, isDark),
+                    const Divider(height: 24, color: Colors.white10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Auto Logout (minutes)",
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 2),
+                              const Text("Automatically logout inactive users",
+                                  style: TextStyle(
+                                      fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          width: 80,
+                          height: 38,
+                          child: TextField(
+                            controller: _autoLogoutController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6)),
+                            ),
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24, color: Colors.white10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Session Timeout (minutes)",
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 2),
+                              const Text("Maximum session duration",
+                                  style: TextStyle(
+                                      fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          width: 80,
+                          height: 38,
+                          child: TextField(
+                            controller: _sessionTimeoutController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6)),
+                            ),
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        // 3. System Message Card
+        _buildConfigCard(
+          isDark,
+          title: "System Message",
+          subtitle: "Configure system-wide messages and alerts.",
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Login Page Message",
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    // Fake Editor Toolbar
+                    Container(
+                      height: 36,
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF1F5F9),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 8),
+                          IconButton(
+                              icon: const Icon(Icons.format_bold_rounded,
+                                  size: 16),
+                              onPressed: () => _formatTextMessage('**', '**'),
+                              tooltip: "Bold"),
+                          IconButton(
+                              icon: const Icon(Icons.format_italic_rounded,
+                                  size: 16),
+                              onPressed: () => _formatTextMessage('*', '*'),
+                              tooltip: "Italic"),
+                          IconButton(
+                              icon: const Icon(Icons.format_underlined_rounded,
+                                  size: 16),
+                              onPressed: () =>
+                                  _formatTextMessage('<u>', '</u>'),
+                              tooltip: "Underline"),
+                          const VerticalDivider(
+                              color: Colors.white24, indent: 8, endIndent: 8),
+                          IconButton(
+                              icon: const Icon(
+                                  Icons.format_list_bulleted_rounded,
+                                  size: 16),
+                              onPressed: () => _formatTextMessage('\n- ', '')),
+                          IconButton(
+                              icon: const Icon(
+                                  Icons.format_list_numbered_rounded,
+                                  size: 16),
+                              onPressed: () => _formatTextMessage('\n1. ', '')),
+                          const VerticalDivider(
+                              color: Colors.white24, indent: 8, endIndent: 8),
+                          IconButton(
+                              icon: const Icon(Icons.link_rounded, size: 16),
+                              onPressed: () =>
+                                  _formatTextMessage('[', '](url)')),
+                        ],
+                      ),
+                    ),
+                    TextField(
+                      controller: _loginMessageController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(12),
+                        hintText: "Enter custom login message...",
+                      ),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSecurityTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Security Settings",
+      subtitle:
+          "Control platform-wide user security, passwords policies, and lockout credentials.",
+      child: Column(
+        children: [
+          _buildDropdownField(
+            "Password Complexity Policy",
+            _securitySettings['password_policy'] ?? "Strong",
+            ["Simple", "Medium", "Strong", "Enterprise"],
+            (val) {
+              if (val != null) {
+                setState(() {
+                  _securitySettings['password_policy'] = val;
+                });
+              }
+            },
+            isDark,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Max Active Sessions per User",
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<int>(
+                      value: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                          ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                          : 5,
+                      dropdownColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
+                      decoration: InputDecoration(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _securitySettings['session_limit'] = val;
+                          });
+                        }
+                      },
+                      items: [1, 2, 5, 10, 20].map((int val) {
+                        return DropdownMenuItem<int>(
+                            value: val, child: Text("$val Sessions"));
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Failed Login Lockout Threshold",
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<int>(
+                      value: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                          ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                          : 5,
+                      dropdownColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
+                      decoration: InputDecoration(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _securitySettings['failed_attempts_lockout'] = val;
+                          });
+                        }
+                      },
+                      items: [3, 5, 10, 15].map((int val) {
+                        return DropdownMenuItem<int>(
+                            value: val, child: Text("$val Attempts"));
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmailSMSTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Email & SMS Settings",
+      subtitle:
+          "Configure notification dispatch templates and providers API credentials.",
+      child: Column(
+        children: [
+          _buildInputField("SMTP Gateway Endpoint", _smtpHostController, isDark,
+              "smtp.shamiit-infra.com"),
+          const SizedBox(height: 16),
+          _buildInputField("SMTP Port", _smtpPortController, isDark, "587"),
+          const SizedBox(height: 16),
+          _buildInputField("Twilio SMS Route Sender", _twilioSenderController,
+              isDark, "+1-888-SHAMIIT"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModulesTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Global Modules Registry",
+      subtitle: "Select which functional modules are activated for this scope.",
+      child: Column(
+        children: [
+          _buildSwitchRow(
+              "Academic & Curriculum Engine",
+              "Timetables, course paths, study plans, live learning",
+              _modulesSettings['academics'] ?? true, (val) {
+            setState(() => _modulesSettings['academics'] = val);
+          }, isDark),
+          const Divider(height: 24, color: Colors.white10),
+          _buildSwitchRow(
+              "Financial & Tuition Ledger",
+              "Fee collections, recurring plans, defaulters triggers",
+              _modulesSettings['finance'] ?? true, (val) {
+            setState(() => _modulesSettings['finance'] = val);
+          }, isDark),
+          const Divider(height: 24, color: Colors.white10),
+          _buildSwitchRow(
+              "HR & Payroll Registry",
+              "Teacher salaries, bio logins, attendance tracking, leave manager",
+              _modulesSettings['hr_payroll'] ?? true, (val) {
+            setState(() => _modulesSettings['hr_payroll'] = val);
+          }, isDark),
+          const Divider(height: 24, color: Colors.white10),
+          _buildSwitchRow(
+              "Logistics & Transport Dispatch",
+              "Bus routing, driver mapping, live GPS tracker",
+              _modulesSettings['transport'] ?? true, (val) {
+            setState(() => _modulesSettings['transport'] = val);
+          }, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppearanceTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Appearance Settings",
+      subtitle:
+          "Customize standard primary colors, styles, layouts and dashboard looks.",
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDropdownField(
+            "Default Visual Mode",
+            _appearanceSettings['theme'] ?? "Dark",
+            ["Light", "Dark", "System Mode"],
+            (val) {
+              if (val != null) {
+                setState(() {
+                  _appearanceSettings['theme'] = val;
+                });
+              }
+            },
+            isDark,
+          ),
+          const SizedBox(height: 16),
+          const Text("Primary Color Theme",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Colors.indigo,
+              Colors.blue,
+              Colors.green,
+              Colors.teal,
+              Colors.orange,
+              Colors.purple
+            ].map((c) {
+              final hex =
+                  '#${c.value.toRadixString(16).substring(2).toUpperCase()}';
+              final isSel = _appearanceSettings['primary_color'] == hex ||
+                  (_appearanceSettings['primary_color'] == null &&
+                      c == Colors.indigo);
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _appearanceSettings['primary_color'] = hex;
+                  });
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(right: 10),
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: c,
+                    shape: BoxShape.circle,
+                    border: isSel
+                        ? Border.all(
+                            color: isDark ? Colors.black : Colors.white,
+                            width: 2)
+                        : null,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentsTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Tuition & Payments Settings",
+      subtitle:
+          "Configure gateways, invoice generation, base currencies, and merchant accounts.",
+      child: Column(
+        children: [
+          _buildDropdownField(
+            "Base Currency",
+            _paymentsSettings['currency'] ?? "INR",
+            ["INR", "USD", "EUR", "AED"],
+            (val) {
+              if (val != null) {
+                setState(() {
+                  _paymentsSettings['currency'] = val;
+                });
+              }
+            },
+            isDark,
+          ),
+          const SizedBox(height: 16),
+          _buildSwitchRow(
+              "Automatic Invoice Dispatch",
+              "Automatically create and email invoices upon fee due",
+              _paymentsSettings['auto_invoice'] ?? true, (val) {
+            setState(() => _paymentsSettings['auto_invoice'] = val);
+          }, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntegrationsTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Automation & Integrations",
+      subtitle:
+          "Toggle broker connections to live hardware terminals, video channels, and calendars.",
+      child: Column(
+        children: [
+          _buildSwitchRow(
+            "Biometric Sync Broker Service",
+            "Automatically synchronize biometric terminals daily between 9:00 - 10:00 AM.",
+            _integrationsSettings['biometric_sync'] ?? true,
+            (val) {
+              setState(() => _integrationsSettings['biometric_sync'] = val);
+            },
+            isDark,
+          ),
+          const Divider(height: 24, color: Colors.white10),
+          _buildSwitchRow(
+            "Zoom Virtual Classroom Engine",
+            "Enable scheduling Zoom links automatically inside live learning channels",
+            _integrationsSettings['zoom_integration'] ?? false,
+            (val) {
+              setState(() => _integrationsSettings['zoom_integration'] = val);
+            },
+            isDark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackupRestoreTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Data Backup & Recovery Policy",
+      subtitle:
+          "Configure automatic snapshots, backup destinations, and logs retention threshold.",
+      child: Column(
+        children: [
+          _buildSwitchRow(
+            "Automatic Snapshots",
+            "Perform daily full database and transaction logs backup",
+            _backupRestoreSettings['auto_backup'] ?? true,
+            (val) {
+              setState(() => _backupRestoreSettings['auto_backup'] = val);
+            },
+            isDark,
+          ),
+          const SizedBox(height: 16),
+          _buildDropdownField(
+            "Backup Snapshots Interval",
+            _backupRestoreSettings['backup_interval'] ?? "Daily",
+            ["Daily", "Weekly", "Monthly"],
+            (val) {
+              if (val != null) {
+                setState(() {
+                  _backupRestoreSettings['backup_interval'] = val;
+                });
+              }
+            },
+            isDark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvancedTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Advanced System Settings",
+      subtitle:
+          "Configure low-level debug parameters, caching brokers, and platform modes.",
+      child: Column(
+        children: [
+          _buildSwitchRow(
+            "Platform Debug Logging",
+            "Print verbose stack traces and debug output inside system log stream",
+            _advancedSettings['debug_mode'] ?? false,
+            (val) {
+              setState(() => _advancedSettings['debug_mode'] = val);
+            },
+            isDark,
+          ),
+          const Divider(height: 24, color: Colors.white10),
+          _buildSwitchRow(
+            "Query Result Cache Broker",
+            "Enable Redis query caching to boost listing latency speed",
+            _advancedSettings['query_caching'] ?? true,
+            (val) {
+              setState(() => _advancedSettings['query_caching'] = val);
+            },
+            isDark,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // Shared Form Components
+  // =========================================================================
+
+  Widget _buildConfigCard(
+    bool isDark, {
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Outfit'),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField(String label, TextEditingController controller,
+      bool isDark, String hint) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: hint,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          style: const TextStyle(fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdownField(String label, String value, List<String> items,
+      ValueChanged<String?> onChanged, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: items.contains(value) ? value : items.first,
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          onChanged: onChanged,
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+                value: item,
+                child: Text(item, style: const TextStyle(fontSize: 12)));
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSwitchRow(String title, String subtitle, bool value,
+      ValueChanged<bool> onChanged, bool isDark) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: theme.primaryColor.withValues(alpha: 0.5),
+          activeColor: theme.primaryColor,
+        ),
+      ],
+    );
+  }
+
+  // =========================================================================
+  // Right Column Widgets (Uptime, Doughnut, Quick Actions)
+  // =========================================================================
+
+  Widget _buildSystemStatusCard(bool isDark) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("System Status",
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Outfit')),
+          const SizedBox(height: 16),
+          _buildStatusRow("System Version",
+              _stats["version"]?.toString() ?? "v2.6.1", isDark),
+          _buildStatusRow("Environment",
+              _stats["environment"]?.toString() ?? "Production", isDark),
+          _buildStatusRow("Last Updated",
+              _formatLastUpdated(_stats["last_updated"]), isDark),
+          _buildStatusRow("System Uptime",
+              _stats["uptime"]?.toString() ?? "15d 7h 24m", isDark),
+          _buildStatusRow("Active Sessions",
+              _stats["active_sessions"]?.toString() ?? "156", isDark),
+          const SizedBox(height: 12),
+          const Text("Storage Used",
+              style: TextStyle(fontSize: 11, color: Colors.grey)),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: (_stats["storage_used_gb"] as double) /
+                  (_stats["storage_total_gb"] as double),
+              minHeight: 6,
+              backgroundColor:
+                  isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+              color: theme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "${_stats["storage_used_gb"]} GB / ${_stats["storage_total_gb"]?.toInt()} GB (23.8%)",
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildStatusRow(
+              "Database Size", "${_stats["database_size_gb"]} GB", isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusRow(String label, String value, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A))),
+        ],
+      ),
+    );
+  }
+
+  String _formatLastUpdated(dynamic dateStr) {
+    if (dateStr == null || dateStr == "--") return "--";
+    try {
+      final date = DateTime.parse(dateStr.toString()).toLocal();
+      return DateFormat('MMM dd, yyyy hh:mm a').format(date);
+    } catch (_) {
+      return dateStr.toString();
+    }
+  }
+
+  Widget _buildConfigurationOverviewCard(bool isDark) {
+    final theme = Theme.of(context);
+    final int enabled = _stats["enabled_settings"] ?? 12;
+    final int disabled = _stats["disabled_settings"] ?? 4;
+    final int notConfigured = _stats["not_configured_settings"] ?? 2;
+    final int total = enabled + disabled + notConfigured;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Configuration Overview",
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Outfit')),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              SizedBox(
+                width: 100,
+                height: 100,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    PieChart(
+                      PieChartData(
+                        sectionsSpace: 0,
+                        centerSpaceRadius: 36,
+                        sections: [
+                          PieChartSectionData(
+                            color: const Color(0xFF10B981),
+                            value: enabled.toDouble(),
+                            radius: 8,
+                            showTitle: false,
+                          ),
+                          PieChartSectionData(
+                            color: const Color(0xFFF59E0B),
+                            value: disabled.toDouble(),
+                            radius: 8,
+                            showTitle: false,
+                          ),
+                          PieChartSectionData(
+                            color: isDark
+                                ? Colors.white24
+                                : const Color(0xFFCBD5E1),
+                            value: notConfigured.toDouble(),
+                            radius: 8,
+                            showTitle: false,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          total.toString(),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const Text("Settings",
+                            style: TextStyle(fontSize: 8, color: Colors.grey)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildOverviewLegendRow(
+                        "Enabled", enabled, total, const Color(0xFF10B981)),
+                    const SizedBox(height: 6),
+                    _buildOverviewLegendRow(
+                        "Disabled", disabled, total, const Color(0xFFF59E0B)),
+                    const SizedBox(height: 6),
+                    _buildOverviewLegendRow(
+                        "Not Configured",
+                        notConfigured,
+                        total,
+                        isDark ? Colors.white30 : const Color(0xFF94A3B8)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white10, height: 1),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.center,
+            child: InkWell(
+              onTap: () {},
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("View All Settings",
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: theme.primaryColor,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 4),
+                  Icon(Icons.open_in_new_rounded,
+                      size: 10, color: theme.primaryColor),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewLegendRow(
+      String label, int count, int total, Color color) {
+    final pct = total > 0 ? (count / total * 100).toStringAsFixed(1) : "0.0";
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(label,
+              style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        ),
+        Text(
+          "$count ($pct%)",
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionsCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Quick Actions",
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Outfit')),
+          const SizedBox(height: 16),
+          _buildQuickActionButton(
+              "Clear System Cache",
+              Icons.cleaning_services_outlined,
+              () => _triggerQuickAction("Clear System Cache"),
+              isDark),
+          const SizedBox(height: 10),
+          _buildQuickActionButton(
+              "System Health Check",
+              Icons.health_and_safety_outlined,
+              () => _triggerQuickAction("System Health Check"),
+              isDark),
+          const SizedBox(height: 10),
+          _buildQuickActionButton("Regenerate API Keys", Icons.vpn_key_outlined,
+              () => _triggerQuickAction("Regenerate API Keys"), isDark),
+          const SizedBox(height: 10),
+          _buildQuickActionButton("View System Logs", Icons.terminal_outlined,
+              () => _triggerQuickAction("View System Logs"), isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton(
+      String label, IconData icon, VoidCallback onTap, bool isDark) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: theme.primaryColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 }
