@@ -308,143 +308,241 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
           const SizedBox(height: 8),
 
           // Row 2: Search, Filters & Bulk Actions
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.start,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // Extra Command Filters (e.g. API-backed dropdowns)
-              if (widget.extraCommandFilters != null)
-                ...widget.extraCommandFilters!,
-              // Search Input Box
-              if (widget.searchMatcher != null)
-                SizedBox(
-                  width: isMobile ? double.infinity : 240,
-                  height: 32,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (val) {
-                      setState(() {
-                        _searchQuery = val;
-                        _currentPage = 0; // reset to first page
-                      });
-                    },
-                    style: GoogleFonts.dmSans(fontSize: 12),
-                    decoration: InputDecoration(
-                      hintText: 'Search...',
-                      hintStyle:
-                          GoogleFonts.dmSans(fontSize: 12, color: Colors.grey),
-                      prefixIcon: const Icon(Icons.search,
-                          size: 16, color: Colors.grey),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close,
-                                  size: 14, color: Colors.grey),
-                              padding: EdgeInsets.zero,
-                              onPressed: () {
-                                setState(() {
-                                  _searchController.clear();
-                                  _searchQuery = '';
-                                  _currentPage = 0;
-                                });
-                              },
-                            )
-                          : null,
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 0, horizontal: 8),
-                      filled: true,
-                      fillColor:
-                          isDark ? const Color(0xFF262633) : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide(
-                            color: isDark
-                                ? const Color(0xFF3A3A4A)
-                                : Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide(
-                            color: isDark
-                                ? const Color(0xFF3A3A4A)
-                                : Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide: BorderSide(
-                            color: theme.colorScheme.primary, width: 1.5),
-                      ),
+          if (isMobile) ...[
+            if (widget.searchMatcher != null) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 32,
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val;
+                      _currentPage = 0;
+                    });
+                  },
+                  style: GoogleFonts.dmSans(fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: 'Search...',
+                    hintStyle: GoogleFonts.dmSans(fontSize: 12, color: Colors.grey),
+                    prefixIcon: const Icon(Icons.search, size: 16, color: Colors.grey),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close, size: 14, color: Colors.grey),
+                            padding: EdgeInsets.zero,
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                                _currentPage = 0;
+                              });
+                            },
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF262633) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(color: isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(color: isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
                     ),
                   ),
                 ),
-
-              // Dropdown Filters
-              if (widget.filters != null)
-                ...widget.filters!.map((filter) {
-                  final currentVal = _activeFilters[filter.label] ?? 'All';
-                  return Container(
+              ),
+              const SizedBox(height: 8),
+            ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  if (widget.extraCommandFilters != null) ...[
+                    ...widget.extraCommandFilters!.map((f) => Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: f,
+                        )),
+                  ],
+                  if (widget.filters != null) ...[
+                    ...widget.filters!.map((filter) {
+                      final currentVal = _activeFilters[filter.label] ?? 'All';
+                      return Container(
+                        height: 32,
+                        margin: const EdgeInsets.only(right: 8.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF262633) : Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: currentVal != 'All'
+                                ? theme.colorScheme.primary
+                                : (isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: currentVal,
+                            style: GoogleFonts.dmSans(
+                              fontSize: 12,
+                              color: currentVal != 'All'
+                                  ? theme.colorScheme.primary
+                                  : (isDark ? Colors.white : Colors.black87),
+                              fontWeight: currentVal != 'All' ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            dropdownColor: isDark ? const Color(0xFF262633) : Colors.white,
+                            items: ['All', ...filter.options].map((opt) {
+                              return DropdownMenuItem<String>(
+                                value: opt,
+                                child: Text(opt == 'All' ? '${filter.label}: All' : opt),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _activeFilters[filter.label] = val;
+                                  _currentPage = 0;
+                                });
+                                if (widget.onFilterChanged != null) {
+                                  widget.onFilterChanged!(filter.label, val);
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                  if (_selectedItems.isNotEmpty && widget.bulkActions != null) ...[
+                    ...widget.bulkActions!(context, _selectedItems.toList()).map((action) => Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: SizedBox(
+                            height: 32,
+                            child: action,
+                          ),
+                        )),
+                  ],
+                ],
+              ),
+            ),
+          ] else ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.start,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (widget.extraCommandFilters != null) ...widget.extraCommandFilters!,
+                if (widget.searchMatcher != null)
+                  SizedBox(
+                    width: 240,
                     height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF262633) : Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: currentVal != 'All'
-                            ? theme.colorScheme.primary
-                            : (isDark
-                                ? const Color(0xFF3A3A4A)
-                                : Colors.grey.shade300),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val;
+                          _currentPage = 0;
+                        });
+                      },
+                      style: GoogleFonts.dmSans(fontSize: 12),
+                      decoration: InputDecoration(
+                        hintText: 'Search...',
+                        hintStyle: GoogleFonts.dmSans(fontSize: 12, color: Colors.grey),
+                        prefixIcon: const Icon(Icons.search, size: 16, color: Colors.grey),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.close, size: 14, color: Colors.grey),
+                                padding: EdgeInsets.zero,
+                                onPressed: () {
+                                  setState(() {
+                                    _searchController.clear();
+                                    _searchQuery = '';
+                                    _currentPage = 0;
+                                  });
+                                },
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+                        filled: true,
+                        fillColor: isDark ? const Color(0xFF262633) : Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: BorderSide(color: isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+                        ),
                       ),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: currentVal,
-                        style: GoogleFonts.dmSans(
-                          fontSize: 12,
+                  ),
+                if (widget.filters != null)
+                  ...widget.filters!.map((filter) {
+                    final currentVal = _activeFilters[filter.label] ?? 'All';
+                    return Container(
+                      height: 32,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF262633) : Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
                           color: currentVal != 'All'
                               ? theme.colorScheme.primary
-                              : (isDark ? Colors.white : Colors.black87),
-                          fontWeight: currentVal != 'All'
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                              : (isDark ? const Color(0xFF3A3A4A) : Colors.grey.shade300),
                         ),
-                        dropdownColor:
-                            isDark ? const Color(0xFF262633) : Colors.white,
-                        items: ['All', ...filter.options].map((opt) {
-                          return DropdownMenuItem<String>(
-                            value: opt,
-                            child: Text(
-                                opt == 'All' ? '${filter.label}: All' : opt),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _activeFilters[filter.label] = val;
-                              _currentPage = 0;
-                            });
-                            if (widget.onFilterChanged != null) {
-                              widget.onFilterChanged!(filter.label, val);
-                            }
-                          }
-                        },
                       ),
-                    ),
-                  );
-                }),
-
-              // Bulk Action Options
-              if (_selectedItems.isNotEmpty && widget.bulkActions != null)
-                ...widget.bulkActions!(context, _selectedItems.toList())
-                    .map((action) {
-                  return SizedBox(
-                    height: 32,
-                    child: action,
-                  );
-                }),
-            ],
-          ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: currentVal,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 12,
+                            color: currentVal != 'All'
+                                ? theme.colorScheme.primary
+                                : (isDark ? Colors.white : Colors.black87),
+                            fontWeight: currentVal != 'All' ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          dropdownColor: isDark ? const Color(0xFF262633) : Colors.white,
+                          items: ['All', ...filter.options].map((opt) {
+                            return DropdownMenuItem<String>(
+                              value: opt,
+                              child: Text(opt == 'All' ? '${filter.label}: All' : opt),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _activeFilters[filter.label] = val;
+                                _currentPage = 0;
+                              });
+                              if (widget.onFilterChanged != null) {
+                                widget.onFilterChanged!(filter.label, val);
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+                if (_selectedItems.isNotEmpty && widget.bulkActions != null)
+                  ...widget.bulkActions!(context, _selectedItems.toList()).map((action) {
+                    return SizedBox(
+                      height: 32,
+                      child: action,
+                    );
+                  }),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -748,7 +846,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
     if (widget.disableVerticalScroll) {
       return Padding(
         padding:
-            const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 80),
+            const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(pagedItems.length, (idx) {
@@ -808,7 +906,7 @@ class _AzureGridState<T> extends State<AzureGrid<T>> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 80),
+      padding: const EdgeInsets.only(left: 12, right: 12, top: 12, bottom: 12),
       itemCount: pagedItems.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, idx) {

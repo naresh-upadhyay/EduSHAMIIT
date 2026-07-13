@@ -432,24 +432,55 @@ class _ModuleConfigScreenState extends State<ModuleConfigScreen> {
     return QuickAccessScaffold(
       title: 'Module Config Console',
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Master Feature Modules Registry',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Create Module'),
-              onPressed: () => _showEditDialog(),
-            ),
-          ],
+        Builder(
+          builder: (context) {
+            final width = MediaQuery.of(context).size.width;
+            final isMobile = width < 600;
+            return isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Master Feature Modules Registry',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4F46E5),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Create Module'),
+                          onPressed: () => _showEditDialog(),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Master Feature Modules Registry',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4F46E5),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Create Module'),
+                        onPressed: () => _showEditDialog(),
+                      ),
+                    ],
+                  );
+          }
         ),
         const SizedBox(height: 16),
         if (_isLoading)
@@ -583,15 +614,17 @@ class _ModuleConfigScreenState extends State<ModuleConfigScreen> {
                   ],
                   const SizedBox(height: 12),
                   Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       TextButton.icon(
                         icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF4F46E5)),
                         label: const Text('Edit Configuration', style: TextStyle(color: Color(0xFF4F46E5), fontSize: 12)),
                         onPressed: () => _showEditDialog(module),
                       ),
-                      const SizedBox(width: 8),
                       TextButton.icon(
                         icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
                         label: const Text('Delete Module', style: TextStyle(color: Colors.redAccent, fontSize: 12)),

@@ -320,6 +320,27 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isMobile = Responsive.isMobile(context);
+
+    final tabSwitcher = Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.black26 : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildCompactTabItem('Tenants', 0, Icons.business_rounded),
+            _buildCompactTabItem(
+                'Mail Server Configs', 1, Icons.mail_outline_rounded),
+            _buildCompactTabItem(
+                'Subscription Plans', 2, Icons.workspace_premium_rounded),
+          ],
+        ),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -327,36 +348,32 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
         backgroundColor: theme.cardColor,
         elevation: 0,
         title: Text(
-          'Tenant & Subscription Suite',
+          isMobile ? 'Tenants & Subscriptions' : 'Tenant & Subscription Suite',
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF0F172A),
             fontWeight: FontWeight.bold,
             fontFamily: 'Outfit',
-            fontSize: 18,
+            fontSize: isMobile ? 16 : 18,
           ),
         ),
-        actions: [
-          // Compact Custom Tab Switcher (minimizes vertical space)
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.black26 : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                _buildCompactTabItem('Tenants', 0, Icons.business_rounded),
-                _buildCompactTabItem(
-                    'Mail Server Configs', 1, Icons.mail_outline_rounded),
-                _buildCompactTabItem(
-                    'Subscription Plans', 2, Icons.workspace_premium_rounded),
+        actions: isMobile
+            ? null
+            : [
+                tabSwitcher,
+                const SizedBox(width: 16),
               ],
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
       ),
-      body: _buildActiveTabBody(theme, isDark),
+      body: isMobile
+          ? Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: tabSwitcher,
+                ),
+                Expanded(child: _buildActiveTabBody(theme, isDark)),
+              ],
+            )
+          : _buildActiveTabBody(theme, isDark),
     );
   }
 
@@ -434,100 +451,146 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
       if (_filter == 'Suspended') return status == 'suspended' && nameMatches;
       return nameMatches;
     }).toList();
+    final isMobile = Responsive.isMobile(context);
+    final searchField = TextField(
+      style: TextStyle(
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+          fontSize: isMobile ? 11 : 12),
+      decoration: InputDecoration(
+        isDense: isMobile,
+        hintText: 'Search tenants by name...',
+        hintStyle: TextStyle(color: const Color(0xFF64748B), fontSize: isMobile ? 11 : 12),
+        prefixIcon:
+            Icon(Icons.search, color: const Color(0xFF94A3B8), size: isMobile ? 16 : 18),
+        filled: true,
+        fillColor: theme.cardColor,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 10 : 12,
+          vertical: isMobile ? 8 : 10,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: isDark
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+    );
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
+    final filterChips = Row(
+      mainAxisSize: MainAxisSize.min,
+      children:
+          ['All', 'Active', 'Expiring', 'Suspended'].map((status) {
+        final isSelected = _filter == status;
+        return Container(
+          margin: const EdgeInsets.only(right: 6),
+          child: ChoiceChip(
+            label: Text(status, style: const TextStyle(fontSize: 11)),
+            selected: isSelected,
+            onSelected: (val) {
+              if (val) {
+                setState(() {
+                  _filter = status;
+                });
+              }
+            },
+            backgroundColor: theme.cardColor,
+            selectedColor: const Color(0xFF4F46E5),
+            labelStyle: TextStyle(
+              color: isSelected
+                  ? Colors.white
+                  : (isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
+              fontWeight: FontWeight.bold,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: isSelected
+                  ? BorderSide.none
+                  : BorderSide(
+                      color: isDark
+                          ? Colors.white10
+                          : const Color(0xFFE2E8F0),
+                    ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+
+    final addTenantBtn = ElevatedButton.icon(
+      onPressed: () => _showSchoolForm(),
+      icon: const Icon(Icons.add_rounded, size: 14),
+      label: Text(isMobile ? 'Add' : 'Add Tenant',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4F46E5),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: isMobile ? 10 : 12),
+      ),
+    );
+
+    final refreshBtn = IconButton(
+      onPressed: _fetchSchools,
+      icon: const Icon(Icons.refresh_rounded, size: 20),
+      tooltip: 'Refresh Tenants',
+    );
+
+    Widget controlsRow;
+    if (isMobile) {
+      controlsRow = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Filter & Search bar inside the view
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                  decoration: InputDecoration(
-                    hintText: 'Search tenants by name...',
-                    hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                    prefixIcon:
-                        const Icon(Icons.search, color: Color(0xFF94A3B8)),
-                    filled: true,
-                    fillColor: theme.cardColor,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: isDark
-                          ? BorderSide.none
-                          : const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Row(
-                children:
-                    ['All', 'Active', 'Expiring', 'Suspended'].map((status) {
-                  final isSelected = _filter == status;
-                  return Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(status, style: const TextStyle(fontSize: 11)),
-                      selected: isSelected,
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() {
-                            _filter = status;
-                          });
-                        }
-                      },
-                      backgroundColor: theme.cardColor,
-                      selectedColor: const Color(0xFF4F46E5),
-                      labelStyle: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B)),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: isSelected
-                            ? BorderSide.none
-                            : BorderSide(
-                                color: isDark
-                                    ? Colors.white10
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () => _showSchoolForm(),
-                icon: const Icon(Icons.add_rounded, size: 14),
-                label: const Text('Add Tenant',
-                    style:
-                        TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
+              Expanded(child: searchField),
+              const SizedBox(width: 8),
+              addTenantBtn,
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: _fetchSchools,
+                icon: const Icon(Icons.refresh_rounded, size: 20),
+                tooltip: 'Refresh Tenants',
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: filterChips,
+          ),
+        ],
+      );
+    } else {
+      controlsRow = Row(
+        children: [
+          Expanded(child: searchField),
+          const SizedBox(width: 16),
+          filterChips,
+          const SizedBox(width: 16),
+          addTenantBtn,
+          const SizedBox(width: 8),
+          refreshBtn,
+        ],
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          controlsRow,
           const SizedBox(height: 20),
 
           // Smart Grid View
@@ -547,7 +610,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
                         crossAxisCount: crossCount,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        mainAxisExtent: 345,
+                        mainAxisExtent: isMobile ? 275 : 345,
                       ),
                       itemCount: filteredList.length,
                       itemBuilder: (context, index) {
@@ -564,6 +627,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
 
   Widget _buildSchoolGridCard(
       Map<String, dynamic> school, ThemeData theme, bool isDark) {
+    final isMobile = Responsive.isMobile(context);
     final status = school['subscription_status'] as String? ?? 'active';
     final tier = school['subscription_tier'] as String? ?? 'premium';
     final pricing = school['pricing_model'] as String? ?? 'per_student';
@@ -712,9 +776,9 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           const Divider(height: 1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Details row
           _buildDetailRow('Owner Contact', '$ownerName ($ownerEmail)'),
@@ -727,8 +791,8 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
           // Expiring warning alert banner
           if (showExpiryWarning)
             Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.amber.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -751,11 +815,11 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
               ),
             )
           else
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
 
           const Spacer(),
           const Divider(height: 1),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           // Actions
           Row(
@@ -775,18 +839,26 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
                     icon: const Icon(Icons.notification_important_outlined,
                         color: Colors.orange, size: 18),
                     tooltip: 'Send Renewal Warning Email',
+                    constraints: isMobile ? const BoxConstraints() : null,
+                    padding: isMobile ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
                   ),
+                  if (isMobile) const SizedBox(width: 4),
                   IconButton(
                     onPressed: () => _deleteSchool(school['id'], name),
                     icon: const Icon(Icons.delete_outline_rounded,
                         color: Colors.redAccent, size: 18),
                     tooltip: 'Delete Tenant',
+                    constraints: isMobile ? const BoxConstraints() : null,
+                    padding: isMobile ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
                   ),
+                  if (isMobile) const SizedBox(width: 4),
                   IconButton(
                     onPressed: () => _showSchoolForm(school: school),
                     icon: const Icon(Icons.edit_rounded,
                         color: Color(0xFF4F46E5), size: 18),
                     tooltip: 'Edit Subscription Details',
+                    constraints: isMobile ? const BoxConstraints() : null,
+                    padding: isMobile ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
                   ),
                 ],
               ),
@@ -862,109 +934,143 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
       return nameMatches;
     }).toList();
 
+    final isMobile = Responsive.isMobile(context);
+    final searchField = TextField(
+      style: TextStyle(
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+          fontSize: isMobile ? 11 : 12),
+      decoration: InputDecoration(
+        isDense: isMobile,
+        hintText: 'Search mail servers by school name...',
+        hintStyle: TextStyle(color: const Color(0xFF64748B), fontSize: isMobile ? 11 : 12),
+        prefixIcon:
+            Icon(Icons.search, color: const Color(0xFF94A3B8), size: isMobile ? 16 : 18),
+        filled: true,
+        fillColor: theme.cardColor,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 10 : 12,
+          vertical: isMobile ? 8 : 10,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: isDark
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      onChanged: (value) {
+        setState(() {
+          _mailSearchQuery = value;
+        });
+      },
+    );
+
+    final filterChips = Row(
+      mainAxisSize: MainAxisSize.min,
+      children:
+          ['All', 'Enabled', 'Disabled', 'Over Limit'].map((status) {
+        final isSelected = _mailFilter == status;
+        return Container(
+          margin: const EdgeInsets.only(right: 6),
+          child: ChoiceChip(
+            label: Text(
+                status == 'Over Limit' ? 'Storage Warning' : status,
+                style: const TextStyle(fontSize: 11)),
+            selected: isSelected,
+            onSelected: (val) {
+              if (val) {
+                setState(() {
+                  _mailFilter = status;
+                });
+              }
+            },
+            backgroundColor: theme.cardColor,
+            selectedColor: const Color(0xFF4F46E5),
+            labelStyle: TextStyle(
+              color: isSelected
+                  ? Colors.white
+                  : (isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B)),
+              fontWeight: FontWeight.bold,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: isSelected
+                  ? BorderSide.none
+                  : BorderSide(
+                      color: isDark
+                          ? Colors.white10
+                          : const Color(0xFFE2E8F0),
+                    ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+
+    final configureSmtpBtn = ElevatedButton.icon(
+      onPressed: () => _showMailConfigForm({}),
+      icon: const Icon(Icons.settings_outlined, size: 14),
+      label: Text(isMobile ? 'Configure' : 'Configure SMTP',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4F46E5),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: isMobile ? 10 : 12),
+      ),
+    );
+
+    final refreshBtn = IconButton(
+      onPressed: _fetchMailSubscriptions,
+      icon: const Icon(Icons.refresh_rounded, size: 20),
+      tooltip: 'Refresh Mail Servers',
+    );
+
+    Widget controlsRow;
+    if (isMobile) {
+      controlsRow = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: searchField),
+              const SizedBox(width: 8),
+              configureSmtpBtn,
+              const SizedBox(width: 4),
+              refreshBtn,
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: filterChips,
+          ),
+        ],
+      );
+    } else {
+      controlsRow = Row(
+        children: [
+          Expanded(child: searchField),
+          const SizedBox(width: 16),
+          filterChips,
+          const SizedBox(width: 16),
+          configureSmtpBtn,
+          const SizedBox(width: 8),
+          refreshBtn,
+        ],
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Uniform Filter & Search Row
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                  decoration: InputDecoration(
-                    hintText: 'Search mail servers by school name...',
-                    hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                    prefixIcon:
-                        const Icon(Icons.search, color: Color(0xFF94A3B8)),
-                    filled: true,
-                    fillColor: theme.cardColor,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: isDark
-                          ? BorderSide.none
-                          : const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _mailSearchQuery = value;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Row(
-                children:
-                    ['All', 'Enabled', 'Disabled', 'Over Limit'].map((status) {
-                  final isSelected = _mailFilter == status;
-                  return Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(
-                          status == 'Over Limit' ? 'Storage Warning' : status,
-                          style: const TextStyle(fontSize: 11)),
-                      selected: isSelected,
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() {
-                            _mailFilter = status;
-                          });
-                        }
-                      },
-                      backgroundColor: theme.cardColor,
-                      selectedColor: const Color(0xFF4F46E5),
-                      labelStyle: TextStyle(
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF64748B)),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: isSelected
-                            ? BorderSide.none
-                            : BorderSide(
-                                color: isDark
-                                    ? Colors.white10
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () => _showMailConfigForm({}),
-                icon: const Icon(Icons.settings_outlined, size: 14),
-                label: const Text('Configure SMTP',
-                    style:
-                        TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _fetchMailSubscriptions,
-                icon: const Icon(Icons.refresh_rounded, size: 20),
-                tooltip: 'Refresh Mail Servers',
-              ),
-            ],
-          ),
+          controlsRow,
           const SizedBox(height: 20),
-
           Expanded(
             child: filteredList.isEmpty
                 ? const Center(
@@ -981,7 +1087,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
                         crossAxisCount: crossCount,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        mainAxisExtent: 340,
+                        mainAxisExtent: isMobile ? 335 : 340,
                       ),
                       itemCount: filteredList.length,
                       itemBuilder: (context, index) {
@@ -998,6 +1104,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
 
   Widget _buildMailSubGridCard(
       Map<String, dynamic> sub, ThemeData theme, bool isDark) {
+    final isMobile = Responsive.isMobile(context);
     final bool enabled = sub['enabled'] ?? false;
     final String pricing = sub['pricing_model'] ?? 'per_email';
     final double rate = (sub['rate_per_unit'] ?? 0.10).toDouble();
@@ -1090,9 +1197,9 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isMobile ? 4 : 8),
           const Divider(height: 1),
-          const SizedBox(height: 10),
+          SizedBox(height: isMobile ? 6 : 10),
 
           // Advanced host settings
           _buildDetailRow('SMTP Host', '$host:$port'),
@@ -1102,7 +1209,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
               '₹$rate (${pricing == 'per_email' ? 'Per Email' : 'Flat Monthly'})'),
 
           // Emails Limit bar
-          const SizedBox(height: 6),
+          SizedBox(height: isMobile ? 4 : 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1126,7 +1233,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
           ),
 
           // Server Storage Space bar
-          const SizedBox(height: 10),
+          SizedBox(height: isMobile ? 6 : 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1153,7 +1260,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
           // Warning storage block
           if (showStorageAlert)
             Container(
-              margin: const EdgeInsets.only(top: 8),
+              margin: EdgeInsets.only(top: isMobile ? 4 : 8),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.1),
@@ -1175,11 +1282,11 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
               ),
             )
           else
-            const SizedBox(height: 8),
+            SizedBox(height: isMobile ? 4 : 8),
 
           const Spacer(),
           const Divider(height: 1),
-          const SizedBox(height: 8),
+          SizedBox(height: isMobile ? 4 : 8),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -1212,6 +1319,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
   // Tab 3: Subscription Plans Manager CRUD
   // ===========================================================
   Widget _buildPlansTab(ThemeData theme, bool isDark) {
+    final isMobile = Responsive.isMobile(context);
     if (_isLoadingPlans) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1232,105 +1340,143 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
       return nameMatches && typeMatches;
     }).toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
+    final searchField = TextField(
+      style: TextStyle(
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+          fontSize: isMobile ? 11 : 12),
+      decoration: InputDecoration(
+        isDense: isMobile,
+        hintText: 'Search subscription plans...',
+        hintStyle: TextStyle(color: const Color(0xFF64748B), fontSize: isMobile ? 11 : 12),
+        prefixIcon:
+            Icon(Icons.search, color: const Color(0xFF94A3B8), size: isMobile ? 16 : 18),
+        filled: true,
+        fillColor: theme.cardColor,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 10 : 12,
+          vertical: isMobile ? 8 : 10,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: isDark
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      onChanged: (value) {
+        setState(() {
+          _plansSearchQuery = value;
+        });
+      },
+    );
+
+    final filterChips = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ...['All', 'ERP', 'Mail'].map((type) {
+          final isSelected = _plansFilter == type;
+          return Container(
+            margin: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              label: Text(
+                  type == 'All'
+                      ? 'All Plans'
+                      : (type == 'ERP' ? 'ERP Tiers' : 'Mail Tiers'),
+                  style: const TextStyle(fontSize: 11)),
+              selected: isSelected,
+              onSelected: (val) {
+                if (val) {
+                  setState(() {
+                    _plansFilter = type;
+                  });
+                }
+              },
+              backgroundColor: theme.cardColor,
+              selectedColor: const Color(0xFF4F46E5),
+              labelStyle: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : const Color(0xFF64748B),
+                fontWeight: FontWeight.bold,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isSelected
+                    ? BorderSide.none
+                    : const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+
+    final addPlanBtn = ElevatedButton.icon(
+      onPressed: () => _showPlanForm(),
+      icon: const Icon(Icons.add_rounded, size: 14),
+      label: Text(isMobile ? 'Add' : 'Add Plan',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF10B981),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8)),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: isMobile ? 10 : 12),
+      ),
+    );
+
+    Widget controlsRow;
+    if (isMobile) {
+      controlsRow = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Uniform Controls Row
           Row(
             children: [
-              Expanded(
-                child: TextField(
-                  style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A)),
-                  decoration: InputDecoration(
-                    hintText: 'Search subscription plans...',
-                    hintStyle: const TextStyle(color: Color(0xFF64748B)),
-                    prefixIcon:
-                        const Icon(Icons.search, color: Color(0xFF94A3B8)),
-                    filled: true,
-                    fillColor: theme.cardColor,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: isDark
-                          ? BorderSide.none
-                          : const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _plansSearchQuery = value;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Row(
-                children: [
-                  ...['All', 'ERP', 'Mail'].map((type) {
-                    final isSelected = _plansFilter == type;
-                    return Container(
-                      margin: const EdgeInsets.only(right: 6),
-                      child: ChoiceChip(
-                        label: Text(
-                            type == 'All'
-                                ? 'All Plans'
-                                : (type == 'ERP' ? 'ERP Tiers' : 'Mail Tiers'),
-                            style: const TextStyle(fontSize: 11)),
-                        selected: isSelected,
-                        onSelected: (val) {
-                          if (val) {
-                            setState(() {
-                              _plansFilter = type;
-                            });
-                          }
-                        },
-                        backgroundColor: theme.cardColor,
-                        selectedColor: const Color(0xFF4F46E5),
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF64748B),
-                          fontWeight: FontWeight.bold,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: isSelected
-                              ? BorderSide.none
-                              : const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () => _showPlanForm(),
-                icon: const Icon(Icons.add_rounded, size: 14),
-                label: const Text('Add Plan',
-                    style:
-                        TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-              ),
+              Expanded(child: searchField),
               const SizedBox(width: 8),
+              addPlanBtn,
+              const SizedBox(width: 4),
               IconButton(
                 onPressed: _fetchPlans,
                 icon: const Icon(Icons.refresh_rounded, size: 20),
                 tooltip: 'Refresh Plans',
+                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero,
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: filterChips,
+          ),
+        ],
+      );
+    } else {
+      controlsRow = Row(
+        children: [
+          Expanded(child: searchField),
+          const SizedBox(width: 16),
+          filterChips,
+          const SizedBox(width: 16),
+          addPlanBtn,
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _fetchPlans,
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            tooltip: 'Refresh Plans',
+          ),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          controlsRow,
+          const SizedBox(height: 16),
 
           Expanded(
             child: filteredPlans.isEmpty
@@ -1348,7 +1494,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
                         crossAxisCount: crossCount,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
-                        mainAxisExtent: 315,
+                        mainAxisExtent: isMobile ? 280 : 315,
                       ),
                       itemCount: filteredPlans.length,
                       itemBuilder: (context, index) {
@@ -1365,6 +1511,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
 
   Widget _buildPlanGridCard(
       Map<String, dynamic> plan, ThemeData theme, bool isDark) {
+    final isMobile = Responsive.isMobile(context);
     final String name = plan['name'] ?? 'Unnamed Plan';
     final String code = plan['code'] ?? 'custom';
     final double priceMonth = (plan['price_per_month'] ?? 0.0).toDouble();
@@ -1423,7 +1570,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: isMobile ? 2 : 4),
           Text(
             'Code: $code',
             style: const TextStyle(
@@ -1431,9 +1578,9 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
                 fontSize: 10,
                 fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: isMobile ? 6 : 10),
           const Divider(height: 1),
-          const SizedBox(height: 10),
+          SizedBox(height: isMobile ? 6 : 10),
 
           // Pricing
           Row(
@@ -1470,7 +1617,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
           // Offer texts banner
           if (offerText != null && offerText.isNotEmpty)
             Container(
-              margin: const EdgeInsets.only(top: 8),
+              margin: EdgeInsets.only(top: isMobile ? 4 : 8),
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
@@ -1495,15 +1642,15 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
               ),
             )
           else
-            const SizedBox(height: 8),
+            SizedBox(height: isMobile ? 4 : 8),
 
-          const SizedBox(height: 10),
+          SizedBox(height: isMobile ? 6 : 10),
           const Text('Key Features:',
               style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF64748B))),
-          const SizedBox(height: 4),
+          SizedBox(height: isMobile ? 2 : 4),
 
           Expanded(
             child: ListView.builder(
@@ -1537,7 +1684,7 @@ class _AdminSchoolsScreenState extends State<AdminSchoolsScreen> {
           ),
 
           const Divider(height: 1),
-          const SizedBox(height: 8),
+          SizedBox(height: isMobile ? 4 : 8),
 
           // Edit/Delete plans action row
           Row(

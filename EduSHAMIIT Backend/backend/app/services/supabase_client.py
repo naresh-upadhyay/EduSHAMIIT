@@ -450,10 +450,18 @@ class TableQuery:
             else:
                 headers["Prefer"] = f"count={self._count}"
 
-        if self._operation == "upsert":
-            headers["Prefer"] = "return=representation,resolution=merge-duplicates"
-            if hasattr(self, "_on_conflict") and self._on_conflict:
-                params.append(("on_conflict", self._on_conflict))
+        if self._operation in ("insert", "update", "upsert"):
+            prefer = headers.get("Prefer", "")
+            if prefer:
+                if "return=representation" not in prefer:
+                    headers["Prefer"] = f"{prefer},return=representation"
+            else:
+                headers["Prefer"] = "return=representation"
+            
+            if self._operation == "upsert":
+                headers["Prefer"] = "return=representation,resolution=merge-duplicates"
+                if hasattr(self, "_on_conflict") and self._on_conflict:
+                    params.append(("on_conflict", self._on_conflict))
 
         return url, headers, params
 
@@ -476,7 +484,10 @@ class TableQuery:
         if response.status_code not in (200, 201, 204, 206):
             raise Exception(f"Operation failed: {response.text}")
 
-        data = response.json() if response.status_code != 204 else []
+        try:
+            data = response.json() if (response.status_code != 204 and response.text.strip()) else []
+        except Exception:
+            data = []
         return QueryResult(data, response.headers, is_single=self._single, is_maybe_single=self._maybe_single)
 
     async def aexecute(self) -> dict:
@@ -498,7 +509,10 @@ class TableQuery:
         if response.status_code not in (200, 201, 204, 206):
             raise Exception(f"Operation failed: {response.text}")
 
-        data = response.json() if response.status_code != 204 else []
+        try:
+            data = response.json() if (response.status_code != 204 and response.text.strip()) else []
+        except Exception:
+            data = []
         return QueryResult(data, response.headers, is_single=self._single, is_maybe_single=self._maybe_single)
 
 

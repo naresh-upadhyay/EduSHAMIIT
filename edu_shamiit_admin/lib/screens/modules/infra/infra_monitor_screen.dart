@@ -14,6 +14,7 @@ class AdminInfraMonitorScreen extends StatefulWidget {
 class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
+  bool _isRefreshing = false;
   Map<String, dynamic> _metrics = {};
   Map<String, dynamic> _healthSummary = {};
   Map<String, dynamic> _gauges = {};
@@ -67,10 +68,16 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
   }
 
   Future<void> _fetchStats({bool showLoading = true}) async {
-    if (showLoading && _metrics.isEmpty) {
-      setState(() {
-        _isLoading = true;
-      });
+    if (showLoading) {
+      if (_metrics.isEmpty) {
+        setState(() {
+          _isLoading = true;
+        });
+      } else {
+        setState(() {
+          _isRefreshing = true;
+        });
+      }
     }
     try {
       final res = await ApiService().get('/admin/schools/infra/stats', useCache: false);
@@ -85,7 +92,6 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
           _institutions = data['institutions_overview'] ?? [];
           _chartData = data['response_time_chart'] ?? [];
           _services = data['services_status'] ?? [];
-          _isLoading = false;
 
           if (_selectedServer != null) {
             // Find updated server details
@@ -109,13 +115,17 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
       }
     } catch (e) {
       if (showLoading) {
-        setState(() {
-          _isLoading = false;
-        });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load telemetry stats: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isRefreshing = false;
+        });
       }
     }
   }
@@ -167,6 +177,7 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 1100;
+    final isMobile = screenWidth < 950;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -183,43 +194,55 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
                 fontSize: 20,
               ),
             ),
-            const Text(
-              'Monitor infrastructure, services and performance of all institutes (Multi-tenant).',
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
-            ),
+            if (!isMobile)
+              const Text(
+                'Monitor infrastructure, services and performance of all institutes (Multi-tenant).',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+              ),
           ],
         ),
-        actions: [
-          _buildDropdownFilter(_selectedEnv, ["All Environments", "Production", "Staging", "Development"], (val) {
-            if (val != null) setState(() => _selectedEnv = val);
-          }, theme, isDark),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today_outlined, size: 14, color: isDark ? Colors.white70 : Colors.black54),
-                const SizedBox(width: 8),
-                Text(
-                  "${DateFormat('MMM dd').format(DateTime.now().subtract(const Duration(days: 7)))} - ${DateFormat('MMM dd, yyyy').format(DateTime.now())}",
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        actions: isMobile
+            ? null
+            : [
+                _buildDropdownFilter(_selectedEnv, ["All Environments", "Production", "Staging", "Development"], (val) {
+                  if (val != null) setState(() => _selectedEnv = val);
+                }, theme, isDark),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today_outlined, size: 14, color: isDark ? Colors.white70 : Colors.black54),
+                      const SizedBox(width: 8),
+                      Text(
+                        "${DateFormat('MMM dd').format(DateTime.now().subtract(const Duration(days: 7)))} - ${DateFormat('MMM dd, yyyy').format(DateTime.now())}",
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 12),
+                _isRefreshing
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                        ),
+                      )
+                    : IconButton(
+                        icon: Icon(Icons.refresh_rounded, color: isDark ? Colors.white : Colors.black87),
+                        onPressed: _fetchStats,
+                        tooltip: "Refresh Diagnostics",
+                      ),
+                const SizedBox(width: 12),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: Icon(Icons.refresh_rounded, color: isDark ? Colors.white : Colors.black87),
-            onPressed: _fetchStats,
-            tooltip: "Refresh Diagnostics",
-          ),
-          const SizedBox(width: 12),
-        ],
       ),
       body: Scrollbar(
               controller: _scrollController,
@@ -237,6 +260,57 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
                     : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (isMobile) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDropdownFilter(_selectedEnv, ["All Environments", "Production", "Staging", "Development"], (val) {
+                              if (val != null) setState(() => _selectedEnv = val);
+                            }, theme, isDark),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.calendar_today_outlined, size: 12, color: isDark ? Colors.white70 : Colors.black54),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      "${DateFormat('MMM dd').format(DateTime.now().subtract(const Duration(days: 7)))} - ${DateFormat('MMM dd').format(DateTime.now())}",
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          _isRefreshing
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(4.0),
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                                  ),
+                                )
+                              : IconButton(
+                                  icon: Icon(Icons.refresh_rounded, color: isDark ? Colors.white : Colors.black87),
+                                  onPressed: _fetchStats,
+                                ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     // 1. KPI Cards Grid
                     _buildKpiGrid(isDark, theme),
                     const SizedBox(height: 20),
@@ -349,15 +423,18 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
     );
   }
 
-  // 1. KPI Cards Row
   Widget _buildKpiGrid(bool isDark, ThemeData theme) {
+    final width = MediaQuery.of(context).size.width;
+    final int crossCount = width < 750 ? 2 : (width < 1100 ? 3 : 6);
+    final double aspectRatio = width < 750 ? 1.45 : (width < 1100 ? 1.3 : 1.15);
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 6,
+      crossAxisCount: crossCount,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.15,
+      childAspectRatio: aspectRatio,
       children: [
         _buildKpiCard(
           "Total Institutions",
@@ -484,100 +561,194 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("System Health Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
-                  const SizedBox(height: 2),
-                  Text(
-                    "Interactive Map: Zoom, drag and click nodes to inspect details.",
-                    style: TextStyle(color: isDark ? Colors.white60 : Colors.black54, fontSize: 10),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-              Row(
-                children: [
-                  if (_selectedServer != null)
-                    TextButton.icon(
-                      icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFEF4444)),
-                      label: const Text(
-                        "Clear Selection",
-                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _selectedServer = null;
-                        });
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                  _buildDropdownFilter(_selectedRegion, ["All Regions", "Mumbai", "Frankfurt", "Oregon", "São Paulo"], (val) {
-                    if (val != null) setState(() => _selectedRegion = val);
-                  }, theme, isDark),
-                ],
-              ),
-            ],
+          Builder(
+            builder: (context) {
+              final width = MediaQuery.of(context).size.width;
+              final isMobileCard = width < 600;
+              return isMobileCard
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("System Health Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Interactive Map: Zoom, drag and click nodes to inspect details.",
+                          style: TextStyle(color: isDark ? Colors.white60 : Colors.black54, fontSize: 10),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (_selectedServer != null)
+                              TextButton.icon(
+                                icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFEF4444)),
+                                label: const Text(
+                                  "Clear",
+                                  style: TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedServer = null;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            _buildDropdownFilter(_selectedRegion, ["All Regions", "Mumbai", "Frankfurt", "Oregon", "São Paulo"], (val) {
+                              if (val != null) setState(() => _selectedRegion = val);
+                            }, theme, isDark),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("System Health Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Interactive Map: Zoom, drag and click nodes to inspect details.",
+                                style: TextStyle(color: isDark ? Colors.white60 : Colors.black54, fontSize: 10),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            if (_selectedServer != null)
+                              TextButton.icon(
+                                icon: const Icon(Icons.close_rounded, size: 14, color: Color(0xFFEF4444)),
+                                label: const Text(
+                                  "Clear Selection",
+                                  style: TextStyle(color: Color(0xFFEF4444), fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedServer = null;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            _buildDropdownFilter(_selectedRegion, ["All Regions", "Mumbai", "Frankfurt", "Oregon", "São Paulo"], (val) {
+                              if (val != null) setState(() => _selectedRegion = val);
+                            }, theme, isDark),
+                          ],
+                        ),
+                      ],
+                    );
+            }
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: Row(
-              children: [
-                // Left metrics info
-                SizedBox(
-                  width: 140,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Builder(
+              builder: (context) {
+                final width = MediaQuery.of(context).size.width;
+                final isMobileCard = width < 600;
+                if (isMobileCard) {
+                  return Column(
                     children: [
-                      _buildMapLegendItem("Healthy", "${_healthSummary['healthy'] ?? 0}", const Color(0xFF10B981)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Expanded(child: _buildMapLegendItem("Healthy", "${_healthSummary['healthy'] ?? 0}", const Color(0xFF10B981))),
+                          const SizedBox(width: 8),
+                          Expanded(child: _buildMapLegendItem("Warning", "${_healthSummary['warning'] ?? 0}", const Color(0xFFF59E0B))),
+                          const SizedBox(width: 8),
+                          Expanded(child: _buildMapLegendItem("Critical", "${_healthSummary['critical'] ?? 0}", const Color(0xFFEF4444))),
+                        ],
+                      ),
                       const SizedBox(height: 12),
-                      _buildMapLegendItem("Warning", "${_healthSummary['warning'] ?? 0}", const Color(0xFFF59E0B)),
-                      const SizedBox(height: 12),
-                      _buildMapLegendItem("Critical", "${_healthSummary['critical'] ?? 0}", const Color(0xFFEF4444)),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: GoogleMapsStyleInfraMap(
+                              servers: _servers.where((s) {
+                                final r = s['region']?.toString() ?? '';
+                                if (_selectedRegion != "All Regions" && _selectedRegion != r) {
+                                  return false;
+                                }
+                                return true;
+                              }).toList(),
+                              selectedServer: _selectedServer,
+                              isDark: isDark,
+                              transformationController: _mapTransformationController,
+                              onServerSelected: (s) {
+                                _selectServer(s);
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Interactive Map
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: GoogleMapsStyleInfraMap(
-                        servers: _servers.where((s) {
-                          final r = s['region']?.toString() ?? '';
-                          if (_selectedRegion != "All Regions" && _selectedRegion != r) {
-                            return false;
-                          }
-                          return true;
-                        }).toList(),
-                        selectedServer: _selectedServer,
-                        isDark: isDark,
-                        transformationController: _mapTransformationController,
-                        onServerSelected: (s) {
-                          _selectServer(s);
-                        },
+                  );
+                }
+
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: 140,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildMapLegendItem("Healthy", "${_healthSummary['healthy'] ?? 0}", const Color(0xFF10B981)),
+                          const SizedBox(height: 12),
+                          _buildMapLegendItem("Warning", "${_healthSummary['warning'] ?? 0}", const Color(0xFFF59E0B)),
+                          const SizedBox(height: 12),
+                          _buildMapLegendItem("Critical", "${_healthSummary['critical'] ?? 0}", const Color(0xFFEF4444)),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-              ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: GoogleMapsStyleInfraMap(
+                            servers: _servers.where((s) {
+                              final r = s['region']?.toString() ?? '';
+                              if (_selectedRegion != "All Regions" && _selectedRegion != r) {
+                                return false;
+                              }
+                              return true;
+                            }).toList(),
+                            selectedServer: _selectedServer,
+                            isDark: isDark,
+                            transformationController: _mapTransformationController,
+                            onServerSelected: (s) {
+                              _selectServer(s);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
             ),
           ),
         ],
@@ -1228,121 +1399,171 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Institutions Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
-              Row(
-                children: [
-                  Container(
-                    width: 200,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    ),
-                    child: TextField(
-                      onChanged: (val) => setState(() => _searchQuery = val),
-                      decoration: const InputDecoration(
-                        hintText: "Search institution...",
-                        hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
-                        prefixIcon: Icon(Icons.search_rounded, size: 16, color: Colors.grey),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      ),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  _buildDropdownFilter(_selectedStatus, ["All Status", "Healthy", "Warning", "Critical"], (val) {
-                    if (val != null) setState(() => _selectedStatus = val);
-                  }, theme, isDark),
-                ],
-              ),
-            ],
+          Builder(
+            builder: (context) {
+              final width = MediaQuery.of(context).size.width;
+              final isMobileCard = width < 600;
+              return isMobileCard
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Institutions Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                              ),
+                              child: TextField(
+                                onChanged: (val) => setState(() => _searchQuery = val),
+                                decoration: const InputDecoration(
+                                  hintText: "Search institution...",
+                                  hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
+                                  prefixIcon: Icon(Icons.search_rounded, size: 16, color: Colors.grey),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                ),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            _buildDropdownFilter(_selectedStatus, ["All Status", "Healthy", "Warning", "Critical"], (val) {
+                              if (val != null) setState(() => _selectedStatus = val);
+                            }, theme, isDark),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Institutions Overview", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+                        Row(
+                          children: [
+                            Container(
+                              width: 200,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white10 : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                              ),
+                              child: TextField(
+                                onChanged: (val) => setState(() => _searchQuery = val),
+                                decoration: const InputDecoration(
+                                  hintText: "Search institution...",
+                                  hintStyle: TextStyle(fontSize: 11, color: Colors.grey),
+                                  prefixIcon: Icon(Icons.search_rounded, size: 16, color: Colors.grey),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                ),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            _buildDropdownFilter(_selectedStatus, ["All Status", "Healthy", "Warning", "Critical"], (val) {
+                              if (val != null) setState(() => _selectedStatus = val);
+                            }, theme, isDark),
+                          ],
+                        ),
+                      ],
+                    );
+            }
           ),
           const SizedBox(height: 16),
-          Table(
-            columnWidths: const {
-              0: FlexColumnWidth(2.5),
-              1: FlexColumnWidth(1.2),
-              2: FlexColumnWidth(1.2),
-              3: FlexColumnWidth(1.4),
-              4: FlexColumnWidth(1.4),
-              5: FlexColumnWidth(1.8),
-              6: FlexColumnWidth(1.0),
-            },
-            children: [
-              TableRow(
-                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)))),
-                children: const [
-                  Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Institution", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                  Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                  Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Uptime", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                  Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Resp. Time", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                  Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Requests (24h)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                  Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Storage", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
-                  Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Alerts", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tableWidth = constraints.maxWidth < 800 ? 800.0 : constraints.maxWidth;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: tableWidth,
+                  child: Table(
+                columnWidths: const {
+                  0: FlexColumnWidth(2.5),
+                  1: FlexColumnWidth(1.2),
+                  2: FlexColumnWidth(1.2),
+                  3: FlexColumnWidth(1.4),
+                  4: FlexColumnWidth(1.4),
+                  5: FlexColumnWidth(1.8),
+                  6: FlexColumnWidth(1.0),
+                },
+                children: [
+                  TableRow(
+                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)))),
+                    children: const [
+                      Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Institution", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                      Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                      Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Uptime", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                      Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Resp. Time", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                      Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Requests (24h)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                      Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Storage", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                      Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text("Alerts", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF64748B)))),
+                    ],
+                  ),
+                  ...filtered.map<TableRow>((inst) {
+                    Color statusColor = const Color(0xFF10B981);
+                    if (inst['status'] == 'Warning') statusColor = const Color(0xFFF59E0B);
+                    if (inst['status'] == 'Critical') statusColor = const Color(0xFFEF4444);
+
+                    return TableRow(
+                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)))),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.business_outlined, size: 14, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  inst['name'],
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              Container(width: 6, height: 6, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
+                              const SizedBox(width: 6),
+                              Text(inst['status'], style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['uptime'], style: const TextStyle(fontSize: 12))),
+                        Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['response_time'], style: const TextStyle(fontSize: 12))),
+                        Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['requests'], style: const TextStyle(fontSize: 12))),
+                        Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['storage'], style: const TextStyle(fontSize: 12))),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: inst['alerts'] > 0 ? const Color(0xFFEF4444) : Colors.grey, size: 14),
+                              const SizedBox(width: 4),
+                              Text("${inst['alerts']}", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: inst['alerts'] > 0 ? const Color(0xFFEF4444) : Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
                 ],
               ),
-              ...filtered.map<TableRow>((inst) {
-                Color statusColor = const Color(0xFF10B981);
-                if (inst['status'] == 'Warning') statusColor = const Color(0xFFF59E0B);
-                if (inst['status'] == 'Critical') statusColor = const Color(0xFFEF4444);
-
-                return TableRow(
-                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9)))),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(color: const Color(0xFF4F46E5).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                            child: const Icon(Icons.school, size: 14, color: Color(0xFF4F46E5)),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              inst['name'],
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        children: [
-                          Container(width: 6, height: 6, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
-                          const SizedBox(width: 6),
-                          Text(inst['status'], style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
-                        ],
-                      ),
-                    ),
-                    Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['uptime'], style: const TextStyle(fontSize: 12))),
-                    Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['response_time'], style: const TextStyle(fontSize: 12))),
-                    Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['requests'], style: const TextStyle(fontSize: 12))),
-                    Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(inst['storage'], style: const TextStyle(fontSize: 12))),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded, color: inst['alerts'] > 0 ? const Color(0xFFEF4444) : Colors.grey, size: 14),
-                          const SizedBox(width: 4),
-                          Text("${inst['alerts']}", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: inst['alerts'] > 0 ? const Color(0xFFEF4444) : Colors.grey)),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }),
-            ],
-          ),
+            ),
+          );
+        },
+      ),
         ],
       ),
     );
@@ -1384,25 +1605,56 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Response Time (Avg.)", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
-              Row(
-                children: _schoolColors.keys.map((school) {
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 12),
-                    child: Row(
+          Builder(
+            builder: (context) {
+              final width = MediaQuery.of(context).size.width;
+              final isMobileCard = width < 600;
+              return isMobileCard
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(width: 8, height: 8, decoration: BoxDecoration(color: _schoolColors[school], shape: BoxShape.circle)),
-                        const SizedBox(width: 4),
-                        Text(school.split(' ').first, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                        const Text("Response Time (Avg.)", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: _schoolColors.keys.map((school) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: Row(
+                                  children: [
+                                    Container(width: 8, height: 8, decoration: BoxDecoration(color: _schoolColors[school], shape: BoxShape.circle)),
+                                    const SizedBox(width: 4),
+                                    Text(school.split(' ').first, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Response Time (Avg.)", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+                        Row(
+                          children: _schoolColors.keys.map((school) {
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: Row(
+                                children: [
+                                  Container(width: 8, height: 8, decoration: BoxDecoration(color: _schoolColors[school], shape: BoxShape.circle)),
+                                  const SizedBox(width: 4),
+                                  Text(school.split(' ').first, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    );
+            }
           ),
           const SizedBox(height: 24),
           Expanded(

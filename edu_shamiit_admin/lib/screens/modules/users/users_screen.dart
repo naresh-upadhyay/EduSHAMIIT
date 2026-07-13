@@ -572,15 +572,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _loadingUsers || _loadingSchools
-                  ? const Center(child: CircularProgressIndicator())
-                  : AzureGrid<Map<String, dynamic>>(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: _loadingUsers || _loadingSchools
+              ? const SizedBox(
+                  height: 300,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : AzureGrid<Map<String, dynamic>>(
                       title: 'All System Users',
                       items: _users,
                       columns: columns,
@@ -617,6 +617,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           ),
                         ),
                       ],
+                      disableVerticalScroll: true,
                       mobileCardBuilder: (context, user) {
                         final name = user['full_name'] ?? 'Unknown';
                         final email = user['email'] ?? '';
@@ -809,10 +810,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
                       ],
                     ),
-            ),
-          ],
+          ),
         ),
-      ),
     );
   }
 
@@ -840,78 +839,82 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             }
 
             return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               title: Text(
                 'Bulk Change School (${selectedItems.length} users)',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
               ),
               content: SizedBox(
-                width: 450,
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Select the new school/institution to assign to the selected ${selectedItems.length} users.',
-                        style: GoogleFonts.dmSans(fontSize: 13, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedSchoolId,
-                        decoration: const InputDecoration(
-                          labelText: 'New School / Institution',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                width: (450.0 < MediaQuery.of(context).size.width - 48) ? 450.0 : MediaQuery.of(context).size.width - 48,
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Select the new school/institution to assign to the selected ${selectedItems.length} users.',
+                          style: GoogleFonts.dmSans(fontSize: 13, color: Colors.grey),
                         ),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
-                        ),
-                        dropdownColor: Theme.of(context).cardColor,
-                        items: _schools.map((s) {
-                          final name = s['name'] as String;
-                          final isSusp = s['subscription_status'] == 'suspended';
-                          return DropdownMenuItem<String>(
-                            value: s['id'] as String,
-                            child: Text(isSusp ? '$name (SUSPENDED)' : name),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setStateBuilder(() {
-                            selectedSchoolId = val;
-                          });
-                        },
-                        validator: (val) => (val == null) ? 'Required' : null,
-                      ),
-                      if (isSchoolSuspended) ...[
-                        const SizedBox(height: 14),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFFFCA5A5)),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedSchoolId,
+                          decoration: const InputDecoration(
+                            labelText: 'New School / Institution',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Cannot change school: The selected school/institute is currently suspended.',
-                                  style: GoogleFonts.dmSans(
-                                    color: const Color(0xFFB91C1C),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                          ),
+                          dropdownColor: Theme.of(context).cardColor,
+                          items: _schools.map((s) {
+                            final name = s['name'] as String;
+                            final isSusp = s['subscription_status'] == 'suspended';
+                            return DropdownMenuItem<String>(
+                              value: s['id'] as String,
+                              child: Text(isSusp ? '$name (SUSPENDED)' : name),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setStateBuilder(() {
+                              selectedSchoolId = val;
+                            });
+                          },
+                          validator: (val) => (val == null) ? 'Required' : null,
+                        ),
+                        if (isSchoolSuspended) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFFCA5A5)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Cannot change school: The selected school/institute is currently suspended.',
+                                    style: GoogleFonts.dmSans(
+                                      color: const Color(0xFFB91C1C),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -975,49 +978,53 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           title: Text(
             'Bulk Change Role (${selectedItems.length} users)',
             style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
           ),
           content: SizedBox(
-            width: 450,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Select the new role to assign to the selected ${selectedItems.length} users.',
-                    style: GoogleFonts.dmSans(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedRole,
-                    decoration: const InputDecoration(
-                      labelText: 'New Role',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            width: (450.0 < MediaQuery.of(context).size.width - 48) ? 450.0 : MediaQuery.of(context).size.width - 48,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Select the new role to assign to the selected ${selectedItems.length} users.',
+                      style: GoogleFonts.dmSans(fontSize: 13, color: Colors.grey),
                     ),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: selectedRole,
+                      decoration: const InputDecoration(
+                        labelText: 'New Role',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      ),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                      ),
+                      dropdownColor: Theme.of(context).cardColor,
+                      items: _roleLabels.entries.map((e) {
+                        return DropdownMenuItem<String>(
+                          value: e.key,
+                          child: Text(e.value),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          selectedRole = val;
+                        }
+                      },
+                      validator: (val) => (val == null) ? 'Required' : null,
                     ),
-                    dropdownColor: Theme.of(context).cardColor,
-                    items: _roleLabels.entries.map((e) {
-                      return DropdownMenuItem<String>(
-                        value: e.key,
-                        child: Text(e.value),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        selectedRole = val;
-                      }
-                    },
-                    validator: (val) => (val == null) ? 'Required' : null,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1172,6 +1179,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         return StatefulBuilder(
           builder: (context, setStateBuilder) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
+            final isMobile = MediaQuery.of(context).size.width < 600;
             final showSchoolSelect = selectedRole != 'super_admin';
 
             // Find current school suspension state
@@ -1186,13 +1194,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             }
 
             return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               title: Text(
                 'Bulk Import Users via CSV',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
               ),
               content: SizedBox(
-                width: 500,
+                width: (500.0 < MediaQuery.of(context).size.width - 48) ? 500.0 : MediaQuery.of(context).size.width - 48,
                 child: SingleChildScrollView(
                   child: Form(
                     key: formKey,
@@ -1201,6 +1210,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: selectedRole,
                           decoration: const InputDecoration(
                             labelText: 'Role to Assign',
@@ -1232,6 +1242,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
+                            isExpanded: true,
                             initialValue: selectedSchoolId,
                             decoration: const InputDecoration(
                               labelText: 'School / Institution',
@@ -1289,21 +1300,41 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         const SizedBox(height: 16),
                         const Divider(),
                         const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Import Data File',
-                              style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                            TextButton.icon(
-                              onPressed: _downloadCSVTemplate,
-                              icon: const Icon(Icons.file_download, size: 16),
-                              label: const Text('Download CSV Template'),
-                              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                            ),
-                          ],
-                        ),
+                        isMobile
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Import Data File',
+                                    style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  TextButton.icon(
+                                    onPressed: _downloadCSVTemplate,
+                                    icon: const Icon(Icons.file_download, size: 14),
+                                    label: const Text('Download CSV Template', style: TextStyle(fontSize: 12)),
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Import Data File',
+                                    style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: _downloadCSVTemplate,
+                                    icon: const Icon(Icons.file_download, size: 16),
+                                    label: const Text('Download CSV Template'),
+                                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                                  ),
+                                ],
+                              ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -1677,6 +1708,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
+                            isExpanded: true,
                             initialValue: selectedSchoolId,
                             decoration: const InputDecoration(
                               labelText: 'School / Institution',
@@ -1928,6 +1960,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         if (showSchoolSelect) ...[
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
+                            isExpanded: true,
                             initialValue: selectedSchoolId,
                             decoration: const InputDecoration(
                               labelText: 'School / Institution',

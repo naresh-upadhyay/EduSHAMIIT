@@ -77,9 +77,18 @@ def get_public_supabase_url(supabase_url: str) -> str:
     return url
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+async def get_current_user(request: Request) -> dict:
     """Extract user context from JWT token with Redis caching."""
-    token = credentials.credentials
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    
+    if not token:
+        token = request.query_params.get("token")
+        
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
     # 1. Try Redis cache first
     cached = await get_cached_payload(token)
@@ -142,11 +151,16 @@ async def require_school_id(user: dict = Depends(get_current_user)) -> str:
 
 async def get_current_user_optional(request: Request) -> Optional[dict]:
     """Extract user from JWT token, returns None if not authenticated. Uses Redis cache."""
+    token = None
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    
+    if not token:
+        token = request.query_params.get("token")
+        
+    if not token:
         return None
-
-    token = auth_header.split(" ")[1]
 
     # 1. Try Redis cache first
     cached = await get_cached_payload(token)
@@ -156,6 +170,7 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
             "school_id": cached.get("school_id"),
             "role": cached.get("role"),
             "class": cached.get("class"),
+            "email": cached.get("email"),
         }
     # 2. Cache miss — decode JWT
     try:
@@ -175,6 +190,7 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
             "school_id": payload.get("school_id"),
             "role": payload.get("role"),
             "class": payload.get("class"),
+            "email": payload.get("email"),
         }
     except JWTError:
         return None

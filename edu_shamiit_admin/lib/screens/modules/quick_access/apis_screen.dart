@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
@@ -26,7 +27,7 @@ class _ApisScreenState extends State<ApisScreen> {
   String _selectedCategory = "All Categories";
   String _selectedStatus = "All Status";
   int _currentPage = 0;
-  final int _pageSize = 5;
+  int _pageSize = 5;
 
   @override
   void initState() {
@@ -207,17 +208,28 @@ class _ApisScreenState extends State<ApisScreen> {
             tooltip: 'Refresh Metrics',
           ),
           const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: () => _showCreateApiDialog(),
-            icon: const Icon(Icons.add, color: Colors.white, size: 16),
-            label: const Text('Create New API', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
+          Builder(
+            builder: (context) {
+              final isMobileAppBar = MediaQuery.of(context).size.width < 600;
+              return isMobileAppBar
+                  ? IconButton(
+                      icon: const Icon(Icons.add, color: Color(0xFF4F46E5)),
+                      onPressed: () => _showCreateApiDialog(),
+                      tooltip: 'Create New API',
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: () => _showCreateApiDialog(),
+                      icon: const Icon(Icons.add, color: Colors.white, size: 16),
+                      label: const Text('Create New API', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    );
+            }
           ),
-          const SizedBox(width: 24),
+          const SizedBox(width: 16),
         ],
       ),
       body: SingleChildScrollView(
@@ -761,40 +773,41 @@ class _ApisScreenState extends State<ApisScreen> {
           const SizedBox(height: 16),
 
           // Filters Bar
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  onChanged: (val) {
-                    setState(() {
-                      _searchQuery = val;
-                      _currentPage = 0;
-                    });
-                  },
-                  style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
-                  decoration: InputDecoration(
-                    hintText: 'Search APIs...',
-                    hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B), size: 16),
-                    filled: true,
-                    fillColor: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF4F46E5)),
+          Builder(
+            builder: (context) {
+              final width = MediaQuery.of(context).size.width;
+              final isMobileFilters = width < 700;
+              
+              final searchField = TextField(
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                    _currentPage = 0;
+                  });
+                },
+                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
+                decoration: InputDecoration(
+                  hintText: 'Search APIs...',
+                  hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B), size: 16),
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
                     ),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF4F46E5)),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              _buildDropdownFilter(
+              );
+
+              final categoryDropdown = _buildDropdownFilter(
                 _selectedCategory,
                 ["All Categories", "Authentication", "Student", "Academic", "Finance", "Communication", "Others"],
                 (val) {
@@ -805,9 +818,9 @@ class _ApisScreenState extends State<ApisScreen> {
                 },
                 theme,
                 isDark,
-              ),
-              const SizedBox(width: 12),
-              _buildDropdownFilter(
+              );
+
+              final statusDropdown = _buildDropdownFilter(
                 _selectedStatus,
                 ["All Status", "Active", "Inactive"],
                 (val) {
@@ -818,53 +831,150 @@ class _ApisScreenState extends State<ApisScreen> {
                 },
                 theme,
                 isDark,
-              ),
-            ],
+              );
+
+              return isMobileFilters
+                  ? Column(
+                      children: [
+                        searchField,
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(child: categoryDropdown),
+                            const SizedBox(width: 8),
+                            Expanded(child: statusDropdown),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: searchField),
+                        const SizedBox(width: 12),
+                        categoryDropdown,
+                        const SizedBox(width: 12),
+                        statusDropdown,
+                      ],
+                    );
+            }
           ),
           const SizedBox(height: 16),
 
-          // Table Header
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Row(
-              children: [
-                Expanded(flex: 3, child: Text('API Name', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text('Category', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Version', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Requests', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Success Rate', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Avg. Response', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Status', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(flex: 1, child: Text('Actions', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
-              ],
-            ),
-          ),
-          Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+          // Table Header & Rows wrapped in Horizontal Scroll on Mobile
+          Builder(
+            builder: (context) {
+              final width = MediaQuery.of(context).size.width;
+              final isMobileTable = width < 900;
+              
+              final tableContent = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Table Header
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      children: [
+                        Expanded(flex: 3, child: Text('API Name', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(flex: 2, child: Text('Category', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(flex: 1, child: Text('Version', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(flex: 1, child: Text('Requests', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(flex: 1, child: Text('Success Rate', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(flex: 1, child: Text('Avg. Response', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(flex: 1, child: Text('Status', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(flex: 2, child: Text('Actions', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold))),
+                      ],
+                    ),
+                  ),
+                  Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
 
-          // Table Rows
-          if (apis.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(child: Text('No matching APIs found', style: TextStyle(color: Color(0xFF64748B)))),
-            )
-          else
-            ...apis.map((api) => _buildApiTableRow(api, isDark)),
+                  // Table Rows
+                  if (apis.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: Text('No matching APIs found', style: TextStyle(color: Color(0xFF64748B)))),
+                    )
+                  else
+                    ...apis.map((api) => _buildApiTableRow(api, isDark)),
+                ],
+              );
+
+              return isMobileTable
+                  ? SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: 850,
+                        child: tableContent,
+                      ),
+                    )
+                  : tableContent;
+            }
+          ),
 
           const SizedBox(height: 16),
 
           // Pagination Bar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
+          Builder(
+            builder: (context) {
+              final width = MediaQuery.of(context).size.width;
+              final isMobilePagination = width < 600;
+              
+              final showingText = Text(
                 "Showing ${startIndex + 1} to $endIndex of $totalRecords APIs",
                 style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
-              ),
-              Row(
+              );
+
+              final pageSizeSelector = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("Show", style: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF64748B), fontSize: 11)),
+                  const SizedBox(width: 6),
+                  Container(
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _pageSize,
+                        dropdownColor: theme.cardColor,
+                        icon: const Icon(Icons.arrow_drop_down, size: 14),
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Outfit',
+                        ),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _pageSize = val;
+                              _currentPage = 0;
+                            });
+                          }
+                        },
+                        items: [5, 10, 20, 50, 100].map((int val) {
+                          return DropdownMenuItem<int>(
+                            value: val,
+                            child: Text(val.toString()),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text("entries", style: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF64748B), fontSize: 11)),
+                ],
+              );
+
+              final navigationControls = Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     onPressed: _currentPage > 0
@@ -917,8 +1027,36 @@ class _ApisScreenState extends State<ApisScreen> {
                     disabledColor: isDark ? Colors.white24 : Colors.black26,
                   ),
                 ],
-              ),
-            ],
+              );
+
+              return isMobilePagination
+                  ? Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            showingText,
+                            pageSizeSelector,
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        navigationControls,
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            showingText,
+                            const SizedBox(width: 16),
+                            pageSizeSelector,
+                          ],
+                        ),
+                        navigationControls,
+                      ],
+                    );
+            }
           ),
         ],
       ),
@@ -1060,7 +1198,7 @@ class _ApisScreenState extends State<ApisScreen> {
               ),
               // Actions column
               Expanded(
-                flex: 1,
+                flex: 2,
                 child: Row(
                   children: [
                     IconButton(
@@ -1343,81 +1481,85 @@ class _ApisScreenState extends State<ApisScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
         return Dialog(
           backgroundColor: theme.cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Container(
-            width: 460,
+            width: min(460.0, screenWidth - 48),
             padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4F46E5).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.info_outline, color: Color(0xFF4F46E5), size: 20),
                       ),
-                      child: const Icon(Icons.info_outline, color: Color(0xFF4F46E5), size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'API Route Details',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Outfit',
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'API Route Details',
+                          style: TextStyle(
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
-                      onPressed: () => Navigator.pop(context),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                const SizedBox(height: 16),
-
-                // Details Rows
-                _buildDetailRow('API Name', api['api_name']?.toString() ?? '', isDark),
-                _buildDetailRow('Path Prefix', api['path_prefix']?.toString() ?? '', isDark),
-                _buildDetailRow('Category', api['category']?.toString() ?? '', isDark),
-                _buildDetailRow('Version', api['version']?.toString() ?? 'v1.0', isDark),
-                _buildDetailRow('Total Requests', api['requests']?.toString() ?? '0', isDark),
-                _buildDetailRow('Success Rate', "${api['success_rate']}%", isDark),
-                _buildDetailRow('Avg. Response Time', "${api['avg_response_time']}ms", isDark),
-                _buildDetailRow('Status', api['status']?.toString() ?? 'Inactive', isDark),
-
-                const SizedBox(height: 24),
-                Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                const SizedBox(height: 16),
-
-                // Close Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      IconButton(
+                        icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                      child: const Text('Close', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  const SizedBox(height: 16),
+
+                  // Details Rows
+                  _buildDetailRow('API Name', api['api_name']?.toString() ?? '', isDark),
+                  _buildDetailRow('Path Prefix', api['path_prefix']?.toString() ?? '', isDark),
+                  _buildDetailRow('Category', api['category']?.toString() ?? '', isDark),
+                  _buildDetailRow('Version', api['version']?.toString() ?? 'v1.0', isDark),
+                  _buildDetailRow('Total Requests', api['requests']?.toString() ?? '0', isDark),
+                  _buildDetailRow('Success Rate', "${api['success_rate']}%", isDark),
+                  _buildDetailRow('Avg. Response Time', "${api['avg_response_time']}ms", isDark),
+                  _buildDetailRow('Status', api['status']?.toString() ?? 'Inactive', isDark),
+
+                  const SizedBox(height: 24),
+                  Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  const SizedBox(height: 16),
+
+                  // Close Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4F46E5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text('Close', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -1459,192 +1601,196 @@ class _ApisScreenState extends State<ApisScreen> {
           builder: (context, setDialogState) {
             final theme = Theme.of(context);
             final isDark = theme.brightness == Brightness.dark;
+            final screenWidth = MediaQuery.of(context).size.width;
 
             return Dialog(
               backgroundColor: theme.cardColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Container(
-                width: 480,
+                width: min(480.0, screenWidth - 48),
                 padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.add_link, color: Color(0xFF4F46E5), size: 20),
                           ),
-                          child: const Icon(Icons.add_link, color: Color(0xFF4F46E5), size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Create New API Route',
-                            style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Outfit',
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Create New API Route',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Outfit',
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
-                          onPressed: () => Navigator.pop(context),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    const SizedBox(height: 20),
-
-                    // Inputs
-                    TextField(
-                      controller: prefixController,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'Path Prefix',
-                        hintText: 'e.g. /api/sandbox',
-                        prefixIcon: Icons.link,
-                        theme: theme,
-                        isDark: isDark,
+                          IconButton(
+                            icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: nameController,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'API Name',
-                        hintText: 'e.g. Sandbox API',
-                        prefixIcon: Icons.label_outline,
-                        theme: theme,
-                        isDark: isDark,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: versionController,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'API Version',
-                        hintText: 'e.g. v1.0',
-                        prefixIcon: Icons.merge_type,
-                        theme: theme,
-                        isDark: isDark,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Dropdown for Category
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Category',
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: category,
-                              dropdownColor: theme.cardColor,
-                              style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
-                              onChanged: (val) {
-                                setDialogState(() {
-                                  category = val!;
-                                });
-                              },
-                              items: ["Authentication", "Student", "Academic", "Finance", "Communication", "Others"]
-                                  .map((String item) {
-                                return DropdownMenuItem<String>(
-                                  value: item,
-                                  child: Text(item),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(height: 16),
+                      Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 20),
 
-                    const SizedBox(height: 24),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    const SizedBox(height: 20),
-
-                    // Actions
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                          child: Text(
-                            'Cancel',
+                      // Inputs
+                      TextField(
+                        controller: prefixController,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'Path Prefix',
+                          hintText: 'e.g. /api/sandbox',
+                          prefixIcon: Icons.link,
+                          theme: theme,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: nameController,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'API Name',
+                          hintText: 'e.g. Sandbox API',
+                          prefixIcon: Icons.label_outline,
+                          theme: theme,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: versionController,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'API Version',
+                          hintText: 'e.g. v1.0',
+                          prefixIcon: Icons.merge_type,
+                          theme: theme,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Dropdown for Category
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Category',
                             style: TextStyle(
                               color: isDark ? Colors.white70 : const Color(0xFF64748B),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
+                              fontFamily: 'Outfit',
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (prefixController.text.isEmpty || nameController.text.isEmpty) return;
-                            Navigator.pop(context);
-                            try {
-                              final payload = {
-                                'path_prefix': prefixController.text,
-                                'api_name': nameController.text,
-                                'version': versionController.text,
-                                'category': category,
-                                'is_active': true
-                              };
-                              final res = await ApiService().post('/admin/schools/gateway/configs', payload);
-                              if (res['success'] == true) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("API mapping ${prefixController.text} successfully created!")),
-                                );
-                                _fetchGatewayData();
-                              }
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Failed to create API mapping: $e")),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4F46E5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: category,
+                                dropdownColor: theme.cardColor,
+                                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    category = val!;
+                                  });
+                                },
+                                items: ["Authentication", "Student", "Academic", "Finance", "Communication", "Others"]
+                                    .map((String item) {
+                                  return DropdownMenuItem<String>(
+                                    value: item,
+                                    child: Text(item),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
-                          child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+                      Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 20),
+
+                      // Actions
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (prefixController.text.isEmpty || nameController.text.isEmpty) return;
+                              Navigator.pop(context);
+                              try {
+                                final payload = {
+                                  'path_prefix': prefixController.text,
+                                  'api_name': nameController.text,
+                                  'version': versionController.text,
+                                  'category': category,
+                                  'is_active': true
+                                };
+                                final res = await ApiService().post('/admin/schools/gateway/configs', payload);
+                                if (res['success'] == true) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text("API mapping ${prefixController.text} successfully created!")),
+                                  );
+                                  _fetchGatewayData();
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Failed to create API mapping: $e")),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4F46E5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            ),
+                            child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1667,209 +1813,213 @@ class _ApisScreenState extends State<ApisScreen> {
           builder: (context, setDialogState) {
             final theme = Theme.of(context);
             final isDark = theme.brightness == Brightness.dark;
+            final screenWidth = MediaQuery.of(context).size.width;
 
             return Dialog(
               backgroundColor: theme.cardColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Container(
-                width: 480,
+                width: min(480.0, screenWidth - 48),
                 padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.edit, color: Color(0xFF4F46E5), size: 20),
                           ),
-                          child: const Icon(Icons.edit, color: Color(0xFF4F46E5), size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Edit API Route Configuration',
-                            style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Outfit',
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Edit API Route Configuration',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Outfit',
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
-                          onPressed: () => Navigator.pop(context),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "Path Prefix: ${api['path_prefix']}",
-                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
-                    ),
-                    const SizedBox(height: 12),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    const SizedBox(height: 16),
-
-                    // Inputs
-                    TextField(
-                      controller: nameController,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'API Name',
-                        hintText: 'e.g. Student API',
-                        prefixIcon: Icons.label_outline,
-                        theme: theme,
-                        isDark: isDark,
+                          IconButton(
+                            icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: versionController,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'API Version',
-                        hintText: 'e.g. v1.1',
-                        prefixIcon: Icons.merge_type,
-                        theme: theme,
-                        isDark: isDark,
+                      const SizedBox(height: 12),
+                      Text(
+                        "Path Prefix: ${api['path_prefix']}",
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Category',
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: category,
-                              dropdownColor: theme.cardColor,
-                              style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
-                              onChanged: (val) {
-                                setDialogState(() {
-                                  category = val!;
-                                });
-                              },
-                              items: ["Authentication", "Student", "Academic", "Finance", "Communication", "Others"]
-                                  .map((String item) {
-                                return DropdownMenuItem<String>(
-                                  value: item,
-                                  child: Text(item),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Active Status',
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
-                          ),
-                        ),
-                        Switch(
-                          value: isActive,
-                          activeColor: const Color(0xFF10B981),
-                          onChanged: (val) {
-                            setDialogState(() {
-                              isActive = val;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
+                      const SizedBox(height: 12),
+                      Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 16),
 
-                    const SizedBox(height: 24),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    const SizedBox(height: 20),
-
-                    // Actions
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                          child: Text(
-                            'Cancel',
+                      // Inputs
+                      TextField(
+                        controller: nameController,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'API Name',
+                          hintText: 'e.g. Student API',
+                          prefixIcon: Icons.label_outline,
+                          theme: theme,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: versionController,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'API Version',
+                          hintText: 'e.g. v1.1',
+                          prefixIcon: Icons.merge_type,
+                          theme: theme,
+                          isDark: isDark,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Category',
                             style: TextStyle(
                               color: isDark ? Colors.white70 : const Color(0xFF64748B),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
+                              fontFamily: 'Outfit',
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (nameController.text.isEmpty) return;
-                            Navigator.pop(context);
-                            try {
-                              final path_prefix = api['path_prefix']?.toString() ?? '';
-                              final urlPath = path_prefix.startsWith('/') ? path_prefix.substring(1) : path_prefix;
-                              final payload = {
-                                'api_name': nameController.text,
-                                'version': versionController.text,
-                                'category': category,
-                                'is_active': isActive
-                              };
-                              final res = await ApiService().put('/admin/schools/gateway/configs/$urlPath', payload);
-                              if (res['success'] == true) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('API Gateway configuration updated successfully!')),
-                                );
-                                _fetchGatewayData();
-                              }
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed to update API config: $e')),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4F46E5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: category,
+                                dropdownColor: theme.cardColor,
+                                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    category = val!;
+                                  });
+                                },
+                                items: ["Authentication", "Student", "Academic", "Finance", "Communication", "Others"]
+                                    .map((String item) {
+                                  return DropdownMenuItem<String>(
+                                    value: item,
+                                    child: Text(item),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
-                          child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Active Status',
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Outfit',
+                            ),
+                          ),
+                          Switch(
+                            value: isActive,
+                            activeColor: const Color(0xFF10B981),
+                            onChanged: (val) {
+                              setDialogState(() {
+                                isActive = val;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+                      Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 20),
+
+                      // Actions
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (nameController.text.isEmpty) return;
+                              Navigator.pop(context);
+                              try {
+                                final path_prefix = api['path_prefix']?.toString() ?? '';
+                                final urlPath = path_prefix.startsWith('/') ? path_prefix.substring(1) : path_prefix;
+                                final payload = {
+                                  'api_name': nameController.text,
+                                  'version': versionController.text,
+                                  'category': category,
+                                  'is_active': isActive
+                                };
+                                final res = await ApiService().put('/admin/schools/gateway/configs/$urlPath', payload);
+                                if (res['success'] == true) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('API Gateway configuration updated successfully!')),
+                                  );
+                                  _fetchGatewayData();
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Failed to update API config: $e')),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4F46E5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            ),
+                            child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1892,198 +2042,202 @@ class _ApisScreenState extends State<ApisScreen> {
           builder: (context, setDialogState) {
             final theme = Theme.of(context);
             final isDark = theme.brightness == Brightness.dark;
+            final screenWidth = MediaQuery.of(context).size.width;
 
             return Dialog(
               backgroundColor: theme.cardColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Container(
-                width: 480,
+                width: min(480.0, screenWidth - 48),
                 padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.speed, color: Color(0xFF4F46E5), size: 20),
                           ),
-                          child: const Icon(Icons.speed, color: Color(0xFF4F46E5), size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Simulate API Traffic / Load Test',
-                            style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Outfit',
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Simulate API Traffic / Load Test',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Outfit',
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
-                          onPressed: () => Navigator.pop(context),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Simulate traffic logs dynamically to observe metrics updating in real-time.',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 10),
-                    ),
-                    const SizedBox(height: 12),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    const SizedBox(height: 16),
-
-                    // Inputs
-                    TextField(
-                      controller: pathController,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'API Endpoint Path',
-                        hintText: 'e.g. /api/student/profile',
-                        prefixIcon: Icons.shortcut,
-                        theme: theme,
-                        isDark: isDark,
+                          IconButton(
+                            icon: Icon(Icons.close, color: isDark ? Colors.white60 : Colors.black45, size: 20),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: countController,
-                      keyboardType: TextInputType.number,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'Number of Requests',
-                        hintText: 'e.g. 150',
-                        prefixIcon: Icons.numbers,
-                        theme: theme,
-                        isDark: isDark,
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Simulate traffic logs dynamically to observe metrics updating in real-time.',
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 10),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: responseTimeController,
-                      keyboardType: TextInputType.number,
-                      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
-                      decoration: _buildInputDecoration(
-                        labelText: 'Simulated Latency (ms)',
-                        hintText: 'e.g. 180',
-                        prefixIcon: Icons.bolt,
-                        theme: theme,
-                        isDark: isDark,
+                      const SizedBox(height: 12),
+                      Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 16),
+
+                      // Inputs
+                      TextField(
+                        controller: pathController,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'API Endpoint Path',
+                          hintText: 'e.g. /api/student/profile',
+                          prefixIcon: Icons.shortcut,
+                          theme: theme,
+                          isDark: isDark,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Response Code',
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
-                          ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: countController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'Number of Requests',
+                          hintText: 'e.g. 150',
+                          prefixIcon: Icons.numbers,
+                          theme: theme,
+                          isDark: isDark,
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<int>(
-                              value: statusCode,
-                              dropdownColor: theme.cardColor,
-                              style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
-                              onChanged: (val) {
-                                setDialogState(() {
-                                  statusCode = val!;
-                                });
-                              },
-                              items: [200, 400, 401, 429, 500].map((int code) {
-                                return DropdownMenuItem<int>(
-                                  value: code,
-                                  child: Text(code.toString()),
-                                );
-                              }).toList(),
-                            ),
-                          ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: responseTimeController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 13),
+                        decoration: _buildInputDecoration(
+                          labelText: 'Simulated Latency (ms)',
+                          hintText: 'e.g. 180',
+                          prefixIcon: Icons.bolt,
+                          theme: theme,
+                          isDark: isDark,
                         ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-                    Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                    const SizedBox(height: 20),
-
-                    // Actions
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          ),
-                          child: Text(
-                            'Cancel',
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Response Code',
                             style: TextStyle(
                               color: isDark ? Colors.white70 : const Color(0xFF64748B),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
+                              fontFamily: 'Outfit',
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            try {
-                              final count = int.tryParse(countController.text) ?? 50;
-                              final latency = double.tryParse(responseTimeController.text) ?? 150.0;
-                              final payload = {
-                                'path': pathController.text,
-                                'count': count,
-                                'response_time_ms': latency,
-                                'status_code': statusCode,
-                                'method': 'GET'
-                              };
-                              final res = await ApiService().post('/admin/schools/gateway/simulate-traffic', payload);
-                              if (res['success'] == true) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Successfully generated $count simulated requests!")),
-                                );
-                                _fetchGatewayData();
-                              }
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Simulated traffic failed: $e")),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4F46E5),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: statusCode,
+                                dropdownColor: theme.cardColor,
+                                style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    statusCode = val!;
+                                  });
+                                },
+                                items: [200, 400, 401, 429, 500].map((int code) {
+                                  return DropdownMenuItem<int>(
+                                    value: code,
+                                    child: Text(code.toString()),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
-                          child: const Text('Simulate', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+                      Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 20),
+
+                      // Actions
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              try {
+                                final count = int.tryParse(countController.text) ?? 50;
+                                final latency = double.tryParse(responseTimeController.text) ?? 150.0;
+                                final payload = {
+                                  'path': pathController.text,
+                                  'count': count,
+                                  'response_time_ms': latency,
+                                  'status_code': statusCode,
+                                  'method': 'GET'
+                                };
+                                final res = await ApiService().post('/admin/schools/gateway/simulate-traffic', payload);
+                                if (res['success'] == true) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text("Successfully generated $count simulated requests!")),
+                                  );
+                                  _fetchGatewayData();
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Simulated traffic failed: $e")),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4F46E5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            ),
+                            child: const Text('Simulate', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );

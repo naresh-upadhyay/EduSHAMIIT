@@ -441,10 +441,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: AiFab(
+          gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
           onPressed: () => _showAiAssistantDialog(context),
-          backgroundColor: const Color(0xFF4F46E5),
-          child: const Icon(Icons.assistant, color: Colors.white),
         ),
       );
     } else {
@@ -453,10 +452,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         backgroundColor: const Color(0xFF090B15),
         body: widget.child,
         bottomNavigationBar: AdminBottomNav(currentLocation: location),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: AiFab(
+          gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
           onPressed: () => _showAiAssistantDialog(context),
-          backgroundColor: const Color(0xFF4F46E5),
-          child: const Icon(Icons.assistant, color: Colors.white),
         ),
       );
     }

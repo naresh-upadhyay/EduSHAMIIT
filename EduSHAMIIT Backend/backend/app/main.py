@@ -5,7 +5,8 @@ import os
 import time
 import asyncio
 
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin
+import json
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets
 
 
 @asynccontextmanager
@@ -99,6 +100,90 @@ async def api_gateway_logging_middleware(request: Request, call_next):
             ip_address=ip_address,
             user_id=user_id
         ))
+
+class AuditLoggingMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if not path.startswith("/api/"):
+            await self.app(scope, receive, send)
+            return
+
+        method = scope.get("method", "")
+        is_write = method in ("POST", "PUT", "PATCH", "DELETE")
+        is_auth = any(p in path for p in ["login", "logout", "send-login-otp"])
+        is_audit_action = is_write or is_auth or "export" in path or "backup" in path
+
+        if not is_audit_action:
+            await self.app(scope, receive, send)
+            return
+
+        body_bytes = b""
+        async def wrapped_receive():
+            nonlocal body_bytes
+            message = await receive()
+            if message["type"] == "http.request":
+                body = message.get("body", b"")
+                if body:
+                    body_bytes += body
+            return message
+
+        status_code = 200
+        async def wrapped_send(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 200)
+            await send(message)
+
+        try:
+            await self.app(scope, wrapped_receive, wrapped_send)
+        except Exception as e:
+            status_code = 500
+            raise e
+        finally:
+            request = Request(scope, wrapped_receive)
+            
+            body_json = {}
+            if body_bytes:
+                try:
+                    body_json = json.loads(body_bytes.decode("utf-8"))
+                except Exception:
+                    pass
+
+            from app.api.audit_logs import sanitize_body
+            sanitized_body = sanitize_body(body_json) if body_json else {}
+
+            ip_address = request.client.host if request.client else "unknown"
+            user_agent = request.headers.get("user-agent", "unknown")
+
+            user_id = None
+            school_id = None
+            try:
+                from app.middleware.auth import get_current_user_optional
+                user = await get_current_user_optional(request)
+                if user:
+                    user_id = user.get("id")
+                    school_id = user.get("school_id")
+            except Exception:
+                pass
+
+            from app.api.audit_logs import log_audit_event_to_db
+            asyncio.create_task(log_audit_event_to_db(
+                school_id=school_id,
+                user_id=user_id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                path=path,
+                method=method,
+                status_code=status_code,
+                body_json=sanitized_body
+            ))
 
 @app.middleware("http")
 async def add_request_host_middleware(request: Request, call_next):
@@ -276,6 +361,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(AuditLoggingMiddleware)
+
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])
 app.include_router(teacher.router, prefix="/api/teacher", tags=["Teacher"])
@@ -291,6 +378,8 @@ app.include_router(students_admin.router, prefix="/api/admin/students", tags=["S
 app.include_router(teachers_admin.router, prefix="/api/admin/teachers", tags=["Teacher Admin"])
 app.include_router(superadmin.router, prefix="/api/admin/schools", tags=["Schools Admin"])
 app.include_router(superadmin.vault_router, prefix="/api/admin", tags=["Vault Admin"])
+app.include_router(audit_logs.router, prefix="/api/admin", tags=["Audit Logs"])
+app.include_router(tickets.router, prefix="/api/admin", tags=["Tickets"])
 app.include_router(calls.router, prefix="/api", tags=["Calls"])
 app.include_router(live_classes.router, prefix="/api", tags=["Live Classes"])
 
