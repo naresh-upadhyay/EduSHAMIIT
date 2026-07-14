@@ -940,7 +940,7 @@ class _AdminSystemConfigScreenState
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: Image.network(
-                                    _systemLogoController.text,
+                                    AppConfig.resolveUrl(_systemLogoController.text),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) => const Column(
                                       mainAxisAlignment:
@@ -1035,7 +1035,7 @@ class _AdminSystemConfigScreenState
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: Image.network(
-                                      _systemLogoController.text,
+                                      AppConfig.resolveUrl(_systemLogoController.text),
                                       fit: BoxFit.cover,
                                       errorBuilder: (_, __, ___) => const Column(
                                         mainAxisAlignment:
@@ -1117,7 +1117,7 @@ class _AdminSystemConfigScreenState
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(6),
                                   child: Image.network(
-                                    _faviconController.text,
+                                    AppConfig.resolveUrl(_faviconController.text),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
                                         const Icon(
@@ -1194,7 +1194,7 @@ class _AdminSystemConfigScreenState
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(6),
                                         child: Image.network(
-                                          _faviconController.text,
+                                          AppConfig.resolveUrl(_faviconController.text),
                                           fit: BoxFit.cover,
                                           errorBuilder: (_, __, ___) =>
                                               const Icon(

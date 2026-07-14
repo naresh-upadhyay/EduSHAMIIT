@@ -49,6 +49,7 @@ class AppConfig {
     if (rawUrl == null || rawUrl.isEmpty) return '';
     if (_isProduction) {
       return rawUrl
+          .replaceAll('http://eduapi.shamiit.com', _productionApiUrl)
           .replaceAll('http://kong:8000', _productionApiUrl)
           .replaceAll('http://supabase-kong:8000', _productionApiUrl)
           .replaceAll('http://127.0.0.1:8000', _productionApiUrl)
