@@ -585,15 +585,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double width = constraints.maxWidth;
-        final int count = width > 1100 ? 5 : (width > 800 ? 3 : (width > 480 ? 2 : 1));
+        final int count = width > 750 ? 5 : (width > 550 ? 3 : 2);
         return Wrap(
-          spacing: 16,
-          runSpacing: 16,
+          spacing: 12,
+          runSpacing: 12,
           children: [
             _buildMetricCard(
               'Total Users',
               totalCount.toString(),
-              '8.8% from last month',
+              '8.8% up',
               true,
               const Color(0xFF6366F1),
               Icons.people_outline,
@@ -607,7 +607,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             _buildMetricCard(
               'Active Users',
               activeCount.toString(),
-              '6.3% from last month',
+              '6.3% up',
               true,
               const Color(0xFF10B981),
               Icons.person_outline,
@@ -621,7 +621,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             _buildMetricCard(
               'Inactive Users',
               inactiveCount.toString(),
-              '3.2% from last month',
+              '3.2% up',
               true,
               const Color(0xFFF59E0B),
               Icons.person_off_outlined,
@@ -635,7 +635,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             _buildMetricCard(
               'Locked Users',
               lockedCount.toString(),
-              '1.4% from last month',
+              '1.4% down',
               false,
               const Color(0xFFEF4444),
               Icons.lock_outline,
@@ -649,10 +649,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             _buildMetricCard(
               'New This Month',
               newCount.toString(),
-              '12.8% from last month',
+              '12.8% up',
               true,
               const Color(0xFF06B6D4),
-              Icons.person_add_outlined,
+              Icons.person_add_alt_1_outlined,
               cardBg,
               borderColor,
               textPrimary,
@@ -680,14 +680,21 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     double totalWidth,
     int cardsPerRow,
   ) {
-    final double cardWidth = (totalWidth - (cardsPerRow - 1) * 16) / cardsPerRow;
+    final double cardWidth = (totalWidth - (cardsPerRow - 1) * 12) / cardsPerRow;
     return Container(
-      width: cardWidth > 170 ? cardWidth : 170,
-      padding: const EdgeInsets.all(16),
+      width: cardWidth > 130 ? cardWidth : 130,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.015),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,40 +702,56 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.dmSans(
+                    color: textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
+                  color: color.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: color, size: 16),
+                child: Icon(icon, color: color, size: 14),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           Text(
             value,
-            style: GoogleFonts.outfit(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
+            style: GoogleFonts.outfit(
+              color: textPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Row(
             children: [
               Icon(
-                isTrendUp ? Icons.arrow_upward : Icons.arrow_downward,
+                isTrendUp ? Icons.trending_up : Icons.trending_down,
                 color: isTrendUp ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                size: 12,
+                size: 11,
               ),
-              const SizedBox(width: 4),
-              Text(
-                trend,
-                style: GoogleFonts.dmSans(
-                  color: isTrendUp ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 3),
+              Expanded(
+                child: Text(
+                  trend,
+                  style: GoogleFonts.dmSans(
+                    color: isTrendUp ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
