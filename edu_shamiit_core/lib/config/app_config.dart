@@ -47,25 +47,56 @@ class AppConfig {
   /// Resolves media/document/image URLs dynamically depending on whether running in production or dev.
   static String resolveUrl(String? rawUrl) {
     if (rawUrl == null || rawUrl.isEmpty) return '';
-    if (_isProduction) {
-      return rawUrl
-          .replaceAll('http://eduapi.shamiit.com', _productionApiUrl)
-          .replaceAll('http://kong:8000', _productionApiUrl)
-          .replaceAll('http://supabase-kong:8000', _productionApiUrl)
-          .replaceAll('http://127.0.0.1:8000', _productionApiUrl)
-          .replaceAll('http://localhost:8000', _productionApiUrl)
-          .replaceAll('http://127.0.0.1:80', _productionApiUrl)
-          .replaceAll('http://localhost:80', _productionApiUrl)
-          .replaceAll('http://127.0.0.1', _productionApiUrl)
-          .replaceAll('http://localhost', _productionApiUrl);
+    try {
+      final uri = Uri.parse(rawUrl);
+      if (!uri.hasScheme) return rawUrl;
+
+      if (_isProduction) {
+        final internalHosts = [
+          'kong',
+          'supabase-kong',
+          '127.0.0.1',
+          'localhost',
+          'eduapi.shamiit.com'
+        ];
+        if (internalHosts.contains(uri.host)) {
+          final prodUri = Uri.parse(_productionApiUrl);
+          return uri.replace(
+            scheme: prodUri.scheme,
+            host: prodUri.host,
+            port: prodUri.port == 80 || prodUri.port == 443 ? null : prodUri.port,
+          ).toString();
+        }
+        // Force HTTPS for production API calls
+        if (uri.host == 'eduapi.shamiit.com' && uri.scheme == 'http') {
+          return uri.replace(scheme: 'https').toString();
+        }
+        return rawUrl;
+      } else {
+        final internalHosts = [
+          'kong',
+          'supabase-kong',
+          '127.0.0.1',
+          'localhost'
+        ];
+        if (internalHosts.contains(uri.host)) {
+          int targetPort = 8082; // Default to local Nginx gateway
+          if (uri.path.contains('/storage/v1/')) {
+            targetPort = 8082; // Route storage requests through Nginx to prevent CORS issues
+          } else if (uri.port != 0 && uri.port != 80 && uri.port != 443) {
+            targetPort = uri.port;
+          }
+          return uri.replace(
+            scheme: 'http',
+            host: _host,
+            port: targetPort,
+          ).toString();
+        }
+        return rawUrl;
+      }
+    } catch (e) {
+      return rawUrl;
     }
-    return rawUrl
-        .replaceAll('http://kong:8000', 'http://$_host:8000')
-        .replaceAll('http://supabase-kong:8000', 'http://$_host:8000')
-        .replaceAll('http://127.0.0.1:8000', 'http://$_host:8000')
-        .replaceAll('http://localhost:8000', 'http://$_host:8000')
-        .replaceAll('http://127.0.0.1:80', 'http://$_host:8000')
-        .replaceAll('http://localhost:80', 'http://$_host:8000');
   }
 
   /// Supabase Anon Key — uses cloud key in production, local key in dev
