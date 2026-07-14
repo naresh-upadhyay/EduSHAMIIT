@@ -410,9 +410,13 @@ async def register(request: RegisterRequest):
     """Register new user."""
     try:
         sb = get_supabase()
+        
+        school_id = request.school_id
+        if not school_id or school_id.strip() == "":
+            school_id = None
 
         # Validate password complexity
-        sec_settings = get_security_settings(request.school_id)
+        sec_settings = get_security_settings(school_id)
         validate_password_complexity(request.password, sec_settings.get("password_policy", "Strong"))
 
         # Check if email already registered in profiles
@@ -424,9 +428,9 @@ async def register(request: RegisterRequest):
         is_superadmin = request.role.lower() == "super_admin"
         
         if not is_superadmin:
-            if not request.school_id:
+            if not school_id:
                 raise Exception("School/Institution is required for non-superadmin roles")
-            school_res = await sb.table("schools").select("subscription_status").eq("id", request.school_id).maybe_single().aexecute()
+            school_res = await sb.table("schools").select("subscription_status").eq("id", school_id).maybe_single().aexecute()
             if not school_res.data:
                 raise Exception("The specified school/institute does not exist")
             if school_res.data.get("subscription_status") == "suspended":
@@ -458,7 +462,7 @@ async def register(request: RegisterRequest):
 
         await sb.table("profiles").insert({
             "id": auth_response.user.id,
-            "school_id": request.school_id if not is_superadmin else None,
+            "school_id": school_id if not is_superadmin else None,
             "user_id": generated_user_id,
             "full_name": request.full_name,
             "email": request.email,
