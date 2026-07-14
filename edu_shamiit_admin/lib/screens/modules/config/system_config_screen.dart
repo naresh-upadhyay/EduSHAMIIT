@@ -539,6 +539,273 @@ class _AdminSystemConfigScreenState
     }
   }
 
+  void _showLogsDialog(List<dynamic> logs) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? Colors.white70 : const Color(0xFF64748B);
+    final borderColor = isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: dialogBg,
+          elevation: 24,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: borderColor, width: 1.5),
+          ),
+          child: Container(
+            width: 600,
+            height: 500,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'System Audit Logs',
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Outfit',
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close_rounded, color: textSecondary),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: logs.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No logs available.',
+                            style: TextStyle(color: textSecondary, fontFamily: 'Outfit'),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: logs.length,
+                          separatorBuilder: (context, idx) => Divider(color: borderColor),
+                          itemBuilder: (context, idx) {
+                            final log = logs[idx];
+                            final time = DateTime.tryParse(log['created_at']?.toString() ?? '') ?? DateTime.now();
+                            final timeStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(time);
+                            final email = log['user_email'] ?? 'System';
+                            final event = log['event_type'] ?? 'Action';
+                            final status = log['status'] ?? 'Success';
+                            final isSuccess = status.toString().toLowerCase() == 'success' || status.toString().toLowerCase() == 'true';
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isSuccess
+                                          ? const Color(0xFF10B981).withOpacity(0.1)
+                                          : const Color(0xFFEF4444).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      status.toString().toUpperCase(),
+                                      style: TextStyle(
+                                        color: isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          event,
+                                          style: TextStyle(
+                                            color: textPrimary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            fontFamily: 'Outfit',
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'By $email • $timeStr',
+                                          style: TextStyle(
+                                            color: textSecondary,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showHealthCheckDialog(Map<String, dynamic> data) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? Colors.white70 : const Color(0xFF64748B);
+    final borderColor = isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+
+    final dbStatus = data['database'] ?? 'unknown';
+    final redisStatus = data['redis'] ?? 'unknown';
+    final servicesStatus = data['services'] ?? 'unknown';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: dialogBg,
+          elevation: 24,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: borderColor, width: 1.5),
+          ),
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: servicesStatus == 'healthy'
+                        ? const Color(0xFF10B981).withOpacity(0.08)
+                        : const Color(0xFFF59E0B).withOpacity(0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      servicesStatus == 'healthy'
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.warning_amber_rounded,
+                      color: servicesStatus == 'healthy'
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF59E0B),
+                      size: 28,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'System Health Check',
+                  style: TextStyle(
+                    color: textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Overall Status: ${servicesStatus.toString().toUpperCase()}',
+                  style: TextStyle(
+                    color: servicesStatus == 'healthy'
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildHealthItem('PostgreSQL Database', dbStatus == 'online', textPrimary, textSecondary),
+                const SizedBox(height: 12),
+                _buildHealthItem('Redis Cache Broker', redisStatus == 'online', textPrimary, textSecondary),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Close Diagnostics',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHealthItem(String title, bool isOnline, Color textPrimary, Color textSecondary) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isOnline ? 'Online' : 'Offline',
+              style: TextStyle(
+                color: isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Future<void> _triggerQuickAction(String action) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -546,13 +813,53 @@ class _AdminSystemConfigScreenState
         duration: const Duration(seconds: 1),
       ),
     );
-    // Simulate API execution
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
+    try {
+      String endpoint = '';
+      bool isPost = true;
+      if (action == "Clear System Cache") {
+        endpoint = '/admin/system-config/maintenance/clear-cache';
+      } else if (action == "System Health Check") {
+        endpoint = '/admin/system-config/maintenance/health-check';
+      } else if (action == "Regenerate API Keys") {
+        endpoint = '/admin/system-config/maintenance/regenerate-api-keys';
+      } else if (action == "View System Logs") {
+        endpoint = '/admin/system-config/maintenance/logs';
+        isPost = false;
+      }
+
+      if (endpoint.isNotEmpty) {
+        final res = isPost
+            ? await ApiService().post(endpoint, {})
+            : await ApiService().get(endpoint);
+
+        if (res['success'] == true) {
+          if (action == "View System Logs") {
+            _showLogsDialog(res['data'] as List<dynamic>);
+          } else if (action == "System Health Check") {
+            _showHealthCheckDialog(res['data'] as Map<String, dynamic>);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$action completed successfully!'),
+                backgroundColor: const Color(0xFF10B981),
+              ),
+            );
+          }
+          _fetchStats();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed: ${res['message'] ?? 'Unknown error'}'),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+          );
+        }
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$action completed successfully!'),
-          backgroundColor: const Color(0xFF10B981),
+          content: Text('Error: $e'),
+          backgroundColor: const Color(0xFFEF4444),
         ),
       );
     }
@@ -2102,6 +2409,10 @@ class _AdminSystemConfigScreenState
 
   Widget _buildSystemStatusCard(bool isDark) {
     final theme = Theme.of(context);
+    final double usedGb = (double.tryParse(_stats["storage_used_gb"]?.toString() ?? '0') ?? 0.0);
+    final double totalGb = (double.tryParse(_stats["storage_total_gb"]?.toString() ?? '1.0') ?? 1.0);
+    final double percentage = totalGb > 0 ? (usedGb / totalGb * 100) : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2136,8 +2447,7 @@ class _AdminSystemConfigScreenState
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: (_stats["storage_used_gb"] as double) /
-                  (_stats["storage_total_gb"] as double),
+              value: totalGb > 0 ? (usedGb / totalGb) : 0.0,
               minHeight: 6,
               backgroundColor:
                   isDark ? Colors.white10 : const Color(0xFFE2E8F0),
@@ -2149,7 +2459,7 @@ class _AdminSystemConfigScreenState
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "${_stats["storage_used_gb"]} GB / ${_stats["storage_total_gb"]?.toInt()} GB (23.8%)",
+                "${usedGb.toStringAsFixed(2)} GB / ${totalGb.toInt()} GB (${percentage.toStringAsFixed(1)}%)",
                 style: const TextStyle(fontSize: 10, color: Colors.grey),
               ),
             ],
@@ -2225,28 +2535,37 @@ class _AdminSystemConfigScreenState
                       PieChartData(
                         sectionsSpace: 0,
                         centerSpaceRadius: 36,
-                        sections: [
-                          PieChartSectionData(
-                            color: const Color(0xFF10B981),
-                            value: enabled.toDouble(),
-                            radius: 8,
-                            showTitle: false,
-                          ),
-                          PieChartSectionData(
-                            color: const Color(0xFFF59E0B),
-                            value: disabled.toDouble(),
-                            radius: 8,
-                            showTitle: false,
-                          ),
-                          PieChartSectionData(
-                            color: isDark
-                                ? Colors.white24
-                                : const Color(0xFFCBD5E1),
-                            value: notConfigured.toDouble(),
-                            radius: 8,
-                            showTitle: false,
-                          ),
-                        ],
+                        sections: total == 0
+                            ? [
+                                PieChartSectionData(
+                                  color: isDark ? Colors.white10 : const Color(0xFFCBD5E1),
+                                  value: 1.0,
+                                  radius: 8,
+                                  showTitle: false,
+                                )
+                              ]
+                            : [
+                                PieChartSectionData(
+                                  color: const Color(0xFF10B981),
+                                  value: enabled.toDouble(),
+                                  radius: 8,
+                                  showTitle: false,
+                                ),
+                                PieChartSectionData(
+                                  color: const Color(0xFFF59E0B),
+                                  value: disabled.toDouble(),
+                                  radius: 8,
+                                  showTitle: false,
+                                ),
+                                PieChartSectionData(
+                                  color: isDark
+                                      ? Colors.white24
+                                      : const Color(0xFFCBD5E1),
+                                  value: notConfigured.toDouble(),
+                                  radius: 8,
+                                  showTitle: false,
+                                ),
+                              ],
                       ),
                     ),
                     Column(
@@ -2294,7 +2613,7 @@ class _AdminSystemConfigScreenState
           Align(
             alignment: Alignment.center,
             child: InkWell(
-              onTap: () {},
+              onTap: () => setState(() => _activeTab = 8),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
