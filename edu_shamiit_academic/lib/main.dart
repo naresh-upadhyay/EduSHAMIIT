@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// ignore: depend_on_referenced_packages
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_academic/app.dart';
 import 'package:edu_shamiit_core/services/supabase_service.dart';
@@ -12,6 +14,7 @@ import 'package:edu_shamiit_academic/core/services/call_service.dart';
 
 
 void main() async {
+  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
 
   // Register auth callbacks for CallService initialization

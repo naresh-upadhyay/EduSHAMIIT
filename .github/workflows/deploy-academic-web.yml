@@ -44,6 +44,7 @@ jobs:
         working-directory: edu_shamiit_academic
         run: |
           flutter build web --release --base-href=/
+          cp build/web/index.html build/web/404.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
