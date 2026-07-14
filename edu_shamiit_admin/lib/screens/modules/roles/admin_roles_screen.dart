@@ -209,6 +209,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       final res = await ApiService().delete('/admin/schools/roles/$roleId');
       if (res['success'] == true) {
         _showSuccessSnackBar('Role "$roleName" deleted successfully');
+        setState(() {
+          _selectedRole = null;
+        });
         _fetchRoles();
       } else {
         _showErrorSnackBar(res['message'] ?? 'Failed to delete role');
@@ -2970,6 +2973,53 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       ),
                     ],
                   ),
+                  if (isCustom) ...[
+                    SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              backgroundColor: _dialogBg,
+                              surfaceTintColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              title: Text('Delete Role?', style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+                              content: Text('Are you sure you want to delete custom role "$formattedName"? This action is permanent.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: Text('Cancel', style: TextStyle(color: _textSecondary)),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _deleteRole(_selectedRole!['id'].toString(), name);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFEF4444),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  child: Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.delete_outline, size: 14),
+                        label: Text('Delete Role', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFEF4444),
+                          backgroundColor: const Color(0xFFEF4444).withOpacity(0.05),
+                          side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.25)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
