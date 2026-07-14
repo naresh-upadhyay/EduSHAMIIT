@@ -221,6 +221,122 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
     }
   }
 
+  void _showDeletionRestrictedDialog(int uCount) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: _dialogBg,
+          elevation: 24,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: _borderColor, width: 1.5),
+          ),
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.08),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.2), width: 1.5),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.gpp_bad_outlined,
+                      color: const Color(0xFFEF4444),
+                      size: 32,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Deletion Restricted',
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Outfit',
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: _borderColor),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.people_alt_outlined, size: 14, color: const Color(0xFFEF4444)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$uCount User${uCount > 1 ? "s" : ""} Assigned',
+                        style: TextStyle(
+                          color: const Color(0xFFEF4444),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'This role is currently active and assigned to users in the system. To maintain integrity, a role cannot be deleted until all users have been reassigned to another role.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 12.5,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                          foregroundColor: _textPrimary,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: _borderColor),
+                          ),
+                        ),
+                        child: Text(
+                          'Acknowledge',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _savePermissions({required bool publish}) async {
     if (_selectedRole == null) return;
     final permsList = _buildPermissionsList();
@@ -1312,7 +1428,20 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
 
     return Column(
       children: [
-        Container(
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Scrollbar(
+                controller: _horizScrollController,
+                child: SingleChildScrollView(
+                  controller: _horizScrollController,
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    height: constraints.maxHeight,
+                    width: constraints.maxWidth > 950 ? constraints.maxWidth : 950.0,
+                    child: Column(
+                      children: [
+                    Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: _scaffoldBg.withOpacity(0.5),
@@ -1584,27 +1713,32 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 color: _cardBg,
                                 onSelected: (action) {
                                   if (action == 'delete') {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          backgroundColor: _dialogBg,
-                                          title: Text('Delete Role?', style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-                                          content: Text('Are you sure you want to delete custom role "$name"? this action is permanent.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Cancel', style: TextStyle(color: Color(0xFF64748B)))),
-                                            ElevatedButton(
-                                              onPressed: () {
-                                                Navigator.of(context).pop();
-                                                _deleteRole(id, name);
-                                              },
-                                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
-                                              child: Text('Delete', style: TextStyle(color: _textPrimary)),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
+                                    final uCount = (role['user_count'] as num?)?.toInt() ?? 0;
+                                    if (uCount > 0) {
+                                      _showDeletionRestrictedDialog(uCount);
+                                    } else {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) {
+                                          return AlertDialog(
+                                            backgroundColor: _dialogBg,
+                                            title: Text('Delete Role?', style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+                                            content: Text('Are you sure you want to delete custom role "$name"? this action is permanent.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Cancel', style: TextStyle(color: Color(0xFF64748B)))),
+                                              ElevatedButton(
+                                                onPressed: () {
+                                                  Navigator.of(context).pop();
+                                                  _deleteRole(id, name);
+                                                },
+                                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                                                child: Text('Delete', style: TextStyle(color: _textPrimary)),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    }
                                   } else if (action == 'toggle_status') {
                                     final newStatus = status == 'Active' ? 'Inactive' : 'Active';
                                     ApiService().put('/admin/schools/roles/$id', {'status': newStatus}).then((res) {
@@ -1628,17 +1762,16 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                       ],
                                     ),
                                   ),
-                                  if (isCustom)
-                                    PopupMenuItem(
-                                      value: 'delete',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.delete_outline, size: 14, color: Color(0xFFEF4444)),
-                                          SizedBox(width: 8),
-                                          Text('Delete Role', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
-                                        ],
-                                      ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete_outline, size: 14, color: Color(0xFFEF4444)),
+                                        SizedBox(width: 8),
+                                        Text('Delete Role', style: TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
+                                      ],
                                     ),
+                                  ),
                                 ],
                                 child: Padding(
                                   padding: EdgeInsets.all(4),
@@ -1656,6 +1789,14 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             ),
           ),
         ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
         
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -2973,40 +3114,45 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       ),
                     ],
                   ),
-                  if (isCustom) ...[
+                  if (true) ...[
                     SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: _dialogBg,
-                              surfaceTintColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              title: Text('Delete Role?', style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-                              content: Text('Are you sure you want to delete custom role "$formattedName"? This action is permanent.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: Text('Cancel', style: TextStyle(color: _textSecondary)),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    _deleteRole(_selectedRole!['id'].toString(), name);
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFEF4444),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          final uCount = int.tryParse(userCount.toString()) ?? 0;
+                          if (uCount > 0) {
+                            _showDeletionRestrictedDialog(uCount);
+                          } else {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: _dialogBg,
+                                surfaceTintColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                title: Text('Delete Role?', style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
+                                content: Text('Are you sure you want to delete custom role "$formattedName"? This action is permanent.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: Text('Cancel', style: TextStyle(color: _textSecondary)),
                                   ),
-                                  child: Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ),
-                          );
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _deleteRole(_selectedRole!['id'].toString(), name);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFEF4444),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    child: Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
                         },
                         icon: Icon(Icons.delete_outline, size: 14),
                         label: Text('Delete Role', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),

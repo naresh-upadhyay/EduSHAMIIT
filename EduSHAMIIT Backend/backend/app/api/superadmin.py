@@ -273,8 +273,8 @@ async def delete_role(
     curr_role = role_res.data[0]
     
     # Block deleting built-in roles
-    if not curr_role["is_custom"]:
-        raise HTTPException(status_code=400, detail="Cannot delete built-in core system roles")
+    # if not curr_role["is_custom"]:
+    #     raise HTTPException(status_code=400, detail="Cannot delete built-in core system roles")
         
     # Check if any user is currently assigned this role
     users_with_role = await sb.table("profiles").select("id").eq("role", curr_role["name"]).aexecute()
