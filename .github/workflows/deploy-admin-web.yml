@@ -44,6 +44,7 @@ jobs:
         working-directory: edu_shamiit_admin
         run: |
           flutter build web --release --base-href=/
+          cp build/web/index.html build/web/404.html
 
       - name: Deploy to External Repository (EduSHAMIIT-Admin)
         env:

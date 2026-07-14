@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:edu_shamiit_admin/app_router.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
 void main() async {
+  usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Supabase
