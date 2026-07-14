@@ -146,10 +146,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/modules',
             pageBuilder: (_, __) => const NoTransitionPage(child: ModuleToggleScreen()),
           ),
-          GoRoute(
-            path: '/admin/modules-config',
-            pageBuilder: (_, __) => const NoTransitionPage(child: ModuleConfigScreen()),
-          ),
 
           GoRoute(
             path: '/admin/automations',

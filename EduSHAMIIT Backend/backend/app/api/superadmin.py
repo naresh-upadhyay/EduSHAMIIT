@@ -895,6 +895,77 @@ async def delete_plan(
         raise HTTPException(status_code=500, detail=f"Failed to delete plan: {str(e)}")
 
 # ===========================================================
+# Module Categories CRUD
+# ===========================================================
+
+@router.get("/modules/categories")
+async def list_module_categories(
+    user=Depends(require_super_admin_or_director),
+):
+    """List all module categories."""
+    sb = get_supabase()
+    res = await sb.table("module_categories").select("*").order("name").aexecute()
+    return {"success": True, "data": res.data or []}
+
+@router.post("/modules/categories")
+async def create_module_category(
+    payload: dict,
+    user=Depends(require_super_admin_or_director),
+):
+    """Create a new module category."""
+    name = payload.get("name")
+    if not name:
+        raise HTTPException(status_code=400, detail="Category name is required")
+        
+    sb = get_supabase()
+    check = await sb.table("module_categories").select("name").eq("name", name).aexecute()
+    if check.data:
+        raise HTTPException(status_code=400, detail="Category name already exists")
+        
+    cat_data = {
+        "name": name,
+        "description": payload.get("description", ""),
+        "status": payload.get("status", "Active")
+    }
+    res = await sb.table("module_categories").insert(cat_data).aexecute()
+    return {"success": True, "data": res.data}
+
+@router.put("/modules/categories/{name}")
+async def update_module_category(
+    name: str,
+    payload: dict,
+    user=Depends(require_super_admin_or_director),
+):
+    """Update module category."""
+    sb = get_supabase()
+    check = await sb.table("module_categories").select("name").eq("name", name).aexecute()
+    if not check.data:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    update_data = {}
+    if "description" in payload:
+        update_data["description"] = payload["description"]
+    if "status" in payload:
+        update_data["status"] = payload["status"]
+        
+    res = await sb.table("module_categories").update(update_data).eq("name", name).aexecute()
+    return {"success": True, "data": res.data}
+
+@router.delete("/modules/categories/{name}")
+async def delete_module_category(
+    name: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Delete a module category."""
+    sb = get_supabase()
+    check = await sb.table("module_categories").select("name").eq("name", name).aexecute()
+    if not check.data:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    res = await sb.table("module_categories").delete().eq("name", name).aexecute()
+    return {"success": True, "data": res.data}
+
+# ===========================================================
 # Modules Master Registry CRUD
 # ===========================================================
 
@@ -930,7 +1001,11 @@ async def create_module(
         "icon": payload.get("icon", "extension"),
         "screens": payload.get("screens", []),
         "endpoints": payload.get("endpoints", []),
-        "is_enabled": payload.get("is_enabled", True)
+        "is_enabled": payload.get("is_enabled", True),
+        "category": payload.get("category", "Core"),
+        "type": payload.get("type", "Feature"),
+        "version": payload.get("version", "v1.0.0"),
+        "developed_by": payload.get("developed_by", "School ERP Team")
     }
     
     res = await sb.table("modules").insert(module_data).aexecute()
@@ -970,7 +1045,7 @@ async def update_module(
             )
 
     update_data = {}
-    for key in ["name", "description", "icon", "screens", "endpoints", "is_enabled"]:
+    for key in ["name", "description", "icon", "screens", "endpoints", "is_enabled", "category", "type", "version", "developed_by"]:
         if key in payload:
             update_data[key] = payload[key]
 
@@ -1010,6 +1085,46 @@ async def delete_module(
 
     await sb.table("modules").delete().eq("id", module_id).aexecute()
     return {"success": True, "message": "Module deleted successfully"}
+
+@router.get("/modules/requests")
+async def list_module_requests(
+    user=Depends(require_super_admin_or_director),
+):
+    """List all module requests with joined school and module details."""
+    sb = get_supabase()
+    res = await sb.table("module_requests").select("*, modules(*), schools(*)").order("created_at", ascending=False).aexecute()
+    return {"success": True, "data": res.data or []}
+
+@router.put("/modules/requests/{request_id}")
+async def update_module_request(
+    request_id: str,
+    payload: dict,
+    user=Depends(require_super_admin_or_director),
+):
+    """Update a module request status and automatically update school modules if approved."""
+    status = payload.get("status")
+    if not status or status not in ["Pending", "Approved", "Rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    sb = get_supabase()
+    req_check = await sb.table("module_requests").select("*").eq("id", request_id).aexecute()
+    if not req_check.data:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    req = req_check.data[0]
+    school_id = req.get("school_id")
+    module_id = req.get("module_id")
+
+    res = await sb.table("module_requests").update({"status": status}).eq("id", request_id).aexecute()
+
+    if status == "Approved" and school_id and module_id:
+        school_check = await sb.table("schools").select("module_toggles").eq("id", school_id).aexecute()
+        if school_check.data:
+            toggles = school_check.data[0].get("module_toggles") or {}
+            toggles[module_id] = True
+            await sb.table("schools").update({"module_toggles": toggles}).eq("id", school_id).aexecute()
+
+    return {"success": True, "data": res.data}
 
 @vault_router.get("/vault/secrets")
 async def list_vault_secrets(

@@ -16,18 +16,11 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
   final List<Map<String, dynamic>> _quickActions = [
 
     {
-      'title': 'Module Toggle',
+      'title': 'Module Management',
       'icon': Icons.extension_outlined,
       'color': Colors.green,
       'bg': 0xFFF0FDF4,
       'route': '/admin/modules',
-    },
-    {
-      'title': 'Module Setup',
-      'icon': Icons.settings_applications_outlined,
-      'color': Colors.indigo,
-      'bg': 0xFFEEF2FF,
-      'route': '/admin/modules-config',
     },
     {
       'title': 'Automations',

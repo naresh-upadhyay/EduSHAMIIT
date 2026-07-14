@@ -103,13 +103,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     _NavItem(
         icon: Icons.extension_outlined,
-        label: 'Module Toggle',
+        label: 'Module Management',
         route: '/admin/modules',
-        section: NavSection.quickAccess),
-    _NavItem(
-        icon: Icons.settings_applications_outlined,
-        label: 'Module Setup',
-        route: '/admin/modules-config',
         section: NavSection.quickAccess),
     _NavItem(
         icon: Icons.settings_input_component_outlined,
