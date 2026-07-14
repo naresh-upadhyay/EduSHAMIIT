@@ -19,6 +19,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   bool _loadingUsers = true;
   bool _loadingSchools = true;
   bool _loadingStats = true;
+  bool _isInitialLoad = true;
   Map<String, dynamic>? _statsData;
 
   // Filter states
@@ -145,6 +146,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     } finally {
       setState(() {
         _loadingUsers = false;
+        _isInitialLoad = false;
       });
     }
   }
@@ -406,7 +408,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       data: isDark ? ThemeData.dark() : ThemeData.light(),
       child: Scaffold(
         backgroundColor: scaffoldBg,
-        body: _loadingUsers || _loadingSchools
+        body: _isInitialLoad || _loadingSchools
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -415,7 +417,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   children: [
                     // 1. Title/Header Row
                     _buildHeader(isDark, textPrimary, textSecondary, accentColor),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
+                    if (_loadingUsers)
+                      const ClipRRect(
+                        borderRadius: BorderRadius.all(Radius.circular(2)),
+                        child: LinearProgressIndicator(
+                          minHeight: 3,
+                          backgroundColor: Colors.transparent,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                        ),
+                      )
+                    else
+                      const SizedBox(height: 3),
+                    const SizedBox(height: 12),
 
                     // 2. Metrics Row
                     _buildMetricsRow(isDark, cardBg, borderColor, textPrimary, textSecondary, totalCount, activeCount, inactiveCount, lockedCount, newCount),
@@ -460,79 +474,102 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _buildHeader(bool isDark, Color textPrimary, Color textSecondary, Color accentColor) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 800;
+
+    final headerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'User Management',
+          style: GoogleFonts.outfit(color: textPrimary, fontSize: 26, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Manage system users, roles, and access permissions across all institutions.',
+          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 13),
+        ),
+      ],
+    );
+
+    final actionsContent = Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          height: 38,
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF13182C) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedInstitution,
+              dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
+              style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
+              icon: Icon(Icons.business_outlined, color: accentColor, size: 16),
+              items: ['All', ..._schools.map((s) => s['name'] as String)].map((String val) {
+                return DropdownMenuItem<String>(
+                  value: val,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.business, size: 14, color: accentColor),
+                      const SizedBox(width: 8),
+                      Text(val.length > 20 ? '${val.substring(0, 17)}...' : val),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedInstitution = val;
+                    _currentPage = 1;
+                    _fetchUsers();
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        ElevatedButton.icon(
+          onPressed: _showCreateUserDialog,
+          icon: const Icon(Icons.add, size: 16),
+          label: Text(
+            'Add New User',
+            style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: accentColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ],
+    );
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          headerContent,
+          const SizedBox(height: 16),
+          actionsContent,
+        ],
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'User Management',
-              style: GoogleFonts.outfit(color: textPrimary, fontSize: 26, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Manage system users, roles, and access permissions across all institutions.',
-              style: GoogleFonts.dmSans(color: textSecondary, fontSize: 13),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF13182C) : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedInstitution,
-                  dropdownColor: isDark ? const Color(0xFF13182C) : Colors.white,
-                  style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
-                  icon: Icon(Icons.business_outlined, color: accentColor, size: 16),
-                  items: ['All', ..._schools.map((s) => s['name'] as String)].map((String val) {
-                    return DropdownMenuItem<String>(
-                      value: val,
-                      child: Row(
-                        children: [
-                          Icon(Icons.business, size: 14, color: accentColor),
-                          const SizedBox(width: 8),
-                          Text(val.length > 20 ? '${val.substring(0, 17)}...' : val),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _selectedInstitution = val;
-                        _currentPage = 1;
-                        _fetchUsers();
-                      });
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: _showCreateUserDialog,
-              icon: const Icon(Icons.add, size: 16),
-              label: Text(
-                'Add New User',
-                style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accentColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ],
-        ),
+        Expanded(child: headerContent),
+        const SizedBox(width: 16),
+        actionsContent,
       ],
     );
   }
@@ -552,7 +589,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double width = constraints.maxWidth;
-        final int count = width > 1100 ? 5 : (width > 700 ? 3 : 2);
+        final int count = width > 1100 ? 5 : (width > 800 ? 3 : (width > 480 ? 2 : 1));
         return Wrap(
           spacing: 16,
           runSpacing: 16,
@@ -705,6 +742,212 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
+  Widget _buildMobileUserCard(
+    Map<String, dynamic> user,
+    bool isDark,
+    Color textPrimary,
+    Color textSecondary,
+    Color textMuted,
+    Color accentColor,
+  ) {
+    final isSelected = _selectedUserIds.contains(user['id']);
+    final name = user['full_name'] ?? 'Unknown';
+    final email = user['email'] ?? '';
+    final role = user['role'] ?? 'student';
+    final roleLabel = _roleLabels[role] ?? role;
+    final roleColor = _getRoleColor(role);
+    final schoolName = user['school_name'] ?? 'System-wide';
+    final dept = user['department'] ?? 'N/A';
+    
+    final status = user['status'] ?? 'Active';
+    Color statusColor = const Color(0xFF10B981);
+    if (status == 'Inactive') statusColor = const Color(0xFF64748B);
+    if (status == 'Locked') statusColor = const Color(0xFFEF4444);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B223C) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Checkbox(
+                value: isSelected,
+                activeColor: accentColor,
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      if (user['id'] != null) _selectedUserIds.add(user['id']);
+                    } else {
+                      _selectedUserIds.remove(user['id']);
+                    }
+                  });
+                },
+              ),
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: user['avatar_url'] != null && user['avatar_url'].isNotEmpty
+                    ? NetworkImage(user['avatar_url'])
+                    : null,
+                backgroundColor: roleColor.withOpacity(0.1),
+                child: user['avatar_url'] == null || user['avatar_url'].isEmpty
+                    ? Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: roleColor,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: GoogleFonts.dmSans(color: textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (email.isNotEmpty)
+                      Text(
+                        email,
+                        style: GoogleFonts.dmSans(color: textMuted, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Colors.white10),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: roleColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: roleColor.withOpacity(0.2)),
+                ),
+                child: Text(
+                  roleLabel,
+                  style: GoogleFonts.dmSans(color: roleColor, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: statusColor.withOpacity(0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      status,
+                      style: GoogleFonts.dmSans(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.business, size: 14, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  schoolName,
+                  style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(Icons.badge_outlined, size: 14, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  dept,
+                  style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Colors.white10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Created: ${user['created_at'] != null ? user['created_at'].toString().split('T')[0] : '--'}',
+                style: GoogleFonts.dmSans(color: textMuted, fontSize: 11),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_red_eye_outlined, size: 18),
+                    color: accentColor,
+                    onPressed: () => _showUserDetailDialog(user),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    color: textSecondary,
+                    onPressed: () => _showEditUserDialog(user),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    color: const Color(0xFFEF4444),
+                    onPressed: () => _showDeleteConfirmationDialog(user),
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLeftColumn(
     bool isDark,
     Color cardBg,
@@ -720,6 +963,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final maxPage = (totalFiltered / _pageSize).ceil();
     final startIndex = (displayPage - 1) * _pageSize;
     final endIndex = startIndex + _pageSize > totalFiltered ? totalFiltered : startIndex + _pageSize;
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -739,324 +983,413 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 _buildBulkActionsBar(isDark, borderColor, textPrimary, accentColor, totalFiltered)
               else
                 const SizedBox.shrink(),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  horizontalMargin: 16,
-                  columnSpacing: 24,
-                  columns: [
-                    DataColumn(
-                      label: Checkbox(
-                        value: paginatedUsers.isNotEmpty &&
-                            paginatedUsers.every((u) => _selectedUserIds.contains(u['id'])),
-                        onChanged: (val) {
-                          setState(() {
-                            if (val == true) {
-                              for (var u in paginatedUsers) {
-                                if (u['id'] != null) _selectedUserIds.add(u['id']);
-                              }
-                            } else {
-                              for (var u in paginatedUsers) {
-                                _selectedUserIds.remove(u['id']);
-                              }
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    TextColumn('User', textSecondary, width: 220),
-                    TextColumn('Role', textSecondary, width: 90),
-                    TextColumn('Institution', textSecondary, width: 160),
-                    TextColumn('Department', textSecondary, width: 90),
-                    TextColumn('Status', textSecondary, width: 85),
-                    TextColumn('Last Login', textSecondary, width: 90),
-                    TextColumn('Created On', textSecondary, width: 90),
-                    TextColumn('Actions', textSecondary, width: 120),
-                  ],
-                  rows: paginatedUsers.map((user) {
-                    final isSelected = _selectedUserIds.contains(user['id']);
-                    final name = user['full_name'] ?? 'Unknown';
-                    final email = user['email'] ?? '';
-                    final role = user['role'] ?? 'student';
-                    final roleLabel = _roleLabels[role] ?? role;
-                    final roleColor = _getRoleColor(role);
-                    final schoolName = user['school_name'] ?? 'System-wide';
-                    final dept = user['department'] ?? 'N/A';
-                    
-                    final status = user['status'] ?? 'Active';
-                    Color statusColor = const Color(0xFF10B981);
-                    if (status == 'Inactive') statusColor = const Color(0xFF64748B);
-                    if (status == 'Locked') statusColor = const Color(0xFFEF4444);
-
-                    final lastLoginDateStr = user['last_login'] ?? '--';
-                    final createdOnDateStr = user['created_at'] != null 
-                        ? user['created_at'].toString().split('T')[0]
-                        : '--';
-
-                    return DataRow(
-                      selected: isSelected,
-                      cells: [
-                        DataCell(
-                          Checkbox(
-                            value: isSelected,
-                            onChanged: (val) {
-                              setState(() {
-                                if (val == true) {
-                                  if (user['id'] != null) _selectedUserIds.add(user['id']);
-                                } else {
-                                  _selectedUserIds.remove(user['id']);
-                                }
-                              });
-                            },
+              
+              isMobile
+                  ? Column(
+                      children: paginatedUsers.map((user) {
+                        return _buildMobileUserCard(user, isDark, textPrimary, textSecondary, textMuted, accentColor);
+                      }).toList(),
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        horizontalMargin: 16,
+                        columnSpacing: 24,
+                        columns: [
+                          DataColumn(
+                            label: Checkbox(
+                              value: paginatedUsers.isNotEmpty &&
+                                  paginatedUsers.every((u) => _selectedUserIds.contains(u['id'])),
+                              onChanged: (val) {
+                                setState(() {
+                                  if (val == true) {
+                                    for (var u in paginatedUsers) {
+                                      if (u['id'] != null) _selectedUserIds.add(u['id']);
+                                    }
+                                  } else {
+                                    for (var u in paginatedUsers) {
+                                      _selectedUserIds.remove(u['id']);
+                                    }
+                                  }
+                                });
+                              },
+                            ),
                           ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 220,
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 14,
-                                  backgroundImage: user['avatar_url'] != null && user['avatar_url'].isNotEmpty
-                                      ? NetworkImage(user['avatar_url'])
-                                      : null,
-                                  backgroundColor: roleColor.withOpacity(0.1),
-                                  child: user['avatar_url'] == null || user['avatar_url'].isEmpty
-                                      ? Text(
-                                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: roleColor,
-                                          ),
-                                        )
-                                      : null,
+                          TextColumn('User', textSecondary, width: 220),
+                          TextColumn('Role', textSecondary, width: 90),
+                          TextColumn('Institution', textSecondary, width: 160),
+                          TextColumn('Department', textSecondary, width: 90),
+                          TextColumn('Status', textSecondary, width: 85),
+                          TextColumn('Last Login', textSecondary, width: 90),
+                          TextColumn('Created On', textSecondary, width: 90),
+                          TextColumn('Actions', textSecondary, width: 120),
+                        ],
+                        rows: paginatedUsers.map((user) {
+                          final isSelected = _selectedUserIds.contains(user['id']);
+                          final name = user['full_name'] ?? 'Unknown';
+                          final email = user['email'] ?? '';
+                          final role = user['role'] ?? 'student';
+                          final roleLabel = _roleLabels[role] ?? role;
+                          final roleColor = _getRoleColor(role);
+                          final schoolName = user['school_name'] ?? 'System-wide';
+                          final dept = user['department'] ?? 'N/A';
+                          
+                          final status = user['status'] ?? 'Active';
+                          Color statusColor = const Color(0xFF10B981);
+                          if (status == 'Inactive') statusColor = const Color(0xFF64748B);
+                          if (status == 'Locked') statusColor = const Color(0xFFEF4444);
+
+                          final lastLoginDateStr = user['last_login'] ?? '--';
+                          final createdOnDateStr = user['created_at'] != null 
+                              ? user['created_at'].toString().split('T')[0]
+                              : '--';
+
+                          return DataRow(
+                            selected: isSelected,
+                            cells: [
+                              DataCell(
+                                Checkbox(
+                                  value: isSelected,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      if (val == true) {
+                                        if (user['id'] != null) _selectedUserIds.add(user['id']);
+                                      } else {
+                                        _selectedUserIds.remove(user['id']);
+                                      }
+                                    });
+                                  },
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: 220,
+                                  child: Row(
                                     children: [
-                                      Text(
-                                        name,
-                                        style: GoogleFonts.dmSans(
-                                            color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                      CircleAvatar(
+                                        radius: 14,
+                                        backgroundImage: user['avatar_url'] != null && user['avatar_url'].isNotEmpty
+                                            ? NetworkImage(user['avatar_url'])
+                                            : null,
+                                        backgroundColor: roleColor.withOpacity(0.1),
+                                        child: user['avatar_url'] == null || user['avatar_url'].isEmpty
+                                            ? Text(
+                                                name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: roleColor,
+                                                ),
+                                              )
+                                            : null,
                                       ),
-                                      if (email.isNotEmpty)
-                                        Text(
-                                          email,
-                                          style: GoogleFonts.dmSans(color: textMuted, fontSize: 11),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: GoogleFonts.dmSans(
+                                                  color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (email.isNotEmpty)
+                                              Text(
+                                                email,
+                                                style: GoogleFonts.dmSans(color: textMuted, fontSize: 11),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                          ],
                                         ),
+                                      ),
                                     ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 90,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: roleColor.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: roleColor.withOpacity(0.24)),
-                                ),
-                                child: Text(
-                                  roleLabel,
-                                  style: GoogleFonts.dmSans(color: roleColor, fontSize: 10, fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: 90,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: roleColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: roleColor.withOpacity(0.24)),
+                                      ),
+                                      child: Text(
+                                        roleLabel,
+                                        style: GoogleFonts.dmSans(color: roleColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 160,
-                            child: Text(
-                              schoolName,
-                              style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 90,
-                            child: Text(
-                              dept,
-                              style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 85,
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
+                              DataCell(
+                                SizedBox(
+                                  width: 160,
                                   child: Text(
-                                    status,
-                                    style: GoogleFonts.dmSans(
-                                        color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                    schoolName,
+                                    style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 90,
-                            child: Text(
-                              lastLoginDateStr,
-                              style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 90,
-                            child: Text(
-                              createdOnDateStr,
-                              style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          SizedBox(
-                            width: 120,
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-                                  color: accentColor,
-                                  tooltip: 'View Profile Details',
-                                  onPressed: () => _showUserDetailDialog(user),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: 90,
+                                  child: Text(
+                                    dept,
+                                    style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined, size: 16),
-                                  color: textSecondary,
-                                  tooltip: 'Edit User',
-                                  onPressed: () => _showEditUserDialog(user),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: 85,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          status,
+                                          style: GoogleFonts.dmSans(
+                                              color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 16),
-                                  color: const Color(0xFFEF4444),
-                                  tooltip: 'Delete User',
-                                  onPressed: () => _showDeleteConfirmationDialog(user),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: 90,
+                                  child: Text(
+                                    lastLoginDateStr,
+                                    style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: 90,
+                                  child: Text(
+                                    createdOnDateStr,
+                                    style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                SizedBox(
+                                  width: 120,
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                                        color: accentColor,
+                                        tooltip: 'View Profile Details',
+                                        onPressed: () => _showUserDetailDialog(user),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, size: 16),
+                                        color: textSecondary,
+                                        tooltip: 'Edit User',
+                                        onPressed: () => _showEditUserDialog(user),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, size: 16),
+                                        color: const Color(0xFFEF4444),
+                                        tooltip: 'Delete User',
+                                        onPressed: () => _showDeleteConfirmationDialog(user),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
               const Divider(height: 1, color: Colors.white10),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Showing ${totalFiltered == 0 ? 0 : startIndex + 1} to $endIndex of $totalFiltered users',
-                      style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left, size: 16),
-                          color: displayPage > 1 ? textPrimary : textMuted,
-                          onPressed: displayPage > 1
-                              ? () => setState(() => _currentPage = displayPage - 1)
-                              : null,
-                        ),
-                        ...List.generate(maxPage, (index) {
-                          final pageNum = index + 1;
-                          final isCurrent = pageNum == displayPage;
-                          if (maxPage > 5 && (pageNum - displayPage).abs() > 2 && pageNum != 1 && pageNum != maxPage) {
-                            if (pageNum == 2 || pageNum == maxPage - 1) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                                child: Text('...', style: TextStyle(color: textMuted)),
+                child: isMobile
+                    ? Column(
+                        children: [
+                          Text(
+                            'Showing ${totalFiltered == 0 ? 0 : startIndex + 1} to $endIndex of $totalFiltered users',
+                            style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left, size: 16),
+                                color: displayPage > 1 ? textPrimary : textMuted,
+                                onPressed: displayPage > 1
+                                    ? () => setState(() => _currentPage = displayPage - 1)
+                                    : null,
+                              ),
+                              ...List.generate(maxPage, (index) {
+                                final pageNum = index + 1;
+                                final isCurrent = pageNum == displayPage;
+                                if (maxPage > 5 && (pageNum - displayPage).abs() > 2 && pageNum != 1 && pageNum != maxPage) {
+                                  if (pageNum == 2 || pageNum == maxPage - 1) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                      child: Text('...', style: TextStyle(color: textMuted)),
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                }
+                                return InkWell(
+                                  onTap: () => setState(() => _currentPage = pageNum),
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isCurrent ? accentColor : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      pageNum.toString(),
+                                      style: GoogleFonts.dmSans(
+                                        color: isCurrent ? Colors.white : textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right, size: 16),
+                                color: displayPage < maxPage ? textPrimary : textMuted,
+                                onPressed: displayPage < maxPage
+                                    ? () => setState(() => _currentPage = displayPage + 1)
+                                    : null,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButton<int>(
+                            value: _pageSize,
+                            dropdownColor: cardBg,
+                            style: TextStyle(color: textPrimary, fontSize: 12),
+                            underline: const SizedBox.shrink(),
+                            items: [5, 10, 20, 50].map((int val) {
+                              return DropdownMenuItem<int>(
+                                value: val,
+                                child: Text('$val / page'),
                               );
-                            }
-                            return const SizedBox.shrink();
-                          }
-                          return InkWell(
-                            onTap: () => setState(() => _currentPage = pageNum),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isCurrent ? accentColor : Colors.transparent,
-                                borderRadius: BorderRadius.circular(4),
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _pageSize = val;
+                                  _currentPage = 1;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Showing ${totalFiltered == 0 ? 0 : startIndex + 1} to $endIndex of $totalFiltered users',
+                            style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left, size: 16),
+                                color: displayPage > 1 ? textPrimary : textMuted,
+                                onPressed: displayPage > 1
+                                    ? () => setState(() => _currentPage = displayPage - 1)
+                                    : null,
                               ),
-                              child: Text(
-                                pageNum.toString(),
-                                style: GoogleFonts.dmSans(
-                                  color: isCurrent ? Colors.white : textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                                ),
+                              ...List.generate(maxPage, (index) {
+                                final pageNum = index + 1;
+                                final isCurrent = pageNum == displayPage;
+                                if (maxPage > 5 && (pageNum - displayPage).abs() > 2 && pageNum != 1 && pageNum != maxPage) {
+                                  if (pageNum == 2 || pageNum == maxPage - 1) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                      child: Text('...', style: TextStyle(color: textMuted)),
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                }
+                                return InkWell(
+                                  onTap: () => setState(() => _currentPage = pageNum),
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isCurrent ? accentColor : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      pageNum.toString(),
+                                      style: GoogleFonts.dmSans(
+                                        color: isCurrent ? Colors.white : textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right, size: 16),
+                                color: displayPage < maxPage ? textPrimary : textMuted,
+                                onPressed: displayPage < maxPage
+                                    ? () => setState(() => _currentPage = displayPage + 1)
+                                    : null,
                               ),
-                            ),
-                          );
-                        }),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right, size: 16),
-                          color: displayPage < maxPage ? textPrimary : textMuted,
-                          onPressed: displayPage < maxPage
-                              ? () => setState(() => _currentPage = displayPage + 1)
-                              : null,
-                        ),
-                      ],
-                    ),
-                    DropdownButton<int>(
-                      value: _pageSize,
-                      dropdownColor: cardBg,
-                      style: TextStyle(color: textPrimary, fontSize: 12),
-                      underline: const SizedBox.shrink(),
-                      items: [5, 10, 20, 50].map((int val) {
-                        return DropdownMenuItem<int>(
-                          value: val,
-                          child: Text('$val / page'),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _pageSize = val;
-                            _currentPage = 1;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
+                            ],
+                          ),
+                          DropdownButton<int>(
+                            value: _pageSize,
+                            dropdownColor: cardBg,
+                            style: TextStyle(color: textPrimary, fontSize: 12),
+                            underline: const SizedBox.shrink(),
+                            items: [5, 10, 20, 50].map((int val) {
+                              return DropdownMenuItem<int>(
+                                value: val,
+                                child: Text('$val / page'),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _pageSize = val;
+                                  _currentPage = 1;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),
