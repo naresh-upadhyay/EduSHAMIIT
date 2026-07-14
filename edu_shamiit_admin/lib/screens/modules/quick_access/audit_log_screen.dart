@@ -15,6 +15,17 @@ class AuditLogScreen extends StatefulWidget {
 }
 
 class _AuditLogScreenState extends State<AuditLogScreen> {
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _scaffoldBg => _isDark ? const Color(0xFF090B15) : const Color(0xFFF8FAFC);
+  Color get _cardBg => _isDark ? const Color(0xFF13182C) : Colors.white;
+  Color get _selectedRowBg => _isDark ? const Color(0xFF1E204A) : const Color(0xFFEEF2F6);
+  Color get _borderColor => _isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+  Color get _textPrimary => _isDark ? Colors.white : Colors.black87;
+  Color get _textSecondary => _isDark ? Colors.white70 : Colors.black54;
+  Color get _textFaded => _isDark ? Colors.white54 : Colors.black45;
+  Color get _textMuted => _isDark ? Colors.white30 : Colors.black38;
+
+  final ScrollController _horizScrollController = ScrollController();
   // Loading and pagination states
   bool _isLoading = true;
   bool _isLoadingFilters = true;
@@ -84,6 +95,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _horizScrollController.dispose();
     super.dispose();
   }
 
@@ -202,13 +214,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
+            colorScheme: ColorScheme.dark(
               primary: Color(0xFF6366F1),
               onPrimary: Colors.white,
-              surface: Color(0xFF13182C),
+              surface: _cardBg,
               onSurface: Colors.white,
             ),
-            dialogBackgroundColor: const Color(0xFF090B15),
+            dialogBackgroundColor: _scaffoldBg,
           ),
           child: child!,
         );
@@ -242,41 +254,59 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   Widget build(BuildContext context) {
     final isDesktop = Responsive.isDesktop(context);
     final isMobile = Responsive.isMobile(context);
+    final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF090B15),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.all(Responsive.horizontalPadding(context)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 20),
-                _buildStatsRow(),
-                const SizedBox(height: 24),
-                _buildFilterAndSearchRow(),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: isMobile ? 700 : 650,
-                  child: isDesktop
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _buildLogsTableContainer()),
-                            if (_selectedLog != null) ...[
-                              const SizedBox(width: 20),
-                              SizedBox(
-                                width: 380,
-                                child: _buildEventDetailsPanel(),
-                              ),
-                            ]
-                          ],
-                        )
-                      : _buildLogsTableContainer(),
-                ),
-              ],
+    final themeData = _isDark
+        ? ThemeData.dark().copyWith(
+            scaffoldBackgroundColor: _scaffoldBg,
+            cardColor: _cardBg,
+            primaryColor: theme.primaryColor,
+            dividerColor: _borderColor,
+          )
+        : ThemeData.light().copyWith(
+            scaffoldBackgroundColor: _scaffoldBg,
+            cardColor: _cardBg,
+            primaryColor: theme.primaryColor,
+            dividerColor: _borderColor,
+          );
+
+    return Theme(
+      data: themeData,
+      child: Scaffold(
+        backgroundColor: _scaffoldBg,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.all(Responsive.horizontalPadding(context)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(),
+                  SizedBox(height: 20),
+                  _buildStatsRow(),
+                  SizedBox(height: 24),
+                  _buildFilterAndSearchRow(),
+                  SizedBox(height: 16),
+                  SizedBox(
+                    height: isMobile ? 700 : 650,
+                    child: isDesktop
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _buildLogsTableContainer()),
+                              if (_selectedLog != null) ...[
+                                SizedBox(width: 20),
+                                SizedBox(
+                                  width: 380,
+                                  child: _buildEventDetailsPanel(),
+                                ),
+                              ]
+                            ],
+                          )
+                        : _buildLogsTableContainer(),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -292,16 +322,16 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     final titleColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Audit Logs',
           style: TextStyle(
-            color: Colors.white,
+            color: _textPrimary,
             fontSize: 26,
             fontWeight: FontWeight.bold,
             fontFamily: 'Outfit',
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           'Track and review all system activities and changes across the platform.',
           style: TextStyle(
@@ -329,33 +359,33 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           },
           width: isMobile ? 150.0 : 200.0,
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         // Date picker button
         ElevatedButton.icon(
           onPressed: _showDatePicker,
-          icon: Icon(Icons.calendar_today_outlined, size: isMobile ? 12 : 16, color: Colors.white70),
+          icon: Icon(Icons.calendar_today_outlined, size: isMobile ? 12 : 16, color: _textSecondary),
           label: Text(
             _dateRange == null
                 ? 'Select Dates'
                 : '${DateFormat('MMM dd').format(_dateRange!.start)} - ${DateFormat('MMM dd').format(_dateRange!.end)}',
-            style: TextStyle(fontSize: isMobile ? 11 : 12, color: Colors.white),
+            style: TextStyle(fontSize: isMobile ? 11 : 12, color: _textPrimary),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF13182C),
-            side: const BorderSide(color: Colors.white10),
+            backgroundColor: _cardBg,
+            side: BorderSide(color: _borderColor),
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: isMobile ? 10 : 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8),
         // Reset filters button
         IconButton(
-          icon: const Icon(Icons.refresh, color: Colors.white70),
+          icon: Icon(Icons.refresh, color: _textSecondary),
           tooltip: 'Reset Filters',
           onPressed: _resetFilters,
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0xFF13182C),
-            side: const BorderSide(color: Colors.white10),
+            backgroundColor: _cardBg,
+            side: BorderSide(color: _borderColor),
             padding: EdgeInsets.all(isMobile ? 8 : 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
@@ -368,7 +398,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           titleColumn,
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: filterActions,
@@ -381,7 +411,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(child: titleColumn),
-        const SizedBox(width: 16),
+        SizedBox(width: 16),
         filterActions,
       ],
     );
@@ -402,8 +432,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF13182C),
-          border: Border.all(color: Colors.white10),
+          color: _cardBg,
+          border: Border.all(color: _borderColor),
           borderRadius: BorderRadius.circular(8),
         ),
         child: DropdownButtonHideUnderline(
@@ -411,21 +441,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
             isExpanded: true,
             isDense: isMobile,
             value: value,
-            icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54, size: isMobile ? 14 : 18),
-            dropdownColor: const Color(0xFF13182C),
-            style: TextStyle(color: Colors.white, fontSize: isMobile ? 11 : 12, fontFamily: 'Outfit'),
+            icon: Icon(Icons.keyboard_arrow_down_rounded, color: _textFaded, size: isMobile ? 14 : 18),
+            dropdownColor: _cardBg,
+            style: TextStyle(color: _textPrimary, fontSize: isMobile ? 11 : 12, fontFamily: 'Outfit'),
             items: items.map((String val) {
               return DropdownMenuItem<String>(
                 value: val,
                 child: Row(
                   children: [
-                    Icon(icon, color: Colors.white70, size: isMobile ? 12 : 14),
+                    Icon(icon, color: _textSecondary, size: isMobile ? 12 : 14),
                     SizedBox(width: isMobile ? 6 : 8),
                     Expanded(
                       child: Text(
                         val,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Colors.white, fontSize: isMobile ? 11 : 12, fontFamily: 'Outfit'),
+                        style: TextStyle(color: _textPrimary, fontSize: isMobile ? 11 : 12, fontFamily: 'Outfit'),
                       ),
                     ),
                   ],
@@ -490,7 +520,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: list.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => SizedBox(width: 12),
             itemBuilder: (context, index) => SizedBox(width: 180, child: list[index]),
           ),
         );
@@ -524,8 +554,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF13182C),
-        border: Border.all(color: Colors.white10),
+        color: _cardBg,
+        border: Border.all(color: _borderColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -538,15 +568,15 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(color: Colors.white54, fontSize: 11, fontFamily: 'Outfit'),
+                  style: TextStyle(color: _textFaded, fontSize: 11, fontFamily: 'Outfit'),
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   value,
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                  style: TextStyle(color: _textPrimary, fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   '$changeText vs last 7 days',
                   style: TextStyle(color: trendColor, fontSize: 9, fontWeight: FontWeight.w500, fontFamily: 'Outfit'),
@@ -578,21 +608,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         });
         _fetchLogs();
       },
-      style: TextStyle(color: Colors.white, fontSize: isMobile ? 11 : 12),
+      style: TextStyle(color: _textPrimary, fontSize: isMobile ? 11 : 12),
       decoration: InputDecoration(
         hintText: 'Search...',
-        hintStyle: const TextStyle(color: Colors.white30, fontSize: 11),
-        prefixIcon: Icon(Icons.search, color: Colors.white54, size: isMobile ? 12 : 14),
-        fillColor: const Color(0xFF13182C),
+        hintStyle: TextStyle(color: _textMuted, fontSize: 11),
+        prefixIcon: Icon(Icons.search, color: _textFaded, size: isMobile ? 12 : 14),
+        fillColor: _cardBg,
         filled: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: isMobile ? 6 : 8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.white10),
+          borderSide: BorderSide(color: _borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.white10),
+          borderSide: BorderSide(color: _borderColor),
         ),
       ),
     );
@@ -601,25 +631,25 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       onSelected: (String format) {
         _exportLogs(format);
       },
-      color: const Color(0xFF13182C),
+      color: _cardBg,
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'csv',
           child: Row(
             children: [
-              Icon(Icons.description_outlined, size: 16, color: Colors.white70),
+              Icon(Icons.description_outlined, size: 16, color: _textSecondary),
               SizedBox(width: 8),
-              Text('Export as CSV', style: TextStyle(color: Colors.white, fontSize: 12)),
+              Text('Export as CSV', style: TextStyle(color: _textPrimary, fontSize: 12)),
             ],
           ),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'excel',
           child: Row(
             children: [
-              Icon(Icons.table_chart_outlined, size: 16, color: Colors.white70),
+              Icon(Icons.table_chart_outlined, size: 16, color: _textSecondary),
               SizedBox(width: 8),
-              Text('Export as Excel', style: TextStyle(color: Colors.white, fontSize: 12)),
+              Text('Export as Excel', style: TextStyle(color: _textPrimary, fontSize: 12)),
             ],
           ),
         ),
@@ -627,7 +657,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 12, vertical: isMobile ? 8 : 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E204A),
+          color: _selectedRowBg,
           border: Border.all(color: const Color(0xFF373A7A)),
           borderRadius: BorderRadius.circular(8),
         ),
@@ -635,7 +665,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.file_download_outlined, size: isMobile ? 12 : 14, color: const Color(0xFF818CF8)),
-            const SizedBox(width: 6),
+            SizedBox(width: 6),
             Text('Export', style: TextStyle(color: const Color(0xFF818CF8), fontSize: isMobile ? 10 : 11, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -705,21 +735,21 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           Row(
             children: [
               Expanded(child: searchField),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               exportButton,
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 eventTypeDropdown,
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 userDropdown,
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 moduleDropdown,
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 statusDropdown,
               ],
             ),
@@ -731,48 +761,74 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     return Row(
       children: [
         Expanded(flex: 2, child: searchField),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         eventTypeDropdown,
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         userDropdown,
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         moduleDropdown,
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         statusDropdown,
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         exportButton,
       ],
     );
   }
 
   Widget _buildLogsTableContainer() {
+    final theme = Theme.of(context);
+    final isMobile = Responsive.isMobile(context);
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF13182C),
-        border: Border.all(color: Colors.white10),
+        color: _cardBg,
+        border: Border.all(color: _borderColor),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildTableHeader(),
-          const Divider(height: 1, color: Colors.white10),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
-                : _logs.isEmpty
-                    ? const Center(child: Text('No audit logs found.', style: TextStyle(color: Colors.white54)))
-                    : ListView.builder(
-                        itemCount: _logs.length,
-                        itemBuilder: (context, index) {
-                          final log = _logs[index];
-                          return _buildTableRow(log);
-                        },
-                      ),
-          ),
-          const Divider(height: 1, color: Colors.white10),
-          _buildTableFooter(),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minWidth = isMobile ? 800.0 : 1000.0;
+          final useScroll = constraints.maxWidth < minWidth;
+
+          Widget gridContent = SizedBox(
+            width: useScroll ? minWidth : constraints.maxWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildTableHeader(),
+                Divider(height: 1, color: _borderColor),
+                Expanded(
+                  child: _isLoading
+                      ? Center(child: CircularProgressIndicator(color: theme.primaryColor))
+                      : _logs.isEmpty
+                          ? Center(child: Text('No audit logs found.', style: TextStyle(color: _textFaded)))
+                          : ListView.builder(
+                              itemCount: _logs.length,
+                              itemBuilder: (context, index) {
+                                final log = _logs[index];
+                                return _buildTableRow(log);
+                              },
+                            ),
+                ),
+                Divider(height: 1, color: _borderColor),
+                _buildTableFooter(),
+              ],
+            ),
+          );
+
+          if (useScroll) {
+            return Scrollbar(
+              controller: _horizScrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _horizScrollController,
+                scrollDirection: Axis.horizontal,
+                child: gridContent,
+              ),
+            );
+          }
+
+          return gridContent;
+        },
       ),
     );
   }
@@ -812,7 +868,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               },
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           Expanded(
             flex: 2,
             child: InkWell(
@@ -825,28 +881,28 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               },
               child: Row(
                 children: [
-                  const Text('Time', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 4),
+                  Text('Time', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 4),
                   Icon(
                     _sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
                     size: 11,
-                    color: Colors.white54,
+                    color: _textFaded,
                   ),
                 ],
               ),
             ),
           ),
-          const Expanded(flex: 3, child: Text('User', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold))),
+          Expanded(flex: 3, child: Text('User', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
           if (!isMobile) ...[
-            const Expanded(flex: 2, child: Text('Event Type', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold))),
-            const Expanded(flex: 2, child: Text('Module', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold))),
+            Expanded(flex: 2, child: Text('Event Type', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
+            Expanded(flex: 2, child: Text('Module', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
           ],
-          const Expanded(flex: 2, child: Text('Action', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold))),
+          Expanded(flex: 2, child: Text('Action', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
           if (!isMobile) ...[
-            const Expanded(flex: 3, child: Text('Resource', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold))),
-            const Expanded(flex: 2, child: Text('IP Address', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold))),
+            Expanded(flex: 3, child: Text('Resource', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
+            Expanded(flex: 2, child: Text('IP Address', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
           ],
-          const Expanded(flex: 2, child: Text('Status', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold))),
+          Expanded(flex: 2, child: Text('Status', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -905,7 +961,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         }
       },
       child: Container(
-        color: isSelected ? const Color(0xFF1E204A) : Colors.transparent,
+        color: isSelected ? _selectedRowBg : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         child: Row(
           children: [
@@ -927,13 +983,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             // Time
             Expanded(
               flex: 2,
               child: Text(
                 timeStr,
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'Outfit'),
+                style: TextStyle(color: _textPrimary, fontSize: 11, fontFamily: 'Outfit'),
               ),
             ),
             // User details
@@ -943,25 +999,25 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 children: [
                   CircleAvatar(
                     radius: 12,
-                    backgroundColor: const Color(0xFF1F2937),
+                    backgroundColor: const Color(0xFF6366F1).withOpacity(0.15),
                     child: Text(
                       (log['user_name'] ?? 'U')[0].toUpperCase(),
-                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Color(0xFF6366F1), fontSize: 9, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           log['user_name'] ?? 'Unknown User',
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                          style: TextStyle(color: _textPrimary, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           log['user_role'] ?? 'User',
-                          style: const TextStyle(color: Colors.white38, fontSize: 9),
+                          style: TextStyle(color: _textMuted, fontSize: 9),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -988,7 +1044,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(badgeIcon, color: badgeColor, size: 10),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Flexible(
                               child: Text(
                                 log['event_type'] ?? 'Info',
@@ -1009,7 +1065,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 flex: 2,
                 child: Text(
                   log['module'] ?? 'System',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'Outfit'),
+                  style: TextStyle(color: _textSecondary, fontSize: 11, fontFamily: 'Outfit'),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1018,7 +1074,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               flex: 2,
               child: Text(
                 log['action'] ?? '-',
-                style: const TextStyle(color: Colors.white70, fontSize: 11, fontFamily: 'Outfit'),
+                style: TextStyle(color: _textSecondary, fontSize: 11, fontFamily: 'Outfit'),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -1028,7 +1084,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 flex: 3,
                 child: Text(
                   log['resource'] ?? '-',
-                  style: const TextStyle(color: Colors.white54, fontSize: 11, fontFamily: 'Outfit'),
+                  style: TextStyle(color: _textFaded, fontSize: 11, fontFamily: 'Outfit'),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1038,7 +1094,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 flex: 2,
                 child: Text(
                   log['ip_address'] ?? '-',
-                  style: const TextStyle(color: Colors.white38, fontSize: 11, fontFamily: 'Outfit'),
+                  style: TextStyle(color: _textMuted, fontSize: 11, fontFamily: 'Outfit'),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1087,22 +1143,22 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       children: [
         Text(
           _totalEvents > 0 ? 'Showing $startIdx to $endIdx of $_totalEvents events' : 'Showing 0 events',
-          style: const TextStyle(color: Colors.white54, fontSize: 11, fontFamily: 'Outfit'),
+          style: TextStyle(color: _textFaded, fontSize: 11, fontFamily: 'Outfit'),
         ),
-        const SizedBox(width: 12),
-        const Text('|', style: TextStyle(color: Colors.white24, fontSize: 11)),
-        const SizedBox(width: 12),
-        const Text('Rows per page: ', style: TextStyle(color: Colors.white54, fontSize: 11, fontFamily: 'Outfit')),
+        SizedBox(width: 12),
+        Text('|', style: TextStyle(color: _borderColor, fontSize: 11)),
+        SizedBox(width: 12),
+        Text('Rows per page: ', style: TextStyle(color: _textFaded, fontSize: 11, fontFamily: 'Outfit')),
         DropdownButtonHideUnderline(
           child: DropdownButton<int>(
             value: _pageSize,
-            dropdownColor: const Color(0xFF13182C),
-            style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'Outfit'),
-            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 14),
+            dropdownColor: _cardBg,
+            style: TextStyle(color: _textPrimary, fontSize: 11, fontFamily: 'Outfit'),
+            icon: Icon(Icons.keyboard_arrow_down, color: _textFaded, size: 14),
             items: [10, 25, 50, 100].map((int val) {
               return DropdownMenuItem<int>(
                 value: val,
-                child: Text('$val', style: const TextStyle(fontSize: 11)),
+                child: Text('$val', style: TextStyle(fontSize: 11)),
               );
             }).toList(),
             onChanged: (int? newValue) {
@@ -1125,7 +1181,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       children: [
         // Prev Button
         IconButton(
-          icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 18),
+          icon: Icon(Icons.chevron_left_rounded, color: _textPrimary, size: 18),
           onPressed: _currentPage > 1
               ? () {
                   setState(() {
@@ -1138,11 +1194,11 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         // Current Page Indicator
         Text(
           'Page $_currentPage of ${totalPages > 0 ? totalPages : 1}',
-          style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'Outfit'),
+          style: TextStyle(color: _textPrimary, fontSize: 11, fontFamily: 'Outfit'),
         ),
         // Next Button
         IconButton(
-          icon: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 18),
+          icon: Icon(Icons.chevron_right_rounded, color: _textPrimary, size: 18),
           onPressed: _currentPage < totalPages
               ? () {
                   setState(() {
@@ -1161,7 +1217,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
         child: Column(
           children: [
             infoRow,
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             navRow,
           ],
         ),
@@ -1196,8 +1252,8 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF13182C),
-        border: Border.all(color: Colors.white10),
+        color: _cardBg,
+        border: Border.all(color: _borderColor),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -1206,12 +1262,12 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Event Details',
-                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                icon: Icon(Icons.close, color: _textFaded, size: 18),
                 onPressed: () {
                   setState(() {
                     _selectedLog = null;
@@ -1220,18 +1276,18 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           // Action & status row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.edit_note, color: Color(0xFF10B981), size: 16),
-                  const SizedBox(width: 6),
+                  Icon(Icons.edit_note, color: Color(0xFF10B981), size: 16),
+                  SizedBox(width: 6),
                   Text(
                     log['event_type'] ?? 'Action',
-                    style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12),
+                    style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ],
               ),
@@ -1248,7 +1304,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Expanded(
             child: SingleChildScrollView(
               child: Column(
@@ -1263,18 +1319,18 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                   _buildDetailRow('Action', log['action'] ?? '-'),
                   _buildDetailRow('Resource Type', log['resource_type'] ?? '-'),
                   _buildDetailRow('Resource', log['resource'] ?? '-'),
-                  const SizedBox(height: 16),
-                  const Text('Changes', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 16),
+                  Text('Changes', style: TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 6),
                   _buildChangesCodeBlock(log['changes']),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   _buildDetailRow('User Agent', log['user_agent'] ?? 'unknown', isMonospace: true),
                   _buildDetailRow('Session ID', log['session_id'] ?? 'unknown', isMonospace: true),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -1292,7 +1348,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('View Related Events', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              child: Text('View Related Events', style: TextStyle(color: _textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           )
         ],
@@ -1309,7 +1365,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10, fontFamily: 'Outfit')),
+              Text(label, style: TextStyle(color: _textFaded, fontSize: 10, fontFamily: 'Outfit')),
               if (canCopy)
                 InkWell(
                   onTap: () {
@@ -1318,22 +1374,22 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
                       SnackBar(content: Text('Copied $label to clipboard!'), duration: const Duration(seconds: 1)),
                     );
                   },
-                  child: const Icon(Icons.copy, color: Colors.white54, size: 10),
+                  child: Icon(Icons.copy, color: _textFaded, size: 10),
                 )
             ],
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             value,
             style: TextStyle(
-              color: Colors.white,
+              color: _textPrimary,
               fontSize: 11,
               fontFamily: isMonospace ? 'monospace' : 'Outfit',
             ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 1),
-            Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 9)),
+            SizedBox(height: 1),
+            Text(subtitle, style: TextStyle(color: _textMuted, fontSize: 9)),
           ],
         ],
       ),
@@ -1360,13 +1416,13 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF090B15),
-        border: Border.all(color: Colors.white10),
+        color: _scaffoldBg,
+        border: Border.all(color: _borderColor),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         prettyStr,
-        style: const TextStyle(
+        style: TextStyle(
           color: Color(0xFF10B981),
           fontSize: 10,
           fontFamily: 'monospace',
@@ -1380,7 +1436,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF13182C),
+      backgroundColor: _cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),

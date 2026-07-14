@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
@@ -784,32 +786,81 @@ class RichSystemMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<TextSpan> spans = [];
-    final regExp = RegExp(r'(\*\*.*?\*\*|\*.*?\*|<u>.*?</u>|[^\*<]+|[^<]+)');
-    final matches = regExp.allMatches(text);
+    
+    // Pattern to capture markdown bold, italic, HTML underline, or markdown links
+    final regExp = RegExp(
+      r'(\*\*.*?\*\*)|(\*.*?\*)|(<u>.*?</u>)|(\[.*?\]\(.*?\))',
+      dotAll: true,
+    );
 
-    for (final match in matches) {
-      final part = match.group(0)!;
-      if (part.startsWith('**') && part.endsWith('**')) {
+    final textVal = text;
+    int lastIndex = 0;
+
+    for (final match in regExp.allMatches(textVal)) {
+      if (match.start > lastIndex) {
         spans.add(TextSpan(
-          text: part.substring(2, part.length - 2),
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ));
-      } else if (part.startsWith('*') && part.endsWith('*')) {
-        spans.add(TextSpan(
-          text: part.substring(1, part.length - 1),
-          style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.white70),
-        ));
-      } else if (part.startsWith('<u>') && part.endsWith('</u>')) {
-        spans.add(TextSpan(
-          text: part.substring(3, part.length - 4),
-          style: const TextStyle(decoration: TextDecoration.underline, color: Colors.white),
-        ));
-      } else {
-        spans.add(TextSpan(
-          text: part,
+          text: textVal.substring(lastIndex, match.start),
           style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
         ));
       }
+
+      final matchedText = match.group(0)!;
+
+      if (match.group(1) != null) {
+        final content = matchedText.substring(2, matchedText.length - 2);
+        spans.add(TextSpan(
+          text: content,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ));
+      } else if (match.group(2) != null) {
+        final content = matchedText.substring(1, matchedText.length - 1);
+        spans.add(TextSpan(
+          text: content,
+          style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.white70),
+        ));
+      } else if (match.group(3) != null) {
+        final content = matchedText.substring(3, matchedText.length - 4);
+        spans.add(TextSpan(
+          text: content,
+          style: const TextStyle(decoration: TextDecoration.underline, color: Colors.white),
+        ));
+      } else if (match.group(4) != null) {
+        final closeBracketIdx = matchedText.indexOf(']');
+        if (closeBracketIdx != -1) {
+          final label = matchedText.substring(1, closeBracketIdx);
+          final urlStr = matchedText.substring(closeBracketIdx + 2, matchedText.length - 1);
+          
+          spans.add(TextSpan(
+            text: label,
+            style: const TextStyle(
+              color: Colors.blueAccent,
+              decoration: TextDecoration.underline,
+              fontWeight: FontWeight.bold,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () async {
+                final uri = Uri.tryParse(urlStr);
+                if (uri != null && await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+          ));
+        } else {
+          spans.add(TextSpan(
+            text: matchedText,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+          ));
+        }
+      }
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < textVal.length) {
+      spans.add(TextSpan(
+        text: textVal.substring(lastIndex),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+      ));
     }
 
     return RichText(

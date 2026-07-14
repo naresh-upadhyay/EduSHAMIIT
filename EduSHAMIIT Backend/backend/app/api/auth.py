@@ -1171,6 +1171,111 @@ class UpdateUserRequest(BaseModel):
     school_id: Optional[str] = None
     class_name: Optional[str] = None
     password: Optional[str] = None
+    status: Optional[str] = None
+    department: Optional[str] = None
+
+
+@router.get("/users/stats",
+    summary="Get User Directory Statistics",
+    description="Retrieve dynamic statistics and summaries for the user directory dashboard."
+)
+async def get_user_stats(
+    school_id: Optional[str] = None,
+    user=Depends(get_current_user)
+):
+    try:
+        sb = get_supabase()
+        
+        caller_role = user.get("role", "").lower()
+        target_school_id = school_id
+        if caller_role != "super_admin":
+            target_school_id = user.get("school_id")
+            
+        query = sb.table("profiles").select("*")
+        if target_school_id:
+            query = query.eq("school_id", target_school_id)
+            
+        res = await query.aexecute()
+        users = res.data or []
+        
+        total_users = len(users)
+        active_users = 0
+        inactive_users = 0
+        locked_users = 0
+        
+        from datetime import datetime, timezone, date
+        now = datetime.now(timezone.utc)
+        today = date.today()
+        
+        new_this_month = 0
+        start_of_month = datetime(today.year, today.month, 1, tzinfo=timezone.utc)
+        
+        # Query audit logs for real logins today
+        from datetime import time
+        start_of_day = datetime.combine(today, time.min).replace(tzinfo=timezone.utc)
+        logins_query = sb.table("audit_logs").select("id").eq("event_type", "Login").gte("created_at", start_of_day.isoformat())
+        if target_school_id:
+            logins_query = logins_query.eq("school_id", target_school_id)
+        logins_res = await logins_query.aexecute()
+        logins_today = len(logins_res.data or [])
+
+        # Query profiles for real registrations today
+        regs_query = sb.table("profiles").select("id").gte("created_at", start_of_day.isoformat())
+        if target_school_id:
+            regs_query = regs_query.eq("school_id", target_school_id)
+        regs_res = await regs_query.aexecute()
+        regs_today = len(regs_res.data or [])
+        
+        role_breakdown = {}
+        
+        for u in users:
+            lockout_until_str = u.get("lockout_until")
+            is_locked = False
+            if lockout_until_str:
+                try:
+                    lockout_until = datetime.fromisoformat(lockout_until_str.replace("Z", "+00:00"))
+                    if lockout_until > now:
+                        is_locked = True
+                except Exception:
+                    pass
+                    
+            db_status = u.get("status") or "Active"
+            if is_locked or db_status == "Locked":
+                locked_users += 1
+            elif db_status == "Inactive":
+                inactive_users += 1
+            else:
+                active_users += 1
+                
+            created_at_str = u.get("created_at")
+            if created_at_str:
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    if created_at >= start_of_month:
+                        new_this_month += 1
+                except Exception:
+                    pass
+                    
+            role = u.get("role", "user")
+            role_breakdown[role] = role_breakdown.get(role, 0) + 1
+            
+        return {
+            "success": True,
+            "data": {
+                "total_users": total_users,
+                "active_users": active_users,
+                "inactive_users": inactive_users,
+                "locked_users": locked_users,
+                "new_this_month": new_this_month,
+                "role_breakdown": role_breakdown,
+                "activity_summary": {
+                    "logins_today": logins_today,
+                    "new_registrations_today": regs_today
+                }
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch user statistics: {str(e)}")
 
 
 @router.get("/users",
@@ -1181,6 +1286,8 @@ async def list_users(
     q: Optional[str] = None,
     role: Optional[str] = None,
     school_id: Optional[str] = None,
+    status: Optional[str] = None,
+    department: Optional[str] = None,
     user=Depends(get_current_user)
 ):
     try:
@@ -1219,6 +1326,35 @@ async def list_users(
             else:
                 u["school_name"] = "System-wide" if u["role"] == "super_admin" else "Unknown"
                 u["school_status"] = None
+                
+            # Resolve dynamic status
+            lockout_until_str = u.get("lockout_until")
+            is_locked = False
+            if lockout_until_str:
+                try:
+                    from datetime import datetime, timezone
+                    lockout_until = datetime.fromisoformat(lockout_until_str.replace("Z", "+00:00"))
+                    if lockout_until > datetime.now(timezone.utc):
+                        is_locked = True
+                except Exception:
+                    pass
+            
+            db_status = u.get("status") or "Active"
+            if is_locked or db_status == "Locked":
+                u["status"] = "Locked"
+            else:
+                u["status"] = db_status
+                
+            # Filter by status in python
+            if status and status != "All" and status.lower() != "all":
+                if u["status"].lower() != status.lower():
+                    continue
+                    
+            # Filter by department in python
+            if department and department != "All" and department.lower() != "all":
+                if (u.get("department") or "").lower() != department.lower():
+                    continue
+                    
             formatted_users.append(u)
             
         return {"success": True, "data": formatted_users}
@@ -1238,6 +1374,7 @@ async def update_user(
     user=Depends(get_current_user)
 ):
     try:
+        from datetime import datetime, timedelta
         sb = get_supabase()
         
         # Check if profile exists
@@ -1259,12 +1396,24 @@ async def update_user(
             update_data["full_name"] = request.full_name
         if request.class_name is not None:
             update_data["class"] = request.class_name
+        if request.department is not None:
+            update_data["department"] = request.department
+        if request.status is not None:
+            update_data["status"] = request.status
+            if request.status == "Locked":
+                future_lockout = datetime.utcnow() + timedelta(days=365*100)
+                update_data["lockout_until"] = future_lockout.isoformat()
+            else:
+                update_data["lockout_until"] = None
+                update_data["failed_login_attempts"] = 0
             
         new_role = request.role or current_profile.get("role")
         new_school_id = request.school_id or current_profile.get("school_id")
         
-        if request.role is not None:
+        role_changed = False
+        if request.role is not None and request.role != current_profile.get("role"):
             update_data["role"] = request.role
+            role_changed = True
             
         if request.school_id is not None:
             update_data["school_id"] = request.school_id if new_role.lower() != "super_admin" else None
@@ -1290,7 +1439,7 @@ async def update_user(
             email_changed = True
             
         # Update Supabase Auth if role, email or password changes
-        if request.role is not None or email_changed or request.password:
+        if role_changed or email_changed or request.password:
             try:
                 client = await sb.get_async_client()
                 admin_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
@@ -1304,14 +1453,18 @@ async def update_user(
                     json_payload["email"] = request.email
                 if request.password:
                     json_payload["password"] = request.password
-                if request.role is not None:
+                if role_changed:
                     json_payload["app_metadata"] = {
                         "role": request.role
                     }
                     
                 auth_res = await client.put(admin_url, headers=headers, json=json_payload, timeout=10.0)
                 if auth_res.status_code != 200:
-                    raise Exception(auth_res.json().get("message", "Auth update failed"))
+                    try:
+                        err_detail = auth_res.json().get("message", auth_res.text)
+                    except Exception:
+                        err_detail = auth_res.text
+                    raise Exception(f"Auth update failed with status {auth_res.status_code}: {err_detail}")
             except Exception as e:
                 raise HTTPException(status_code=500, detail=f"Failed to update authentication details: {str(e)}")
                 

@@ -24,6 +24,8 @@ class _AdminSystemConfigScreenState
   int _activeTab =
       0; // 0: General, 1: Security, 2: Email & SMS, 3: Modules, 4: Appearance, 5: Payments, 6: Integrations, 7: Backup, 8: Advanced
 
+  bool get _isMobile => MediaQuery.of(context).size.width < 1024;
+
   // Dropdown list options
   final List<String> _languages = [
     "English",
@@ -73,7 +75,7 @@ class _AdminSystemConfigScreenState
   final _systemTitleController = TextEditingController();
   final _systemLogoController = TextEditingController();
   final _faviconController = TextEditingController();
-  final _loginMessageController = TextEditingController();
+  final _loginMessageController = RichTextEditingController();
   final _autoLogoutController = TextEditingController();
   final _sessionTimeoutController = TextEditingController();
 
@@ -560,6 +562,7 @@ class _AdminSystemConfigScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isMobile = _isMobile;
 
     return Scaffold(
       backgroundColor:
@@ -567,57 +570,107 @@ class _AdminSystemConfigScreenState
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(color: theme.primaryColor))
-          : Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(isDark),
-                  const SizedBox(height: 24),
-                  _buildTabsRow(isDark),
-                  const SizedBox(height: 24),
-                  Expanded(
-                    child: Row(
+          : isMobile
+              ? NestedScrollView(
+                  headerSliverBuilder: (context, innerBoxIsScrolled) {
+                    return [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: _buildHeader(isDark),
+                        ),
+                      ),
+                    ];
+                  },
+                  body: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Left config panel (2/3 width)
+                        const SizedBox(height: 16),
+                        _buildTabsRow(isDark),
+                        const SizedBox(height: 16),
                         Expanded(
-                          flex: 2,
-                          child: SingleChildScrollView(
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 24),
-                              child: _buildActiveTabContent(isDark),
-                            ),
-                          ),
-                        ),
-                        // Right status panel (1/3 width)
-                        SizedBox(
-                          width: 380,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                _buildSystemStatusCard(isDark),
-                                const SizedBox(height: 24),
-                                _buildConfigurationOverviewCard(isDark),
-                                const SizedBox(height: 24),
-                                _buildQuickActionsCard(isDark),
-                              ],
-                            ),
+                          child: CustomScrollView(
+                            slivers: [
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 24),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      _buildActiveTabContent(isDark),
+                                      const SizedBox(height: 24),
+                                      _buildSystemStatusCard(isDark),
+                                      const SizedBox(height: 24),
+                                      _buildConfigurationOverviewCard(isDark),
+                                      const SizedBox(height: 24),
+                                      _buildQuickActionsCard(isDark),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(isDark),
+                      const SizedBox(height: 24),
+                      _buildTabsRow(isDark),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left config panel (2/3 width)
+                            Expanded(
+                              flex: 2,
+                              child: SingleChildScrollView(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 24),
+                                  child: _buildActiveTabContent(isDark),
+                                ),
+                              ),
+                            ),
+                            // Right status panel (1/3 width)
+                            SizedBox(
+                              width: 380,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    _buildSystemStatusCard(isDark),
+                                    const SizedBox(height: 24),
+                                    _buildConfigurationOverviewCard(isDark),
+                                    const SizedBox(height: 24),
+                                    _buildQuickActionsCard(isDark),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
     );
   }
 
   Widget _buildHeader(bool isDark) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16,
+      runSpacing: 16,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,7 +695,10 @@ class _AdminSystemConfigScreenState
             ),
           ],
         ),
-        Row(
+        Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Top dropdown: All Institutions
             Container(
@@ -688,7 +744,6 @@ class _AdminSystemConfigScreenState
                 ),
               ),
             ),
-            const SizedBox(width: 16),
             // Search Input placeholder
             Container(
               width: 200,
@@ -712,7 +767,6 @@ class _AdminSystemConfigScreenState
                 style: TextStyle(fontSize: 12),
               ),
             ),
-            const SizedBox(width: 16),
             // Save Changes button
             ElevatedButton.icon(
               onPressed: _isSaving ? null : _saveConfig,
@@ -840,6 +894,7 @@ class _AdminSystemConfigScreenState
 
   Widget _buildGeneralSettingsTab(bool isDark) {
     final theme = Theme.of(context);
+    final isMobile = _isMobile;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -852,24 +907,10 @@ class _AdminSystemConfigScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _buildInputField("System Name", _systemNameController,
-                            isDark, "School ERP"),
-                        const SizedBox(height: 16),
-                        _buildInputField("System Title", _systemTitleController,
-                            isDark, "Next Generation School Management"),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 32),
-                  // Logo container
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              if (isMobile) ...[
+                Center(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const Text(
                         "System Logo",
@@ -883,8 +924,8 @@ class _AdminSystemConfigScreenState
                         onTap: () => _showLogoChangeOptions(),
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
-                          width: 150,
-                          height: 150,
+                          width: 120,
+                          height: 120,
                           decoration: BoxDecoration(
                             color: isDark
                                 ? const Color(0xFF0F172A)
@@ -939,114 +980,302 @@ class _AdminSystemConfigScreenState
                       ),
                     ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDropdownField(
-                        "Default Language", _defaultLanguage, _languages,
-                        (val) {
-                      if (val != null) setState(() => _defaultLanguage = val);
-                    }, isDark),
-                  ),
-                  const SizedBox(width: 32),
-                  // Favicon
-                  Expanded(
-                    child: Column(
+                ),
+                const SizedBox(height: 24),
+                _buildInputField("System Name", _systemNameController,
+                    isDark, "School ERP"),
+                const SizedBox(height: 16),
+                _buildInputField("System Title", _systemTitleController,
+                    isDark, "Next Generation School Management"),
+              ] else ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildInputField("System Name", _systemNameController,
+                              isDark, "School ERP"),
+                          const SizedBox(height: 16),
+                          _buildInputField("System Title", _systemTitleController,
+                              isDark, "Next Generation School Management"),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 32),
+                    // Logo container
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          "Favicon",
+                          "System Logo",
                           style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: Colors.grey),
                         ),
                         const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF0F172A)
-                                    : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                    color: isDark
-                                        ? Colors.white10
-                                        : const Color(0xFFE2E8F0)),
-                              ),
-                              child: _faviconController.text.isNotEmpty
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Image.network(
-                                        _faviconController.text,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const Icon(
-                                                Icons.error_outline_rounded,
-                                                size: 18,
-                                                color: Colors.red),
+                        InkWell(
+                          onTap: () => _showLogoChangeOptions(),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: 150,
+                            height: 150,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF0F172A)
+                                  : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: isDark
+                                      ? Colors.white10
+                                      : const Color(0xFFE2E8F0)),
+                            ),
+                            child: _systemLogoController.text.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      _systemLogoController.text,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.error_outline_rounded,
+                                              size: 24, color: Colors.red),
+                                          SizedBox(height: 8),
+                                          Text("Invalid Image URL",
+                                              style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold)),
+                                        ],
                                       ),
-                                    )
-                                  : Icon(Icons.school_rounded,
-                                      size: 18, color: theme.primaryColor),
-                            ),
-                            const SizedBox(width: 12),
-                            OutlinedButton(
-                              onPressed: () => _showFaviconChangeOptions(),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                    color: isDark
-                                        ? Colors.white24
-                                        : const Color(0xFFCBD5E1)),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6)),
-                              ),
-                              child: Text("Change",
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: isDark
-                                          ? Colors.white70
-                                          : Colors.black87)),
-                            ),
-                          ],
+                                    ),
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.image_search_rounded,
+                                          size: 24,
+                                          color: isDark
+                                              ? Colors.white54
+                                              : Colors.grey),
+                                      const SizedBox(height: 8),
+                                      const Text("Click to upload Logo",
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 2),
+                                      const Text("PNG, JPG or SVG format",
+                                          style: TextStyle(
+                                              fontSize: 8, color: Colors.grey)),
+                                    ],
+                                  ),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDropdownField(
-                        "Default Timezone", _defaultTimezone, _timezones,
-                        (val) {
-                      if (val != null) setState(() => _defaultTimezone = val);
-                    }, isDark),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildDropdownField(
-                        "Date Format", _dateFormat, _dateFormats, (val) {
-                      if (val != null) setState(() => _dateFormat = val);
-                    }, isDark),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildDropdownField(
-                        "Time Format", _timeFormat, _timeFormats, (val) {
-                      if (val != null) setState(() => _timeFormat = val);
-                    }, isDark),
-                  ),
-                ],
-              ),
+              if (isMobile) ...[
+                _buildDropdownField(
+                    "Default Language", _defaultLanguage, _languages,
+                    (val) {
+                  if (val != null) setState(() => _defaultLanguage = val);
+                }, isDark),
+                const SizedBox(height: 16),
+                // Favicon
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Favicon",
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: isDark
+                                    ? Colors.white10
+                                    : const Color(0xFFE2E8F0)),
+                          ),
+                          child: _faviconController.text.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.network(
+                                    _faviconController.text,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(
+                                            Icons.error_outline_rounded,
+                                            size: 18,
+                                            color: Colors.red),
+                                  ),
+                                )
+                              : Icon(Icons.school_rounded,
+                                  size: 18, color: theme.primaryColor),
+                        ),
+                        const SizedBox(width: 12),
+                        OutlinedButton(
+                          onPressed: () => _showFaviconChangeOptions(),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                                color: isDark
+                                    ? Colors.white24
+                                    : const Color(0xFFCBD5E1)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6)),
+                          ),
+                          child: Text("Change",
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark
+                                      ? Colors.white70
+                                      : Colors.black87)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDropdownField(
+                          "Default Language", _defaultLanguage, _languages,
+                          (val) {
+                        if (val != null) setState(() => _defaultLanguage = val);
+                      }, isDark),
+                    ),
+                    const SizedBox(width: 32),
+                    // Favicon
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Favicon",
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF0F172A)
+                                      : const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: isDark
+                                          ? Colors.white10
+                                          : const Color(0xFFE2E8F0)),
+                                ),
+                                child: _faviconController.text.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Image.network(
+                                          _faviconController.text,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              const Icon(
+                                                  Icons.error_outline_rounded,
+                                                  size: 18,
+                                                  color: Colors.red),
+                                        ),
+                                      )
+                                    : Icon(Icons.school_rounded,
+                                        size: 18, color: theme.primaryColor),
+                              ),
+                              const SizedBox(width: 12),
+                              OutlinedButton(
+                                onPressed: () => _showFaviconChangeOptions(),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                      color: isDark
+                                          ? Colors.white24
+                                          : const Color(0xFFCBD5E1)),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6)),
+                                ),
+                                child: Text("Change",
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.black87)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              if (isMobile) ...[
+                _buildDropdownField(
+                    "Default Timezone", _defaultTimezone, _timezones,
+                    (val) {
+                  if (val != null) setState(() => _defaultTimezone = val);
+                }, isDark),
+                const SizedBox(height: 16),
+                _buildDropdownField(
+                    "Date Format", _dateFormat, _dateFormats, (val) {
+                  if (val != null) setState(() => _dateFormat = val);
+                }, isDark),
+                const SizedBox(height: 16),
+                _buildDropdownField(
+                    "Time Format", _timeFormat, _timeFormats, (val) {
+                  if (val != null) setState(() => _timeFormat = val);
+                }, isDark),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDropdownField(
+                          "Default Timezone", _defaultTimezone, _timezones,
+                          (val) {
+                        if (val != null) setState(() => _defaultTimezone = val);
+                      }, isDark),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildDropdownField(
+                          "Date Format", _dateFormat, _dateFormats, (val) {
+                        if (val != null) setState(() => _dateFormat = val);
+                      }, isDark),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildDropdownField(
+                          "Time Format", _timeFormat, _timeFormats, (val) {
+                        if (val != null) setState(() => _timeFormat = val);
+                      }, isDark),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -1225,44 +1454,47 @@ class _AdminSystemConfigScreenState
                       color: isDark
                           ? const Color(0xFF0F172A)
                           : const Color(0xFFF1F5F9),
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 8),
-                          IconButton(
-                              icon: const Icon(Icons.format_bold_rounded,
-                                  size: 16),
-                              onPressed: () => _formatTextMessage('**', '**'),
-                              tooltip: "Bold"),
-                          IconButton(
-                              icon: const Icon(Icons.format_italic_rounded,
-                                  size: 16),
-                              onPressed: () => _formatTextMessage('*', '*'),
-                              tooltip: "Italic"),
-                          IconButton(
-                              icon: const Icon(Icons.format_underlined_rounded,
-                                  size: 16),
-                              onPressed: () =>
-                                  _formatTextMessage('<u>', '</u>'),
-                              tooltip: "Underline"),
-                          const VerticalDivider(
-                              color: Colors.white24, indent: 8, endIndent: 8),
-                          IconButton(
-                              icon: const Icon(
-                                  Icons.format_list_bulleted_rounded,
-                                  size: 16),
-                              onPressed: () => _formatTextMessage('\n- ', '')),
-                          IconButton(
-                              icon: const Icon(
-                                  Icons.format_list_numbered_rounded,
-                                  size: 16),
-                              onPressed: () => _formatTextMessage('\n1. ', '')),
-                          const VerticalDivider(
-                              color: Colors.white24, indent: 8, endIndent: 8),
-                          IconButton(
-                              icon: const Icon(Icons.link_rounded, size: 16),
-                              onPressed: () =>
-                                  _formatTextMessage('[', '](url)')),
-                        ],
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 8),
+                            IconButton(
+                                icon: const Icon(Icons.format_bold_rounded,
+                                    size: 16),
+                                onPressed: () => _formatTextMessage('**', '**'),
+                                tooltip: "Bold"),
+                            IconButton(
+                                icon: const Icon(Icons.format_italic_rounded,
+                                    size: 16),
+                                onPressed: () => _formatTextMessage('*', '*'),
+                                tooltip: "Italic"),
+                            IconButton(
+                                icon: const Icon(Icons.format_underlined_rounded,
+                                    size: 16),
+                                onPressed: () =>
+                                    _formatTextMessage('<u>', '</u>'),
+                                tooltip: "Underline"),
+                            const VerticalDivider(
+                                color: Colors.white24, indent: 8, endIndent: 8),
+                            IconButton(
+                                icon: const Icon(
+                                    Icons.format_list_bulleted_rounded,
+                                    size: 16),
+                                onPressed: () => _formatTextMessage('\n- ', '')),
+                            IconButton(
+                                icon: const Icon(
+                                    Icons.format_list_numbered_rounded,
+                                    size: 16),
+                                onPressed: () => _formatTextMessage('\n1. ', '')),
+                            const VerticalDivider(
+                                color: Colors.white24, indent: 8, endIndent: 8),
+                            IconButton(
+                                icon: const Icon(Icons.link_rounded, size: 16),
+                                onPressed: () =>
+                                    _formatTextMessage('[', '](url)')),
+                          ],
+                        ),
                       ),
                     ),
                     TextField(
@@ -1286,6 +1518,7 @@ class _AdminSystemConfigScreenState
   }
 
   Widget _buildSecurityTab(bool isDark) {
+    final isMobile = _isMobile;
     return _buildConfigCard(
       isDark,
       title: "Security Settings",
@@ -1307,81 +1540,155 @@ class _AdminSystemConfigScreenState
             isDark,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Max Active Sessions per User",
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    DropdownButtonFormField<int>(
-                      value: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
-                          ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
-                          : 5,
-                      dropdownColor:
-                          isDark ? const Color(0xFF1E293B) : Colors.white,
-                      decoration: InputDecoration(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 12),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _securitySettings['session_limit'] = val;
-                          });
-                        }
-                      },
-                      items: [1, 2, 5, 10, 20].map((int val) {
-                        return DropdownMenuItem<int>(
-                            value: val, child: Text("$val Sessions"));
-                      }).toList(),
-                    ),
-                  ],
+          if (isMobile) ...[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Max Active Sessions per User",
+                    style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                DropdownButtonFormField<int>(
+                  value: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                      ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                      : 5,
+                  dropdownColor:
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _securitySettings['session_limit'] = val;
+                      });
+                    }
+                  },
+                  items: [1, 2, 5, 10, 20].map((int val) {
+                    return DropdownMenuItem<int>(
+                        value: val, child: Text("$val Sessions"));
+                  }).toList(),
                 ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Failed Login Lockout Threshold",
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    DropdownButtonFormField<int>(
-                      value: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
-                          ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
-                          : 5,
-                      dropdownColor:
-                          isDark ? const Color(0xFF1E293B) : Colors.white,
-                      decoration: InputDecoration(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 12),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _securitySettings['failed_attempts_lockout'] = val;
-                          });
-                        }
-                      },
-                      items: [3, 5, 10, 15].map((int val) {
-                        return DropdownMenuItem<int>(
-                            value: val, child: Text("$val Attempts"));
-                      }).toList(),
-                    ),
-                  ],
+              ],
+            ),
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Failed Login Lockout Threshold",
+                    style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                DropdownButtonFormField<int>(
+                  value: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                      ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                      : 5,
+                  dropdownColor:
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _securitySettings['failed_attempts_lockout'] = val;
+                      });
+                    }
+                  },
+                  items: [3, 5, 10, 15].map((int val) {
+                    return DropdownMenuItem<int>(
+                        value: val, child: Text("$val Attempts"));
+                  }).toList(),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Max Active Sessions per User",
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      DropdownButtonFormField<int>(
+                        value: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                            ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                            : 5,
+                        dropdownColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _securitySettings['session_limit'] = val;
+                            });
+                          }
+                        },
+                        items: [1, 2, 5, 10, 20].map((int val) {
+                          return DropdownMenuItem<int>(
+                              value: val, child: Text("$val Sessions"));
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Failed Login Lockout Threshold",
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      DropdownButtonFormField<int>(
+                        value: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                            ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                            : 5,
+                        dropdownColor:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 12),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _securitySettings['failed_attempts_lockout'] = val;
+                            });
+                          }
+                        },
+                        items: [3, 5, 10, 15].map((int val) {
+                          return DropdownMenuItem<int>(
+                              value: val, child: Text("$val Attempts"));
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1472,7 +1779,9 @@ class _AdminSystemConfigScreenState
           const Text("Primary Color Theme",
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
               Colors.indigo,
               Colors.blue,
@@ -1493,7 +1802,6 @@ class _AdminSystemConfigScreenState
                   });
                 },
                 child: Container(
-                  margin: const EdgeInsets.only(right: 10),
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
@@ -1733,6 +2041,7 @@ class _AdminSystemConfigScreenState
         DropdownButtonFormField<String>(
           value: items.contains(value) ? value : items.first,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          isExpanded: true,
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1740,8 +2049,14 @@ class _AdminSystemConfigScreenState
           onChanged: onChanged,
           items: items.map((String item) {
             return DropdownMenuItem<String>(
-                value: item,
-                child: Text(item, style: const TextStyle(fontSize: 12)));
+              value: item,
+              child: Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: const TextStyle(fontSize: 12),
+              ),
+            );
           }).toList(),
         ),
       ],
@@ -2094,5 +2409,106 @@ class _AdminSystemConfigScreenState
         ),
       ),
     );
+  }
+}
+
+class RichTextEditingController extends TextEditingController {
+  RichTextEditingController({super.text});
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final List<TextSpan> children = [];
+    final textVal = text;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final regExp = RegExp(
+      r'(\*\*.*?\*\*)|(\*.*?\*)|(<u>.*?</u>)|(\[.*?\]\(.*?\))',
+      dotAll: true,
+    );
+
+    int lastIndex = 0;
+    
+    final tagStyle = TextStyle(
+      color: isDark ? Colors.white30 : Colors.black26,
+      fontSize: 11,
+    );
+
+    for (final match in regExp.allMatches(textVal)) {
+      if (match.start > lastIndex) {
+        children.add(TextSpan(
+          text: textVal.substring(lastIndex, match.start),
+          style: style,
+        ));
+      }
+
+      final matchedText = match.group(0)!;
+
+      if (match.group(1) != null) {
+        final content = matchedText.substring(2, matchedText.length - 2);
+        children.add(TextSpan(text: '**', style: tagStyle));
+        children.add(TextSpan(
+          text: content,
+          style: style?.copyWith(fontWeight: FontWeight.bold) ??
+              const TextStyle(fontWeight: FontWeight.bold),
+        ));
+        children.add(TextSpan(text: '**', style: tagStyle));
+      } else if (match.group(2) != null) {
+        final content = matchedText.substring(1, matchedText.length - 1);
+        children.add(TextSpan(text: '*', style: tagStyle));
+        children.add(TextSpan(
+          text: content,
+          style: style?.copyWith(fontStyle: FontStyle.italic) ??
+              const TextStyle(fontStyle: FontStyle.italic),
+        ));
+        children.add(TextSpan(text: '*', style: tagStyle));
+      } else if (match.group(3) != null) {
+        final content = matchedText.substring(3, matchedText.length - 4);
+        children.add(TextSpan(text: '<u>', style: tagStyle));
+        children.add(TextSpan(
+          text: content,
+          style: style?.copyWith(decoration: TextDecoration.underline) ??
+              const TextStyle(decoration: TextDecoration.underline),
+        ));
+        children.add(TextSpan(text: '</u>', style: tagStyle));
+      } else if (match.group(4) != null) {
+        final closeBracketIdx = matchedText.indexOf(']');
+        if (closeBracketIdx != -1) {
+          final label = matchedText.substring(1, closeBracketIdx);
+          final urlPart = matchedText.substring(closeBracketIdx + 1);
+          
+          children.add(TextSpan(text: '[', style: tagStyle));
+          children.add(TextSpan(
+            text: label,
+            style: style?.copyWith(
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ) ??
+                const TextStyle(
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
+          ));
+          children.add(TextSpan(text: ']', style: tagStyle));
+          children.add(TextSpan(text: urlPart, style: tagStyle));
+        } else {
+          children.add(TextSpan(text: matchedText, style: style));
+        }
+      }
+
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < textVal.length) {
+      children.add(TextSpan(
+        text: textVal.substring(lastIndex),
+        style: style,
+      ));
+    }
+
+    return TextSpan(style: style, children: children);
   }
 }
