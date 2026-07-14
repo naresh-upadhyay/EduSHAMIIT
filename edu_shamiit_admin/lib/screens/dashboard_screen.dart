@@ -283,7 +283,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                             ),
                             child: config?.systemLogo != null
                                 ? Image.network(
-                                    config!.systemLogo!,
+                                    AppConfig.resolveUrl(config.systemLogo),
                                     width: 24,
                                     height: 24,
                                     errorBuilder: (_, __, ___) => const Icon(

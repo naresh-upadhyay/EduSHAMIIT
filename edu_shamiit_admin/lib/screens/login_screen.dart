@@ -393,7 +393,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(36),
                     child: Image.network(
-                      config.systemLogo!,
+                      AppConfig.resolveUrl(config.systemLogo),
                       fit: BoxFit.cover,
                       width: 72,
                       height: 72,
