@@ -553,22 +553,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       ],
     );
 
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          headerContent,
-          const SizedBox(height: 16),
-          actionsContent,
-        ],
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16,
+      runSpacing: 16,
       children: [
-        Expanded(child: headerContent),
-        const SizedBox(width: 16),
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isMobile ? double.infinity : 420,
+          ),
+          child: headerContent,
+        ),
         actionsContent,
       ],
     );
@@ -1022,7 +1018,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           TextColumn('Status', textSecondary, width: 85),
                           TextColumn('Last Login', textSecondary, width: 90),
                           TextColumn('Created On', textSecondary, width: 90),
-                          TextColumn('Actions', textSecondary, width: 120),
+                          TextColumn('Actions', textSecondary, width: 150),
                         ],
                         rows: paginatedUsers.map((user) {
                           final isSelected = _selectedUserIds.contains(user['id']);
@@ -1196,7 +1192,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               ),
                               DataCell(
                                 SizedBox(
-                                  width: 120,
+                                  width: 150,
                                   child: Row(
                                     children: [
                                       IconButton(
