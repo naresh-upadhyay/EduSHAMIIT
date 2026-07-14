@@ -2,7 +2,7 @@ name: Deploy Admin Web to GitHub Pages
 
 on:
   push:
-    branches: [main, master, deploy, monorepo]
+    branches: [main, master, deploy, monorepo, admin]
     paths:
       - "edu_shamiit_admin/**"
       - "edu_shamiit_core/**"
