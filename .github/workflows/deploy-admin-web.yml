@@ -50,7 +50,7 @@ jobs:
           TOKEN: ${{ secrets.ADMIN_DEPLOY_TOKEN }}
         run: |
           cd edu_shamiit_admin/build/web
-          echo "eduadmin.shamiit.com" > CNAME
+          echo "edu.shamiit.com" > CNAME
           git init
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
