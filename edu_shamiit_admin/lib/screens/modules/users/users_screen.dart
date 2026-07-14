@@ -7,7 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 class AdminUsersScreen extends StatefulWidget {
-  const AdminUsersScreen({super.key});
+  final String? initialRole;
+  const AdminUsersScreen({super.key, this.initialRole});
 
   @override
   State<AdminUsersScreen> createState() => _AdminUsersScreenState();
@@ -62,6 +63,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialRole != null) {
+      final roleKey = widget.initialRole!.toLowerCase().replaceAll(' ', '_');
+      if (_roleLabels.containsKey(roleKey)) {
+        _selectedRole = _roleLabels[roleKey]!;
+      } else {
+        final matchingValue = _roleLabels.values.firstWhere(
+          (val) => val.toLowerCase() == widget.initialRole!.toLowerCase(),
+          orElse: () => 'All',
+        );
+        _selectedRole = matchingValue;
+      }
+    }
     _fetchUsers();
     _fetchSchools();
     _fetchStats();

@@ -2953,16 +2953,18 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       ),
                       SizedBox(width: 8),
                       Expanded(
-                        child: OutlinedButton(
+                        child: OutlinedButton.icon(
                           onPressed: () {
-                            _showSuccessSnackBar("Showing list of users assigned to $formattedName...");
+                            context.go('/admin/users?role=$name');
                           },
+                          icon: Icon(Icons.people_outline, size: 14),
+                          label: Text('View Users ($userCount)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF818CF8),
-                            side: BorderSide(color: const Color(0xFF6366F1).withOpacity(0.2)),
+                            backgroundColor: const Color(0xFF6366F1).withOpacity(0.08),
+                            side: BorderSide(color: const Color(0xFF6366F1).withOpacity(0.25)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: Text('View Users ($userCount)', style: TextStyle(fontSize: 11)),
                         ),
                       ),
                     ],

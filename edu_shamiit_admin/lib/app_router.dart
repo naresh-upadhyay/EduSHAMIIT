@@ -98,7 +98,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/users',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AdminUsersScreen()),
+            pageBuilder: (_, state) {
+              final role = state.uri.queryParameters['role'];
+              return NoTransitionPage(child: AdminUsersScreen(initialRole: role));
+            },
           ),
           GoRoute(
             path: '/admin/infra',
