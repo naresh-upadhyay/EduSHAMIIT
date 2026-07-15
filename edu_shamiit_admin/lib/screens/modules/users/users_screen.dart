@@ -1979,6 +1979,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _buildLegendRow(String label, int count, int total, Color color) {
     final double percent = total == 0 ? 0 : (count / total * 100);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textSecondary = isDark ? Colors.white70 : Colors.black54;
+    final textMuted = isDark ? Colors.white54 : Colors.black38;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0),
       child: Row(
@@ -1988,12 +1993,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             children: [
               Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
               const SizedBox(width: 6),
-              Text(label, style: const TextStyle(fontSize: 10, color: Colors.white70)),
+              Text(label, style: TextStyle(fontSize: 10, color: textSecondary)),
             ],
           ),
           Text(
             '$count (${percent.toStringAsFixed(1)}%)',
-            style: const TextStyle(fontSize: 10, color: Colors.white54, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 10, color: textMuted, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -2001,6 +2006,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _buildQuickAction(String title, String subtitle, IconData icon, VoidCallback onTap, Color iconColor) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white70 : Colors.black54;
+    final textMuted = isDark ? Colors.white30 : Colors.black38;
+
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -2020,12 +2031,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
-                  Text(subtitle, style: const TextStyle(fontSize: 9, color: Colors.white54)),
+                  Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textPrimary)),
+                  Text(subtitle, style: TextStyle(fontSize: 9, color: textSecondary)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white30, size: 14),
+            Icon(Icons.chevron_right, color: textMuted, size: 14),
           ],
         ),
       ),

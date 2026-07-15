@@ -119,7 +119,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> signIn({
     required String email,
     required String password,
-    required UserRole role,
+    UserRole? role,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -133,7 +133,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         body: jsonEncode({
           'email': email,
           'password': password,
-          'role': role.value,
+          if (role != null) 'role': role.value,
         }),
       ).timeout(AppConfig.apiTimeout);
 
@@ -214,7 +214,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> signInWithOtp({
     required String email,
     required String otp,
-    required UserRole role,
+    UserRole? role,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -225,7 +225,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         body: jsonEncode({
           'identifier': email,
           'otp': otp,
-          'role': role.value,
+          if (role != null) 'role': role.value,
         }),
       ).timeout(AppConfig.apiTimeout);
 

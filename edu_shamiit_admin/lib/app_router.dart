@@ -15,25 +15,42 @@ import 'package:edu_shamiit_admin/screens/tabs/staff_tab.dart';
 import 'package:edu_shamiit_admin/screens/tabs/admissions_tab.dart';
 import 'package:edu_shamiit_admin/screens/tabs/gate_scanner_tab.dart';
 import 'package:edu_shamiit_admin/screens/tabs/support_tab.dart';
+import 'package:edu_shamiit_admin/screens/modules/tickets/contact_queries_screen.dart';
 import 'package:edu_shamiit_admin/screens/tabs/system_control_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_screens.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
+import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
 final adminShellKey = GlobalKey<NavigatorState>(debugLabel: 'adminShell');
 
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+  RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(
+      authProvider,
+      (_, __) => notifyListeners(),
+    );
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final config = ref.watch(systemConfigProvider);
+  final notifier = RouterNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/admin/dashboard',
+    initialLocation: '/',
+    refreshListenable: notifier,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final loggedIn = authState.isAuthenticated;
       final path = state.matchedLocation;
-      final isPublic = path == '/login' ||
+      final isPublic = path == '/' ||
+          path == '/login' ||
           path == '/forgot-password' ||
           path == '/otp-verification' ||
           path == '/reset-password' ||
-          path == '/password-reset-success';
+          path == '/password-reset-success' ||
+          path == '/contact';
 
       if (!loggedIn && !isPublic) {
         return '/login';
@@ -45,12 +62,32 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(
+        path: '/',
+        builder: (context, state) => SharedHomeScreen(
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+        ),
+      ),
+      GoRoute(
         path: '/login',
         builder: (context, state) => const AdminLoginScreen(),
       ),
       GoRoute(
+        path: '/contact',
+        builder: (context, state) => SharedContactUsScreen(
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+          illustrationUrl: 'assets/images/contact_illustration.png',
+        ),
+      ),
+      GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => const SharedForgotPasswordScreen(isAdmin: true),
+        builder: (context, state) => SharedForgotPasswordScreen(
+          isAdmin: true,
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+          illustrationUrl: config?.forgotPasswordIllustration,
+        ),
       ),
       GoRoute(
         path: '/otp-verification',
@@ -64,6 +101,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             isLogin: isLogin,
             role: role,
             isAdmin: true,
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: config?.otpVerificationIllustration,
           );
         },
       ),
@@ -73,7 +113,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           final args = state.extra as Map<String, dynamic>?;
           final email = args?['email'] as String? ?? '';
           final otp = args?['otp'] as String? ?? '';
-          return SharedResetPasswordScreen(email: email, otp: otp, isAdmin: true);
+          return SharedResetPasswordScreen(
+            email: email,
+            otp: otp,
+            isAdmin: true,
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: config?.resetPasswordIllustration,
+          );
         },
       ),
       GoRoute(
@@ -139,6 +186,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/support',
             pageBuilder: (_, __) => const NoTransitionPage(child: SupportTab()),
+          ),
+          GoRoute(
+            path: '/admin/contact-queries',
+            pageBuilder: (_, __) => const NoTransitionPage(child: ContactQueriesScreen()),
           ),
           GoRoute(
             path: '/admin/system-control',

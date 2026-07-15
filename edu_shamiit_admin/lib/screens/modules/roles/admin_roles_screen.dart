@@ -1232,7 +1232,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         child: Text(
           tabName,
           style: TextStyle(
-            color: isActive ? Colors.white : Colors.white38,
+            color: isActive ? _textPrimary : _textSecondary,
             fontSize: 13,
             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
             fontFamily: 'Outfit',
@@ -1840,7 +1840,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       child: Text(
                         '$i',
                         style: TextStyle(
-                          color: _currentPage == i ? Colors.white : Colors.white70,
+                          color: _currentPage == i ? Colors.white : _textSecondary,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),

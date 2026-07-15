@@ -79,6 +79,21 @@ class _AdminSystemConfigScreenState
   final _autoLogoutController = TextEditingController();
   final _sessionTimeoutController = TextEditingController();
 
+  // Login Page Controllers
+  final _loginTitleController = TextEditingController();
+  final _loginSubtitleController = TextEditingController();
+  final _loginDescController = TextEditingController();
+  final _loginFeature1Controller = TextEditingController();
+  final _loginFeature2Controller = TextEditingController();
+  final _loginFeature3Controller = TextEditingController();
+  final _loginFeature4Controller = TextEditingController();
+
+  // Illustration Controllers
+  final _loginIllustrationController = TextEditingController();
+  final _forgotPasswordIllustrationController = TextEditingController();
+  final _resetPasswordIllustrationController = TextEditingController();
+  final _otpVerificationIllustrationController = TextEditingController();
+
   // SMTP Settings
   final _smtpHostController = TextEditingController();
   final _smtpPortController = TextEditingController();
@@ -129,6 +144,17 @@ class _AdminSystemConfigScreenState
     _smtpHostController.dispose();
     _smtpPortController.dispose();
     _twilioSenderController.dispose();
+    _loginTitleController.dispose();
+    _loginSubtitleController.dispose();
+    _loginDescController.dispose();
+    _loginFeature1Controller.dispose();
+    _loginFeature2Controller.dispose();
+    _loginFeature3Controller.dispose();
+    _loginFeature4Controller.dispose();
+    _loginIllustrationController.dispose();
+    _forgotPasswordIllustrationController.dispose();
+    _resetPasswordIllustrationController.dispose();
+    _otpVerificationIllustrationController.dispose();
     super.dispose();
   }
 
@@ -286,15 +312,23 @@ class _AdminSystemConfigScreenState
         setState(() {
           if (fileType == "logo") {
             _systemLogoController.text = url;
-          } else {
+          } else if (fileType == "favicon") {
             _faviconController.text = url;
+          } else if (fileType == "login_illustration") {
+            _loginIllustrationController.text = url;
+          } else if (fileType == "forgot_password_illustration") {
+            _forgotPasswordIllustrationController.text = url;
+          } else if (fileType == "reset_password_illustration") {
+            _resetPasswordIllustrationController.text = url;
+          } else if (fileType == "otp_verification_illustration") {
+            _otpVerificationIllustrationController.text = url;
           }
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '${fileType == "logo" ? "Logo" : "Favicon"} uploaded and cropped successfully!'),
+                'Image uploaded successfully!'),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
@@ -428,6 +462,20 @@ class _AdminSystemConfigScreenState
               Map<String, dynamic>.from(data['payments_settings'] ?? {});
           _integrationsSettings =
               Map<String, dynamic>.from(data['integrations_settings'] ?? {});
+
+          // Populate Login Settings controllers
+          _loginTitleController.text = _appearanceSettings['login_title'] ?? 'Welcome Back!';
+          _loginSubtitleController.text = _appearanceSettings['login_subtitle'] ?? 'Sign in to your account';
+          _loginDescController.text = _appearanceSettings['login_desc'] ?? 'Access your dashboard and manage your institution with ease.';
+          _loginFeature1Controller.text = _appearanceSettings['login_feature1'] ?? 'Secure Access';
+          _loginFeature2Controller.text = _appearanceSettings['login_feature2'] ?? 'Smart Insights';
+          _loginFeature3Controller.text = _appearanceSettings['login_feature3'] ?? 'Role Based Dashboard';
+          _loginFeature4Controller.text = _appearanceSettings['login_feature4'] ?? 'Centralized Management';
+
+          _loginIllustrationController.text = _appearanceSettings['login_illustration'] ?? '';
+          _forgotPasswordIllustrationController.text = _appearanceSettings['forgot_password_illustration'] ?? '';
+          _resetPasswordIllustrationController.text = _appearanceSettings['reset_password_illustration'] ?? '';
+          _otpVerificationIllustrationController.text = _appearanceSettings['otp_verification_illustration'] ?? '';
           _backupRestoreSettings =
               Map<String, dynamic>.from(data['backup_restore_settings'] ?? {});
           _advancedSettings =
@@ -477,6 +525,20 @@ class _AdminSystemConfigScreenState
     _emailSmsSettings['smtp_port'] =
         int.tryParse(_smtpPortController.text) ?? 587;
     _emailSmsSettings['twilio_sender'] = _twilioSenderController.text.trim();
+
+    // Sync Login settings to appearance_settings map
+    _appearanceSettings['login_title'] = _loginTitleController.text.trim();
+    _appearanceSettings['login_subtitle'] = _loginSubtitleController.text.trim();
+    _appearanceSettings['login_desc'] = _loginDescController.text.trim();
+    _appearanceSettings['login_feature1'] = _loginFeature1Controller.text.trim();
+    _appearanceSettings['login_feature2'] = _loginFeature2Controller.text.trim();
+    _appearanceSettings['login_feature3'] = _loginFeature3Controller.text.trim();
+    _appearanceSettings['login_feature4'] = _loginFeature4Controller.text.trim();
+
+    _appearanceSettings['login_illustration'] = _loginIllustrationController.text.trim();
+    _appearanceSettings['forgot_password_illustration'] = _forgotPasswordIllustrationController.text.trim();
+    _appearanceSettings['reset_password_illustration'] = _resetPasswordIllustrationController.text.trim();
+    _appearanceSettings['otp_verification_illustration'] = _otpVerificationIllustrationController.text.trim();
 
     final payload = {
       "school_id":
@@ -537,6 +599,157 @@ class _AdminSystemConfigScreenState
         );
       }
     }
+  }
+
+  void _showImageUrlDialog(String label, TextEditingController controller) {
+    final textController = TextEditingController(text: controller.text);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Set $label URL"),
+          content: TextField(
+            controller: textController,
+            decoration: const InputDecoration(
+              hintText: "https://example.com/image.png",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  controller.text = textController.text.trim();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showIllustrationUploadOptions(String label, String fileType, TextEditingController controller) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.upload_file_rounded),
+                title: const Text("Upload from computer"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndUploadImage(fileType);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.link_rounded),
+                title: const Text("Enter image URL manually"),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showImageUrlDialog(label, controller);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildImageUploadRow(String label, String fileType, TextEditingController controller, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  hintText: "Upload file or enter URL...",
+                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 12),
+            InkWell(
+              onTap: () => _showIllustrationUploadOptions(label, fileType, controller),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.cloud_upload_outlined,
+                      size: 16,
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Upload",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (controller.text.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Image.network(
+              AppConfig.resolveUrl(controller.text),
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Center(
+                child: Icon(Icons.broken_image_outlined, color: Colors.red, size: 24),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   void _showLogsDialog(List<dynamic> logs) {
@@ -1115,6 +1328,7 @@ class _AdminSystemConfigScreenState
       },
       {"label": "Backup & Restore", "icon": Icons.backup_rounded},
       {"label": "Advanced", "icon": Icons.settings_suggest_rounded},
+      {"label": "Login Page", "icon": Icons.login_rounded},
     ];
 
     return SingleChildScrollView(
@@ -1190,6 +1404,8 @@ class _AdminSystemConfigScreenState
         return _buildBackupRestoreTab(isDark);
       case 8:
         return _buildAdvancedTab(isDark);
+      case 9:
+        return _buildLoginPageTab(isDark);
       default:
         return _buildGeneralSettingsTab(isDark);
     }
@@ -2257,6 +2473,63 @@ class _AdminSystemConfigScreenState
             },
             isDark,
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginPageTab(bool isDark) {
+    return _buildConfigCard(
+      isDark,
+      title: "Login Page Settings",
+      subtitle:
+          "Configure dynamic welcome texts, description guidelines, and highlight features for your Login Page Left Banner.",
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildInputField("Welcome Banner Title", _loginTitleController, isDark, "e.g., Welcome Back!"),
+          const SizedBox(height: 16),
+          _buildInputField("Welcome Banner Subtitle", _loginSubtitleController, isDark, "e.g., Sign in to your account"),
+          const SizedBox(height: 16),
+          _buildInputField("Welcome Banner Description", _loginDescController, isDark, "e.g., Access your dashboard and manage your institution with ease."),
+          const SizedBox(height: 24),
+          const Divider(height: 1, color: Colors.white10),
+          const SizedBox(height: 24),
+          Text(
+            "Banner Highlights Features (4 Items)",
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildInputField("Feature Item 1 Label", _loginFeature1Controller, isDark, "e.g., Secure Access"),
+          const SizedBox(height: 12),
+          _buildInputField("Feature Item 2 Label", _loginFeature2Controller, isDark, "e.g., Smart Insights"),
+          const SizedBox(height: 12),
+          _buildInputField("Feature Item 3 Label", _loginFeature3Controller, isDark, "e.g., Role Based Dashboard"),
+          const SizedBox(height: 12),
+          _buildInputField("Feature Item 4 Label", _loginFeature4Controller, isDark, "e.g., Centralized Management"),
+          const SizedBox(height: 24),
+          const Divider(height: 1, color: Colors.white10),
+          const SizedBox(height: 24),
+          Text(
+            "Auth Screens Illustration Images",
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildImageUploadRow("Login Screen Illustration", "login_illustration", _loginIllustrationController, isDark),
+          const SizedBox(height: 16),
+          _buildImageUploadRow("Forgot Password Screen Illustration", "forgot_password_illustration", _forgotPasswordIllustrationController, isDark),
+          const SizedBox(height: 16),
+          _buildImageUploadRow("Reset Password Screen Illustration", "reset_password_illustration", _resetPasswordIllustrationController, isDark),
+          const SizedBox(height: 16),
+          _buildImageUploadRow("OTP Verification Screen Illustration", "otp_verification_illustration", _otpVerificationIllustrationController, isDark),
         ],
       ),
     );

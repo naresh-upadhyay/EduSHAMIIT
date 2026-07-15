@@ -142,6 +142,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         label: 'IT Support Tickets',
         route: '/admin/support',
         section: NavSection.quickAccess),
+    _NavItem(
+        icon: Icons.contact_mail_outlined,
+        label: 'Public Contact Queries',
+        route: '/admin/contact-queries',
+        section: NavSection.quickAccess),
   ];
 
   List<dynamic> _modules = [];

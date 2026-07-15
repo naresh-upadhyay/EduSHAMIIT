@@ -58,3 +58,5 @@ export 'screens/auth/forgot_password_screen.dart';
 export 'screens/auth/otp_verification_screen.dart';
 export 'screens/auth/reset_password_screen.dart';
 export 'screens/auth/password_reset_success_screen.dart';
+export 'screens/auth/contact_us_screen.dart';
+export 'screens/auth/home_screen.dart';

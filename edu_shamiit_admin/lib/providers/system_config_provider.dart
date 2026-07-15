@@ -9,6 +9,17 @@ class SystemConfig {
   final String primaryColor;
   final String theme;
   final String loginPageMessage;
+  final String loginTitle;
+  final String loginSubtitle;
+  final String loginDesc;
+  final String loginFeature1;
+  final String loginFeature2;
+  final String loginFeature3;
+  final String loginFeature4;
+  final String loginIllustration;
+  final String forgotPasswordIllustration;
+  final String resetPasswordIllustration;
+  final String otpVerificationIllustration;
 
   SystemConfig({
     required this.systemName,
@@ -18,6 +29,17 @@ class SystemConfig {
     required this.primaryColor,
     required this.theme,
     required this.loginPageMessage,
+    required this.loginTitle,
+    required this.loginSubtitle,
+    required this.loginDesc,
+    required this.loginFeature1,
+    required this.loginFeature2,
+    required this.loginFeature3,
+    required this.loginFeature4,
+    required this.loginIllustration,
+    required this.forgotPasswordIllustration,
+    required this.resetPasswordIllustration,
+    required this.otpVerificationIllustration,
   });
 
   factory SystemConfig.fromJson(Map<String, dynamic> json) {
@@ -30,6 +52,17 @@ class SystemConfig {
       primaryColor: appearance['primary_color'] ?? '#4F46E5',
       theme: appearance['theme'] ?? 'Dark',
       loginPageMessage: json['login_page_message'] ?? '',
+      loginTitle: appearance['login_title'] ?? 'Welcome Back!',
+      loginSubtitle: appearance['login_subtitle'] ?? 'your account',
+      loginDesc: appearance['login_desc'] ?? 'Access your dashboard and manage your institution with ease.',
+      loginFeature1: appearance['login_feature1'] ?? 'Secure Access',
+      loginFeature2: appearance['login_feature2'] ?? 'Smart Insights',
+      loginFeature3: appearance['login_feature3'] ?? 'Role Based Dashboard',
+      loginFeature4: appearance['login_feature4'] ?? 'Centralized Management',
+      loginIllustration: appearance['login_illustration'] ?? '',
+      forgotPasswordIllustration: appearance['forgot_password_illustration'] ?? '',
+      resetPasswordIllustration: appearance['reset_password_illustration'] ?? '',
+      otpVerificationIllustration: appearance['otp_verification_illustration'] ?? '',
     );
   }
 }

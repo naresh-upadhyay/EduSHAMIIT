@@ -6,7 +6,7 @@ import time
 import asyncio
 
 import json
-from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights
+from app.api import auth, student, teacher, shared, chat, voice, image, iot, rag, payments, students_admin, teachers_admin, documents, calls, live_classes, superadmin, audit_logs, tickets, announcements, system_config, insights, contact
 
 
 @asynccontextmanager
@@ -206,7 +206,7 @@ async def enforce_modules_middleware(request: Request, call_next):
         return await call_next(request)
 
     # Exclude open/unauthenticated endpoints and modules config endpoints
-    if any(p in path for p in ["/api/auth", "/health", "/api/admin/schools/modules/all"]):
+    if any(p in path for p in ["/api/auth", "/health", "/api/admin/schools/modules/all", "/api/contact/submit"]):
         return await call_next(request)
 
     try:
@@ -385,6 +385,7 @@ app.include_router(system_config.router, prefix="/api/admin/system-config", tags
 app.include_router(insights.router, prefix="/api/admin/insights", tags=["AI Smart Insights"])
 app.include_router(calls.router, prefix="/api", tags=["Calls"])
 app.include_router(live_classes.router, prefix="/api", tags=["Live Classes"])
+app.include_router(contact.router, prefix="/api/contact", tags=["Contact Us"])
 
 
 @app.get("/health")
