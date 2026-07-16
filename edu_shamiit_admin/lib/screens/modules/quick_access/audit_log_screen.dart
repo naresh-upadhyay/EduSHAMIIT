@@ -112,6 +112,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       final instRes = await ApiService().get('/admin/audit-logs/institutions', useCache: false);
       final usersRes = await ApiService().get('/admin/audit-logs/users', useCache: false);
 
+      if (!mounted) return;
       setState(() {
         if (instRes['success'] == true) {
           _institutions = instRes['data'] ?? [];
@@ -123,6 +124,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
       });
     } catch (e) {
       debugPrint('Error loading filter dropdown data: $e');
+      if (!mounted) return;
       setState(() {
         _isLoadingFilters = false;
       });
@@ -153,6 +155,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
 
       if (res['success'] == true && res['data'] != null) {
         final data = res['data'];
+        if (!mounted) return;
         setState(() {
           _logs = data['logs'] ?? [];
           _totalEvents = data['total'] ?? 0;
@@ -167,6 +170,7 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
     } catch (e) {
       debugPrint('Error fetching audit logs: $e');
     } finally {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });

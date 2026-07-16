@@ -8,3 +8,4 @@ export 'apis_screen.dart';
 export 'audit_log_screen.dart';
 export 'announcements_screen.dart';
 export 'vault_secrets_screen.dart';
+export 'alerts_notifications_screen.dart';

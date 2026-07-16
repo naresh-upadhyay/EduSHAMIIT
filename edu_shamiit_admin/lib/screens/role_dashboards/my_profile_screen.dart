@@ -1855,13 +1855,16 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
   }
 
   Widget _buildQuickActionItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      leading: Icon(icon, size: 18, color: const Color(0xFF4F46E5)),
-      title: Text(title, style: GoogleFonts.inter(fontSize: 12)),
-      trailing: const Icon(Icons.chevron_right_rounded, size: 16),
-      onTap: onTap,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        leading: Icon(icon, size: 18, color: const Color(0xFF4F46E5)),
+        title: Text(title, style: GoogleFonts.inter(fontSize: 12)),
+        trailing: const Icon(Icons.chevron_right_rounded, size: 16),
+        onTap: onTap,
+      ),
     );
   }
 

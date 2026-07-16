@@ -45,6 +45,7 @@ async def log_audit_event_to_db(
     session_id: Optional[str] = None
 ):
     """Background task to fetch user profiles, map path to module/action, and insert audit logs."""
+    print(f"[AUDIT DEBUG] path={path} method={method} user_id={user_id} status_code={status_code}", flush=True)
     try:
         sb = get_supabase()
 

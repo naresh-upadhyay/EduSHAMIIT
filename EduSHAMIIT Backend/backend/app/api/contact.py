@@ -57,7 +57,7 @@ async def list_contact_queries(
 ):
     sb = get_supabase()
     try:
-        q = sb.table("contact_queries").select("*", count="exact")
+        q = sb.table("contact_queries").select("*").count("exact")
         
         if status:
             q = q.eq("status", status)

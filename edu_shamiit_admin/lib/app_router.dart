@@ -292,6 +292,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/my-profile',
             pageBuilder: (_, __) => const NoTransitionPage(child: MyProfileScreen()),
           ),
+          GoRoute(
+            path: '/admin/alerts-notifications',
+            pageBuilder: (_, __) => const NoTransitionPage(child: AlertsNotificationsScreen()),
+          ),
 
 
           GoRoute(

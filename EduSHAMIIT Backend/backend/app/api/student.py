@@ -2457,7 +2457,7 @@ async def change_password(request: dict, user=Depends(get_current_user)):
 
 
 @router.post("/logout")
-async def logout():
+async def logout(user=Depends(get_current_user)):
     return {"success": True, "message": "Logged out"}
 
 

@@ -133,6 +133,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/audit-log',
         section: NavSection.quickAccess),
     _NavItem(
+        icon: Icons.notifications_active_outlined,
+        label: 'Alerts & Notifications',
+        route: '/admin/alerts-notifications',
+        section: NavSection.quickAccess),
+    _NavItem(
         icon: Icons.campaign_outlined,
         label: 'Announcements',
         route: '/admin/announcements',

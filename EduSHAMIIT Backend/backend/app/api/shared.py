@@ -646,7 +646,7 @@ async def upload_message_file(
 
 
 @router.post("/user/logout")
-async def logout():
+async def logout(user=Depends(get_current_user)):
     return {"success": True, "message": "Logged out"}
 
 

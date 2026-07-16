@@ -1302,34 +1302,37 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("Resource Utilization (Average)", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
-          const SizedBox(height: 20),
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                final cpuVal = (_gauges['cpu'] ?? 42.0).toDouble();
-                final memVal = (_gauges['memory'] ?? 61.0).toDouble();
-                final diskVal = (_gauges['disk'] ?? 54.0).toDouble();
-                final netVal = (_gauges['network'] ?? 35.0).toDouble();
+          const SizedBox(height: 24),
+          Builder(
+            builder: (context) {
+              final cpuVal = (_gauges['cpu'] ?? 42.0).toDouble();
+              final memVal = (_gauges['memory'] ?? 61.0).toDouble();
+              final diskVal = (_gauges['disk'] ?? 54.0).toDouble();
+              final netVal = (_gauges['network'] ?? 35.0).toDouble();
 
-                String getStatus(double val) => val >= 85.0 ? "Critical" : (val >= 70.0 ? "Warning" : "Normal");
-                Color getColor(double val) => val >= 85.0 ? const Color(0xFFEF4444) : (val >= 70.0 ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
+              String getStatus(double val) => val >= 85.0 ? "Critical" : (val >= 70.0 ? "Warning" : "Normal");
+              Color getColor(double val) => val >= 85.0 ? const Color(0xFFEF4444) : (val >= 70.0 ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
 
-                return GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.35,
-                  children: [
-                    FittedBox(fit: BoxFit.scaleDown, child: _buildUtilGauge("CPU Usage", cpuVal, getStatus(cpuVal), getColor(cpuVal), isDark)),
-                    FittedBox(fit: BoxFit.scaleDown, child: _buildUtilGauge("Memory Usage", memVal, getStatus(memVal), getColor(memVal), isDark)),
-                    FittedBox(fit: BoxFit.scaleDown, child: _buildUtilGauge("Disk Usage", diskVal, getStatus(diskVal), getColor(diskVal), isDark)),
-                    FittedBox(fit: BoxFit.scaleDown, child: _buildUtilGauge("Network I/O", netVal, getStatus(netVal), getColor(netVal), isDark)),
-                  ],
-                );
-              }
-            ),
+              return Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(child: _buildUtilGauge("CPU Usage", cpuVal, getStatus(cpuVal), getColor(cpuVal), isDark)),
+                      Expanded(child: _buildUtilGauge("Memory Usage", memVal, getStatus(memVal), getColor(memVal), isDark)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(child: _buildUtilGauge("Disk Usage", diskVal, getStatus(diskVal), getColor(diskVal), isDark)),
+                      Expanded(child: _buildUtilGauge("Network I/O", netVal, getStatus(netVal), getColor(netVal), isDark)),
+                    ],
+                  ),
+                ],
+              );
+            }
           ),
         ],
       ),
@@ -1338,6 +1341,7 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
 
   Widget _buildUtilGauge(String label, double value, String status, Color color, bool isDark) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Stack(
           alignment: Alignment.center,
@@ -1372,7 +1376,11 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }
