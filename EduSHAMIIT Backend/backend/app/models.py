@@ -490,4 +490,19 @@ class SendLoginOtpRequest(BaseModel):
 class VerifyLoginOtpRequest(BaseModel):
     identifier: str
     otp: str
-    role: Optional[str] = None
+    role: Optional[str] = None
+
+
+class OnboardSchoolRequest(BaseModel):
+    """Request model for school onboarding"""
+    email: str
+    password: str
+    full_name: str
+    school_name: str
+    school_address: Optional[str] = None
+    school_phone: Optional[str] = None
+    board: Optional[str] = None
+    plan_code: str
+    billing_cycle: str
+    payment_method: str
+    payment_amount: float

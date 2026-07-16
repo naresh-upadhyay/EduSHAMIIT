@@ -1971,3 +1971,58 @@ async def get_infra_stats(
     }
 
 
+# ===========================================================
+# Superadmin School Onboarding Approvals
+# ===========================================================
+
+@router.get("/schools/pending",
+    summary="Get pending schools",
+    description="Retrieve all schools awaiting onboarding approval"
+)
+async def list_pending_schools(
+    user=Depends(require_super_admin_or_director),
+):
+    try:
+        sb = get_supabase()
+        res = await sb.table("schools").select("*").eq("subscription_status", "new").order("created_at").aexecute()
+        schools = res.data or []
+        return {"success": True, "data": {"schools": schools, "count": len(schools)}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch pending schools: {str(e)}")
+
+
+@router.post("/schools/{school_id}/approve",
+    summary="Approve a pending school",
+    description="Approve a school onboarding request and activate subscription status"
+)
+async def approve_school(
+    school_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    try:
+        sb = get_supabase()
+        
+        # Verify the school exists and is pending
+        school_res = await sb.table("schools").select("*").eq("id", school_id).maybe_single().aexecute()
+        if not school_res.data:
+            raise HTTPException(status_code=404, detail="School not found")
+            
+        school = school_res.data
+        if school.get("subscription_status") != "new":
+            return {"success": True, "message": "School is already approved or not pending."}
+            
+        # Update school status to active
+        update_res = await sb.table("schools").update({"subscription_status": "active"}).eq("id", school_id).aexecute()
+        if not update_res.data:
+            raise Exception("Failed to update school subscription status")
+            
+        return {
+            "success": True,
+            "message": f"School '{school.get('name')}' approved successfully and is now active."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to approve school: {str(e)}")
+
+

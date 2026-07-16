@@ -9,7 +9,7 @@ from app.models import (
     LoginRequest, RegisterRequest, RefreshRequest, SendOtpRequest, 
     VerifyOtpRequest, ResetPasswordRequest, LoginResponse, RegisterResponse,
     RefreshResponse, OtpResponse, VerifyOtpResponse, ResetPasswordResponse,
-    ErrorResponse, SendLoginOtpRequest, VerifyLoginOtpRequest
+    ErrorResponse, SendLoginOtpRequest, VerifyLoginOtpRequest, OnboardSchoolRequest
 )
 from jose import jwt
 from datetime import datetime, timedelta, timezone
@@ -296,6 +296,21 @@ async def login(request: LoginRequest):
         # profile.data is a dict (due to maybe_single in aexecute)
         p = profile.data
 
+        # Check school subscription status
+        role_lower = p.get("role", "").lower()
+        school_id = p.get("school_id")
+        if school_id and role_lower != "super_admin":
+            school_res = await sb.table("schools").select("subscription_status").eq("id", school_id).maybe_single().aexecute()
+            if school_res.data:
+                school_status = school_res.data.get("subscription_status")
+                if school_status:
+                    status_lower = school_status.lower()
+                    if status_lower in ("new", "expired"):
+                        raise HTTPException(
+                            status_code=403,
+                            detail=f"Access denied: School subscription is {status_lower}."
+                        )
+
         # Reset failed attempts on success
         await sb.table("profiles").update({
             "failed_login_attempts": 0,
@@ -478,6 +493,114 @@ async def register(request: RegisterRequest):
         raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
+@router.get("/plans",
+    summary="Get subscription plans",
+    description="List all available subscription plans for onboarding"
+)
+async def list_public_plans():
+    try:
+        sb = get_supabase()
+        res = await sb.table("subscription_plans").select("*").order("price_per_month").aexecute()
+        plans = res.data or []
+        return {"success": True, "data": {"plans": plans}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch plans: {str(e)}")
+
+
+@router.post("/onboard-school",
+    summary="Onboard a new school",
+    description="Register a new school, its initial admin, and setup subscription/payment"
+)
+async def onboard_school(request: OnboardSchoolRequest):
+    try:
+        sb = get_supabase()
+        
+        # 1. Check if email already registered
+        existing = await sb.table("profiles").select("id").eq("email", request.email).maybe_single().aexecute()
+        if existing.data:
+            raise HTTPException(status_code=400, detail="Email already exists")
+            
+        # 2. Validate password complexity
+        if len(request.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+            
+        # 3. Create a new school in schools table with subscription_status = 'new'
+        school_data = {
+            "name": request.school_name,
+            "address": request.school_address,
+            "phone": request.school_phone,
+            "board": request.board,
+            "subscription_status": "new",
+            "subscription_tier": request.plan_code,
+            "owner_name": request.full_name,
+            "owner_email": request.email,
+            "subscription_start_date": datetime.now(timezone.utc).isoformat(),
+            "subscription_end_date": (datetime.now(timezone.utc) + timedelta(days=365)).isoformat() if request.billing_cycle == "yearly" else (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        }
+        
+        school_res = await sb.table("schools").insert(school_data).aexecute()
+        if not school_res.data:
+            raise Exception("Failed to create school record")
+            
+        new_school = school_res.data[0]
+        school_id = new_school["id"]
+        
+        # 4. Create the admin user in Supabase auth
+        auth_response = await sb.auth().admin_create_user({
+            "email": request.email,
+            "password": request.password,
+            "app_metadata": {
+                "role": "admin"
+            }
+        })
+        user_id = auth_response.user.id
+        
+        # 5. Insert profile
+        generated_user_id = f"ADM-{uuid.uuid4().hex[:6].upper()}"
+        await sb.table("profiles").insert({
+            "id": user_id,
+            "school_id": school_id,
+            "user_id": generated_user_id,
+            "full_name": request.full_name,
+            "email": request.email,
+            "role": "admin",
+        }).aexecute()
+        
+        # 6. Insert mail subscription
+        await sb.table("school_mail_subscriptions").insert({
+            "school_id": school_id,
+            "enabled": True,
+            "pricing_model": "per_email",
+            "rate_per_unit": 0.10,
+            "monthly_limit": 5000,
+            "emails_sent": 0
+        }).aexecute()
+        
+        # 7. Insert payment record
+        await sb.table("payments").insert({
+            "school_id": school_id,
+            "amount": request.payment_amount,
+            "payment_method": request.payment_method,
+            "status": "success",
+            "description": f"Subscription payment for plan: {request.plan_code} ({request.billing_cycle})",
+            "initiated_by": user_id,
+            "transaction_id": f"TXN-{uuid.uuid4().hex[:8].upper()}"
+        }).aexecute()
+        
+        return {
+            "success": True,
+            "message": "School registered successfully. Pending superadmin approval.",
+            "data": {
+                "school_id": school_id,
+                "user_id": user_id
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Onboarding failed: {str(e)}")
+
+
 @router.post("/refresh",
     summary="Token Refresh",
     description="Refresh JWT token using refresh token",
@@ -532,6 +655,22 @@ async def refresh_token(request: RefreshRequest):
         profile = await sb.table("profiles").select("*").eq("id", auth_response.user.id).single().aexecute()
 
         p = profile.data
+
+        # Check school subscription status
+        role_lower = p.get("role", "").lower()
+        school_id = p.get("school_id")
+        if school_id and role_lower != "super_admin":
+            school_res = await sb.table("schools").select("subscription_status").eq("id", school_id).maybe_single().aexecute()
+            if school_res.data:
+                school_status = school_res.data.get("subscription_status")
+                if school_status:
+                    status_lower = school_status.lower()
+                    if status_lower in ("new", "expired"):
+                        raise HTTPException(
+                            status_code=403,
+                            detail=f"Access denied: School subscription is {status_lower}."
+                        )
+
         token = jwt.encode(
             {
                 "sub": auth_response.user.id,
@@ -1060,6 +1199,21 @@ async def send_login_otp(request: SendLoginOtpRequest):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
             
+        # Check school subscription status
+        role_lower = user.get("role", "").lower()
+        school_id = user.get("school_id")
+        if school_id and role_lower != "super_admin":
+            school_res = await sb.table("schools").select("subscription_status").eq("id", school_id).maybe_single().aexecute()
+            if school_res.data:
+                school_status = school_res.data.get("subscription_status")
+                if school_status:
+                    status_lower = school_status.lower()
+                    if status_lower in ("new", "expired"):
+                        raise HTTPException(
+                            status_code=403,
+                            detail=f"Access denied: School subscription is {status_lower}."
+                        )
+            
         user_id = user["id"]
         user_email = user.get("email") or (request.identifier if "@" in request.identifier else None)
         
@@ -1106,6 +1260,21 @@ async def verify_login_otp(request: VerifyLoginOtpRequest):
         user = await find_user_by_identifier(sb, request.identifier)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
+            
+        # Check school subscription status
+        role_lower = user.get("role", "").lower()
+        school_id = user.get("school_id")
+        if school_id and role_lower != "super_admin":
+            school_res = await sb.table("schools").select("subscription_status").eq("id", school_id).maybe_single().aexecute()
+            if school_res.data:
+                school_status = school_res.data.get("subscription_status")
+                if school_status:
+                    status_lower = school_status.lower()
+                    if status_lower in ("new", "expired"):
+                        raise HTTPException(
+                            status_code=403,
+                            detail=f"Access denied: School subscription is {status_lower}."
+                        )
             
         user_id = user["id"]
         

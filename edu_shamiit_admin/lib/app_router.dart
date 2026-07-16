@@ -50,7 +50,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           path == '/otp-verification' ||
           path == '/reset-password' ||
           path == '/password-reset-success' ||
-          path == '/contact';
+          path == '/contact' ||
+          path == '/privacy-policy' ||
+          path == '/terms-conditions' ||
+          path == '/get-started' ||
+          path == '/faq' ||
+          path == '/user-guides' ||
+          path == '/help-center';
 
       if (!loggedIn && !isPublic) {
         return '/login';
@@ -78,6 +84,60 @@ final routerProvider = Provider<GoRouter>((ref) {
           systemName: config?.systemName,
           systemLogo: config?.systemLogo,
           illustrationUrl: 'assets/images/contact_illustration.png',
+        ),
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        builder: (context, state) => SharedPrivacyPolicyScreen(
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+          illustrationUrl: 'assets/images/privacy_illustration.png',
+        ),
+      ),
+      GoRoute(
+        path: '/terms-conditions',
+        builder: (context, state) => SharedTermsConditionsScreen(
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+          illustrationUrl: 'assets/images/terms_illustration.png',
+        ),
+      ),
+      GoRoute(
+        path: '/get-started',
+        builder: (context, state) => SharedGetStartedScreen(
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+        ),
+      ),
+      GoRoute(
+        path: '/faq',
+        builder: (context, state) => SharedFaqScreen(
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+          illustrationUrl: 'assets/images/faq_illustration.png',
+        ),
+      ),
+      GoRoute(
+        path: '/user-guides',
+        builder: (context, state) {
+          final category = state.uri.queryParameters['category'];
+          final article = state.uri.queryParameters['article'];
+          return SharedUserGuidesScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: 'assets/images/user_guide_illustration.png',
+            videoIllustrationUrl: 'assets/images/video_tutorials_illustration.png',
+            initialCategory: category,
+            initialArticleId: article,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/help-center',
+        builder: (context, state) => SharedHelpCenterScreen(
+          systemName: config?.systemName,
+          systemLogo: config?.systemLogo,
+          illustrationUrl: 'assets/images/help_center_illustration.png',
         ),
       ),
       GoRoute(

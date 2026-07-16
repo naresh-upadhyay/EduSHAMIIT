@@ -208,7 +208,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: () => context.go('/contact'),
+                onPressed: () => context.go('/get-started'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
@@ -299,6 +299,14 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
           _buildDrawerItem(Icons.mail_outline, 'Contact Us', () {
             Navigator.pop(context);
             context.go('/contact');
+          }),
+          _buildDrawerItem(Icons.help_outline, 'FAQ', () {
+            Navigator.pop(context);
+            context.go('/faq');
+          }),
+          _buildDrawerItem(Icons.menu_book_outlined, 'Help Center', () {
+            Navigator.pop(context);
+            context.go('/help-center');
           }),
           const Divider(),
           Padding(
@@ -1040,7 +1048,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton(
-                  onPressed: () => context.go('/contact'),
+                  onPressed: () => context.go('/get-started'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white),
@@ -1085,7 +1093,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: () => context.go('/contact'),
+                  onPressed: () => context.go('/get-started'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white),
@@ -1157,7 +1165,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                 const SizedBox(width: 48),
                 Expanded(
                   flex: 2,
-                  child: _buildFooterColumn('Quick Links', const ['Home', 'Features', 'Modules', 'Pricing', 'About Us', 'Contact Us']),
+                  child: _buildFooterColumn('Quick Links', const ['Home', 'Features', 'Modules', 'Pricing', 'About Us', 'Contact Us', 'FAQ', 'Help Center']),
                 ),
                 const SizedBox(width: 32),
                 Expanded(
@@ -1204,7 +1212,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
               children: [
                 SizedBox(
                   width: 180,
-                  child: _buildFooterColumn('Quick Links', const ['Home', 'Features', 'Modules', 'Pricing', 'About Us', 'Contact Us']),
+                  child: _buildFooterColumn('Quick Links', const ['Home', 'Features', 'Modules', 'Pricing', 'About Us', 'Contact Us', 'FAQ', 'Help Center']),
                 ),
                 SizedBox(
                   width: 220,
@@ -1305,6 +1313,16 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                     _scrollToSection(_pricingKey);
                   } else if (item == 'About Us') {
                     _scrollToSection(_aboutKey);
+                  } else if (item == 'Privacy Policy') {
+                    context.go('/privacy-policy');
+                  } else if (item == 'Terms & Conditions') {
+                    context.go('/terms-conditions');
+                  } else if (item == 'FAQ' || item == 'FAQ\'s') {
+                    context.go('/faq');
+                  } else if (item == 'Help Center') {
+                    context.go('/help-center');
+                  } else if (item == 'User Guides') {
+                    context.go('/user-guides');
                   }
                 },
                 child: Text(
