@@ -105,6 +105,23 @@ class _AdminSystemConfigScreenState
   final _smtpPortController = TextEditingController();
   final _twilioSenderController = TextEditingController();
 
+  // Footer Settings
+  final _footerDescController = TextEditingController();
+  final _footerCopyrightController = TextEditingController();
+  final _newQuickLinkLabelController = TextEditingController();
+  final _newQuickLinkUrlController = TextEditingController();
+  final _newModuleLabelController = TextEditingController();
+  final _newModuleUrlController = TextEditingController();
+  final _newSupportLabelController = TextEditingController();
+  final _newSupportUrlController = TextEditingController();
+  final _newSocialPlatformController = TextEditingController();
+  final _newSocialUrlController = TextEditingController();
+
+  List<FooterLink> _footerQuickLinks = [];
+  List<FooterLink> _footerModules = [];
+  List<FooterLink> _footerSupport = [];
+  List<FooterSocialLink> _footerSocialLinks = [];
+
   // Basic Info States
   String _defaultLanguage = "English";
   String _defaultTimezone = "(UTC+05:30) Asia/Kolkata";
@@ -165,6 +182,16 @@ class _AdminSystemConfigScreenState
     _forgotPasswordIllustrationController.dispose();
     _resetPasswordIllustrationController.dispose();
     _otpVerificationIllustrationController.dispose();
+    _footerDescController.dispose();
+    _footerCopyrightController.dispose();
+    _newQuickLinkLabelController.dispose();
+    _newQuickLinkUrlController.dispose();
+    _newModuleLabelController.dispose();
+    _newModuleUrlController.dispose();
+    _newSupportLabelController.dispose();
+    _newSupportUrlController.dispose();
+    _newSocialPlatformController.dispose();
+    _newSocialUrlController.dispose();
     super.dispose();
   }
 
@@ -496,6 +523,42 @@ class _AdminSystemConfigScreenState
           _loginFeature4Controller.text = _appearanceSettings['login_feature4'] ?? 'Centralized Management';
 
           _loginIllustrationController.text = _appearanceSettings['login_illustration'] ?? '';
+          
+          final footer = _appearanceSettings['footer'] ?? {};
+          _footerDescController.text = footer['description'] ?? 'An all-in-one school management system designed to simplify administration, improve communication and enhance overall efficiency.';
+          _footerCopyrightController.text = footer['copyright'] ?? '© 2025 \$name. All rights reserved.';
+          
+          if (footer['quick_links'] != null) {
+            _footerQuickLinks = (footer['quick_links'] as List)
+                .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+                .toList();
+          } else {
+            _footerQuickLinks = List<FooterLink>.from(AppConfig.footerQuickLinks);
+          }
+          
+          if (footer['modules'] != null) {
+            _footerModules = (footer['modules'] as List)
+                .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+                .toList();
+          } else {
+            _footerModules = List<FooterLink>.from(AppConfig.footerModules);
+          }
+          
+          if (footer['support'] != null) {
+            _footerSupport = (footer['support'] as List)
+                .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+                .toList();
+          } else {
+            _footerSupport = List<FooterLink>.from(AppConfig.footerSupport);
+          }
+
+          if (footer['social_links'] != null) {
+            _footerSocialLinks = (footer['social_links'] as List)
+                .map((item) => FooterSocialLink.fromJson(Map<String, dynamic>.from(item)))
+                .toList();
+          } else {
+            _footerSocialLinks = List<FooterSocialLink>.from(AppConfig.footerSocialLinks);
+          }
           _forgotPasswordIllustrationController.text = _appearanceSettings['forgot_password_illustration'] ?? '';
           _resetPasswordIllustrationController.text = _appearanceSettings['reset_password_illustration'] ?? '';
           _otpVerificationIllustrationController.text = _appearanceSettings['otp_verification_illustration'] ?? '';
@@ -562,6 +625,16 @@ class _AdminSystemConfigScreenState
     _appearanceSettings['login_feature4'] = _loginFeature4Controller.text.trim();
 
     _appearanceSettings['login_illustration'] = _loginIllustrationController.text.trim();
+
+    final footer = {
+      'description': _footerDescController.text.trim(),
+      'copyright': _footerCopyrightController.text.trim(),
+      'quick_links': _footerQuickLinks.map((e) => e.toJson()).toList(),
+      'modules': _footerModules.map((e) => e.toJson()).toList(),
+      'support': _footerSupport.map((e) => e.toJson()).toList(),
+      'social_links': _footerSocialLinks.map((e) => e.toJson()).toList(),
+    };
+    _appearanceSettings['footer'] = footer;
     _appearanceSettings['forgot_password_illustration'] = _forgotPasswordIllustrationController.text.trim();
     _appearanceSettings['reset_password_illustration'] = _resetPasswordIllustrationController.text.trim();
     _appearanceSettings['otp_verification_illustration'] = _otpVerificationIllustrationController.text.trim();
@@ -1361,6 +1434,7 @@ class _AdminSystemConfigScreenState
       {"label": "Backup & Restore", "icon": Icons.backup_rounded},
       {"label": "Advanced", "icon": Icons.settings_suggest_rounded},
       {"label": "Login Page", "icon": Icons.login_rounded},
+      {"label": "Footer Settings", "icon": Icons.view_headline_rounded},
     ];
 
     return SingleChildScrollView(
@@ -1438,6 +1512,8 @@ class _AdminSystemConfigScreenState
         return _buildAdvancedTab(isDark);
       case 9:
         return _buildLoginPageTab(isDark);
+      case 10:
+        return _buildFooterTab(isDark);
       default:
         return _buildGeneralSettingsTab(isDark);
     }
@@ -3072,6 +3148,713 @@ class _AdminSystemConfigScreenState
           ],
         ),
       ),
+    );
+  }
+
+  Color _getSocialBrandColor(String platform) {
+    switch (platform.toLowerCase().trim()) {
+      case 'facebook':
+        return const Color(0xFF1877F2);
+      case 'instagram':
+        return const Color(0xFFE4405F);
+      case 'twitter':
+      case 'x':
+        return const Color(0xFF1DA1F2);
+      case 'email':
+      case 'mail':
+        return const Color(0xFF6366F1);
+      case 'youtube':
+      case 'play':
+        return const Color(0xFFFF0000);
+      case 'linkedin':
+        return const Color(0xFF0A66C2);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  void _showEditLinkDialog(int index, String columnTitle, List<FooterLink> list) {
+    final link = list[index];
+    final labelController = TextEditingController(text: link.label);
+    final urlController = TextEditingController(text: link.url);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Edit Link in $columnTitle"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelController,
+                decoration: const InputDecoration(labelText: "Link Label"),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(labelText: "Target URL / Route"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final label = labelController.text.trim();
+                final url = urlController.text.trim();
+                if (label.isNotEmpty && url.isNotEmpty) {
+                  setState(() {
+                    list[index] = FooterLink(label: label, url: url);
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditSocialLinkDialog(int index) {
+    final item = _footerSocialLinks[index];
+    final platformController = TextEditingController(text: item.platform);
+    final urlController = TextEditingController(text: item.url);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Edit Social Connection"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: platformController,
+                decoration: const InputDecoration(labelText: "Platform Name"),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(labelText: "Target URL"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final platform = platformController.text.trim();
+                final url = urlController.text.trim();
+                if (platform.isNotEmpty && url.isNotEmpty) {
+                  setState(() {
+                    _footerSocialLinks[index] = FooterSocialLink(platform: platform, url: url);
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFooterTab(bool isDark) {
+    final isMobile = _isMobile;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildConfigCard(
+          isDark,
+          title: "Footer Information",
+          subtitle: "Customize the description text and the copyright / all-rights-reserved information.",
+          child: Column(
+            children: [
+              _buildInputField(
+                "Footer Description",
+                _footerDescController,
+                isDark,
+                "Enter footer description...",
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              _buildInputField(
+                "Copyright Text (Use \$name placeholder for dynamic institution name)",
+                _footerCopyrightController,
+                isDark,
+                "e.g., © 2025 \$name. All rights reserved.",
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildConfigCard(
+          isDark,
+          title: "Social Media Links (Drag to Reorder)",
+          subtitle: "Configure platform connections and external target URLs in the footer. Drag handles to reorder them immediately.",
+          child: Column(
+            children: [
+              Container(
+                constraints: const BoxConstraints(maxHeight: 280),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: _footerSocialLinks.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            "No social media connections added",
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    : ReorderableListView.builder(
+                        shrinkWrap: true,
+                        physics: const ClampingScrollPhysics(),
+                        buildDefaultDragHandles: false,
+                        itemCount: _footerSocialLinks.length,
+                        onReorder: (oldIndex, newIndex) {
+                          setState(() {
+                            if (oldIndex < newIndex) {
+                              newIndex -= 1;
+                            }
+                            final item = _footerSocialLinks.removeAt(oldIndex);
+                            _footerSocialLinks.insert(newIndex, item);
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          final item = _footerSocialLinks[index];
+                          return Container(
+                            key: ValueKey("social_${index}_${item.platform}"),
+                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: const MouseRegion(
+                                    cursor: SystemMouseCursors.grab,
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4),
+                                      child: Icon(Icons.drag_indicator_rounded, size: 20, color: Colors.grey),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _getSocialBrandColor(item.platform).withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _getSocialIcon(item.platform),
+                                    size: 18,
+                                    color: _getSocialBrandColor(item.platform),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.platform.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.url,
+                                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blueAccent),
+                                      onPressed: () => _showEditSocialLinkDialog(index),
+                                      tooltip: "Edit Connection",
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                      onPressed: () {
+                                        setState(() {
+                                          _footerSocialLinks.removeAt(index);
+                                        });
+                                      },
+                                      tooltip: "Delete Connection",
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _newSocialPlatformController,
+                      decoration: InputDecoration(
+                        hintText: "Platform (e.g. facebook, email)",
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 4,
+                    child: TextField(
+                      controller: _newSocialUrlController,
+                      decoration: InputDecoration(
+                        hintText: "Target URL (e.g. https://facebook.com/...)",
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final platform = _newSocialPlatformController.text.trim();
+                      final url = _newSocialUrlController.text.trim();
+                      if (platform.isNotEmpty && url.isNotEmpty) {
+                        setState(() {
+                          _footerSocialLinks.add(FooterSocialLink(platform: platform, url: url));
+                          _newSocialPlatformController.clear();
+                          _newSocialUrlController.clear();
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    child: const Icon(Icons.add, size: 14, color: Colors.white),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildConfigCard(
+          isDark,
+          title: "Footer Columns Manager (Drag to Reorder)",
+          subtitle: "Manage dynamic links displayed in the Quick Links, Modules, and Support columns. Drag handles to reorder them.",
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (isMobile) {
+                return Column(
+                  children: [
+                    _buildLinkManagerColumn(
+                      "Quick Links",
+                      _footerQuickLinks,
+                      _newQuickLinkLabelController,
+                      _newQuickLinkUrlController,
+                      () {
+                        final label = _newQuickLinkLabelController.text.trim();
+                        final url = _newQuickLinkUrlController.text.trim();
+                        if (label.isNotEmpty && url.isNotEmpty) {
+                          setState(() {
+                            _footerQuickLinks.add(FooterLink(label: label, url: url));
+                            _newQuickLinkLabelController.clear();
+                            _newQuickLinkUrlController.clear();
+                          });
+                        }
+                      },
+                      (idx) {
+                        setState(() {
+                          _footerQuickLinks.removeAt(idx);
+                        });
+                      },
+                      isDark,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildLinkManagerColumn(
+                      "Modules",
+                      _footerModules,
+                      _newModuleLabelController,
+                      _newModuleUrlController,
+                      () {
+                        final label = _newModuleLabelController.text.trim();
+                        final url = _newModuleUrlController.text.trim();
+                        if (label.isNotEmpty && url.isNotEmpty) {
+                          setState(() {
+                            _footerModules.add(FooterLink(label: label, url: url));
+                            _newModuleLabelController.clear();
+                            _newModuleUrlController.clear();
+                          });
+                        }
+                      },
+                      (idx) {
+                        setState(() {
+                          _footerModules.removeAt(idx);
+                        });
+                      },
+                      isDark,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildLinkManagerColumn(
+                      "Support",
+                      _footerSupport,
+                      _newSupportLabelController,
+                      _newSupportUrlController,
+                      () {
+                        final label = _newSupportLabelController.text.trim();
+                        final url = _newSupportUrlController.text.trim();
+                        if (label.isNotEmpty && url.isNotEmpty) {
+                          setState(() {
+                            _footerSupport.add(FooterLink(label: label, url: url));
+                            _newSupportLabelController.clear();
+                            _newSupportUrlController.clear();
+                          });
+                        }
+                      },
+                      (idx) {
+                        setState(() {
+                          _footerSupport.removeAt(idx);
+                        });
+                      },
+                      isDark,
+                    ),
+                  ],
+                );
+              } else {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildLinkManagerColumn(
+                        "Quick Links",
+                        _footerQuickLinks,
+                        _newQuickLinkLabelController,
+                        _newQuickLinkUrlController,
+                        () {
+                          final label = _newQuickLinkLabelController.text.trim();
+                          final url = _newQuickLinkUrlController.text.trim();
+                          if (label.isNotEmpty && url.isNotEmpty) {
+                            setState(() {
+                              _footerQuickLinks.add(FooterLink(label: label, url: url));
+                              _newQuickLinkLabelController.clear();
+                              _newQuickLinkUrlController.clear();
+                            });
+                          }
+                        },
+                        (idx) {
+                          setState(() {
+                            _footerQuickLinks.removeAt(idx);
+                          });
+                        },
+                        isDark,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: _buildLinkManagerColumn(
+                        "Modules",
+                        _footerModules,
+                        _newModuleLabelController,
+                        _newModuleUrlController,
+                        () {
+                          final label = _newModuleLabelController.text.trim();
+                          final url = _newModuleUrlController.text.trim();
+                          if (label.isNotEmpty && url.isNotEmpty) {
+                            setState(() {
+                              _footerModules.add(FooterLink(label: label, url: url));
+                              _newModuleLabelController.clear();
+                              _newModuleUrlController.clear();
+                            });
+                          }
+                        },
+                        (idx) {
+                          setState(() {
+                            _footerModules.removeAt(idx);
+                          });
+                        },
+                        isDark,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: _buildLinkManagerColumn(
+                        "Support",
+                        _footerSupport,
+                        _newSupportLabelController,
+                        _newSupportUrlController,
+                        () {
+                          final label = _newSupportLabelController.text.trim();
+                          final url = _newSupportUrlController.text.trim();
+                          if (label.isNotEmpty && url.isNotEmpty) {
+                            setState(() {
+                              _footerSupport.add(FooterLink(label: label, url: url));
+                              _newSupportLabelController.clear();
+                              _newSupportUrlController.clear();
+                            });
+                          }
+                        },
+                        (idx) {
+                          setState(() {
+                            _footerSupport.removeAt(idx);
+                          });
+                        },
+                        isDark,
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  IconData _getSocialIcon(String platform) {
+    switch (platform.toLowerCase().trim()) {
+      case 'facebook':
+        return Icons.facebook;
+      case 'instagram':
+        return Icons.camera_alt;
+      case 'twitter':
+      case 'x':
+        return Icons.close;
+      case 'email':
+      case 'mail':
+        return Icons.alternate_email;
+      case 'youtube':
+      case 'play':
+        return Icons.play_circle_filled;
+      case 'linkedin':
+        return Icons.business;
+      default:
+        return Icons.link;
+    }
+  }
+
+  Widget _buildLinkManagerColumn(
+    String title,
+    List<FooterLink> links,
+    TextEditingController labelController,
+    TextEditingController urlController,
+    VoidCallback onAdd,
+    Function(int) onDelete,
+    bool isDark,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "$title (${links.length})",
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF6366F1),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 280),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: links.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      "No links added",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ),
+                )
+              : ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  itemCount: links.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (oldIndex < newIndex) {
+                        newIndex -= 1;
+                      }
+                      final item = links.removeAt(oldIndex);
+                      links.insert(newIndex, item);
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final item = links[index];
+                    return Container(
+                      key: ValueKey("link_${title}_${index}_${item.label}"),
+                      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          ReorderableDragStartListener(
+                            index: index,
+                            child: const MouseRegion(
+                              cursor: SystemMouseCursors.grab,
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4),
+                                child: Icon(Icons.drag_indicator_rounded, size: 20, color: Colors.grey),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.label,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.url,
+                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blueAccent),
+                                onPressed: () => _showEditLinkDialog(index, title, links),
+                                tooltip: "Edit Link",
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                onPressed: () => onDelete(index),
+                                tooltip: "Delete Link",
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: [
+            TextField(
+              controller: labelController,
+              decoration: InputDecoration(
+                hintText: "Link Label (e.g. Home)",
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+              style: const TextStyle(fontSize: 11),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: urlController,
+                    decoration: InputDecoration(
+                      hintText: "Target URL (e.g. /faq)",
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: onAdd,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                  child: const Icon(Icons.add, size: 14, color: Colors.white),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

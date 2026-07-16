@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 
@@ -41,6 +42,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   List<dynamic> _announcements = [];
   List<dynamic> _schools = [];
   List<dynamic> _roles = [];
+  List<dynamic> _recentAnnouncements = [];
   Map<String, dynamic> _stats = {
     "total": 0,
     "published": 0,
@@ -75,8 +77,28 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     super.initState();
     _fetchStats();
     _fetchAnnouncements();
+    _fetchRecentAnnouncements();
     _fetchSchools();
     _fetchRoles();
+  }
+
+  Future<void> _fetchRecentAnnouncements() async {
+    try {
+      final res = await ApiService().get('/admin/announcements?page=1&page_size=4', useCache: false);
+      if (res['success'] == true) {
+        setState(() {
+          _recentAnnouncements = res['data']['announcements'] ?? [];
+        });
+      }
+    } catch (e) {
+      print("Error fetching recent announcements: $e");
+    }
+  }
+
+  void _refreshData() {
+    _fetchStats();
+    _fetchAnnouncements();
+    _fetchRecentAnnouncements();
   }
 
   @override
@@ -260,8 +282,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         setState(() {
           _isCreatingOrEditing = false;
         });
-        _fetchStats();
-        _fetchAnnouncements();
+        _refreshData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -290,8 +311,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     try {
       final res = await ApiService().delete('/admin/announcements/$id');
       if (res['success'] == true) {
-        _fetchStats();
-        _fetchAnnouncements();
+        _refreshData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1167,27 +1187,36 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
             final key = breakdown.keys.elementAt(idx);
             final val = breakdown[key];
             final pct = total > 0 ? (val / total * 100).toStringAsFixed(2) : "0.00";
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: colors[idx % colors.length],
-                          shape: BoxShape.circle,
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedAudience = key.toUpperCase();
+                  _currentPage = 1;
+                });
+                _fetchAnnouncements();
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: colors[idx % colors.length],
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                  Text("$val ($pct%)", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                ],
+                        const SizedBox(width: 8),
+                        Text(key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    Text("$val ($pct%)", style: const TextStyle(fontSize: 11, color: const Color(0xFF64748B))),
+                  ],
+                ),
               ),
             );
           }),
@@ -1197,7 +1226,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   }
 
   Widget _buildRecentAnnouncements(bool isDark) {
-    final recent = _announcements.take(4).toList();
+    final recent = _recentAnnouncements;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1220,38 +1249,41 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, idx) {
                     final ann = recent[idx];
-                    return Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
+                    return InkWell(
+                      onTap: () => _openEditForm(ann),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.campaign_rounded, color: Color(0xFF4F46E5), size: 14),
                           ),
-                          child: const Icon(Icons.campaign_rounded, color: Color(0xFF4F46E5), size: 14),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                ann['title'] ?? "",
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                ann['published_at'] != null 
-                                  ? DateFormat('MMM dd, yyyy').format(DateTime.parse(ann['published_at']).toLocal())
-                                  : "Draft",
-                                style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
-                              ),
-                            ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  ann['title'] ?? "",
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  ann['published_at'] != null 
+                                    ? DateFormat('MMM dd, yyyy').format(DateTime.parse(ann['published_at']).toLocal())
+                                    : "Draft",
+                                  style: const TextStyle(fontSize: 9, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        _buildStatusBadge(ann['status']),
-                      ],
+                          _buildStatusBadge(ann['status']),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -1286,9 +1318,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   Widget _buildQuickActionTile(String title, String desc, IconData icon, bool isDark) {
     return InkWell(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("$title is a template action")),
-        );
+        if (title == "Announcement Templates") {
+          _showTemplatesDialog();
+        } else if (title == "Audience Groups") {
+          _showAudienceGroupsDialog();
+        } else if (title == "Notification Settings") {
+          context.go('/admin/alerts-notifications');
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1308,6 +1344,156 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
             ),
             const Icon(Icons.chevron_right_rounded, size: 16, color: Color(0xFF64748B)),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showTemplatesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+        final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+        final subtitleColor = isDark ? Colors.white60 : const Color(0xFF64748B);
+        
+        final templates = [
+          {
+            "title": "Sports Day Announcement",
+            "description": "Annual sports day will be held on June 20 at main ground. Attend and support!",
+            "audience": ["STUDENT", "TEACHER"],
+            "priority": "Low",
+            "status": "Scheduled"
+          },
+          {
+            "title": "PTM Schedule Notice",
+            "description": "Parent Teacher Meeting is scheduled for next Saturday from 9 AM to 1 PM.",
+            "audience": ["PARENT", "ADMIN"],
+            "priority": "Medium",
+            "status": "Published"
+          },
+          {
+            "title": "Holiday Notice",
+            "description": "School will remain closed on upcoming Monday on account of national holiday.",
+            "audience": ["STUDENT", "TEACHER", "PARENT"],
+            "priority": "High",
+            "status": "Scheduled"
+          },
+          {
+            "title": "Staff Meeting Invitation",
+            "description": "Weekly staff review meeting is scheduled on Friday at 3:00 PM in conference hall.",
+            "audience": ["TEACHER"],
+            "priority": "Medium",
+            "status": "Draft"
+          }
+        ];
+
+        return AlertDialog(
+          backgroundColor: cardColor,
+          title: Text("Select Announcement Template", style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+          content: SizedBox(
+            width: 400,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: templates.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, idx) {
+                final t = templates[idx];
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(t['title'] as String, style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                  subtitle: Text(t['description'] as String, style: TextStyle(color: subtitleColor, fontSize: 10), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 10),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _openCreateForm();
+                    // Populate fields
+                    _formControllers.title.text = t['title'] as String;
+                    _formControllers.description.text = t['description'] as String;
+                    setState(() {
+                      _formAudiences = List<String>.from(t['audience'] as List);
+                      _formPriority = t['priority'] as String;
+                      _formStatus = t['status'] as String;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Template '${t['title']}' loaded!"),
+                        backgroundColor: const Color(0xFF4F46E5),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel", style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAudienceGroupsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+        final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+        final subtitleColor = isDark ? Colors.white60 : const Color(0xFF64748B);
+        
+        final breakdown = Map<String, dynamic>.from(_stats['audience_breakdown'] ?? {});
+        
+        return AlertDialog(
+          backgroundColor: cardColor,
+          title: Text("Audience Groups Overview", style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'Outfit')),
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildGroupTile("Students", breakdown['Student'] ?? 0, Icons.school_outlined, textColor, subtitleColor),
+                const Divider(),
+                _buildGroupTile("Teachers", breakdown['Teacher'] ?? 0, Icons.people_outline, textColor, subtitleColor),
+                const Divider(),
+                _buildGroupTile("Parents", breakdown['Parent'] ?? 0, Icons.family_restroom_outlined, textColor, subtitleColor),
+                const Divider(),
+                _buildGroupTile("Admins", breakdown['Admin'] ?? 0, Icons.admin_panel_settings_outlined, textColor, subtitleColor),
+                const Divider(),
+                _buildGroupTile("Directors", breakdown['Director'] ?? 0, Icons.work_outline, textColor, subtitleColor),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Close", style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGroupTile(String name, int count, IconData icon, Color textColor, Color subtitleColor) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: const Color(0xFF4F46E5), size: 16),
+      title: Text(name, style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold)),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          "$count Active",
+          style: const TextStyle(color: Color(0xFF4F46E5), fontSize: 9, fontWeight: FontWeight.bold),
         ),
       ),
     );

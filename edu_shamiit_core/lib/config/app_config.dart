@@ -7,6 +7,39 @@ class AppConfig {
   static String contactPhone = '+91 98765 43210';
   static String contactAddress = 'School ERP Solutions Pvt. Ltd., Plot No. 123, Tech Park, Sector 62, Noida, Uttar Pradesh - 201309, India';
   static String liveChatInfo = 'Available in the application';
+  static String footerDesc = 'An all-in-one school management system designed to simplify administration, improve communication and enhance overall efficiency.';
+  static String footerCopyright = '© 2025 School ERP. All rights reserved.';
+  static List<FooterLink> footerQuickLinks = [
+    FooterLink(label: 'Home', url: '/'),
+    FooterLink(label: 'Features', url: '/#features'),
+    FooterLink(label: 'Modules', url: '/#modules'),
+    FooterLink(label: 'Pricing', url: '/#pricing'),
+    FooterLink(label: 'About Us', url: '/#about'),
+    FooterLink(label: 'Contact Us', url: '/contact'),
+    FooterLink(label: 'FAQ', url: '/faq'),
+    FooterLink(label: 'Help Center', url: '/help-center'),
+  ];
+  static List<FooterLink> footerModules = [
+    FooterLink(label: 'Student Management', url: '/'),
+    FooterLink(label: 'Attendance Management', url: '/'),
+    FooterLink(label: 'Examination Management', url: '/'),
+    FooterLink(label: 'Fee Management', url: '/'),
+    FooterLink(label: 'Transport Management', url: '/'),
+    FooterLink(label: 'Library Management', url: '/'),
+  ];
+  static List<FooterLink> footerSupport = [
+    FooterLink(label: 'Help Center', url: '/help-center'),
+    FooterLink(label: 'User Guides', url: '/user-guides'),
+    FooterLink(label: 'FAQ\'s', url: '/faq'),
+    FooterLink(label: 'Privacy Policy', url: '/privacy-policy'),
+    FooterLink(label: 'Terms & Conditions', url: '/terms-conditions'),
+  ];
+  static List<FooterSocialLink> footerSocialLinks = [
+    FooterSocialLink(platform: 'facebook', url: 'https://facebook.com'),
+    FooterSocialLink(platform: 'instagram', url: 'https://instagram.com'),
+    FooterSocialLink(platform: 'email', url: 'mailto:support@schoolerp.com'),
+    FooterSocialLink(platform: 'youtube', url: 'https://youtube.com'),
+  ];
   // ─── Dynamic host detection ───────────────────────────────────────────────
   // On Flutter Web, reads window.location.hostname so the app works from any
   // device on the LAN (e.g. http://192.168.1.10:63305) not just localhost.
@@ -140,4 +173,32 @@ class AppConfig {
   static const bool enableAnalytics = true;
   static const bool enableCrashReporting = true;
   static const bool enableOfflineMode = true;
+}
+
+class FooterLink {
+  final String label;
+  final String url;
+  FooterLink({required this.label, required this.url});
+
+  Map<String, dynamic> toJson() => {'label': label, 'url': url};
+  factory FooterLink.fromJson(Map<String, dynamic> json) {
+    return FooterLink(
+      label: json['label'] ?? '',
+      url: json['url'] ?? '',
+    );
+  }
+}
+
+class FooterSocialLink {
+  final String platform;
+  final String url;
+  FooterSocialLink({required this.platform, required this.url});
+
+  Map<String, dynamic> toJson() => {'platform': platform, 'url': url};
+  factory FooterSocialLink.fromJson(Map<String, dynamic> json) {
+    return FooterSocialLink(
+      platform: json['platform'] ?? '',
+      url: json['url'] ?? '',
+    );
+  }
 }

@@ -99,7 +99,7 @@ async def list_announcements(
     if priority and priority != "All Priority":
         q = q.eq("priority", priority)
     if audience and audience != "All Audience":
-        q = q.contains("audience", [audience])
+        q = q.contains("audience", f"{{{audience.lower()}}}")
     if school_id and school_id != "All Institutions":
         if school_id == "Global":
             q = q.is_("school_id", "null")

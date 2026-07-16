@@ -35,7 +35,6 @@ class RouterNotifier extends ChangeNotifier {
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final config = ref.watch(systemConfigProvider);
   final notifier = RouterNotifier(ref);
 
   return GoRouter(
@@ -70,10 +69,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => SharedHomeScreen(
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedHomeScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+          );
+        },
       ),
       GoRoute(
         path: '/login',
@@ -81,46 +83,62 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/contact',
-        builder: (context, state) => SharedContactUsScreen(
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-          illustrationUrl: 'assets/images/contact_illustration.png',
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedContactUsScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: 'assets/images/contact_illustration.png',
+          );
+        },
       ),
       GoRoute(
         path: '/privacy-policy',
-        builder: (context, state) => SharedPrivacyPolicyScreen(
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-          illustrationUrl: 'assets/images/privacy_illustration.png',
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedPrivacyPolicyScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: 'assets/images/privacy_illustration.png',
+          );
+        },
       ),
       GoRoute(
         path: '/terms-conditions',
-        builder: (context, state) => SharedTermsConditionsScreen(
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-          illustrationUrl: 'assets/images/terms_illustration.png',
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedTermsConditionsScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: 'assets/images/terms_illustration.png',
+          );
+        },
       ),
       GoRoute(
         path: '/get-started',
-        builder: (context, state) => SharedGetStartedScreen(
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedGetStartedScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+          );
+        },
       ),
       GoRoute(
         path: '/faq',
-        builder: (context, state) => SharedFaqScreen(
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-          illustrationUrl: 'assets/images/faq_illustration.png',
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedFaqScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: 'assets/images/faq_illustration.png',
+          );
+        },
       ),
       GoRoute(
         path: '/user-guides',
         builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
           final category = state.uri.queryParameters['category'];
           final article = state.uri.queryParameters['article'];
           return SharedUserGuidesScreen(
@@ -135,24 +153,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/help-center',
-        builder: (context, state) => SharedHelpCenterScreen(
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-          illustrationUrl: 'assets/images/help_center_illustration.png',
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedHelpCenterScreen(
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: 'assets/images/help_center_illustration.png',
+          );
+        },
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => SharedForgotPasswordScreen(
-          isAdmin: true,
-          systemName: config?.systemName,
-          systemLogo: config?.systemLogo,
-          illustrationUrl: config?.forgotPasswordIllustration,
-        ),
+        builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
+          return SharedForgotPasswordScreen(
+            isAdmin: true,
+            systemName: config?.systemName,
+            systemLogo: config?.systemLogo,
+            illustrationUrl: config?.forgotPasswordIllustration,
+          );
+        },
       ),
       GoRoute(
         path: '/otp-verification',
         builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
           final args = state.extra as Map<String, dynamic>?;
           final email = args?['email'] as String? ?? '';
           final isLogin = args?['isLogin'] as bool? ?? false;
@@ -171,6 +196,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reset-password',
         builder: (context, state) {
+          final config = ref.watch(systemConfigProvider);
           final args = state.extra as Map<String, dynamic>?;
           final email = args?['email'] as String? ?? '';
           final otp = args?['otp'] as String? ?? '';

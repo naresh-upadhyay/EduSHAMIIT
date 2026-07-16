@@ -63,6 +63,30 @@ class SystemConfig {
     AppConfig.contactAddress = address;
     AppConfig.liveChatInfo = chatInfo;
 
+    final footer = appearance['footer'] ?? {};
+    AppConfig.footerDesc = footer['description'] ?? 'An all-in-one school management system designed to simplify administration, improve communication and enhance overall efficiency.';
+    AppConfig.footerCopyright = footer['copyright'] ?? '© 2025 \$name. All rights reserved.';
+    if (footer['quick_links'] != null) {
+      AppConfig.footerQuickLinks = (footer['quick_links'] as List)
+          .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    }
+    if (footer['modules'] != null) {
+      AppConfig.footerModules = (footer['modules'] as List)
+          .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    }
+    if (footer['support'] != null) {
+      AppConfig.footerSupport = (footer['support'] as List)
+          .map((item) => FooterLink.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    }
+    if (footer['social_links'] != null) {
+      AppConfig.footerSocialLinks = (footer['social_links'] as List)
+          .map((item) => FooterSocialLink.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    }
+
     return SystemConfig(
       systemName: json['system_name'] ?? 'School ERP',
       systemTitle: json['system_title'] ?? 'Next Generation School Management',
