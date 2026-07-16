@@ -37,131 +37,140 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     'exam_ctrl': 'Exam Controller',
   };
 
+  // Re-categorized navigation items matching professional ERP hierarchy
   static const _sidebarItems = [
+    // Overview Console
     _NavItem(
         icon: Icons.dashboard_rounded,
         label: 'Dashboard',
         route: '/admin/dashboard',
-        section: NavSection.core),
+        section: NavSection.overview),
+    _NavItem(
+        icon: Icons.person_outline_rounded,
+        label: 'My Profile',
+        route: '/admin/my-profile',
+        section: NavSection.overview),
+
+    // Organization console
     _NavItem(
         icon: Icons.school_outlined,
         label: 'Schools Directory',
         route: '/admin/schools',
-        section: NavSection.core),
-    _NavItem(
-        icon: Icons.people_outline_rounded,
-        label: 'User Management',
-        route: '/admin/users',
-        section: NavSection.core),
-    _NavItem(
-        icon: Icons.analytics_outlined,
-        label: 'Infra Monitor',
-        route: '/admin/infra',
-        section: NavSection.core),
-    _NavItem(
-        icon: Icons.admin_panel_settings_outlined,
-        label: 'Manage Roles',
-        route: '/admin/roles',
-        section: NavSection.core),
-    _NavItem(
-        icon: Icons.settings_outlined,
-        label: 'System Config',
-        route: '/admin/config',
-        section: NavSection.core),
-    // Operations
-    _NavItem(
-        icon: Icons.payments_outlined,
-        label: 'Financial Suite',
-        route: '/admin/finance',
-        section: NavSection.operations),
-    _NavItem(
-        icon: Icons.warning_amber_rounded,
-        label: 'Fee Defaulters',
-        route: '/admin/defaulters',
-        section: NavSection.operations),
+        section: NavSection.organization),
     _NavItem(
         icon: Icons.people_outline_rounded,
         label: 'Staff Registry',
         route: '/admin/staff',
-        section: NavSection.operations),
+        section: NavSection.organization),
+    _NavItem(
+        icon: Icons.manage_accounts_rounded,
+        label: 'User Management',
+        route: '/admin/users',
+        section: NavSection.organization),
+    _NavItem(
+        icon: Icons.admin_panel_settings_outlined,
+        label: 'Manage Roles',
+        route: '/admin/roles',
+        section: NavSection.organization),
+
+    // Operations consoles
     _NavItem(
         icon: Icons.person_add_alt_1_outlined,
         label: 'New Admissions',
         route: '/admin/admissions',
         section: NavSection.operations),
     _NavItem(
-        icon: Icons.qr_code_scanner_rounded,
-        label: 'Gate Scanner Log',
-        route: '/admin/gate-scanner',
-        section: NavSection.operations),
-    _NavItem(
-        icon: Icons.security_rounded,
-        label: 'Security & Controls',
-        route: '/admin/system-control',
-        section: NavSection.operations),
-    // Quick Access Modules
-
-    _NavItem(
-        icon: Icons.extension_outlined,
-        label: 'Module Management',
-        route: '/admin/modules',
-        section: NavSection.quickAccess),
-    _NavItem(
-        icon: Icons.settings_input_component_outlined,
-        label: 'Automations Engine',
-        route: '/admin/automations',
-        section: NavSection.quickAccess),
-    _NavItem(
-        icon: Icons.lightbulb_outline,
-        label: 'AI Smart Insights',
-        route: '/admin/insights',
-        section: NavSection.quickAccess),
-
-    _NavItem(
-        icon: Icons.power_outlined,
-        label: 'API Gateway',
-        route: '/admin/apis',
-        section: NavSection.quickAccess),
-    _NavItem(
-        icon: Icons.vpn_key_outlined,
-        label: 'Vault Secrets',
-        route: '/admin/vault',
-        section: NavSection.quickAccess),
-    _NavItem(
-        icon: Icons.lock_outline,
-        label: 'Security Audit Logs',
-        route: '/admin/audit-log',
-        section: NavSection.quickAccess),
-    _NavItem(
-        icon: Icons.notifications_active_outlined,
-        label: 'Alerts & Notifications',
-        route: '/admin/alerts-notifications',
-        section: NavSection.quickAccess),
-    _NavItem(
         icon: Icons.campaign_outlined,
         label: 'Announcements',
         route: '/admin/announcements',
-        section: NavSection.quickAccess),
+        section: NavSection.operations),
     _NavItem(
         icon: Icons.support_agent_rounded,
         label: 'IT Support Tickets',
         route: '/admin/support',
-        section: NavSection.quickAccess),
+        section: NavSection.operations),
     _NavItem(
         icon: Icons.contact_mail_outlined,
         label: 'Public Contact Queries',
         route: '/admin/contact-queries',
-        section: NavSection.quickAccess),
+        section: NavSection.operations),
+
+    // Finance console
     _NavItem(
-        icon: Icons.person_outline_rounded,
-        label: 'My Profile',
-        route: '/admin/my-profile',
-        section: NavSection.quickAccess),
+        icon: Icons.payments_outlined,
+        label: 'Financial Suite',
+        route: '/admin/finance',
+        section: NavSection.finance),
+    _NavItem(
+        icon: Icons.warning_amber_rounded,
+        label: 'Fee Defaulters',
+        route: '/admin/defaulters',
+        section: NavSection.finance),
+
+    // Security & Guard log consoles
+    _NavItem(
+        icon: Icons.qr_code_scanner_rounded,
+        label: 'Gate Scanner Log',
+        route: '/admin/gate-scanner',
+        section: NavSection.security),
+    _NavItem(
+        icon: Icons.shield_outlined,
+        label: 'Security & Controls',
+        route: '/admin/system-control',
+        section: NavSection.security),
+    _NavItem(
+        icon: Icons.lock_outline,
+        label: 'Security Audit Logs',
+        route: '/admin/audit-log',
+        section: NavSection.security),
+
+    // System config & Developers consoles
+    _NavItem(
+        icon: Icons.analytics_outlined,
+        label: 'Infra Monitor',
+        route: '/admin/infra',
+        section: NavSection.systemDev),
+    _NavItem(
+        icon: Icons.settings_outlined,
+        label: 'System Config',
+        route: '/admin/config',
+        section: NavSection.systemDev),
+    _NavItem(
+        icon: Icons.extension_outlined,
+        label: 'Module Management',
+        route: '/admin/modules',
+        section: NavSection.systemDev),
+    _NavItem(
+        icon: Icons.settings_input_component_outlined,
+        label: 'Automations Engine',
+        route: '/admin/automations',
+        section: NavSection.systemDev),
+    _NavItem(
+        icon: Icons.lightbulb_outline,
+        label: 'AI Smart Insights',
+        route: '/admin/insights',
+        section: NavSection.systemDev),
+    _NavItem(
+        icon: Icons.power_outlined,
+        label: 'API Gateway',
+        route: '/admin/apis',
+        section: NavSection.systemDev),
+    _NavItem(
+        icon: Icons.vpn_key_outlined,
+        label: 'Vault Secrets',
+        route: '/admin/vault',
+        section: NavSection.systemDev),
+    _NavItem(
+        icon: Icons.notifications_active_outlined,
+        label: 'Alerts & Notifications',
+        route: '/admin/alerts-notifications',
+        section: NavSection.systemDev),
   ];
 
   List<dynamic> _modules = [];
   Map<String, dynamic> _schoolToggles = {};
   bool _isLoadingModules = true;
+  bool _isSidebarCollapsed = false;
 
   @override
   void initState() {
@@ -246,21 +255,39 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         }
       }
 
+      // Role based permissions
       if (role == 'super_admin') {
-        // Remove all operations items
-        if (item.section == NavSection.operations) {
-          return false;
-        }
-        return true;
+        return item.route == '/admin/dashboard' ||
+               item.route == '/admin/schools' ||
+               item.route == '/admin/users' ||
+               item.route == '/admin/infra' ||
+               item.route == '/admin/roles' ||
+               item.route == '/admin/config' ||
+               item.route == '/admin/modules' ||
+               item.route == '/admin/automations' ||
+               item.route == '/admin/insights' ||
+               item.route == '/admin/apis' ||
+               item.route == '/admin/vault' ||
+               item.route == '/admin/audit-log' ||
+               item.route == '/admin/support' ||
+               item.route == '/admin/contact-queries' ||
+               item.route == '/admin/my-profile';
       } else if (role == 'director') {
-        // Director sees CORE and OPERATIONS
-        if (item.section == NavSection.quickAccess) {
-          return false;
-        }
-        return true;
+        return item.route == '/admin/dashboard' ||
+               item.route == '/admin/users' ||
+               item.route == '/admin/roles' ||
+               item.route == '/admin/finance' ||
+               item.route == '/admin/defaulters' ||
+               item.route == '/admin/staff' ||
+               item.route == '/admin/admissions' ||
+               item.route == '/admin/gate-scanner' ||
+               item.route == '/admin/system-control' ||
+               item.route == '/admin/alerts-notifications' ||
+               item.route == '/admin/announcements' ||
+               item.route == '/admin/support' ||
+               item.route == '/admin/my-profile';
       }
-      // Fallback for other roles
-      return item.section == NavSection.core;
+      return item.route == '/admin/dashboard' || item.route == '/admin/my-profile';
     }).toList();
 
     if (isDesktop) {
@@ -270,8 +297,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         body: Row(
           children: [
             // Sidebar Navigation (Desktop Only)
-            Container(
-              width: 260,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutQuad,
+              width: _isSidebarCollapsed ? 76 : 260,
               decoration: BoxDecoration(
                 color: theme.cardColor,
                 border: Border(
@@ -281,201 +310,107 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   ),
                 ),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final config = ref.watch(systemConfigProvider);
-                      return Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: config?.systemLogo != null
-                                ? Image.network(
-                                    AppConfig.resolveUrl(config!.systemLogo),
-                                    width: 24,
-                                    height: 24,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.admin_panel_settings_rounded,
-                                      color: Color(0xFF4F46E5),
-                                      size: 24,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.admin_panel_settings_rounded,
-                                    color: Color(0xFF4F46E5),
-                                    size: 24,
-                                  ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              config?.systemName ?? 'EduSHAMIIT Admin',
-                              style: TextStyle(
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                fontFamily: 'Outfit',
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 30),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final currentWidth = constraints.maxWidth;
+                  final showLabels = currentWidth > 140;
 
-                  // Navigation Items
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredItems.length,
-                      itemBuilder: (context, index) {
-                        final item = filteredItems[index];
-                        final isSelected = index == selected;
-
-                        // Add section headers dynamically
-                        Widget? header;
-                        final currentSection = item.section;
-                        final prevSection = index > 0 ? filteredItems[index - 1].section : null;
-
-                        if (prevSection != currentSection) {
-                          String headerText = '';
-                          if (currentSection == NavSection.core) {
-                            headerText = 'CORE CONSOLES';
-                          } else if (currentSection == NavSection.operations) {
-                            headerText = 'OPERATIONAL UTILITIES';
-                          } else if (currentSection == NavSection.quickAccess) {
-                            headerText = 'SYSTEM QUICK ACCESS';
-                          }
-
-                          header = Padding(
-                            padding: EdgeInsets.only(
-                              left: 12,
-                              top: index == 0 ? 0 : 16,
-                              bottom: 8,
-                            ),
-                            child: Text(
-                              headerText,
-                              style: TextStyle(
-                                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1),
-                            ),
-                          );
-                        }
-
-                        final tile = Container(
-                          margin: const EdgeInsets.only(bottom: 4),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              onTap: () => context.go(item.route),
-                              leading: Icon(
-                                item.icon,
-                                color: isSelected
-                                    ? const Color(0xFF4F46E5)
-                                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                                size: 20,
-                              ),
-                              title: Text(
-                                item.label,
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? const Color(0xFF4F46E5)
-                                      : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569)),
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              selected: isSelected,
-                              selectedTileColor: isDark
-                                  ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
-                                  : const Color(0xFFEEF2FF),
-                              dense: true,
-                            ),
-                          ),
-                        );
-
-                        if (header != null) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [header, tile],
-                          );
-                        }
-                        return tile;
-                      },
+                  return Padding(
+                    padding: EdgeInsets.symmetric(
+                      vertical: 24,
+                      horizontal: showLabels ? 16 : 8,
                     ),
-                  ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Brand Header Section
+                        _buildBrandHeader(isDark, showLabels),
+                        const SizedBox(height: 30),
 
-                  // User profile & logout
-                  Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => context.go('/admin/my-profile'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                                  backgroundImage: user?['avatar_url'] != null
-                                      ? NetworkImage(user!['avatar_url'].toString())
-                                      : null,
-                                  child: user?['avatar_url'] == null
-                                      ? const Icon(Icons.person, color: Color(0xFF4F46E5))
-                                      : null,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        userName,
-                                        style: TextStyle(
-                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        _roleLabels[user?['role']?.toString().toLowerCase() ?? ''] ??
-                                            (user?['role']?.toString() ?? 'SUPER ADMIN')
-                                                .replaceAll('_', ' ')
-                                                .toUpperCase(),
-                                        style: const TextStyle(
-                                            color: Color(0xFF64748B), fontSize: 10),
-                                      ),
-                                    ],
+                        // Navigation Items List
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: filteredItems.length,
+                            itemBuilder: (context, index) {
+                              final item = filteredItems[index];
+                              final isSelected = index == selected;
+
+                              // Section Headers
+                              Widget? header;
+                              final currentSection = item.section;
+                              final prevSection = index > 0 ? filteredItems[index - 1].section : null;
+
+                              if (prevSection != currentSection && showLabels) {
+                                String headerText = '';
+                                switch (currentSection) {
+                                  case NavSection.overview:
+                                    headerText = 'OVERVIEW';
+                                    break;
+                                  case NavSection.organization:
+                                    headerText = 'ORGANIZATION';
+                                    break;
+                                  case NavSection.operations:
+                                    headerText = 'OPERATIONS';
+                                    break;
+                                  case NavSection.finance:
+                                    headerText = 'FINANCE';
+                                    break;
+                                  case NavSection.security:
+                                    headerText = 'SECURITY & CONTROL';
+                                    break;
+                                  case NavSection.systemDev:
+                                    headerText = 'SYSTEM & DEV TOOLS';
+                                    break;
+                                }
+
+                                header = Padding(
+                                  padding: EdgeInsets.only(
+                                    left: 12,
+                                    top: index == 0 ? 0 : 20,
+                                    bottom: 8,
                                   ),
-                                ),
-                              ],
-                            ),
+                                  child: Text(
+                                    headerText,
+                                    style: TextStyle(
+                                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1),
+                                  ),
+                                );
+                              }
+
+                              final tile = _buildSidebarTile(
+                                item: item,
+                                isSelected: isSelected,
+                                isDark: isDark,
+                                showLabels: showLabels,
+                                onTap: () => context.go(item.route),
+                              );
+
+                              if (header != null) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [header, tile],
+                                );
+                              }
+                              return tile;
+                            },
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+
+                        // User Profile Section
+                        Divider(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                        const SizedBox(height: 12),
+                        _buildProfileFooter(isDark, user, userName, showLabels),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
 
-            // Main Content Panel
+            // Main Content Area
             Expanded(
               child: widget.child,
             ),
@@ -487,7 +422,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ),
       );
     } else {
-      // Mobile / Tablet View
+      // Mobile / Tablet Layout (Uses bottom navigation)
       return Scaffold(
         backgroundColor: const Color(0xFF090B15),
         body: widget.child,
@@ -496,6 +431,289 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           gradient: const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
           onPressed: () => _showAiAssistantDialog(context),
         ),
+      );
+    }
+  }
+
+  Widget _buildBrandHeader(bool isDark, bool showLabels) {
+    if (!showLabels) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Consumer(
+              builder: (context, ref, child) {
+                final config = ref.watch(systemConfigProvider);
+                return Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: config?.systemLogo != null
+                      ? Image.network(
+                          AppConfig.resolveUrl(config!.systemLogo),
+                          width: 24,
+                          height: 24,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.admin_panel_settings_rounded,
+                            color: Color(0xFF4F46E5),
+                            size: 24,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.admin_panel_settings_rounded,
+                          color: Color(0xFF4F46E5),
+                          size: 24,
+                        ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            IconButton(
+              icon: const Icon(
+                Icons.menu_rounded,
+                color: Color(0xFF64748B),
+                size: 20,
+              ),
+              onPressed: () {
+                setState(() {
+                  _isSidebarCollapsed = false;
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Consumer(
+              builder: (context, ref, child) {
+                final config = ref.watch(systemConfigProvider);
+                return Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: config?.systemLogo != null
+                          ? Image.network(
+                              AppConfig.resolveUrl(config!.systemLogo),
+                              width: 24,
+                              height: 24,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.admin_panel_settings_rounded,
+                                color: Color(0xFF4F46E5),
+                                size: 24,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.admin_panel_settings_rounded,
+                              color: Color(0xFF4F46E5),
+                              size: 24,
+                            ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        config?.systemName ?? 'EduSHAMIIT Admin',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontFamily: 'Outfit',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(
+              Icons.menu_open_rounded,
+              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+              size: 20,
+            ),
+            onPressed: () {
+              setState(() {
+                _isSidebarCollapsed = true;
+              });
+            },
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildSidebarTile({
+    required _NavItem item,
+    required bool isSelected,
+    required bool isDark,
+    required bool showLabels,
+    required VoidCallback onTap,
+  }) {
+    if (!showLabels) {
+      return Tooltip(
+        message: item.label,
+        preferBelow: false,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          alignment: Alignment.center,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? (isDark
+                        ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
+                        : const Color(0xFFEEF2FF))
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                item.icon,
+                color: isSelected
+                    ? const Color(0xFF4F46E5)
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? (isDark
+                        ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
+                        : const Color(0xFFEEF2FF))
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    item.icon,
+                    color: isSelected
+                        ? const Color(0xFF4F46E5)
+                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item.label,
+                      style: TextStyle(
+                        color: isSelected
+                            ? const Color(0xFF4F46E5)
+                            : (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569)),
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildProfileFooter(bool isDark, Map<String, dynamic>? user, String userName, bool showLabels) {
+    final role = user?['role']?.toString().toLowerCase() ?? 'super_admin';
+    if (!showLabels) {
+      return Tooltip(
+        message: "$userName\n${_roleLabels[role] ?? role.toUpperCase().replaceAll('_', ' ')}",
+        preferBelow: false,
+        child: Center(
+          child: InkWell(
+            onTap: () => context.go('/admin/my-profile'),
+            borderRadius: BorderRadius.circular(8),
+            child: CircleAvatar(
+              backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+              backgroundImage: user?['avatar_url'] != null
+                  ? NetworkImage(user!['avatar_url'].toString())
+                  : null,
+              child: user?['avatar_url'] == null
+                  ? const Icon(Icons.person, color: Color(0xFF4F46E5))
+                  : null,
+            ),
+          ),
+        ),
+      );
+    } else {
+      return Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => context.go('/admin/my-profile'),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                      backgroundImage: user?['avatar_url'] != null
+                          ? NetworkImage(user!['avatar_url'].toString())
+                          : null,
+                      child: user?['avatar_url'] == null
+                          ? const Icon(Icons.person, color: Color(0xFF4F46E5))
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            userName,
+                            style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            _roleLabels[role] ??
+                                role.replaceAll('_', ' ').toUpperCase(),
+                            style: const TextStyle(
+                                color: Color(0xFF64748B), fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     }
   }
@@ -567,7 +785,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-enum NavSection { core, operations, quickAccess }
+enum NavSection { overview, organization, operations, finance, security, systemDev }
 
 class _NavItem {
   final IconData icon;

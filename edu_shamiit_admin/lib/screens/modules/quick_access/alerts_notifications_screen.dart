@@ -696,11 +696,10 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
   Widget _buildAlertRow(Map<String, dynamic> alert) {
     final isSelected = _selectedIds.contains(alert['id']);
     final isUnread = !(alert['is_read'] ?? false);
-    final theme = Theme.of(context);
 
-    // Dynamic Category Icon mapping
+    // ── Category icon & color ──────────────────────────────────────────
     IconData categoryIcon = Icons.info_outline;
-    Color categoryColor = Colors.blue;
+    Color categoryColor = const Color(0xFF3B82F6);
     final cat = alert['category'].toString().toLowerCase();
     if (cat.contains('inst')) {
       categoryIcon = Icons.domain_outlined;
@@ -719,51 +718,81 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       categoryColor = const Color(0xFF10B981);
     }
 
-    // Dynamic Priority Chip Colors
-    Color priorityBg = Colors.grey.shade100;
-    Color priorityText = Colors.grey;
+    // ── Priority chip — theme-aware ────────────────────────────────────
+    Color priorityBg;
+    Color priorityText;
     final priority = alert['priority'].toString();
-    if (priority == "Critical") {
-      priorityBg = const Color(0xFFFEE2E2);
-      priorityText = const Color(0xFFEF4444);
-    } else if (priority == "High") {
-      priorityBg = const Color(0xFFFFEDD5);
-      priorityText = const Color(0xFFF59E0B);
-    } else if (priority == "Warning") {
-      priorityBg = const Color(0xFFFEF3C7);
-      priorityText = const Color(0xFFD97706);
-    } else if (priority == "Info") {
-      priorityBg = const Color(0xFFDBEAFE);
-      priorityText = const Color(0xFF3B82F6);
+    if (priority == 'Critical') {
+      priorityBg = _isDark ? const Color(0xFFEF4444).withValues(alpha: 0.18) : const Color(0xFFFEE2E2);
+      priorityText = _isDark ? const Color(0xFFFCA5A5) : const Color(0xFFEF4444);
+    } else if (priority == 'High') {
+      priorityBg = _isDark ? const Color(0xFFF97316).withValues(alpha: 0.18) : const Color(0xFFFFEDD5);
+      priorityText = _isDark ? const Color(0xFFFDBA74) : const Color(0xFFF97316);
+    } else if (priority == 'Warning') {
+      priorityBg = _isDark ? const Color(0xFFF59E0B).withValues(alpha: 0.18) : const Color(0xFFFEF3C7);
+      priorityText = _isDark ? const Color(0xFFFCD34D) : const Color(0xFFD97706);
+    } else {
+      priorityBg = _isDark ? const Color(0xFF3B82F6).withValues(alpha: 0.18) : const Color(0xFFDBEAFE);
+      priorityText = _isDark ? const Color(0xFF93C5FD) : const Color(0xFF2563EB);
     }
 
-    // Dynamic Status Chip Colors
-    Color statusBg = Colors.grey.shade100;
-    Color statusText = Colors.grey;
+    // ── Status chip — theme-aware ──────────────────────────────────────
+    Color statusBg;
+    Color statusText;
     final status = alert['status'].toString();
-    if (status == "New") {
-      statusBg = const Color(0xFFEEF2FF);
-      statusText = const Color(0xFF4F46E5);
-    } else if (status == "In Progress") {
-      statusBg = const Color(0xFFE0F2FE);
-      statusText = const Color(0xFF0284C7);
-    } else if (status == "Resolved") {
-      statusBg = const Color(0xFFD1FAE5);
-      statusText = const Color(0xFF10B981);
+    if (status == 'New') {
+      statusBg = _isDark ? const Color(0xFF4F46E5).withValues(alpha: 0.22) : const Color(0xFFEEF2FF);
+      statusText = _isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5);
+    } else if (status == 'In Progress') {
+      statusBg = _isDark ? const Color(0xFF0284C7).withValues(alpha: 0.22) : const Color(0xFFE0F2FE);
+      statusText = _isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7);
+    } else if (status == 'Resolved') {
+      statusBg = _isDark ? const Color(0xFF10B981).withValues(alpha: 0.18) : const Color(0xFFD1FAE5);
+      statusText = _isDark ? const Color(0xFF6EE7B7) : const Color(0xFF059669);
+    } else {
+      statusBg = _isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFF1F5F9);
+      statusText = _isDark ? Colors.white54 : const Color(0xFF64748B);
     }
 
-    // Dynamic Time Ago/Datetime Formatting
-    final createdAt = alert['created_at'] != null ? DateTime.parse(alert['created_at']) : DateTime.now();
-    final localTime = createdAt.add(const Duration(hours: 5, minutes: 30));
+    // ── Row background & left accent ───────────────────────────────────
+    //  Unread:  strong indigo-tinted row  +  3px indigo left border
+    //  Read:    transparent row           +  no border (3px transparent)
+    final Color rowBg = isUnread
+        ? (_isDark
+            ? const Color(0xFF4F46E5).withValues(alpha: 0.10)
+            : const Color(0xFFEEF2FF))
+        : Colors.transparent;
+    final Color accentBorder = isUnread
+        ? const Color(0xFF4F46E5)
+        : Colors.transparent;
+
+    // ── Date formatting ────────────────────────────────────────────────
+    final createdAt = alert['created_at'] != null
+        ? DateTime.parse(alert['created_at'])
+        : DateTime.now();
+    final localTime = createdAt.toLocal();
     final formattedTime = DateFormat('MMM dd, yyyy hh:mm a').format(localTime);
 
     return Container(
-      color: isUnread ? const Color(0xFF4F46E5).withValues(alpha: 0.02) : Colors.transparent,
+      decoration: BoxDecoration(
+        color: isSelected
+            ? (_isDark
+                ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
+                : const Color(0xFFE0E7FF))
+            : rowBg,
+        border: Border(
+          left: BorderSide(color: accentBorder, width: 3),
+          bottom: BorderSide(
+            color: _isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
+          ),
+        ),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
           Checkbox(
             value: isSelected,
+            activeColor: const Color(0xFF4F46E5),
             onChanged: (val) {
               setState(() {
                 if (val == true) {
@@ -774,43 +803,85 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
               });
             },
           ),
-          const SizedBox(width: 12),
-          // Alert Title + description
+          const SizedBox(width: 8),
+
+          // ── Alert Title + description ──────────────────────────────
           Expanded(
             flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  children: [
-                    Icon(categoryIcon, size: 16, color: categoryColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        alert['title'] ?? 'Title',
+                // Category icon with colored container
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: categoryColor.withValues(alpha: _isDark ? 0.18 : 0.10),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(categoryIcon, size: 15, color: categoryColor),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              alert['title'] ?? 'Title',
+                              style: GoogleFonts.inter(
+                                fontWeight: isUnread ? FontWeight.w700 : FontWeight.w500,
+                                fontSize: 12,
+                                color: isUnread
+                                    ? (_isDark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3))
+                                    : _textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isUnread) ...[  
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4F46E5),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'NEW',
+                                style: GoogleFonts.inter(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        alert['description'] ?? '',
                         style: GoogleFonts.inter(
-                          fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                          color: _textPrimary,
+                          fontSize: 10,
+                          color: _isDark
+                              ? (isUnread ? Colors.white38 : Colors.white24)
+                              : (isUnread ? const Color(0xFF6366F1) : Colors.grey),
                         ),
                         overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Padding(
-                  padding: const EdgeInsets.only(left: 24.0),
-                  child: Text(
-                    alert['description'] ?? '',
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    overflow: TextOverflow.ellipsis,
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          // Category badge
+
+          // ── Category badge ─────────────────────────────────────────
           Expanded(
             flex: 2,
             child: Row(
@@ -818,18 +889,26 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
+                    color: categoryColor.withValues(alpha: _isDark ? 0.15 : 0.08),
                     borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: categoryColor.withValues(alpha: _isDark ? 0.30 : 0.20),
+                    ),
                   ),
                   child: Text(
                     alert['category'] ?? 'General',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: categoryColor,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          // Priority badge
+
+          // ── Priority badge ─────────────────────────────────────────
           Expanded(
             flex: 1,
             child: Row(
@@ -842,21 +921,33 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                   ),
                   child: Text(
                     priority,
-                    style: TextStyle(fontSize: 10, color: priorityText, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: priorityText,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          // Created At
+
+          // ── Created At ─────────────────────────────────────────────
           Expanded(
             flex: 2,
             child: Text(
               formattedTime,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: isUnread
+                    ? (_isDark ? Colors.white54 : const Color(0xFF4F46E5).withValues(alpha: 0.7))
+                    : (_isDark ? Colors.white30 : Colors.grey),
+                fontWeight: isUnread ? FontWeight.w500 : FontWeight.normal,
+              ),
             ),
           ),
-          // Status badge
+
+          // ── Status badge ───────────────────────────────────────────
           Expanded(
             flex: 1,
             child: Row(
@@ -869,51 +960,104 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                   ),
                   child: Text(
                     status,
-                    style: TextStyle(fontSize: 10, color: statusText, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: statusText,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          // Actions
+
+          // ── Actions ────────────────────────────────────────────────
           SizedBox(
             width: 80,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.visibility_outlined, size: 16),
-                  onPressed: () {
-                    _showViewAlertDialog(alert);
-                    if (!(alert['is_read'] ?? false)) {
-                      _toggleAlertRead(alert, forceValue: true);
-                    }
-                  },
-                  tooltip: 'View Details',
+                // Eye icon: filled + indigo = unread, outline + grey = read
+                Tooltip(
+                  message: isUnread ? 'Mark as read' : 'View details',
+                  child: InkWell(
+                    onTap: () {
+                      _showViewAlertDialog(alert);
+                      if (isUnread) _toggleAlertRead(alert, forceValue: true);
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: isUnread
+                            ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        isUnread ? Icons.visibility_rounded : Icons.visibility_outlined,
+                        size: 16,
+                        color: isUnread
+                            ? const Color(0xFF6366F1)
+                            : (_isDark ? Colors.white38 : Colors.black38),
+                      ),
+                    ),
+                  ),
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 16),
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: 16,
+                    color: _isDark ? Colors.white54 : Colors.black54,
+                  ),
+                  color: _isDark ? const Color(0xFF1E293B) : Colors.white,
                   onSelected: (val) {
-                    if (val == "toggle_read") {
+                    if (val == 'toggle_read') {
                       _toggleAlertRead(alert);
-                    } else if (val == "edit") {
+                    } else if (val == 'edit') {
                       _showEditAlertDialog(alert);
-                    } else if (val == "delete") {
+                    } else if (val == 'delete') {
                       _deleteAlert(alert['id']);
                     }
                   },
                   itemBuilder: (context) => [
                     PopupMenuItem(
-                      value: "toggle_read",
-                      child: Text(isUnread ? 'Mark Read' : 'Mark Unread', style: const TextStyle(fontSize: 11)),
+                      value: 'toggle_read',
+                      child: Row(
+                        children: [
+                          Icon(
+                            isUnread ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                            size: 14,
+                            color: const Color(0xFF4F46E5),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isUnread ? 'Mark as Read' : 'Mark as Unread',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
                     ),
-                    const PopupMenuItem(
-                      value: "edit",
-                      child: Text('Edit/Resolve', style: TextStyle(fontSize: 11)),
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: const [
+                          Icon(Icons.edit_outlined, size: 14, color: Colors.orange),
+                          SizedBox(width: 8),
+                          Text('Edit / Resolve', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
                     ),
-                    const PopupMenuItem(
-                      value: "delete",
-                      child: Text('Delete', style: TextStyle(fontSize: 11, color: Colors.red)),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: const [
+                          Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFFEF4444)),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -924,6 +1068,7 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
       ),
     );
   }
+
 
   Widget _buildTableFooter() {
     final int totalPages = (_totalAlerts / _pageSize).ceil();

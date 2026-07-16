@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
+import 'package:edu_shamiit_core/widgets/public_drawer.dart';
 
 class SharedContactUsScreen extends StatefulWidget {
   final String? systemName;
@@ -127,7 +128,10 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
         preferredSize: const Size.fromHeight(70),
         child: _buildNavbar(isDesktop, name),
       ),
-      drawer: isDesktop ? null : _buildMobileDrawer(name),
+      drawer: isDesktop ? null : PublicDrawer(
+        systemName: name,
+        systemLogo: widget.systemLogo,
+      ),
       body: isDesktop
           ? SingleChildScrollView(
               child: Container(
@@ -319,69 +323,6 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMobileDrawer(String name) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF0F1026)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.school, color: Colors.white, size: 36),
-                const SizedBox(height: 12),
-                Text(
-                  name,
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.home_outlined),
-            title: const Text('Home'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.mail_outline),
-            title: const Text('Contact Us'),
-            selected: true,
-            selectedColor: const Color(0xFF4F46E5),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/contact');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.login_outlined),
-            title: const Text('Login'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/login');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.rocket_launch_outlined),
-            title: const Text('Get Started'),
-            onTap: () {
-              Navigator.pop(context);
-              context.go('/get-started');
-            },
-          ),
-        ],
       ),
     );
   }

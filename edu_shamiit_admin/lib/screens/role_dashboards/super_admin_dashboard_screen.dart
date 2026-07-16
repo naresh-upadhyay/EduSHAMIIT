@@ -33,15 +33,30 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
   // Keyboard shortcut focus node
   final FocusNode _keyboardFocusNode = FocusNode();
 
+  // Notification state
+  int _unreadNotifications = 0;
+  List<dynamic> _recentAlerts = [];
+
+  // Browser Ctrl+K intercept subscription
+  dynamic _ctrlKSubscription;
+
   @override
   void initState() {
     super.initState();
     _fetchStats();
+    _fetchUnreadNotifications();
+    // Prevent browser from intercepting Ctrl+K (Chrome address bar focus)
+    _ctrlKSubscription = html.window.onKeyDown.listen((html.KeyboardEvent event) {
+      if ((event.ctrlKey || event.metaKey) && event.key == 'k') {
+        event.preventDefault();
+      }
+    });
   }
 
   @override
   void dispose() {
     _keyboardFocusNode.dispose();
+    _ctrlKSubscription?.cancel();
     super.dispose();
   }
 
@@ -75,6 +90,27 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
         _errorMessage = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _fetchUnreadNotifications() async {
+    try {
+      final res = await ApiService().get(
+        '/admin/system-alerts',
+        query: {'page': 1, 'page_size': 5},
+        useCache: false,
+      );
+      if (!mounted) return;
+      if (res['success'] == true && res['data'] != null) {
+        final data = res['data'];
+        final stats = data['stats'] as Map<String, dynamic>? ?? {};
+        setState(() {
+          _unreadNotifications = (stats['unread_alerts'] as num?)?.toInt() ?? 0;
+          _recentAlerts = data['alerts'] as List<dynamic>? ?? [];
+        });
+      }
+    } catch (_) {
+      // Silently ignore — badge stays at 0
     }
   }
 
@@ -741,11 +777,11 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
         // Icons and user profile
         Row(
           children: [
-            _buildTopBarIconButton(Icons.notifications_none_rounded, 8, isDark),
+            // Notification bell — real unread count + popover
+            _buildNotificationButton(isDark),
             const SizedBox(width: 12),
-            _buildTopBarIconButton(Icons.mail_outline_rounded, 3, isDark),
-            const SizedBox(width: 12),
-            _buildTopBarIconButton(Icons.help_outline_rounded, 0, isDark),
+            // Help button
+            _buildHelpButton(isDark),
             const SizedBox(width: 24),
             // Divider
             Container(
@@ -820,11 +856,73 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
     );
   }
 
-  Widget _buildTopBarIconButton(IconData icon, int badgeCount, bool isDark) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
+  /// Notification bell with live unread badge + tap → popover panel
+  Widget _buildNotificationButton(bool isDark) {
+    final count = _unreadNotifications;
+    return Tooltip(
+      message: count > 0 ? '$count unread alerts' : 'Alerts & Notifications',
+      child: InkWell(
+        onTap: () => _showNotificationPanel(context, isDark),
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Icon(
+                count > 0 ? Icons.notifications_rounded : Icons.notifications_none_rounded,
+                color: count > 0
+                    ? const Color(0xFF4F46E5)
+                    : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                size: 18,
+              ),
+            ),
+            if (count > 0)
+              Positioned(
+                top: -4,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  child: Center(
+                    child: Text(
+                      count > 99 ? '99+' : '$count',
+                      style: GoogleFonts.outfit(
+                        fontSize: 8,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Help button — opens help & shortcuts dialog
+  Widget _buildHelpButton(bool isDark) {
+    return Tooltip(
+      message: 'Help & Keyboard Shortcuts',
+      child: InkWell(
+        onTap: () => _showHelpDialog(context, isDark),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(
@@ -835,39 +933,416 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
             ),
           ),
           child: Icon(
-            icon,
+            Icons.help_outline_rounded,
             color: isDark ? Colors.white70 : const Color(0xFF475569),
             size: 18,
           ),
         ),
-        if (badgeCount > 0)
-          Positioned(
-            top: -4,
-            right: -4,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Color(0xFFEF4444),
-                shape: BoxShape.circle,
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
-              child: Center(
-                child: Text(
-                  '$badgeCount',
-                  style: GoogleFonts.outfit(
-                    fontSize: 8,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  /// Rich notification popover panel
+  void _showNotificationPanel(BuildContext context, bool isDark) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (context) {
+        return Align(
+          alignment: Alignment.topRight,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 64, right: 16),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 380,
+                constraints: const BoxConstraints(maxHeight: 520),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
                   ),
-                  textAlign: TextAlign.center,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 12, 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_rounded, color: Color(0xFF4F46E5), size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Alerts & Notifications',
+                              style: GoogleFonts.outfit(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                          if (_unreadNotifications > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '$_unreadNotifications unread',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  color: const Color(0xFFEF4444),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                            color: Colors.grey,
+                            onPressed: () => Navigator.pop(context),
+                            splashRadius: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                    // Alert items
+                    if (_recentAlerts.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Icon(Icons.check_circle_outline_rounded,
+                                size: 40,
+                                color: isDark ? Colors.white24 : Colors.black26),
+                            const SizedBox(height: 12),
+                            Text(
+                              'All clear! No alerts right now.',
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shrinkWrap: true,
+                          itemCount: _recentAlerts.length,
+                          separatorBuilder: (_, __) => Divider(
+                            height: 1,
+                            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                            indent: 18,
+                            endIndent: 18,
+                          ),
+                          itemBuilder: (context, i) {
+                            final alert = _recentAlerts[i] as Map<String, dynamic>;
+                            final priority = alert['priority']?.toString().toLowerCase() ?? 'info';
+                            final isRead = alert['is_read'] == true;
+                            final Color priorityColor = priority == 'critical'
+                                ? const Color(0xFFEF4444)
+                                : priority == 'high'
+                                    ? const Color(0xFFF97316)
+                                    : priority == 'warning'
+                                        ? const Color(0xFFF59E0B)
+                                        : const Color(0xFF4F46E5);
+                            final IconData priorityIcon = priority == 'critical'
+                                ? Icons.dangerous_rounded
+                                : priority == 'high'
+                                    ? Icons.warning_amber_rounded
+                                    : priority == 'warning'
+                                        ? Icons.error_outline_rounded
+                                        : Icons.info_outline_rounded;
+
+                            return InkWell(
+                              onTap: () {
+                                Navigator.pop(context);
+                                context.go('/admin/alerts-notifications');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                color: isRead
+                                    ? Colors.transparent
+                                    : (isDark
+                                        ? const Color(0xFF4F46E5).withValues(alpha: 0.06)
+                                        : const Color(0xFFEEF2FF)),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: priorityColor.withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(priorityIcon, color: priorityColor, size: 16),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  alert['title']?.toString() ?? 'System Alert',
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 12,
+                                                    fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (!isRead)
+                                                Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  margin: const EdgeInsets.only(left: 6),
+                                                  decoration: const BoxDecoration(
+                                                    color: Color(0xFF4F46E5),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            alert['message']?.toString() ?? '',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 11,
+                                              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    // Footer
+                    Divider(height: 1, color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                    InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.go('/admin/alerts-notifications');
+                      },
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'View all alerts & notifications',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF4F46E5),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF4F46E5)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-      ],
+        );
+      },
+    );
+  }
+
+  /// Help & Keyboard Shortcuts dialog
+  void _showHelpDialog(BuildContext context, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: 420,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.help_outline_rounded, color: Color(0xFF4F46E5), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Help & Keyboard Shortcuts',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      color: Colors.grey,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'KEYBOARD SHORTCUTS',
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildShortcutRow(isDark, 'Ctrl + K', 'Open global search'),
+                _buildShortcutRow(isDark, 'Ctrl + /', 'Open AI assistant'),
+                _buildShortcutRow(isDark, 'Ctrl + D', 'Go to Dashboard'),
+                _buildShortcutRow(isDark, 'Ctrl + N', 'New entry (context aware)'),
+                _buildShortcutRow(isDark, 'Esc', 'Close dialog / overlay'),
+                const SizedBox(height: 20),
+                Text(
+                  'QUICK LINKS',
+                  style: GoogleFonts.outfit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildHelpLink(context, isDark, Icons.school_rounded, 'Schools Directory', '/admin/schools'),
+                _buildHelpLink(context, isDark, Icons.people_alt_rounded, 'User Management', '/admin/users'),
+                _buildHelpLink(context, isDark, Icons.tune_rounded, 'System Config', '/admin/config'),
+                _buildHelpLink(context, isDark, Icons.notifications_rounded, 'Alerts & Notifications', '/admin/alerts-notifications'),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.check_rounded, size: 16),
+                    label: Text('Got it', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildShortcutRow(bool isDark, String key, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              key,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : const Color(0xFF475569),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              description,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHelpLink(BuildContext context, bool isDark, IconData icon, String label, String route) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context);
+        context.go(route);
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF4F46E5)),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: isDark ? Colors.white70 : const Color(0xFF475569),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            const Icon(Icons.chevron_right_rounded, size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 

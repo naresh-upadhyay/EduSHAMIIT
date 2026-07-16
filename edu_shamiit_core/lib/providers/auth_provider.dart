@@ -275,6 +275,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Patch a subset of userData fields (e.g. avatar_url after photo upload).
+  /// Updates the in-memory state and persists the change to SharedPreferences
+  /// so the sidebar and all other consumers reflect the new data immediately.
+  Future<void> updateUserData(Map<String, dynamic> patch) async {
+    final current = Map<String, dynamic>.from(state.userData ?? {});
+    current.addAll(patch);
+    state = state.copyWith(userData: current);
+    // Persist updated user_data so it survives hot restart / page refresh
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_data', jsonEncode(current));
+  }
+
   /// Sign out — clears local session.
   Future<void> signOut() async {
     // Clear API cache

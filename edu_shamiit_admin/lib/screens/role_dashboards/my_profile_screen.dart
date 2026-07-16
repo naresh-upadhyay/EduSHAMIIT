@@ -113,6 +113,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
 
           _isLoading = false;
         });
+
+        // Sync the authProvider so sidebar & other screens reflect the latest
+        // avatar, name, etc. without needing a logout/login.
+        ref.read(authProvider.notifier).updateUserData({
+          'avatar_url': profileData['avatar_url'],
+          'full_name': profileData['full_name'],
+          'phone': profileData['phone'],
+          'email': profileData['email'],
+        });
       } else {
         setState(() {
           _errorMessage = res['detail'] ?? 'Failed to load profile details.';

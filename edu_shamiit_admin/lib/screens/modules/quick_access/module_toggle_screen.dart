@@ -1305,181 +1305,199 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           // Filter toolbar
           _buildFilterToolbar(isDark, cardBg, borderColor, textPrimary, textSecondary),
           const Divider(height: 1, color: Colors.white10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              horizontalMargin: 16,
-              columnSpacing: 20,
-              columns: [
-                _buildTableHeaderColumn('Module Name', textSecondary, width: 300),
-                _buildTableHeaderColumn('Category', textSecondary, width: 120),
-                _buildTableHeaderColumn('Type', textSecondary, width: 100),
-                _buildTableHeaderColumn('Status', textSecondary, width: 150),
-                _buildTableHeaderColumn('Assigned Inst.', textSecondary, width: 140),
-                _buildTableHeaderColumn('Actions', textSecondary, width: 120),
-              ],
-              rows: paginated.map((module) {
-                final isSelected = _selectedModule?['id'] == module['id'];
-                final id = module['id'] ?? '';
-                final name = module['name'] ?? 'Module Name';
-                final desc = module['description'] ?? '';
-                final category = module['category'] ?? 'Core';
-                final type = module['type'] ?? 'Feature';
-                final isEnabled = module['is_enabled'] ?? true;
-                
-                // Calculate assigned schools
-                final assignedCount = _schools.where((s) {
-                  final toggles = s['module_toggles'] as Map<String, dynamic>? ?? {};
-                  return toggles[id] == true;
-                }).length;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double containerWidth = constraints.maxWidth - 32;
+              final double baseWidth = 930.0;
+              final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
-                final IconData icon = _getModuleIcon(module['icon']);
-                Color catColor = _getCategoryColor(category);
+              final double col1 = 300.0 * scale;
+              final double col2 = 120.0 * scale;
+              final double col3 = 100.0 * scale;
+              final double col4 = 150.0 * scale;
+              final double col5 = 140.0 * scale;
+              final double col6 = 120.0 * scale;
 
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (_) => _selectModule(module),
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 300,
-                        child: Row(
-                          children: [
-                            Icon(icon, size: 18, color: accentColor),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    horizontalMargin: 16,
+                    columnSpacing: 20,
+                    columns: [
+                      _buildTableHeaderColumn('Module Name', textSecondary, width: col1),
+                      _buildTableHeaderColumn('Category', textSecondary, width: col2),
+                      _buildTableHeaderColumn('Type', textSecondary, width: col3),
+                      _buildTableHeaderColumn('Status', textSecondary, width: col4),
+                      _buildTableHeaderColumn('Assigned Inst.', textSecondary, width: col5),
+                      _buildTableHeaderColumn('Actions', textSecondary, width: col6),
+                    ],
+                    rows: paginated.map((module) {
+                      final isSelected = _selectedModule?['id'] == module['id'];
+                      final id = module['id'] ?? '';
+                      final name = module['name'] ?? 'Module Name';
+                      final desc = module['description'] ?? '';
+                      final category = module['category'] ?? 'Core';
+                      final type = module['type'] ?? 'Feature';
+                      final isEnabled = module['is_enabled'] ?? true;
+                      
+                      // Calculate assigned schools
+                      final assignedCount = _schools.where((s) {
+                        final toggles = s['module_toggles'] as Map<String, dynamic>? ?? {};
+                        return toggles[id] == true;
+                      }).length;
+
+                      final IconData icon = _getModuleIcon(module['icon']);
+                      Color catColor = _getCategoryColor(category);
+
+                      return DataRow(
+                        selected: isSelected,
+                        onSelectChanged: (_) => _selectModule(module),
+                        cells: [
+                          DataCell(
+                            SizedBox(
+                              width: col1,
+                              child: Row(
                                 children: [
-                                  Text(
-                                    name,
-                                    style: GoogleFonts.dmSans(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    desc,
-                                    style: GoogleFonts.dmSans(color: textMuted, fontSize: 11),
-                                    overflow: TextOverflow.ellipsis,
+                                  Icon(icon, size: 18, color: accentColor),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          name,
+                                          style: GoogleFonts.dmSans(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          desc,
+                                          style: GoogleFonts.dmSans(color: textMuted, fontSize: 11),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 120,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: catColor.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: catColor.withOpacity(0.24)),
-                            ),
-                            child: Text(
-                              category,
-                              style: GoogleFonts.dmSans(color: catColor, fontSize: 10, fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col2,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: catColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: catColor.withOpacity(0.24)),
+                                  ),
+                                  child: Text(
+                                    category,
+                                    style: GoogleFonts.dmSans(color: catColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 100,
-                        child: Text(
-                          type,
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 150,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: isEnabled ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                shape: BoxShape.circle,
+                          DataCell(
+                            SizedBox(
+                              width: col3,
+                              child: Text(
+                                type,
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              isEnabled ? 'Active' : 'Disabled',
-                              style: GoogleFonts.dmSans(
-                                color: isEnabled ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col4,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: isEnabled ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isEnabled ? 'Active' : 'Disabled',
+                                    style: GoogleFonts.dmSans(
+                                      color: isEnabled ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Transform.scale(
+                                    scale: 0.75,
+                                    child: Switch(
+                                      value: isEnabled,
+                                      activeColor: const Color(0xFF4F46E5),
+                                      onChanged: (val) => _saveModule(id, {'is_enabled': val}),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const Spacer(),
-                            Transform.scale(
-                              scale: 0.75,
-                              child: Switch(
-                                value: isEnabled,
-                                activeColor: const Color(0xFF4F46E5),
-                                onChanged: (val) => _saveModule(id, {'is_enabled': val}),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col5,
+                              child: Text(
+                                '$assignedCount / ${_schools.length}',
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 140,
-                        child: Text(
-                          '$assignedCount / ${_schools.length}',
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 120,
-                        child: Row(
-                          children: [
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-                              color: accentColor,
-                              onPressed: () => _selectModule(module),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col6,
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                                    color: accentColor,
+                                    onPressed: () => _selectModule(module),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.edit_outlined, size: 16),
+                                    color: const Color(0xFF10B981),
+                                    onPressed: () => _showEditModuleDialog(module),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                    color: const Color(0xFFEF4444),
+                                    onPressed: () => _deleteModule(id),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.edit_outlined, size: 16),
-                              color: const Color(0xFF10B981),
-                              onPressed: () => _showEditModuleDialog(module),
-                            ),
-                            const SizedBox(width: 12),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.delete_outline, size: 16),
-                              color: const Color(0xFFEF4444),
-                              onPressed: () => _deleteModule(id),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
           ),
           const Divider(height: 1, color: Colors.white10),
           // Pagination footer
@@ -2085,130 +2103,148 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
             ),
           ),
           const Divider(height: 1, color: Colors.white10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              horizontalMargin: 16,
-              columnSpacing: 24,
-              columns: [
-                _buildTableHeaderColumn('Category Name', textSecondary, width: 200),
-                _buildTableHeaderColumn('Description', textSecondary, width: 300),
-                _buildTableHeaderColumn('Status', textSecondary, width: 120),
-                _buildTableHeaderColumn('Modules', textSecondary, width: 110),
-                _buildTableHeaderColumn('Created On', textSecondary, width: 110),
-                _buildTableHeaderColumn('Actions', textSecondary, width: 120),
-              ],
-              rows: paginated.map((cat) {
-                final isSelected = _selectedCategory?['name'] == cat['name'];
-                final name = cat['name'];
-                final desc = cat['desc'] ?? cat['description'] ?? '';
-                final status = cat['status'];
-                final count = _modules.where((m) => m['category'] == name).length;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double containerWidth = constraints.maxWidth - 32;
+              final double baseWidth = 960.0;
+              final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (_) {
-                    setState(() {
-                      _selectedCategory = cat;
-                    });
-                  },
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 200,
-                        child: Row(
-                          children: [
-                            const Icon(Icons.folder_open_outlined, size: 18, color: Color(0xFF8B5CF6)),
-                            const SizedBox(width: 8),
-                            Text(name, style: GoogleFonts.dmSans(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 300,
-                        child: Text(
-                          desc,
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 120,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(4),
+              final double col1 = 200.0 * scale;
+              final double col2 = 300.0 * scale;
+              final double col3 = 120.0 * scale;
+              final double col4 = 110.0 * scale;
+              final double col5 = 110.0 * scale;
+              final double col6 = 120.0 * scale;
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    horizontalMargin: 16,
+                    columnSpacing: 24,
+                    columns: [
+                      _buildTableHeaderColumn('Category Name', textSecondary, width: col1),
+                      _buildTableHeaderColumn('Description', textSecondary, width: col2),
+                      _buildTableHeaderColumn('Status', textSecondary, width: col3),
+                      _buildTableHeaderColumn('Modules', textSecondary, width: col4),
+                      _buildTableHeaderColumn('Created On', textSecondary, width: col5),
+                      _buildTableHeaderColumn('Actions', textSecondary, width: col6),
+                    ],
+                    rows: paginated.map((cat) {
+                      final isSelected = _selectedCategory?['name'] == cat['name'];
+                      final name = cat['name'];
+                      final desc = cat['desc'] ?? cat['description'] ?? '';
+                      final status = cat['status'];
+                      final count = _modules.where((m) => m['category'] == name).length;
+
+                      return DataRow(
+                        selected: isSelected,
+                        onSelectChanged: (_) {
+                          setState(() {
+                            _selectedCategory = cat;
+                          });
+                        },
+                        cells: [
+                          DataCell(
+                            SizedBox(
+                              width: col1,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.folder_open_outlined, size: 18, color: Color(0xFF8B5CF6)),
+                                  const SizedBox(width: 8),
+                                  Text(name, style: GoogleFonts.dmSans(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
                           ),
-                          child: Text(
-                            status,
-                            style: GoogleFonts.dmSans(color: const Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+                          DataCell(
+                            SizedBox(
+                              width: col2,
+                              child: Text(
+                                desc,
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 110,
-                        child: Text(
-                          '$count Modules',
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 110,
-                        child: Text(
-                          'May 15, 2023',
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 120,
-                        child: Row(
-                          children: [
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-                              color: accentColor,
-                              onPressed: () {
-                                setState(() {
-                                  _selectedCategory = cat;
-                                });
-                              },
+                          DataCell(
+                            SizedBox(
+                              width: col3,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: GoogleFonts.dmSans(color: const Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.edit_outlined, size: 16),
-                              color: const Color(0xFF10B981),
-                              onPressed: () => _showCategoryFormDialog(category: cat),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col4,
+                              child: Text(
+                                '$count Modules',
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.delete_outline, size: 16),
-                              color: const Color(0xFFEF4444),
-                              onPressed: () => _deleteCategory(cat),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col5,
+                              child: Text(
+                                'May 15, 2023',
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                              ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col6,
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                                    color: accentColor,
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedCategory = cat;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(width: 12),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.edit_outlined, size: 16),
+                                    color: const Color(0xFF10B981),
+                                    onPressed: () => _showCategoryFormDialog(category: cat),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                    color: const Color(0xFFEF4444),
+                                    onPressed: () => _deleteCategory(cat),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
           ),
           const Divider(height: 1, color: Colors.white10),
           Padding(
@@ -2970,146 +3006,164 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
             ),
           ),
           const Divider(height: 1, color: Colors.white10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              horizontalMargin: 16,
-              columnSpacing: 20,
-              columns: [
-                _buildTableHeaderColumn('Module Name', textSecondary, width: 220),
-                _buildTableHeaderColumn('Category', textSecondary, width: 100),
-                _buildTableHeaderColumn('Type', textSecondary, width: 80),
-                _buildTableHeaderColumn('Description', textSecondary, width: 260),
-                _buildTableHeaderColumn('Status', textSecondary, width: 90),
-                _buildTableHeaderColumn('Current Status', textSecondary, width: 110),
-              ],
-              rows: paginated.map((module) {
-                final id = module['id'] ?? '';
-                final name = module['name'] ?? '';
-                final desc = module['description'] ?? '';
-                final category = module['category'] ?? 'Core';
-                final type = module['type'] ?? 'Feature';
-                final isEnabled = module['is_enabled'] ?? true;
-                final isChecked = _assignTabCheckedModuleIds.contains(id);
-                final originalAssigned = _assignTabOriginalModuleIds.contains(id);
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double containerWidth = constraints.maxWidth - 32;
+              final double baseWidth = 860.0;
+              final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
-                final IconData icon = _getModuleIcon(module['icon']);
-                Color catColor = _getCategoryColor(category);
+              final double col1 = 220.0 * scale;
+              final double col2 = 100.0 * scale;
+              final double col3 = 80.0 * scale;
+              final double col4 = 260.0 * scale;
+              final double col5 = 90.0 * scale;
+              final double col6 = 110.0 * scale;
 
-                return DataRow(
-                  selected: isChecked,
-                  onSelectChanged: (val) {
-                    setState(() {
-                      if (val == true) {
-                        _assignTabCheckedModuleIds.add(id);
-                      } else {
-                        _assignTabCheckedModuleIds.remove(id);
-                      }
-                    });
-                  },
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 220,
-                        child: Row(
-                          children: [
-                            Icon(icon, size: 18, color: accentColor),
-                            const SizedBox(width: 8),
-                            Expanded(
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    horizontalMargin: 16,
+                    columnSpacing: 20,
+                    columns: [
+                      _buildTableHeaderColumn('Module Name', textSecondary, width: col1),
+                      _buildTableHeaderColumn('Category', textSecondary, width: col2),
+                      _buildTableHeaderColumn('Type', textSecondary, width: col3),
+                      _buildTableHeaderColumn('Description', textSecondary, width: col4),
+                      _buildTableHeaderColumn('Status', textSecondary, width: col5),
+                      _buildTableHeaderColumn('Current Status', textSecondary, width: col6),
+                    ],
+                    rows: paginated.map((module) {
+                      final id = module['id'] ?? '';
+                      final name = module['name'] ?? '';
+                      final desc = module['description'] ?? '';
+                      final category = module['category'] ?? 'Core';
+                      final type = module['type'] ?? 'Feature';
+                      final isEnabled = module['is_enabled'] ?? true;
+                      final isChecked = _assignTabCheckedModuleIds.contains(id);
+                      final originalAssigned = _assignTabOriginalModuleIds.contains(id);
+
+                      final IconData icon = _getModuleIcon(module['icon']);
+                      Color catColor = _getCategoryColor(category);
+
+                      return DataRow(
+                        selected: isChecked,
+                        onSelectChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              _assignTabCheckedModuleIds.add(id);
+                            } else {
+                              _assignTabCheckedModuleIds.remove(id);
+                            }
+                          });
+                        },
+                        cells: [
+                          DataCell(
+                            SizedBox(
+                              width: col1,
+                              child: Row(
+                                children: [
+                                  Icon(icon, size: 18, color: accentColor),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      name,
+                                      style: GoogleFonts.dmSans(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col2,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: catColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: catColor.withOpacity(0.24)),
+                                  ),
+                                  child: Text(
+                                    category,
+                                    style: GoogleFonts.dmSans(color: catColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col3,
                               child: Text(
-                                name,
-                                style: GoogleFonts.dmSans(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                                type,
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col4,
+                              child: Text(
+                                desc,
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 100,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: catColor.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: catColor.withOpacity(0.24)),
-                            ),
-                            child: Text(
-                              category,
-                              style: GoogleFonts.dmSans(color: catColor, fontSize: 10, fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
-                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          type,
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 260,
-                        child: Text(
-                          desc,
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 90,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isEnabled ? const Color(0xFF10B981).withOpacity(0.12) : const Color(0xFFEF4444).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isEnabled ? 'Active' : 'Disabled',
-                            style: GoogleFonts.dmSans(
-                              color: isEnabled ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                          DataCell(
+                            SizedBox(
+                              width: col5,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isEnabled ? const Color(0xFF10B981).withOpacity(0.12) : const Color(0xFFEF4444).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  isEnabled ? 'Active' : 'Disabled',
+                                  style: GoogleFonts.dmSans(
+                                    color: isEnabled ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 110,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: originalAssigned ? const Color(0xFF10B981).withOpacity(0.12) : Colors.white10,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            originalAssigned ? 'Assigned' : 'Not Assigned',
-                            style: GoogleFonts.dmSans(
-                              color: originalAssigned ? const Color(0xFF10B981) : textSecondary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                          DataCell(
+                            SizedBox(
+                              width: col6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: originalAssigned ? const Color(0xFF10B981).withOpacity(0.12) : Colors.white10,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  originalAssigned ? 'Assigned' : 'Not Assigned',
+                                  style: GoogleFonts.dmSans(
+                                    color: originalAssigned ? const Color(0xFF10B981) : textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
           ),
           const Divider(height: 1, color: Colors.white10),
           Padding(
@@ -3777,142 +3831,161 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
             ),
           ),
           const Divider(height: 1, color: Colors.white10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              horizontalMargin: 16,
-              columnSpacing: 20,
-              columns: [
-                _buildTableHeaderColumn('Request ID', textSecondary, width: 110),
-                _buildTableHeaderColumn('Module Name', textSecondary, width: 160),
-                _buildTableHeaderColumn('Institution', textSecondary, width: 180),
-                _buildTableHeaderColumn('Requested By', textSecondary, width: 160),
-                _buildTableHeaderColumn('Requested On', textSecondary, width: 100),
-                _buildTableHeaderColumn('Status', textSecondary, width: 90),
-                _buildTableHeaderColumn('Actions', textSecondary, width: 80),
-              ],
-              rows: paginated.map((req) {
-                final isSelected = _selectedRequest?['id'] == req['id'];
-                final id = req['id'] ?? '';
-                final moduleName = req['modules']?['name'] ?? 'Module';
-                final moduleIcon = req['modules']?['icon'] ?? 'extension';
-                final schoolName = req['schools']?['name'] ?? 'School';
-                final requesterName = req['requested_by_name'] ?? '';
-                final requesterEmail = req['requested_by_email'] ?? '';
-                final requestedOnStr = req['created_at'] != null ? req['created_at'].toString().split('T')[0] : '';
-                final status = req['status'] ?? 'Pending';
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double containerWidth = constraints.maxWidth - 32;
+              final double baseWidth = 880.0;
+              final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
-                Color statusColor = const Color(0xFFF59E0B);
-                if (status == 'Approved') statusColor = const Color(0xFF10B981);
-                if (status == 'Rejected') statusColor = const Color(0xFFEF4444);
+              final double col1 = 110.0 * scale;
+              final double col2 = 160.0 * scale;
+              final double col3 = 180.0 * scale;
+              final double col4 = 160.0 * scale;
+              final double col5 = 100.0 * scale;
+              final double col6 = 90.0 * scale;
+              final double col7 = 80.0 * scale;
 
-                return DataRow(
-                  selected: isSelected,
-                  onSelectChanged: (_) {
-                    setState(() {
-                      _selectedRequest = req;
-                    });
-                  },
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 110,
-                        child: Text(
-                          id,
-                          style: GoogleFonts.dmSans(color: textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 160,
-                        child: Row(
-                          children: [
-                            Icon(_getModuleIcon(moduleIcon), size: 14, color: accentColor),
-                            const SizedBox(width: 6),
-                            Expanded(
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: DataTable(
+                    horizontalMargin: 16,
+                    columnSpacing: 20,
+                    columns: [
+                      _buildTableHeaderColumn('Request ID', textSecondary, width: col1),
+                      _buildTableHeaderColumn('Module Name', textSecondary, width: col2),
+                      _buildTableHeaderColumn('Institution', textSecondary, width: col3),
+                      _buildTableHeaderColumn('Requested By', textSecondary, width: col4),
+                      _buildTableHeaderColumn('Requested On', textSecondary, width: col5),
+                      _buildTableHeaderColumn('Status', textSecondary, width: col6),
+                      _buildTableHeaderColumn('Actions', textSecondary, width: col7),
+                    ],
+                    rows: paginated.map((req) {
+                      final isSelected = _selectedRequest?['id'] == req['id'];
+                      final id = req['id'] ?? '';
+                      final moduleName = req['modules']?['name'] ?? 'Module';
+                      final moduleIcon = req['modules']?['icon'] ?? 'extension';
+                      final schoolName = req['schools']?['name'] ?? 'School';
+                      final requesterName = req['requested_by_name'] ?? '';
+                      final requesterEmail = req['requested_by_email'] ?? '';
+                      final requestedOnStr = req['created_at'] != null ? req['created_at'].toString().split('T')[0] : '';
+                      final status = req['status'] ?? 'Pending';
+
+                      Color statusColor = const Color(0xFFF59E0B);
+                      if (status == 'Approved') statusColor = const Color(0xFF10B981);
+                      if (status == 'Rejected') statusColor = const Color(0xFFEF4444);
+
+                      return DataRow(
+                        selected: isSelected,
+                        onSelectChanged: (_) {
+                          setState(() {
+                            _selectedRequest = req;
+                          });
+                        },
+                        cells: [
+                          DataCell(
+                            SizedBox(
+                              width: col1,
                               child: Text(
-                                moduleName,
+                                id,
                                 style: GoogleFonts.dmSans(color: textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col2,
+                              child: Row(
+                                children: [
+                                  Icon(_getModuleIcon(moduleIcon), size: 14, color: accentColor),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      moduleName,
+                                      style: GoogleFonts.dmSans(color: textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col3,
+                              child: Text(
+                                schoolName,
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 180,
-                        child: Text(
-                          schoolName,
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 160,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(requesterName, style: GoogleFonts.dmSans(color: textPrimary, fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                            Text(requesterEmail, style: GoogleFonts.dmSans(color: textMuted, fontSize: 10), overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 100,
-                        child: Text(
-                          requestedOnStr,
-                          style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 90,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            status,
-                            style: GoogleFonts.dmSans(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      SizedBox(
-                        width: 80,
-                        child: Row(
-                          children: [
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-                              color: accentColor,
-                              onPressed: () {
-                                setState(() {
-                                  _selectedRequest = req;
-                                });
-                              },
+                          DataCell(
+                            SizedBox(
+                              width: col4,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(requesterName, style: GoogleFonts.dmSans(color: textPrimary, fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                  Text(requesterEmail, style: GoogleFonts.dmSans(color: textMuted, fontSize: 10), overflow: TextOverflow.ellipsis),
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col5,
+                              child: Text(
+                                requestedOnStr,
+                                style: GoogleFonts.dmSans(color: textSecondary, fontSize: 12),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: GoogleFonts.dmSans(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: col7,
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                                    color: accentColor,
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedRequest = req;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
           ),
           const Divider(height: 1, color: Colors.white10),
           Padding(

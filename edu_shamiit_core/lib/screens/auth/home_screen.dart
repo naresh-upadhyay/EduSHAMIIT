@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/widgets/public_footer.dart';
+import 'package:edu_shamiit_core/widgets/public_drawer.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_core/config/app_config.dart';
@@ -80,7 +81,25 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
         preferredSize: const Size.fromHeight(70),
         child: _buildNavbar(showDesktopNavbar, name),
       ),
-      drawer: showDesktopNavbar ? null : _buildMobileDrawer(name),
+      drawer: showDesktopNavbar ? null : PublicDrawer(
+        systemName: name,
+        systemLogo: widget.systemLogo,
+        onScrollToSection: (section) {
+          if (section == 'Home') {
+            _scrollToSection(_homeKey);
+          } else if (section == 'Features') {
+            _scrollToSection(_featuresKey);
+          } else if (section == 'Modules') {
+            _scrollToSection(_modulesKey);
+          } else if (section == 'Benefits') {
+            _scrollToSection(_benefitsKey);
+          } else if (section == 'Pricing') {
+            _scrollToSection(_pricingKey);
+          } else if (section == 'About Us') {
+            _scrollToSection(_aboutKey);
+          }
+        },
+      ),
       body: SingleChildScrollView(
         controller: _scrollController,
         child: Column(
@@ -262,106 +281,6 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildMobileDrawer(String name) {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF0F1026)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.school, color: Colors.white, size: 36),
-                const SizedBox(height: 12),
-                Text(
-                  name,
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildDrawerItem(Icons.home_outlined, 'Home', () {
-            Navigator.pop(context);
-            _scrollToSection(_homeKey);
-          }),
-          _buildDrawerItem(Icons.star_outline, 'Features', () {
-            Navigator.pop(context);
-            _scrollToSection(_featuresKey);
-          }),
-          _buildDrawerItem(Icons.widgets_outlined, 'Modules', () {
-            Navigator.pop(context);
-            _scrollToSection(_modulesKey);
-          }),
-          _buildDrawerItem(Icons.check_circle_outline, 'Benefits', () {
-            Navigator.pop(context);
-            _scrollToSection(_benefitsKey);
-          }),
-          _buildDrawerItem(Icons.attach_money_outlined, 'Pricing', () {
-            Navigator.pop(context);
-            _scrollToSection(_pricingKey);
-          }),
-          _buildDrawerItem(Icons.info_outline, 'About Us', () {
-            Navigator.pop(context);
-            _scrollToSection(_aboutKey);
-          }),
-          _buildDrawerItem(Icons.mail_outline, 'Contact Us', () {
-            Navigator.pop(context);
-            context.go('/contact');
-          }),
-          _buildDrawerItem(Icons.help_outline, 'FAQ', () {
-            Navigator.pop(context);
-            context.go('/faq');
-          }),
-          _buildDrawerItem(Icons.menu_book_outlined, 'Help Center', () {
-            Navigator.pop(context);
-            context.go('/help-center');
-          }),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.go('/login');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Login'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerItem(IconData icon, String label, VoidCallback onTap) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return ListTile(
-      leading: Icon(
-        icon, 
-        color: isDark ? Colors.white70 : const Color(0xFF475569), 
-        size: 20,
-      ),
-      title: Text(
-        label, 
-        style: GoogleFonts.dmSans(
-          fontSize: 14, 
-          color: isDark ? Colors.white : const Color(0xFF0F172A),
-        ),
-      ),
-      onTap: onTap,
     );
   }
 

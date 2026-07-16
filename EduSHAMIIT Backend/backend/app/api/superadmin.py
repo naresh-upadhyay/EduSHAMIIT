@@ -1157,14 +1157,23 @@ async def create_vault_secret_endpoint(
     name = payload.get("name")
     value = payload.get("value")
     description = payload.get("description")
+    path = payload.get("path", f"secret/data/{name.lower() if name else 'key'}")
+    secret_type = payload.get("secret_type", "API Key")
+    next_rotation = payload.get("next_rotation")
+    created_by = payload.get("created_by", "Super Admin")
+
     if not name or not value:
         raise HTTPException(status_code=400, detail="Name and value are required")
 
     sb = get_supabase()
-    res = await sb.rpc("create_vault_secret", {
-        "secret_name": name,
-        "secret_value": value,
-        "secret_desc": description
+    res = await sb.rpc("create_vault_secret_v2", {
+        "p_secret_name": name,
+        "p_secret_value": value,
+        "p_secret_desc": description,
+        "p_secret_path": path,
+        "p_secret_type": secret_type,
+        "p_next_rotation": next_rotation,
+        "p_created_by": created_by
     }).aexecute()
     
     # Sync immediately to os.environ and settings
@@ -1181,11 +1190,16 @@ async def update_vault_secret_endpoint(
 ):
     """Update a secret in Supabase Vault."""
     sb = get_supabase()
-    await sb.rpc("update_vault_secret", {
-        "secret_id": secret_id,
-        "secret_name": payload.get("name"),
-        "secret_value": payload.get("value"),
-        "secret_desc": payload.get("description")
+    await sb.rpc("update_vault_secret_v2", {
+        "p_secret_id": secret_id,
+        "p_secret_value": payload.get("value"),
+        "p_secret_name": payload.get("name"),
+        "p_secret_desc": payload.get("description"),
+        "p_secret_path": payload.get("path"),
+        "p_secret_type": payload.get("secret_type"),
+        "p_secret_next_rotation": payload.get("next_rotation"),
+        "p_secret_status": payload.get("status"),
+        "p_modified_by": payload.get("modified_by", "System")
     }).aexecute()
     
     # Sync immediately to os.environ and settings
@@ -1208,6 +1222,29 @@ async def delete_vault_secret_endpoint(
     await sync_vault_secrets_to_environ()
     
     return {"success": True, "message": "Secret deleted successfully"}
+
+@vault_router.get("/vault/secrets/{secret_id}/versions")
+async def list_vault_secret_versions(
+    secret_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """List all historical versions of a secret."""
+    sb = get_supabase()
+    res = await sb.rpc("get_vault_secret_versions", {"secret_id": secret_id}).aexecute()
+    return {"success": True, "data": res.data}
+
+@vault_router.get("/vault/secrets/versions/{version_id}/value")
+async def get_vault_secret_version_value_endpoint(
+    version_id: str,
+    user=Depends(require_super_admin_or_director),
+):
+    """Get decrypted secret value for a specific historical version."""
+    sb = get_supabase()
+    res = await sb.rpc("get_vault_secret_version_value", {"version_id": version_id}).aexecute()
+    val = res.data
+    if isinstance(val, list):
+        val = val[0] if val else ""
+    return {"success": True, "value": val}
 
 
 # ===========================================================

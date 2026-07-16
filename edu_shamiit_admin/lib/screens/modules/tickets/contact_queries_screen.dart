@@ -136,173 +136,186 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final scaffoldBg = isDark ? const Color(0xFF090B15) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF13182C) : Colors.white;
+    final borderColor = isDark ? Colors.white10 : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textSecondary = isDark ? Colors.white70 : const Color(0xFF64748B);
+    final textMuted = isDark ? Colors.white30 : const Color(0xFF94A3B8);
+    final accentColor = const Color(0xFF6366F1);
+
     final isWideScreen = MediaQuery.of(context).size.width >= 1000;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header Row
-            Row(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Theme(
+      data: isDark ? ThemeData.dark() : ThemeData.light(),
+      child: Scaffold(
+        backgroundColor: scaffoldBg,
+        body: _isLoading && _queries.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Public Contact Queries',
-                      style: GoogleFonts.outfit(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF0F172A),
-                      ),
+                    // Header Row
+                    Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Public Contact Queries',
+                              style: GoogleFonts.outfit(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Monitor and respond to queries sent by public users.',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 13,
+                                color: textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        ElevatedButton.icon(
+                          onPressed: _fetchQueries,
+                          icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                          label: Text('Refresh', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Monitor and respond to queries sent by public users.',
-                      style: GoogleFonts.dmSans(
-                        fontSize: 13,
-                        color: const Color(0xFF64748B),
-                      ),
+                    const SizedBox(height: 24),
+
+                    // Filter controls
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: borderColor),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              style: GoogleFonts.dmSans(fontSize: 14, color: textPrimary),
+                              decoration: InputDecoration(
+                                hintText: 'Search queries by sender name, subject, or message...',
+                                hintStyle: GoogleFonts.dmSans(color: textMuted),
+                                prefixIcon: Icon(Icons.search, color: textMuted),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              onSubmitted: (val) {
+                                setState(() {
+                                  _searchQuery = val;
+                                  _currentPage = 1;
+                                });
+                                _fetchQueries();
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedStatus,
+                              dropdownColor: cardBg,
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedStatus = val ?? 'All';
+                                  _currentPage = 1;
+                                });
+                                _fetchQueries();
+                              },
+                              items: _statuses.map((s) {
+                                return DropdownMenuItem<String>(
+                                  value: s,
+                                  child: Text(s == 'All' ? 'All Statuses' : '$s Status', style: GoogleFonts.dmSans(fontSize: 14, color: textPrimary)),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Content Area
+                    Expanded(
+                      child: isWideScreen
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Left List Pane
+                                Expanded(
+                                  flex: 4,
+                                  child: _buildListPane(isDark, cardBg, borderColor, textPrimary, textSecondary, textMuted, accentColor),
+                                ),
+                                const SizedBox(width: 24),
+                                // Right Detail Pane
+                                Expanded(
+                                  flex: 6,
+                                  child: _buildDetailPane(isDark, cardBg, borderColor, textPrimary, textSecondary, textMuted, accentColor),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                Expanded(
+                                  child: _selectedQuery == null 
+                                      ? _buildListPane(isDark, cardBg, borderColor, textPrimary, textSecondary, textMuted, accentColor) 
+                                      : _buildDetailPane(isDark, cardBg, borderColor, textPrimary, textSecondary, textMuted, accentColor),
+                                ),
+                              ],
+                            ),
                     ),
                   ],
                 ),
-                const Spacer(),
-                ElevatedButton.icon(
-                  onPressed: _fetchQueries,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Refresh'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Filter controls
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      style: GoogleFonts.dmSans(fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'Search queries...',
-                        hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                      onSubmitted: (val) {
-                        setState(() {
-                          _searchQuery = val;
-                          _currentPage = 1;
-                        });
-                        _fetchQueries();
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedStatus,
-                      onChanged: (val) {
-                        setState(() {
-                          _selectedStatus = val ?? 'All';
-                          _currentPage = 1;
-                        });
-                        _fetchQueries();
-                      },
-                      items: _statuses.map((s) {
-                        return DropdownMenuItem<String>(
-                          value: s,
-                          child: Text('$s Status', style: GoogleFonts.dmSans(fontSize: 14)),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Content Area
-            Expanded(
-              child: isWideScreen
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Left List Pane
-                        Expanded(
-                          flex: 4,
-                          child: _buildListPane(),
-                        ),
-                        const SizedBox(width: 24),
-                        // Right Detail Pane
-                        Expanded(
-                          flex: 6,
-                          child: _buildDetailPane(),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        Expanded(
-                          child: _selectedQuery == null ? _buildListPane() : _buildDetailPane(),
-                        ),
-                      ],
-                    ),
-            ),
-          ],
-        ),
+              ),
       ),
     );
   }
 
-  Widget _buildListPane() {
-    if (_isLoading && _queries.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(Color(0xFF4F46E5)),
-        ),
-      );
-    }
-
+  Widget _buildListPane(bool isDark, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary, Color textMuted, Color accentColor) {
     if (_queries.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.mail_outline, size: 64, color: Colors.black26),
+            Icon(Icons.mail_outline, size: 64, color: textMuted),
             const SizedBox(height: 16),
             Text(
               'No Contact Queries Found',
               style: GoogleFonts.outfit(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF64748B),
+                color: textSecondary,
               ),
             ),
           ],
@@ -320,20 +333,29 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
               final query = _queries[index];
               final isSelected = _selectedQuery != null && _selectedQuery['id'] == query['id'];
 
+              final selectedBg = isDark 
+                  ? const Color(0xFF4F46E5).withOpacity(0.12)
+                  : const Color(0xFFEEF2FF);
+              
+              final selectedBorder = isDark
+                  ? accentColor
+                  : const Color(0xFF818CF8);
+
               return InkWell(
                 onTap: () => _selectQuery(query),
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
+                    color: isSelected ? selectedBg : cardBg,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? const Color(0xFF818CF8) : const Color(0xFFE2E8F0),
+                      color: isSelected ? selectedBorder : borderColor,
                       width: isSelected ? 1.5 : 1.0,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -350,11 +372,11 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                               style: GoogleFonts.outfit(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFF0F172A),
+                                color: textPrimary,
                               ),
                             ),
                           ),
-                          _buildStatusBadge(query['status']),
+                          _buildStatusBadge(query['status'], isDark),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -363,7 +385,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF475569),
+                          color: isDark ? Colors.white70 : const Color(0xFF475569),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -373,25 +395,29 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.dmSans(
                           fontSize: 12,
-                          color: const Color(0xFF64748B),
+                          color: textSecondary,
                         ),
                       ),
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            query['email'] ?? '',
-                            style: GoogleFonts.dmSans(
-                              fontSize: 11,
-                              color: const Color(0xFF94A3B8),
+                          Expanded(
+                            child: Text(
+                              query['email'] ?? '',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                color: textMuted,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
                             _formatDate(query['created_at']),
                             style: GoogleFonts.dmSans(
                               fontSize: 11,
-                              color: const Color(0xFF94A3B8),
+                              color: textMuted,
                             ),
                           ),
                         ],
@@ -404,33 +430,34 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildPaginationControls(),
+        _buildPaginationControls(textSecondary),
       ],
     );
   }
 
-  Widget _buildDetailPane() {
+  Widget _buildDetailPane(bool isDark, Color cardBg, Color borderColor, Color textPrimary, Color textSecondary, Color textMuted, Color accentColor) {
     if (_selectedQuery == null) {
       return Center(
         child: Text(
           'Select a query to view details',
-          style: GoogleFonts.dmSans(color: const Color(0xFF64748B)),
+          style: GoogleFonts.dmSans(color: textSecondary),
         ),
       );
     }
 
     final query = _selectedQuery;
     final canRespond = query['status'] != 'Resolved';
+    final String initial = (query['full_name'] ?? 'A').toString().trim().substring(0, 1).toUpperCase();
 
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -441,7 +468,22 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
         children: [
           // Detail Header
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Avatar
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: accentColor.withOpacity(0.15),
+                child: Text(
+                  initial,
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,7 +493,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                       style: GoogleFonts.outfit(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF0F172A),
+                        color: textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -459,29 +501,30 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                       'From: ${query['full_name']} (${query['email']})',
                       style: GoogleFonts.dmSans(
                         fontSize: 13,
-                        color: const Color(0xFF64748B),
+                        color: textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildStatusBadge(query['status']),
+                  _buildStatusBadge(query['status'], isDark),
                   const SizedBox(height: 8),
                   Text(
                     _formatDate(query['created_at']),
                     style: GoogleFonts.dmSans(
                       fontSize: 11,
-                      color: const Color(0xFF94A3B8),
+                      color: textMuted,
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const Divider(height: 32, color: Color(0xFFE2E8F0)),
+          const Divider(height: 32, color: Colors.white10),
 
           // Message Card
           Text(
@@ -489,22 +532,22 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
             style: GoogleFonts.outfit(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: borderColor),
             ),
             child: Text(
               query['message'] ?? '',
               style: GoogleFonts.dmSans(
                 fontSize: 14,
-                color: const Color(0xFF334155),
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
                 height: 1.5,
               ),
             ),
@@ -517,7 +560,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
             style: GoogleFonts.outfit(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -527,13 +570,17 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                 controller: _responseController,
                 maxLines: null,
                 expands: true,
-                style: GoogleFonts.dmSans(fontSize: 14),
+                style: GoogleFonts.dmSans(fontSize: 14, color: textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Type your official response here...',
-                  hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8)),
-                  border: OutlineInputBorder(
+                  hintStyle: GoogleFonts.dmSans(color: textMuted),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(color: borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: accentColor, width: 1.5),
                   ),
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -587,9 +634,9 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
+                color: isDark ? const Color(0xFF064E3B).withOpacity(0.2) : const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
+                border: Border.all(color: isDark ? const Color(0xFF064E3B).withOpacity(0.4) : const Color(0xFFBBF7D0)),
               ),
               child: Text(
                 query['response'] != null && query['response'].isNotEmpty
@@ -597,7 +644,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                     : 'No response entered. Marked as resolved.',
                 style: GoogleFonts.dmSans(
                   fontSize: 14,
-                  color: const Color(0xFF14532D),
+                  color: isDark ? Colors.green.shade300 : const Color(0xFF14532D),
                   height: 1.5,
                 ),
               ),
@@ -628,23 +675,23 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
     );
   }
 
-  Widget _buildStatusBadge(String? status) {
+  Widget _buildStatusBadge(String? status, bool isDark) {
     Color bg;
     Color fg;
 
     switch (status) {
       case 'Resolved':
-        bg = const Color(0xFFDCFCE7);
-        fg = const Color(0xFF15803D);
+        bg = isDark ? const Color(0xFF064E3B).withOpacity(0.25) : const Color(0xFFDCFCE7);
+        fg = isDark ? Colors.green.shade300 : const Color(0xFF15803D);
         break;
       case 'In Progress':
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFFD97706);
+        bg = isDark ? const Color(0xFF78350F).withOpacity(0.25) : const Color(0xFFFEF3C7);
+        fg = isDark ? Colors.amber.shade300 : const Color(0xFFD97706);
         break;
       case 'Pending':
       default:
-        bg = const Color(0xFFF1F5F9);
-        fg = const Color(0xFF475569);
+        bg = isDark ? Colors.white10 : const Color(0xFFF1F5F9);
+        fg = isDark ? Colors.white54 : const Color(0xFF475569);
         break;
     }
 
@@ -665,7 +712,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
     );
   }
 
-  Widget _buildPaginationControls() {
+  Widget _buildPaginationControls(Color textSecondary) {
     final totalPages = (_totalRecords / _pageSize).ceil();
     final hasNext = _currentPage < totalPages;
     final hasPrev = _currentPage > 1;
@@ -674,7 +721,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
       children: [
         Text(
           'Total: $_totalRecords records',
-          style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+          style: GoogleFonts.dmSans(fontSize: 12, color: textSecondary),
         ),
         const Spacer(),
         OutlinedButton(
