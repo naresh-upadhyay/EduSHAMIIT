@@ -147,6 +147,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         label: 'Public Contact Queries',
         route: '/admin/contact-queries',
         section: NavSection.quickAccess),
+    _NavItem(
+        icon: Icons.person_outline_rounded,
+        label: 'My Profile',
+        route: '/admin/my-profile',
+        section: NavSection.quickAccess),
   ];
 
   List<dynamic> _modules = [];
@@ -413,40 +418,51 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                        child: const Icon(Icons.person, color: Color(0xFF4F46E5)),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              userName,
-                              style: TextStyle(
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12),
-                              overflow: TextOverflow.ellipsis,
+                        child: InkWell(
+                          onTap: () => context.go('/admin/my-profile'),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                                  backgroundImage: user?['avatar_url'] != null
+                                      ? NetworkImage(user!['avatar_url'].toString())
+                                      : null,
+                                  child: user?['avatar_url'] == null
+                                      ? const Icon(Icons.person, color: Color(0xFF4F46E5))
+                                      : null,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        userName,
+                                        style: TextStyle(
+                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        _roleLabels[user?['role']?.toString().toLowerCase() ?? ''] ??
+                                            (user?['role']?.toString() ?? 'SUPER ADMIN')
+                                                .replaceAll('_', ' ')
+                                                .toUpperCase(),
+                                        style: const TextStyle(
+                                            color: Color(0xFF64748B), fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              _roleLabels[user?['role']?.toString().toLowerCase() ?? ''] ??
-                                  (user?['role']?.toString() ?? 'SUPER ADMIN')
-                                      .replaceAll('_', ' ')
-                                      .toUpperCase(),
-                              style: const TextStyle(
-                                  color: Color(0xFF64748B), fontSize: 10),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.logout,
-                            color: Color(0xFFEF4444), size: 18),
-                        onPressed: () {
-                          ref.read(authProvider.notifier).signOut();
-                        },
                       ),
                     ],
                   ),

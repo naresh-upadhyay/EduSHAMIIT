@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_admin/screens/login_screen.dart';
 import 'package:edu_shamiit_admin/screens/dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/super_admin_dashboard_screen.dart';
+import 'package:edu_shamiit_admin/screens/role_dashboards/my_profile_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/infra/infra_monitor_screen.dart';
@@ -282,7 +283,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/audit-log',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AuditLogScreen()),
+            pageBuilder: (context, state) {
+              final search = state.uri.queryParameters['search'];
+              return NoTransitionPage(child: AuditLogScreen(initialSearch: search));
+            },
+          ),
+          GoRoute(
+            path: '/admin/my-profile',
+            pageBuilder: (_, __) => const NoTransitionPage(child: MyProfileScreen()),
           ),
 
 

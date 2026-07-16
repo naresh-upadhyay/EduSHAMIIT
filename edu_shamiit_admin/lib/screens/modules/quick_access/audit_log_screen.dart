@@ -8,7 +8,8 @@ import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuditLogScreen extends StatefulWidget {
-  const AuditLogScreen({super.key});
+  final String? initialSearch;
+  const AuditLogScreen({super.key, this.initialSearch});
 
   @override
   State<AuditLogScreen> createState() => _AuditLogScreenState();
@@ -88,6 +89,9 @@ class _AuditLogScreenState extends State<AuditLogScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialSearch != null) {
+      _searchController.text = widget.initialSearch!;
+    }
     _fetchFilterData();
     _fetchLogs();
   }

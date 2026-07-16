@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
 from typing import Optional, Dict, Any, List
@@ -216,7 +216,7 @@ class EnhancedResetPasswordRequest(ResetPasswordRequest):
         }
     }
 )
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, raw_req: Request):
     """Authenticate user and return JWT token."""
     try:
         sb = get_supabase()
@@ -311,11 +311,12 @@ async def login(request: LoginRequest):
                             detail=f"Access denied: School subscription is {status_lower}."
                         )
 
-        # Reset failed attempts on success
+        # Reset failed attempts on success and update last login
         await sb.table("profiles").update({
             "failed_login_attempts": 0,
             "lockout_until": None,
-            "last_failed_login": None
+            "last_failed_login": None,
+            "last_login": datetime.now(timezone.utc).isoformat()
         }).eq("id", user_id).aexecute()
 
         # Enforce role matching if role is requested
@@ -362,9 +363,50 @@ async def login(request: LoginRequest):
                 
         # Register new session
         expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        
+        # Parse client details from Request
+        user_agent = raw_req.headers.get("user-agent", "")
+        ip_address = raw_req.headers.get("x-forwarded-for") or (raw_req.client.host if raw_req.client else "127.0.0.1")
+        if "," in ip_address:
+            ip_address = ip_address.split(",")[0].strip()
+            
+        device_name = "Unknown Device"
+        browser_name = "Unknown Browser"
+        ua_lower = user_agent.lower()
+        if "windows" in ua_lower:
+            device_name = "Windows"
+        elif "macintosh" in ua_lower or "mac os x" in ua_lower:
+            device_name = "MacOS"
+        elif "iphone" in ua_lower or "ipad" in ua_lower:
+            device_name = "iOS"
+        elif "android" in ua_lower:
+            device_name = "Android"
+        elif "linux" in ua_lower:
+            device_name = "Linux"
+            
+        if "edg" in ua_lower:
+            browser_name = "Edge"
+        elif "opr" in ua_lower or "opera" in ua_lower:
+            browser_name = "Opera"
+        elif "chrome" in ua_lower:
+            browser_name = "Chrome"
+        elif "safari" in ua_lower:
+            browser_name = "Safari"
+        elif "firefox" in ua_lower:
+            browser_name = "Firefox"
+            
+        if ip_address in ("127.0.0.1", "localhost", "::1") or ip_address.startswith("172.") or ip_address.startswith("192.168.") or ip_address.startswith("10."):
+            location = "Local Network"
+        else:
+            location = "Noida, India"
+
         await sb.table("user_active_sessions").insert({
             "user_id": user_id,
             "token": token,
+            "device_name": device_name,
+            "browser_name": browser_name,
+            "ip_address": ip_address,
+            "location": location,
             "expires_at": expires_at.isoformat()
         }).aexecute()
 

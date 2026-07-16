@@ -5,6 +5,7 @@ import 'package:edu_shamiit_core/services/api_service.dart';
 import 'package:edu_shamiit_admin/widgets/azure_grid.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   final String? initialRole;
@@ -1071,7 +1072,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           if (status == 'Inactive') statusColor = const Color(0xFF64748B);
                           if (status == 'Locked') statusColor = const Color(0xFFEF4444);
 
-                          final lastLoginDateStr = user['last_login'] ?? '--';
+                          String lastLoginDateStr = '--';
+                          if (user['last_login'] != null) {
+                            try {
+                              final parsed = DateTime.parse(user['last_login'].toString()).toLocal();
+                              lastLoginDateStr = "${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}";
+                            } catch (_) {
+                              lastLoginDateStr = user['last_login'].toString().split('T')[0];
+                            }
+                          }
                           final createdOnDateStr = user['created_at'] != null 
                               ? user['created_at'].toString().split('T')[0]
                               : '--';
@@ -2051,7 +2060,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final schoolName = user['school_name'] ?? 'System-wide';
     final dept = user['department'] ?? 'N/A';
     final status = user['status'] ?? 'Active';
-    final lastLogin = user['last_login'] ?? '--';
+    String lastLogin = '--';
+    if (user['last_login'] != null) {
+      try {
+        final parsed = DateTime.parse(user['last_login'].toString()).toLocal();
+        lastLogin = DateFormat('MMM dd, yyyy hh:mm a').format(parsed);
+      } catch (_) {
+        lastLogin = user['last_login'].toString();
+      }
+    }
     final email = user['email'] ?? 'N/A';
     final phone = user['phone'] ?? 'N/A';
     final gender = user['gender'] ?? 'N/A';
