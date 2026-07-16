@@ -45,6 +45,10 @@ class SystemConfigSave(BaseModel):
     integrations_settings: Optional[dict] = None
     backup_restore_settings: Optional[dict] = None
     advanced_settings: Optional[dict] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_address: Optional[str] = None
+    live_chat_info: Optional[str] = None
 
 # ===========================================================
 # Endpoints
@@ -56,13 +60,13 @@ async def get_public_system_config(school_id: Optional[str] = Query(None)):
     try:
         if school_id and school_id != "All Institutions":
             res = await sb.table("system_configurations").select(
-                "system_name, system_title, system_logo, favicon, login_page_message, appearance_settings, default_language"
+                "system_name, system_title, system_logo, favicon, login_page_message, appearance_settings, default_language, contact_email, contact_phone, contact_address, live_chat_info"
             ).eq("school_id", school_id).maybe_single().aexecute()
             if res.data:
                 return {"success": True, "data": res.data}
         
         res = await sb.table("system_configurations").select(
-            "system_name, system_title, system_logo, favicon, login_page_message, appearance_settings, default_language"
+            "system_name, system_title, system_logo, favicon, login_page_message, appearance_settings, default_language, contact_email, contact_phone, contact_address, live_chat_info"
         ).is_("school_id", "null").maybe_single().aexecute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Global system configuration not found")
@@ -115,6 +119,10 @@ async def save_system_config(payload: SystemConfigSave, user=Depends(require_sup
         "auto_logout_minutes": payload.auto_logout_minutes,
         "session_timeout_minutes": payload.session_timeout_minutes,
         "login_page_message": payload.login_page_message,
+        "contact_email": payload.contact_email or 'support@schoolerp.com',
+        "contact_phone": payload.contact_phone or '+91 98765 43210',
+        "contact_address": payload.contact_address or 'School ERP Solutions Pvt. Ltd., Plot No. 123, Tech Park, Sector 62, Noida, Uttar Pradesh - 201309, India',
+        "live_chat_info": payload.live_chat_info or 'Available in the application',
         "updated_at": datetime.utcnow().isoformat()
     }
     

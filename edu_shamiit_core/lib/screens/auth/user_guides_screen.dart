@@ -191,6 +191,599 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
 5. **Student / Parent**: Access courses, attempt homework, view grades, review fee invoices, and track transport buses.
 6. **Support Staff (Finance, HR, Transport)**: Role-specific access to salary structures, attendance recording, or bus route tracking.
 '''
+    },
+    {
+      'id': 'add-staff',
+      'category': 'User Management',
+      'title': 'How to Add Staff Members',
+      'readTime': '4 min read',
+      'icon': Icons.person_add_alt_1_outlined,
+      'summary': 'Step-by-step on creating accounts for teachers/principals and choosing role levels.',
+      'content': '''
+# How to Add Staff Members
+
+Managing your school's faculty and administrative team is straightforward. Follow these steps to register a new staff member.
+
+---
+
+## 📝 Step-by-Step Registration Process
+
+1. **Navigate to Staff Directory**:
+   Go to User Management > Staff Directory on your left sidebar.
+2. **Click "Add New Staff"**:
+   Click the blue button in the top right corner.
+3. **Fill Primary Information**:
+   - Enter their full legal name, primary mobile number, and work email.
+   - Choose their designation (e.g., Senior Teacher, Accountant, Principal).
+4. **Assign Role Permissions**:
+   Select the correct authorization level (Teacher, Finance Admin, Transport Admin).
+5. **Save and Invite**:
+   Click Save. The system will automatically generate a secure welcome link and send it to their registered email address.
+'''
+    },
+    {
+      'id': 'manage-roles',
+      'category': 'User Management',
+      'title': 'Managing Staff Access & Roles',
+      'readTime': '3 min read',
+      'icon': Icons.admin_panel_settings_outlined,
+      'summary': 'Explaining permissions override matrix and access controls.',
+      'content': '''
+# Managing Staff Access & Roles
+
+School ERP employs strict security principles. Here is how to configure custom permissions.
+
+---
+
+## 🛡️ Customizing Role Controls
+
+1. **Access Role Manager**:
+   Go to User Management > Roles & Permissions.
+2. **Select Role**:
+   Choose the role you wish to configure (e.g., Teacher, Principal).
+3. **Toggle Permissions**:
+   Turn permissions on or off for specific modules:
+   - Academics: Edit courses, view timetables.
+   - Finance: Generate invoices, edit fee receipts.
+   - Transport: Assign buses, track live locations.
+4. **Save Configuration**:
+   Click Publish Changes to apply the security settings across your institution instantly.
+'''
+    },
+    {
+      'id': 'add-student',
+      'category': 'Student Management',
+      'title': 'Registering a New Student',
+      'readTime': '5 min read',
+      'icon': Icons.assignment_ind_outlined,
+      'summary': 'Basic info, father/mother contact details, profile image upload, classroom assignment.',
+      'content': '''
+# Registering a New Student
+
+Onboarding a student requires capturing their general registry info, parental contacts, and academic grouping.
+
+---
+
+## 📋 Admission Steps
+
+1. **Access Admissions Desk**:
+   Go to Student Management > New Admission.
+2. **Personal Information**:
+   Input full name, date of birth, gender, blood group, and residential address.
+3. **Parent / Guardian Details**:
+   - Provide primary guardian contact numbers and emails.
+   - Set up their login credentials so they receive automated notifications.
+4. **Academic Mapping**:
+   Assign the student's Grade, Class Section, and Roll Number.
+5. **Upload Documents**:
+   Attach previous school certificates, ID cards, and a profile photo.
+'''
+    },
+    {
+      'id': 'update-student',
+      'category': 'Student Management',
+      'title': 'Updating Student Profile Details',
+      'readTime': '3 min read',
+      'icon': Icons.manage_accounts_outlined,
+      'summary': 'Updating addresses, health files, or emergency contacts.',
+      'content': '''
+# Updating Student Profiles
+
+When student details change, follow these steps to keep the registry database accurate.
+
+---
+
+## ✏️ Modifying Records
+
+1. **Search for Student**:
+   Go to Student Management > Student Directory and type their name or Roll Number.
+2. **Open Profile**:
+   Click the Edit action button next to their record.
+3. **Apply Changes**:
+   Modify fields (e.g. medical files, parent contact number, address).
+4. **Audit Log Validation**:
+   All changes are recorded in the system audit log with timestamps.
+'''
+    },
+    {
+      'id': 'take-attendance',
+      'category': 'Attendance Management',
+      'title': 'Taking Daily Student Attendance',
+      'readTime': '4 min read',
+      'icon': Icons.fact_check_outlined,
+      'summary': 'How teachers mark Present/Absent/Late on the grid, and sending automatic SMS to parents.',
+      'content': '''
+# Taking Daily Student Attendance
+
+Keeping accurate attendance logs is vital. Teachers can record daily rosters in under a minute.
+
+---
+
+## ⏱️ Taking Attendance
+
+1. **Select Roster Grid**:
+   Go to Attendance > Student Attendance. Select the Grade and Section.
+2. **Mark Attendance**:
+   The class student list is loaded. Tap the status buttons (Present, Absent, or Late) next to each student.
+3. **Auto-Save & Notify**:
+   Click Submit Attendance.
+4. **Parent SMS Alerts**:
+   If enabled, parents of absent students will instantly receive an automated SMS notification.
+'''
+    },
+    {
+      'id': 'attendance-reports',
+      'category': 'Attendance Management',
+      'title': 'Generating Attendance Analytics',
+      'readTime': '3 min read',
+      'icon': Icons.insights_outlined,
+      'summary': 'Reviewing monthly attendance percentages and class performance.',
+      'content': '''
+# Generating Attendance Analytics
+
+Analyze school attendance averages to identify chronic absence patterns.
+
+---
+
+## 📈 Creating Reports
+
+1. **Navigate to Reports**:
+   Go to Attendance > Attendance Reports.
+2. **Filter Metrics**:
+   Choose dates, class sections, or individual student IDs.
+3. **Export Dashboard Data**:
+   View graphical averages on screen, or export raw logs to PDF or Excel formats.
+'''
+    },
+    {
+      'id': 'create-exam',
+      'category': 'Examination Management',
+      'title': 'Creating Online and Offline Exams',
+      'readTime': '5 min read',
+      'icon': Icons.quiz_outlined,
+      'summary': 'Setting up marks weightage, questions bank, and exam schedules.',
+      'content': '''
+# Creating Exams
+
+Set up class schedules, total marks, and passing averages for academic evaluation.
+
+---
+
+## 📝 Creating the Exam Sheet
+
+1. **Access Exam Manager**:
+   Go to Examinations > Exam List and click Create Exam.
+2. **Configure Parameters**:
+   - Define exam name (e.g., Mid-Term Mathematics).
+   - Set maximum marks and passing score thresholds.
+   - Choose class grades and subject mapping.
+3. **Define Schedule**:
+   Specify exam dates, room numbers, and supervisor staff.
+'''
+    },
+    {
+      'id': 'grading-sheets',
+      'category': 'Examination Management',
+      'title': 'Entering Exam Marks & Publishing Grades',
+      'readTime': '4 min read',
+      'icon': Icons.workspace_premium_outlined,
+      'summary': 'Inputting subject grades and printing student report cards.',
+      'content': '''
+# Entering Exam Marks & Grades
+
+Once exams are complete, input grades and share reports instantly with students and parents.
+
+---
+
+## 🎓 Grading Steps
+
+1. **Open Gradebook Grid**:
+   Go to Examinations > Mark Entry. Select exam and class grade.
+2. **Input Scores**:
+   Type marks next to each student. The system will auto-calculate grades based on custom rules.
+3. **Publish Report Cards**:
+   Click Publish. Parents can immediately view report cards on their portal.
+'''
+    },
+    {
+      'id': 'fee-structure',
+      'category': 'Fee Management',
+      'title': 'Defining School Fee Categories',
+      'readTime': '4 min read',
+      'icon': Icons.account_balance_outlined,
+      'summary': 'Setting up monthly tuition, library fees, and bus fees.',
+      'content': '''
+# Defining School Fee Categories
+
+Configure flexible school pricing schedules and billing dates.
+
+---
+
+## 💳 Creating Fee Structures
+
+1. **Open Setup Tab**:
+   Go to Finance > Fee Setup.
+2. **Define Fee Types**:
+   Create categories (Tuition Fee, Transportation Fee, Admission Fee).
+3. **Assign Classes**:
+   Apply pricing schedules globally or customize rates for specific grades.
+'''
+    },
+    {
+      'id': 'collect-fees',
+      'category': 'Fee Management',
+      'title': 'Recording Student Fee Payments',
+      'readTime': '4 min read',
+      'icon': Icons.payments_outlined,
+      'summary': 'Generating invoice receipts and tracking pending dues.',
+      'content': '''
+# Recording Student Fee Payments
+
+Track transaction statuses, generate payment receipts, and reconcile pending school balances.
+
+---
+
+## 🧾 Collecting Payments
+
+1. **Search Student Billing**:
+   Go to Finance > Collect Fees and select a student.
+2. **Record Transaction**:
+   Select payment mode (Cash, Card, Online).
+3. **Generate Invoice Receipt**:
+   Click Submit. The system generates a digital receipt and emails it to the parent.
+'''
+    },
+    {
+      'id': 'create-routes',
+      'category': 'Transport Management',
+      'title': 'Setting Up Bus Routes & Stops',
+      'readTime': '4 min read',
+      'icon': Icons.add_road_outlined,
+      'summary': 'Defining route numbers, driver assignments, and pick-up stops.',
+      'content': '''
+# Setting Up Bus Routes & Stops
+
+Manage your institution's fleet routes and pickup locations.
+
+---
+
+## 🚌 Configuring Routes
+
+1. **Access Transport Module**:
+   Go to Transport > Routes.
+2. **Add Route details**:
+   Define route start points, destination stops, and driver assignments.
+3. **Map Students**:
+   Add student passengers to their nearest bus stop locations.
+'''
+    },
+    {
+      'id': 'track-bus',
+      'category': 'Transport Management',
+      'title': 'Tracking Live School Buses',
+      'readTime': '3 min read',
+      'icon': Icons.pin_drop_outlined,
+      'summary': 'Integrating GPS tracking devices for parents.',
+      'content': '''
+# Tracking Live School Buses
+
+Ensure student safety by tracking your vehicle locations in real-time.
+
+---
+
+## 📍 Live Tracking Setup
+
+1. **Register GPS Devices**:
+   Go to Transport > GPS Tracking.
+2. **Track Location**:
+   View real-time map positions on the administrator panel.
+3. **Share Access**:
+   Parents get access to live locations during active transport hours.
+'''
+    },
+    {
+      'id': 'add-books',
+      'category': 'Library Management',
+      'title': 'Adding Books to Library Inventory',
+      'readTime': '3 min read',
+      'icon': Icons.library_add_outlined,
+      'summary': 'Cataloging ISBN, book title, author, copies available, and shelf location.',
+      'content': '''
+# Adding Books to Library Inventory
+
+Keep your library database organized by cataloging new book editions.
+
+---
+
+## 📚 Book Cataloging
+
+1. **Open Library Module**:
+   Go to Library > Add Books.
+2. **Fill Metadata Fields**:
+   Input ISBN numbers, author names, publishers, and shelf rack locations.
+3. **Record Copies**:
+   Define total copies available for active student lending.
+'''
+    },
+    {
+      'id': 'issue-books',
+      'category': 'Library Management',
+      'title': 'Issuing & Returning Books',
+      'readTime': '3 min read',
+      'icon': Icons.swap_horiz_outlined,
+      'summary': 'Scanning student card to check out books and applying late fines.',
+      'content': '''
+# Issuing & Returning Books
+
+Track student checkout records and calculate late library return penalties.
+
+---
+
+## 🔄 Lending Process
+
+1. **Issue Book**:
+   Go to Library > Issue Book, search for a student, and scan the book barcode.
+2. **Set Return Dates**:
+   Select lending periods (default is 14 days).
+3. **Process Returns**:
+   Scan returned books to clear outstanding student logs.
+'''
+    },
+    {
+      'id': 'academic-reports',
+      'category': 'Reports',
+      'title': 'Exporting Student Academic Reports',
+      'readTime': '4 min read',
+      'icon': Icons.summarize_outlined,
+      'summary': 'Exporting class grade distributions in PDF/Excel format.',
+      'content': '''
+# Exporting Student Academic Reports
+
+Obtain comprehensive analytical performance summaries across various courses and grades.
+
+---
+
+## 📊 Exporting Report Cards
+
+1. **Navigate to Reporting**:
+   Go to Reports > Academic Performance.
+2. **Filter Records**:
+   Choose class levels, terms, or specific subject averages.
+3. **Download**:
+   Click Export to PDF or Export to Excel to save files locally.
+'''
+    },
+    {
+      'id': 'finance-ledger',
+      'category': 'Reports',
+      'title': 'Exporting Fee Collection Ledgers',
+      'readTime': '4 min read',
+      'icon': Icons.trending_up_outlined,
+      'summary': 'Reconciling total fee revenues against pending dues.',
+      'content': '''
+# Exporting Fee Collection Ledgers
+
+Review transaction streams, pending invoices, and total cash balances.
+
+---
+
+## 💵 Finance Summaries
+
+1. **Open Financial Reports**:
+   Go to Reports > Fee Ledger.
+2. **Select Date Ranges**:
+   Choose monthly or yearly billing statements.
+3. **Export Ledger**:
+   Generate CSV ledger balance sheets for school accounting purposes.
+'''
+    },
+    {
+      'id': 'brand-configuration',
+      'category': 'Settings & Configuration',
+      'title': 'Branding & Logo Configuration',
+      'readTime': '3 min read',
+      'icon': Icons.palette_outlined,
+      'summary': 'Uploading custom logos and school headers.',
+      'content': '''
+# Branding & Logo Configuration
+
+Customize the user interface themes and brand styles of your school portal.
+
+---
+
+## 🎨 Applying Custom Branding
+
+1. **Open Settings Panel**:
+   Go to Settings > Institution Profile.
+2. **Upload Brand Logo**:
+   Select high-resolution png logo files to display on invoices and reports.
+3. **Choose Primary Accent Colors**:
+   Save settings to apply custom styles across portals.
+'''
+    },
+    {
+      'id': 'security-lockout',
+      'category': 'Settings & Configuration',
+      'title': 'Configuring Security & Access Lockouts',
+      'readTime': '3 min read',
+      'icon': Icons.security_outlined,
+      'summary': 'Setting up failed login limits and security parameters.',
+      'content': '''
+# Configuring Security Lockouts
+
+Protect student records by enabling secure firewall lockout rules.
+
+---
+
+## 🔒 Enabling Lockouts
+
+1. **Access Security Setup**:
+   Go to Settings > Security Configurations.
+2. **Configure Lockout Limits**:
+   Set failed login attempt limits (default is 5).
+3. **Define Lockout Durations**:
+   Choose duration limits (e.g. block users for 30 minutes).
+'''
+    },
+    {
+      'id': 'install-app',
+      'category': 'Mobile App',
+      'title': 'Installing the School ERP App',
+      'readTime': '3 min read',
+      'icon': Icons.install_mobile_outlined,
+      'summary': 'Downloading for Android and iOS systems.',
+      'content': '''
+# Installing the School ERP App
+
+Stay connected by downloading our official mobile app on your smartphone device.
+
+---
+
+## 📱 Mobile Installation
+
+1. **App Store Search**:
+   Search for "School ERP" on the Google Play Store or Apple App Store.
+2. **Download App**:
+   Install the application.
+3. **Portal Authentication**:
+   Log in with your institution subdomain and student/teacher credentials.
+'''
+    },
+    {
+      'id': 'parent-notifications',
+      'category': 'Mobile App',
+      'title': 'Enabling Parent Push Notifications',
+      'readTime': '3 min read',
+      'icon': Icons.notifications_active_outlined,
+      'summary': 'Getting instant alerts on attendance, exams, and fees.',
+      'content': '''
+# Enabling Parent Push Notifications
+
+Ensure parents stay up to date with live push notification notifications.
+
+---
+
+## 🔔 Setting Up Notifications
+
+1. **Enable App Permissions**:
+   Allow notifications on your mobile device settings.
+2. **Portal Notification Settings**:
+   Toggle on notifications for attendance, fee payments, and exam reports.
+'''
+    },
+    {
+      'id': 'sms-gateway',
+      'category': 'Integrations',
+      'title': 'Configuring SMS Gateway Settings',
+      'readTime': '4 min read',
+      'icon': Icons.sms_outlined,
+      'summary': 'Setting up API keys for Twilio or MSG91.',
+      'content': '''
+# Configuring SMS Gateways
+
+Configure bulk SMS services to send instant text alerts to parents.
+
+---
+
+## 💬 Gateway Integration
+
+1. **Access Integration Panel**:
+   Go to Settings > Integrations > SMS Gateway.
+2. **Select Provider**:
+   Choose Twilio or MSG91 from the dropdown list.
+3. **Input API Credentials**:
+   Paste API keys and configure default sender IDs.
+'''
+    },
+    {
+      'id': 'payment-gateway',
+      'category': 'Integrations',
+      'title': 'Integrating Payment Gateways',
+      'readTime': '4 min read',
+      'icon': Icons.payment_outlined,
+      'summary': 'Setting up Razorpay/Stripe details for online fees collection.',
+      'content': '''
+# Integrating Payment Gateways
+
+Allow parents to pay invoices online securely via cards, UPI, or net banking.
+
+---
+
+## 💳 Payment Integrations
+
+1. **Access Merchant Panel**:
+   Go to Settings > Integrations > Payment Gateway.
+2. **Choose Gateway**:
+   Select Razorpay, Stripe, or Paytm.
+3. **Enter Keys**:
+   Input Merchant IDs, API Secret Keys, and select active currencies.
+'''
+    },
+    {
+      'id': 'general-faq',
+      'category': 'FAQ',
+      'title': 'General System FAQ',
+      'readTime': '4 min read',
+      'icon': Icons.help_center_outlined,
+      'summary': 'Answering common login and account recovery questions.',
+      'content': '''
+# General System FAQ
+
+Find answers to common operational questions.
+
+---
+
+## ❓ Common Questions
+
+### 1. I forgot my admin credentials, how do I reset?
+Click Forgot Password on the login page, enter your registered email, and input the OTP sent to your mailbox.
+
+### 2. Can I disable modules that my school does not need?
+Yes, go to Settings > Module Toggles to hide unused features like Transport or Library.
+'''
+    },
+    {
+      'id': 'onboarding-faq',
+      'category': 'FAQ',
+      'title': 'Subscription & Billing FAQ',
+      'readTime': '3 min read',
+      'icon': Icons.monetization_on_outlined,
+      'summary': 'How payment plans work and upgrading subscriptions.',
+      'content': '''
+# Subscription & Billing FAQ
+
+Answering common subscription management questions.
+
+---
+
+## ❓ Billing Questions
+
+### 1. How do I upgrade my school subscription?
+Go to Finance > Billing & Subscription and select your target student volume tier.
+
+### 2. What happens if our subscription expires?
+The school instance will transition to the expired status and all user logins will be locked out until payment is made.
+'''
     }
   ];
 
@@ -204,73 +797,73 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
     {
       'name': 'User Management',
       'icon': Icons.people_outline,
-      'count': 8,
+      'count': 2,
       'summary': 'Manage users, roles, permissions and account settings.'
     },
     {
       'name': 'Student Management',
       'icon': Icons.person_outline,
-      'count': 10,
+      'count': 2,
       'summary': 'Add, edit and manage student information and profiles.'
     },
     {
       'name': 'Attendance Management',
       'icon': Icons.check_circle_outline,
-      'count': 7,
+      'count': 2,
       'summary': 'Track attendance, generate reports and send notifications.'
     },
     {
       'name': 'Examination Management',
       'icon': Icons.assignment_outlined,
-      'count': 9,
+      'count': 2,
       'summary': 'Create exams, mark results and generate performance reports.'
     },
     {
       'name': 'Fee Management',
       'icon': Icons.credit_card_outlined,
-      'count': 7,
+      'count': 2,
       'summary': 'Manage fee structures, collections, invoices and payments.'
     },
     {
       'name': 'Transport Management',
       'icon': Icons.directions_bus_outlined,
-      'count': 6,
+      'count': 2,
       'summary': 'Manage vehicles, routes, drivers and student transport.'
     },
     {
       'name': 'Library Management',
       'icon': Icons.book_outlined,
-      'count': 6,
+      'count': 2,
       'summary': 'Manage books, issue/return and library members.'
     },
     {
       'name': 'Reports',
       'icon': Icons.bar_chart_outlined,
-      'count': 8,
+      'count': 2,
       'summary': 'Generate and download insightful reports for your institution.'
     },
     {
       'name': 'Settings & Configuration',
       'icon': Icons.settings_outlined,
-      'count': 6,
+      'count': 2,
       'summary': 'Customize system settings and institution preferences.'
     },
     {
       'name': 'Mobile App',
       'icon': Icons.phone_android_outlined,
-      'count': 4,
+      'count': 2,
       'summary': 'Use the School ERP mobile app for on-the-go access.'
     },
     {
       'name': 'Integrations',
       'icon': Icons.integration_instructions_outlined,
-      'count': 3,
+      'count': 2,
       'summary': 'Integrate with third-party tools and services.'
     },
     {
       'name': 'FAQ',
       'icon': Icons.help_outline,
-      'count': 12,
+      'count': 2,
       'summary': 'Frequently asked questions about School ERP.'
     }
   ];
@@ -882,7 +1475,7 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
                   const Icon(Icons.phone_outlined, size: 14, color: Color(0xFF64748B)),
                   const SizedBox(width: 8),
                   Text(
-                    '+91 98765 43210',
+                    AppConfig.contactPhone,
                     style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
                   ),
                 ],
@@ -1239,6 +1832,36 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
     );
   }
 
+  Widget _buildMarkdownLine(String text, TextStyle baseStyle) {
+    if (!text.contains('**')) {
+      return Text(
+        text,
+        style: baseStyle,
+      );
+    }
+
+    final parts = text.split('**');
+    final spans = <TextSpan>[];
+    for (int i = 0; i < parts.length; i++) {
+      final isBold = i % 2 == 1;
+      spans.add(
+        TextSpan(
+          text: parts[i],
+          style: isBold
+              ? baseStyle.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))
+              : baseStyle,
+        ),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: baseStyle,
+        children: spans,
+      ),
+    );
+  }
+
   Widget _buildArticleDetailView(Map<String, dynamic> article) {
     final content = article['content'] as String;
     final List<String> lines = content.split('\n');
@@ -1338,9 +1961,9 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
                       children: [
                         const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         Expanded(
-                          child: Text(
+                          child: _buildMarkdownLine(
                             trimmed.substring(2),
-                            style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569), height: 1.5),
+                            GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569), height: 1.5),
                           ),
                         ),
                       ],
@@ -1354,9 +1977,9 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
                       children: [
                         Text('${trimmed[0]}. ', style: const TextStyle(fontWeight: FontWeight.bold)),
                         Expanded(
-                          child: Text(
+                          child: _buildMarkdownLine(
                             trimmed.substring(3),
-                            style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569), height: 1.5),
+                            GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569), height: 1.5),
                           ),
                         ),
                       ],
@@ -1369,9 +1992,9 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
                 } else {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
+                    child: _buildMarkdownLine(
                       trimmed,
-                      style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569), height: 1.6),
+                      GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF475569), height: 1.6),
                     ),
                   );
                 }
@@ -1570,9 +2193,9 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildFooterContactItem(Icons.location_on_outlined, '123, Tech Park, Sector 62, Noida, UP, India'),
-                      _buildFooterContactItem(Icons.email_outlined, 'info@schoolerp.com'),
-                      _buildFooterContactItem(Icons.phone_outlined, '+91 98765 43210'),
+                      _buildFooterContactItem(Icons.location_on_outlined, AppConfig.contactAddress),
+                      _buildFooterContactItem(Icons.email_outlined, AppConfig.contactEmail),
+                      _buildFooterContactItem(Icons.phone_outlined, AppConfig.contactPhone),
                       _buildFooterContactItem(Icons.access_time_outlined, 'Mon - Sat: 9:00 AM - 6:00 PM'),
                     ],
                   ),
@@ -1614,9 +2237,9 @@ To protect student privacy and ensure operational safety, School ERP uses a stri
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildFooterContactItem(Icons.location_on_outlined, '123, Tech Park, Sector 62, Noida, UP, India'),
-                      _buildFooterContactItem(Icons.email_outlined, 'info@schoolerp.com'),
-                      _buildFooterContactItem(Icons.phone_outlined, '+91 98765 43210'),
+                      _buildFooterContactItem(Icons.location_on_outlined, AppConfig.contactAddress),
+                      _buildFooterContactItem(Icons.email_outlined, AppConfig.contactEmail),
+                      _buildFooterContactItem(Icons.phone_outlined, AppConfig.contactPhone),
                       _buildFooterContactItem(Icons.access_time_outlined, 'Mon - Sat: 9:00 AM - 6:00 PM'),
                     ],
                   ),

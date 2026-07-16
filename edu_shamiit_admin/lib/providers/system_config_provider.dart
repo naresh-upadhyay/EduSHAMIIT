@@ -20,6 +20,10 @@ class SystemConfig {
   final String forgotPasswordIllustration;
   final String resetPasswordIllustration;
   final String otpVerificationIllustration;
+  final String contactEmail;
+  final String contactPhone;
+  final String contactAddress;
+  final String liveChatInfo;
 
   SystemConfig({
     required this.systemName,
@@ -40,10 +44,25 @@ class SystemConfig {
     required this.forgotPasswordIllustration,
     required this.resetPasswordIllustration,
     required this.otpVerificationIllustration,
+    required this.contactEmail,
+    required this.contactPhone,
+    required this.contactAddress,
+    required this.liveChatInfo,
   });
 
   factory SystemConfig.fromJson(Map<String, dynamic> json) {
     final appearance = json['appearance_settings'] ?? {};
+    final email = json['contact_email'] ?? 'support@schoolerp.com';
+    final phone = json['contact_phone'] ?? '+91 98765 43210';
+    final address = json['contact_address'] ?? 'School ERP Solutions Pvt. Ltd., Plot No. 123, Tech Park, Sector 62, Noida, Uttar Pradesh - 201309, India';
+    final chatInfo = json['live_chat_info'] ?? 'Available in the application';
+
+    // Update AppConfig static fields dynamically
+    AppConfig.contactEmail = email;
+    AppConfig.contactPhone = phone;
+    AppConfig.contactAddress = address;
+    AppConfig.liveChatInfo = chatInfo;
+
     return SystemConfig(
       systemName: json['system_name'] ?? 'School ERP',
       systemTitle: json['system_title'] ?? 'Next Generation School Management',
@@ -63,6 +82,10 @@ class SystemConfig {
       forgotPasswordIllustration: appearance['forgot_password_illustration'] ?? '',
       resetPasswordIllustration: appearance['reset_password_illustration'] ?? '',
       otpVerificationIllustration: appearance['otp_verification_illustration'] ?? '',
+      contactEmail: email,
+      contactPhone: phone,
+      contactAddress: address,
+      liveChatInfo: chatInfo,
     );
   }
 }

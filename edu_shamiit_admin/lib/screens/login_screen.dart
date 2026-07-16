@@ -324,62 +324,65 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   Widget _buildMobileHeader(SystemConfig? config) {
     final logoUrl = config?.systemLogo;
     final name = config?.systemName ?? 'School ERP';
-    return Column(
-      children: [
-        if (logoUrl != null && logoUrl.isNotEmpty)
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
+    return InkWell(
+      onTap: () => context.go('/'),
+      child: Column(
+        children: [
+          if (logoUrl != null && logoUrl.isNotEmpty)
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.network(
+                AppConfig.resolveUrl(logoUrl),
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.shield_outlined,
+                    color: Color(0xFF818CF8),
+                    size: 32,
+                  );
+                },
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+              ),
+              child: const Icon(
+                Icons.shield_outlined,
+                color: Color(0xFF818CF8),
+                size: 32,
+              ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.network(
-              AppConfig.resolveUrl(logoUrl),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.shield_outlined,
-                  color: Color(0xFF818CF8),
-                  size: 32,
-                );
-              },
-            ),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
-            ),
-            child: const Icon(
-              Icons.shield_outlined,
-              color: Color(0xFF818CF8),
-              size: 32,
+          const SizedBox(height: 16),
+          Text(
+            name,
+            style: GoogleFonts.outfit(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-        const SizedBox(height: 16),
-        Text(
-          name,
-          style: GoogleFonts.outfit(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+          const SizedBox(height: 4),
+          Text(
+            'Smart Management. Better Education.',
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              color: Colors.white60,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Smart Management. Better Education.',
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            color: Colors.white60,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -407,7 +410,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
           // Logo & Name
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Row(
+            child: InkWell(
+              onTap: () => context.go('/'),
+              child: Row(
                 children: [
                   if (config?.systemLogo != null && config!.systemLogo!.isNotEmpty)
                     Container(
@@ -467,6 +472,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                 ],
               ),
             ),
+          ),
             if (!isMobile) ...[
               const SizedBox(height: 48),
               Padding(
@@ -690,45 +696,61 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
             children: [
               // Header Actions
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.language_outlined, size: 14, color: Colors.black54),
-                        const SizedBox(width: 6),
-                        Text(
-                          'English',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black54),
-                      ],
+                  TextButton.icon(
+                    onPressed: () => context.go('/'),
+                    icon: const Icon(Icons.arrow_back, size: 14, color: Color(0xFF475569)),
+                    label: Text(
+                      'Back to Home',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF475569),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: const Icon(
-                      Icons.wb_sunny_outlined,
-                      size: 14,
-                      color: Colors.black54,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.language_outlined, size: 14, color: Colors.black54),
+                            const SizedBox(width: 6),
+                            Text(
+                              'English',
+                              style: GoogleFonts.dmSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black54),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: const Icon(
+                          Icons.wb_sunny_outlined,
+                          size: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -119,9 +119,15 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 900;
+    final name = widget.systemName ?? 'School ERP';
 
     return Scaffold(
-      backgroundColor: isDesktop ? const Color(0xFFF8FAFC) : const Color(0xFF0F1026),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: _buildNavbar(isDesktop, name),
+      ),
+      drawer: isDesktop ? null : _buildMobileDrawer(name),
       body: isDesktop
           ? SingleChildScrollView(
               child: Container(
@@ -169,7 +175,6 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildMobileHeader(),
                         const SizedBox(height: 24),
                         Container(
                           decoration: BoxDecoration(
@@ -198,71 +203,190 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
     );
   }
 
-  Widget _buildMobileHeader() {
+  Widget _buildNavbar(bool isDesktop, String name) {
     final logoUrl = widget.systemLogo;
-    final name = widget.systemName ?? 'School ERP';
-    return Column(
-      children: [
-        if (logoUrl != null && logoUrl.isNotEmpty)
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: SafeArea(
+        child: Row(
+          children: [
+            InkWell(
+              onTap: () => context.go('/'),
+              child: Row(
+                children: [
+                  if (logoUrl != null && logoUrl.isNotEmpty)
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Image.network(
+                        AppConfig.resolveUrl(logoUrl),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.school_outlined,
+                          color: Color(0xFF6366F1),
+                          size: 20,
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.school_outlined,
+                        color: Color(0xFF6366F1),
+                        size: 20,
+                      ),
+                    ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        'Smart Management. Better Education.',
+                        style: GoogleFonts.outfit(
+                          fontSize: 9,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.network(
-              AppConfig.resolveUrl(logoUrl),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.shield_outlined,
-                  color: Color(0xFF818CF8),
-                  size: 32,
-                );
-              },
-            ),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
-            ),
-            child: const Icon(
-              Icons.shield_outlined,
-              color: Color(0xFF818CF8),
-              size: 32,
-            ),
-          ),
-        const SizedBox(height: 16),
-        Text(
-          name,
-          style: GoogleFonts.outfit(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+            const Spacer(),
+            if (isDesktop) ...[
+              _buildNavbarLink('Home', () => context.go('/')),
+              const SizedBox(width: 24),
+              OutlinedButton(
+                onPressed: () => context.go('/login'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+              ),
+            ] else
+              Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu, color: Color(0xFF0F172A)),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavbarLink(String label, VoidCallback onTap) {
+    final isActive = label == 'Contact Us';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          foregroundColor: isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Smart Management. Better Education.',
-          style: GoogleFonts.outfit(
-            fontSize: 12,
-            color: Colors.white60,
+      ),
+    );
+  }
+
+  Widget _buildMobileDrawer(String name) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF0F1026)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.school, color: Colors.white, size: 36),
+                const SizedBox(height: 12),
+                Text(
+                  name,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          ListTile(
+            leading: const Icon(Icons.home_outlined),
+            title: const Text('Home'),
+            onTap: () {
+              Navigator.pop(context);
+              context.go('/');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.mail_outline),
+            title: const Text('Contact Us'),
+            selected: true,
+            selectedColor: const Color(0xFF4F46E5),
+            onTap: () {
+              Navigator.pop(context);
+              context.go('/contact');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.login_outlined),
+            title: const Text('Login'),
+            onTap: () {
+              Navigator.pop(context);
+              context.go('/login');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.rocket_launch_outlined),
+            title: const Text('Get Started'),
+            onTap: () {
+              Navigator.pop(context);
+              context.go('/get-started');
+            },
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildLeftBanner() {
-    final logoUrl = widget.systemLogo;
-    final name = widget.systemName ?? 'School ERP';
     const imageHeight = 260.0;
 
     return Container(
@@ -280,67 +404,7 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Row(
-              children: [
-                if (logoUrl != null && logoUrl.isNotEmpty)
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.network(
-                      AppConfig.resolveUrl(logoUrl),
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.shield_outlined,
-                        color: Color(0xFF818CF8),
-                        size: 24,
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.shield_outlined,
-                      color: Color(0xFF818CF8),
-                      size: 24,
-                    ),
-                  ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      'Smart Management. Better Education.',
-                      style: GoogleFonts.outfit(
-                        fontSize: 10,
-                        color: Colors.white60,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Column(
@@ -431,21 +495,21 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                 _buildContactInfoRow(
                   Icons.email_outlined,
                   'Email Us',
-                  'support@schoolerp.com',
+                  AppConfig.contactEmail,
                   'We\'ll reply as soon as possible.',
                 ),
                 const SizedBox(height: 16),
                 _buildContactInfoRow(
                   Icons.phone_outlined,
                   'Call Us',
-                  '+91 98765 43210',
+                  AppConfig.contactPhone,
                   'Mon - Sat, 9:00 AM - 6:00 PM',
                 ),
                 const SizedBox(height: 16),
                 _buildContactInfoRow(
                   Icons.chat_bubble_outline,
                   'Live Chat',
-                  'Available in the application',
+                  AppConfig.liveChatInfo,
                   'Get instant help from our team.',
                 ),
                 const SizedBox(height: 16),
@@ -873,7 +937,7 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'School ERP Solutions Pvt. Ltd.\nPlot No. 123, Tech Park, Sector 62\nNoida, Uttar Pradesh - 201309, India',
+                  AppConfig.contactAddress,
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
                     color: const Color(0xFF475569),
@@ -900,25 +964,6 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
   Widget _buildFooterLinks() {
     return Column(
       children: [
-        InkWell(
-          onTap: () => context.go('/login'),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.arrow_back, color: Color(0xFF4F46E5), size: 14),
-              const SizedBox(width: 6),
-              Text(
-                'Back to Login',
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF4F46E5),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -927,11 +972,11 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
             RichText(
               text: TextSpan(
                 style: GoogleFonts.dmSans(fontSize: 11, color: const Color(0xFF94A3B8)),
-                children: const [
-                  TextSpan(text: 'Need immediate help? '),
+                children: [
+                  const TextSpan(text: 'Need immediate help? '),
                   TextSpan(
-                    text: 'Call Us: +91 98765 43210',
-                    style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
+                    text: 'Call Us: ${AppConfig.contactPhone}',
+                    style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

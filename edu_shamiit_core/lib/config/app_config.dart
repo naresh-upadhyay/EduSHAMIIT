@@ -3,6 +3,10 @@ import 'app_config_host.dart';
 
 /// Application configuration constants
 class AppConfig {
+  static String contactEmail = 'support@schoolerp.com';
+  static String contactPhone = '+91 98765 43210';
+  static String contactAddress = 'School ERP Solutions Pvt. Ltd., Plot No. 123, Tech Park, Sector 62, Noida, Uttar Pradesh - 201309, India';
+  static String liveChatInfo = 'Available in the application';
   // ─── Dynamic host detection ───────────────────────────────────────────────
   // On Flutter Web, reads window.location.hostname so the app works from any
   // device on the LAN (e.g. http://192.168.1.10:63305) not just localhost.

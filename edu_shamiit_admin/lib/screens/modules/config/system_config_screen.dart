@@ -79,6 +79,12 @@ class _AdminSystemConfigScreenState
   final _autoLogoutController = TextEditingController();
   final _sessionTimeoutController = TextEditingController();
 
+  // Contact Info Controllers
+  final _contactEmailController = TextEditingController();
+  final _contactPhoneController = TextEditingController();
+  final _contactAddressController = TextEditingController();
+  final _liveChatInfoController = TextEditingController();
+
   // Login Page Controllers
   final _loginTitleController = TextEditingController();
   final _loginSubtitleController = TextEditingController();
@@ -141,6 +147,10 @@ class _AdminSystemConfigScreenState
     _loginMessageController.dispose();
     _autoLogoutController.dispose();
     _sessionTimeoutController.dispose();
+    _contactEmailController.dispose();
+    _contactPhoneController.dispose();
+    _contactAddressController.dispose();
+    _liveChatInfoController.dispose();
     _smtpHostController.dispose();
     _smtpPortController.dispose();
     _twilioSenderController.dispose();
@@ -305,10 +315,12 @@ class _AdminSystemConfigScreenState
         'file',
       );
 
+      if (!mounted) return;
       setState(() => _isSaving = false);
 
       if (res['success'] == true && res['data'] != null) {
         final url = res['data']['url'];
+        if (!mounted) return;
         setState(() {
           if (fileType == "logo") {
             _systemLogoController.text = url;
@@ -325,19 +337,23 @@ class _AdminSystemConfigScreenState
           }
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Image uploaded successfully!'),
-            backgroundColor: const Color(0xFF10B981),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Image uploaded successfully!'),
+              backgroundColor: const Color(0xFF10B981),
+            ),
+          );
+        }
       }
     } catch (e) {
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: $e')),
+        );
+      }
     }
   }
 
@@ -405,6 +421,7 @@ class _AdminSystemConfigScreenState
     try {
       final res = await ApiService().get('/admin/schools');
       if (res['success'] == true) {
+        if (!mounted) return;
         setState(() {
           _schools = res['data']['schools'] ?? [];
         });
@@ -424,6 +441,7 @@ class _AdminSystemConfigScreenState
       final res = await ApiService().get(url, useCache: false);
       if (res['success'] == true && res['data'] != null) {
         final data = res['data'];
+        if (!mounted) return;
         setState(() {
           _systemNameController.text = data['system_name'] ?? 'School ERP';
           _systemTitleController.text =
@@ -435,6 +453,11 @@ class _AdminSystemConfigScreenState
               (data['auto_logout_minutes'] ?? 30).toString();
           _sessionTimeoutController.text =
               (data['session_timeout_minutes'] ?? 120).toString();
+
+          _contactEmailController.text = data['contact_email'] ?? 'support@schoolerp.com';
+          _contactPhoneController.text = data['contact_phone'] ?? '+91 98765 43210';
+          _contactAddressController.text = data['contact_address'] ?? '';
+          _liveChatInfoController.text = data['live_chat_info'] ?? 'Available in the application';
 
           _defaultLanguage = data['default_language'] ?? 'English';
           _defaultTimezone =
@@ -493,10 +516,12 @@ class _AdminSystemConfigScreenState
         });
       }
     } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load system config: $e')),
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load system config: $e')),
+        );
+      }
     }
   }
 
@@ -508,6 +533,7 @@ class _AdminSystemConfigScreenState
     try {
       final res = await ApiService().get(url, useCache: false);
       if (res['success'] == true && res['data'] != null) {
+        if (!mounted) return;
         setState(() {
           _stats = Map<String, dynamic>.from(res['data']);
         });
@@ -566,6 +592,10 @@ class _AdminSystemConfigScreenState
       "session_timeout_minutes":
           int.tryParse(_sessionTimeoutController.text) ?? 120,
       "login_page_message": _loginMessageController.text.trim(),
+      "contact_email": _contactEmailController.text.trim(),
+      "contact_phone": _contactPhoneController.text.trim(),
+      "contact_address": _contactAddressController.text.trim(),
+      "live_chat_info": _liveChatInfoController.text.trim(),
       "security_settings": _securitySettings,
       "email_sms_settings": _emailSmsSettings,
       "modules_settings": _modulesSettings,
@@ -578,7 +608,9 @@ class _AdminSystemConfigScreenState
 
     try {
       final res = await ApiService().put('/admin/system-config', payload);
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
       if (res['success'] == true) {
         ref.read(systemConfigProvider.notifier).loadConfig();
         _fetchStats();
@@ -592,8 +624,8 @@ class _AdminSystemConfigScreenState
         }
       }
     } catch (e) {
-      setState(() => _isSaving = false);
       if (mounted) {
+        setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save configuration: $e')),
         );
@@ -2036,6 +2068,45 @@ class _AdminSystemConfigScreenState
             ],
           ),
         ),
+        const SizedBox(height: 24),
+        // 4. Contact Information Card
+        _buildConfigCard(
+          isDark,
+          title: "Contact Information",
+          subtitle: "Configure contact details displayed on public pages (Contact Us, Help Center, footers).",
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isMobile) ...[
+                _buildInputField("Contact Email", _contactEmailController, isDark, "support@schoolerp.com"),
+                const SizedBox(height: 16),
+                _buildInputField("Contact Phone", _contactPhoneController, isDark, "+91 98765 43210"),
+                const SizedBox(height: 16),
+                _buildInputField("Live Chat Info", _liveChatInfoController, isDark, "Available in the application"),
+                const SizedBox(height: 16),
+                _buildInputField("Contact Address", _contactAddressController, isDark, "School Address...", maxLines: 3),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInputField("Contact Email", _contactEmailController, isDark, "support@schoolerp.com"),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildInputField("Contact Phone", _contactPhoneController, isDark, "+91 98765 43210"),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildInputField("Live Chat Info", _liveChatInfoController, isDark, "Available in the application"),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildInputField("Contact Address", _contactAddressController, isDark, "School Address...", maxLines: 3),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -2583,7 +2654,7 @@ class _AdminSystemConfigScreenState
   }
 
   Widget _buildInputField(String label, TextEditingController controller,
-      bool isDark, String hint) {
+      bool isDark, String hint, {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2595,6 +2666,7 @@ class _AdminSystemConfigScreenState
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          maxLines: maxLines,
           decoration: InputDecoration(
             hintText: hint,
             contentPadding:
