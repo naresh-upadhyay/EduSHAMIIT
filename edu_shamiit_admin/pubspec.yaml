@@ -30,6 +30,9 @@ dependencies:
   font_awesome_flutter: ^11.0.0
   cupertino_icons: ^1.0.6
   google_fonts: ^6.1.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  flutter_map_cancellable_tile_provider: ^3.0.0
 
   # Backend / Supabase
   supabase_flutter: ^2.3.2

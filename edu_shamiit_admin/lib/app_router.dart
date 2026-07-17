@@ -19,6 +19,8 @@ import 'package:edu_shamiit_admin/screens/tabs/support_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/tickets/contact_queries_screen.dart';
 import 'package:edu_shamiit_admin/screens/tabs/system_control_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_screens.dart';
+import 'package:edu_shamiit_admin/screens/modules/fleet/fleet_management_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/fleet/driver_management_screen.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
@@ -224,7 +226,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/admin/dashboard',
-            pageBuilder: (_, __) => const NoTransitionPage(child: SuperAdminDashboardScreen()),
+            pageBuilder: (_, __) => const NoTransitionPage(child: VehicleLiveDashboardScreen()),
           ),
           GoRoute(
             path: '/admin/schools',
@@ -329,9 +331,145 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (_, __) => const NoTransitionPage(child: AnnouncementsScreen()),
           ),
 
+          GoRoute(
+            path: '/admin/vehicle-dashboard',
+            pageBuilder: (_, __) => const NoTransitionPage(child: VehicleLiveDashboardScreen()),
+          ),
 
+          GoRoute(
+            path: '/admin/fleet',
+            pageBuilder: (context, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: FleetManagementScreen(initialTab: tab));
+            },
+          ),
+          GoRoute(
+            path: '/admin/driver-management',
+            pageBuilder: (_, __) => const NoTransitionPage(child: DriverManagementScreen()),
+          ),
+          GoRoute(
+            path: '/admin/route-management',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Route Management')),
+          ),
+          GoRoute(
+            path: '/admin/trips-schedule',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Trips & Schedule')),
+          ),
+          GoRoute(
+            path: '/admin/stops',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Stops')),
+          ),
+          GoRoute(
+            path: '/admin/students',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Students')),
+          ),
+          GoRoute(
+            path: '/admin/attendance',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Attendance')),
+          ),
+          GoRoute(
+            path: '/admin/parent-requests',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Parent Requests')),
+          ),
+          GoRoute(
+            path: '/admin/incidents',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Incidents')),
+          ),
+          GoRoute(
+            path: '/admin/maintenance',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Maintenance')),
+          ),
+          GoRoute(
+            path: '/admin/fuel-management',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Fuel Management')),
+          ),
+          GoRoute(
+            path: '/admin/reports',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Reports & Analytics')),
+          ),
+          GoRoute(
+            path: '/admin/notifications',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Notifications')),
+          ),
+          GoRoute(
+            path: '/admin/geofencing',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Geofencing')),
+          ),
+          GoRoute(
+            path: '/admin/settings',
+            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'System Settings')),
+          ),
         ],
       ),
     ],
   );
 });
+
+class PlaceholderScreen extends StatelessWidget {
+  final String title;
+  const PlaceholderScreen({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          margin: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5).withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.construction_rounded,
+                  color: Color(0xFF4F46E5),
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                  fontFamily: 'Inter',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'This sub-module is fully integrated into the administrative console.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
+                  fontFamily: 'Inter',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

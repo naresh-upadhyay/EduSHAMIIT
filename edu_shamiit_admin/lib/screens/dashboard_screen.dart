@@ -165,6 +165,33 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         label: 'Alerts & Notifications',
         route: '/admin/alerts-notifications',
         section: NavSection.systemDev),
+
+    // Fleet Management
+    _NavItem(
+        icon: Icons.directions_bus_rounded,
+        label: 'Fleet Management',
+        route: '/admin/fleet',
+        section: NavSection.fleetManagement),
+    _NavItem(
+        icon: Icons.person_outline_rounded,
+        label: 'Driver Management',
+        route: '/admin/driver-management',
+        section: NavSection.fleetManagement),
+    _NavItem(
+        icon: Icons.map_outlined,
+        label: 'Route Management',
+        route: '/admin/route-management',
+        section: NavSection.fleetManagement),
+    _NavItem(
+        icon: Icons.calendar_today_outlined,
+        label: 'Trips & Schedule',
+        route: '/admin/trips-schedule',
+        section: NavSection.fleetManagement),
+    _NavItem(
+        icon: Icons.location_on_outlined,
+        label: 'Stops',
+        route: '/admin/stops',
+        section: NavSection.fleetManagement),
   ];
 
   List<dynamic> _modules = [];
@@ -271,7 +298,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/audit-log' ||
                item.route == '/admin/support' ||
                item.route == '/admin/contact-queries' ||
-               item.route == '/admin/my-profile';
+               item.route == '/admin/my-profile' ||
+               item.route.startsWith('/admin/fleet') ||
+               item.route == '/admin/driver-management' ||
+               item.route == '/admin/route-management' ||
+               item.route == '/admin/trips-schedule' ||
+               item.route == '/admin/stops';
       } else if (role == 'director') {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/users' ||
@@ -285,7 +317,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/alerts-notifications' ||
                item.route == '/admin/announcements' ||
                item.route == '/admin/support' ||
-               item.route == '/admin/my-profile';
+               item.route == '/admin/my-profile' ||
+               item.route.startsWith('/admin/fleet') ||
+               item.route == '/admin/driver-management' ||
+               item.route == '/admin/route-management' ||
+               item.route == '/admin/trips-schedule' ||
+               item.route == '/admin/stops';
+      } else if (role == 'transport') {
+        return item.route == '/admin/dashboard' ||
+               item.route == '/admin/my-profile' ||
+               item.route.startsWith('/admin/fleet') ||
+               item.route == '/admin/driver-management' ||
+               item.route == '/admin/route-management' ||
+               item.route == '/admin/trips-schedule' ||
+               item.route == '/admin/stops';
       }
       return item.route == '/admin/dashboard' || item.route == '/admin/my-profile';
     }).toList();
@@ -361,6 +406,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                   case NavSection.systemDev:
                                     headerText = 'SYSTEM & DEV TOOLS';
                                     break;
+                                  case NavSection.fleetManagement:
+                                    headerText = 'FLEET MANAGEMENT';
+                                    break;
                                 }
 
                                 header = Padding(
@@ -378,6 +426,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                         letterSpacing: 1),
                                   ),
                                 );
+                              }
+
+                              if (item.label == 'Fleet Management') {
+                                final expandableTile = _buildExpandableFleetTile(isDark, showLabels, location);
+                                if (header != null) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [header, expandableTile],
+                                  );
+                                }
+                                return expandableTile;
                               }
 
                               final tile = _buildSidebarTile(
@@ -560,6 +619,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     required bool isDark,
     required bool showLabels,
     required VoidCallback onTap,
+    Widget? trailing,
   }) {
     if (!showLabels) {
       return Tooltip(
@@ -616,8 +676,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                   Icon(
                     item.icon,
                     color: isSelected
-                        ? const Color(0xFF4F46E5)
-                        : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                    ? const Color(0xFF4F46E5)
+                    : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -635,6 +695,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       maxLines: 1,
                     ),
                   ),
+                  if (trailing != null) trailing,
                 ],
               ),
             ),
@@ -783,9 +844,96 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       },
     );
   }
+
+  bool _isFleetExpanded = true;
+
+  Widget _buildExpandableFleetTile(bool isDark, bool showLabels, String location) {
+    final isFleetRoute = location.startsWith('/admin/fleet');
+    final activeTab = int.tryParse(Uri.parse(location).queryParameters['tab'] ?? '0') ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSidebarTile(
+          item: const _NavItem(
+            icon: Icons.directions_bus_rounded,
+            label: 'Fleet Management',
+            route: '/admin/fleet',
+            section: NavSection.fleetManagement,
+          ),
+          isSelected: isFleetRoute && !_isFleetExpanded,
+          isDark: isDark,
+          showLabels: showLabels,
+          onTap: () {
+            setState(() {
+              _isFleetExpanded = !_isFleetExpanded;
+            });
+          },
+          trailing: showLabels
+              ? Icon(
+                  _isFleetExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                  color: isFleetRoute
+                      ? const Color(0xFF4F46E5)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  size: 16,
+                )
+              : null,
+        ),
+        if (_isFleetExpanded && showLabels) ...[
+          _buildSubTile('Overview', 0, isFleetRoute && activeTab == 0, isDark),
+          _buildSubTile('Vehicles', 1, isFleetRoute && activeTab == 1, isDark),
+          _buildSubTile('Vehicle Categories', 2, isFleetRoute && activeTab == 2, isDark),
+          _buildSubTile('Vehicle Documents', 3, isFleetRoute && activeTab == 3, isDark),
+          _buildSubTile('GPS Devices', 4, isFleetRoute && activeTab == 4, isDark),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSubTile(String label, int tabIndex, bool isSelected, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(left: 28, bottom: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.go('/admin/fleet?tab=$tabIndex'),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? (isDark
+                      ? const Color(0xFF4F46E5).withOpacity(0.15)
+                      : const Color(0xFFEEF2FF))
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected
+                          ? const Color(0xFF4F46E5)
+                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-enum NavSection { overview, organization, operations, finance, security, systemDev }
+enum NavSection { overview, organization, operations, finance, security, systemDev, fleetManagement }
 
 class _NavItem {
   final IconData icon;

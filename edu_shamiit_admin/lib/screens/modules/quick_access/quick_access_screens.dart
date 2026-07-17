@@ -9,3 +9,5 @@ export 'audit_log_screen.dart';
 export 'announcements_screen.dart';
 export 'vault_secrets_screen.dart';
 export 'alerts_notifications_screen.dart';
+export '../fleet/vehicle_live_dashboard_screen.dart';
+export '../fleet/fleet_management_screen.dart';
