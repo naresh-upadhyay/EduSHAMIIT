@@ -235,7 +235,7 @@ class _VehicleLiveDashboardScreenState
             children: [
               _buildHeader(isMobile),
               const SizedBox(height: 20),
-              _buildMetricsRow(isMobile),
+              _buildMetricsRow(w),
               const SizedBox(height: 20),
               isMobile
                   ? Column(children: [
@@ -410,7 +410,7 @@ class _VehicleLiveDashboardScreenState
   }
 
   // ─────── METRICS ROW ───────
-  Widget _buildMetricsRow(bool isMobile) {
+  Widget _buildMetricsRow(double w) {
     final metrics = [
       _M('Total Vehicles', _totalVehicles, _pct(_totalVehicles, _totalVehicles),
           Icons.directions_bus_rounded, _accent),
@@ -426,7 +426,7 @@ class _VehicleLiveDashboardScreenState
           Icons.wifi_off_rounded, _gray),
     ];
 
-    if (isMobile) {
+    if (w < 768) {
       return Column(children: [
         GridView.count(
           crossAxisCount: 2,
@@ -440,7 +440,25 @@ class _VehicleLiveDashboardScreenState
         const SizedBox(height: 10),
         _buildStudentsCard(),
       ]);
+    } else if (w < 1250) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          GridView.count(
+            crossAxisCount: 3,
+            childAspectRatio: 2.6,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: metrics.map(_buildMetricCard).toList(),
+          ),
+          const SizedBox(height: 12),
+          _buildStudentsCard(),
+        ],
+      );
     }
+
     return Row(
       children: [
         ...metrics.map(
@@ -477,8 +495,10 @@ class _VehicleLiveDashboardScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.end,
                   children: [
                     Text('${m.value}',
                         style: GoogleFonts.inter(
@@ -486,7 +506,6 @@ class _VehicleLiveDashboardScreenState
                             fontWeight: FontWeight.w700,
                             color: _textPrimary,
                             height: 1)),
-                    const SizedBox(width: 6),
                     Text(m.pct,
                         style: GoogleFonts.inter(
                             fontSize: 11,

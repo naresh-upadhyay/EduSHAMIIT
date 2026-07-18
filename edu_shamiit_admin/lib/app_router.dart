@@ -21,6 +21,7 @@ import 'package:edu_shamiit_admin/screens/tabs/system_control_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_screens.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/fleet_management_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/driver_management_screen.dart';
+import 'package:edu_shamiit_admin/screens/modules/fleet/route_management_screen.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
 
@@ -226,7 +227,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/admin/dashboard',
-            pageBuilder: (_, __) => const NoTransitionPage(child: VehicleLiveDashboardScreen()),
+            pageBuilder: (_, __) => const NoTransitionPage(child: SuperAdminDashboardScreen()),
           ),
           GoRoute(
             path: '/admin/schools',
@@ -345,11 +346,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/driver-management',
-            pageBuilder: (_, __) => const NoTransitionPage(child: DriverManagementScreen()),
+            pageBuilder: (context, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: DriverManagementScreen(initialTab: tab));
+            },
           ),
           GoRoute(
             path: '/admin/route-management',
-            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Route Management')),
+            pageBuilder: (context, state) {
+              final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+              return NoTransitionPage(child: RouteManagementScreen(initialIndex: tab));
+            },
           ),
           GoRoute(
             path: '/admin/trips-schedule',
@@ -357,7 +364,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/admin/stops',
-            pageBuilder: (_, __) => const NoTransitionPage(child: PlaceholderScreen(title: 'Stops')),
+            pageBuilder: (_, __) => const NoTransitionPage(child: RouteManagementScreen(initialIndex: 6)),
           ),
           GoRoute(
             path: '/admin/students',

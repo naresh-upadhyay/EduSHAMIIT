@@ -31,11 +31,23 @@ async def vehicle_dashboard_summary(
             "p_school_id": school_id
         }).aexecute()
         summary = res.data if res.data else {}
+        if isinstance(summary, list) and len(summary) > 0:
+            summary = summary[0]
     except Exception as e:
         # Fallback: compute manually
         summary = await _compute_summary_manually(sb, school_id)
 
     return {"success": True, "data": summary}
+
+
+@router.post("/diagnostics")
+async def save_diagnostics(payload: dict):
+    import json
+    print("FRONTEND DIAGNOSTICS:", payload, flush=True)
+    with open("diagnostics.txt", "a") as f:
+        f.write(json.dumps(payload) + "\n")
+    return {"success": True}
+
 
 
 async def _compute_summary_manually(sb, school_id: Optional[str]):
@@ -378,6 +390,13 @@ async def update_trip(trip_id: str, payload: dict, user=Depends(require_transpor
         raise HTTPException(status_code=400, detail="No valid fields provided")
     await sb.table("vehicle_trips").update(data).eq("id", trip_id).aexecute()
     return {"success": True, "message": "Trip updated"}
+
+
+@router.delete("/trips/{trip_id}")
+async def delete_trip(trip_id: str, user=Depends(require_transport_admin)):
+    sb = get_supabase()
+    await sb.table("vehicle_trips").delete().eq("id", trip_id).aexecute()
+    return {"success": True, "message": "Trip deleted"}
 
 
 # ──────────────────────────────────────────────
@@ -1048,7 +1067,7 @@ async def list_driver_assignments(
     user=Depends(require_transport_admin),
 ):
     sb = get_supabase()
-    q = sb.table("driver_assignments").select("*, drivers(*), vehicle:bus_routes!driver_assignments_vehicle_id_fkey(*), route:bus_routes!driver_assignments_route_id_fkey(*)")
+    q = sb.table("driver_assignments").select("*, drivers(*), vehicle:bus_routes!driver_assignments_vehicle_id_fkey(*), route:transport_routes!driver_assignments_route_id_fkey(*)")
     if school_id:
         q = q.eq("school_id", school_id)
     if driver_id:
@@ -1237,5 +1256,516 @@ async def delete_driver_violation(violation_id: str, user=Depends(require_transp
     sb = get_supabase()
     await sb.table("driver_violations").delete().eq("id", violation_id).aexecute()
     return {"success": True, "message": "Violation deleted"}
+
+
+# ──────────────────────────────────────────────
+# Route Management
+# ──────────────────────────────────────────────
+
+@router.get("/routes")
+async def list_routes(
+    school_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    area: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    user=Depends(require_transport_admin),
+):
+    """List all routes with stops counts, assigned driver and vehicle details."""
+    sb = get_supabase()
+    
+    # 1. Base Query for transport_routes joining vehicles (bus_routes) and drivers
+    q = sb.table("transport_routes").select("*, bus_routes(*), drivers(*)")
+    if school_id:
+        q = q.eq("school_id", school_id)
+    if status and status != "All":
+        q = q.eq("status", status)
+    if area and area != "All":
+        q = q.ilike("area_zone", f"%{area}%")
+        
+    res = await q.aexecute()
+    routes = res.data or []
+    
+    # 2. Get stops count and map to routes
+    # Fetch all stops for the school
+    stops_q = sb.table("transport_route_stops").select("route_id, distance_km") if hasattr(sb, 'table') else None
+    stops_q = sb.table("transport_route_stops").select("route_id")
+    if school_id:
+        stops_q = stops_q.eq("school_id", school_id)
+    stops_res = await stops_q.aexecute()
+    stops = stops_res.data or []
+    
+    # Count stops per route
+    stops_count_map = {}
+    for stop in stops:
+        rid = stop.get("route_id")
+        stops_count_map[rid] = stops_count_map.get(rid, 0) + 1
+        
+    # Inject counts into routes data
+    for r in routes:
+        rid = r.get("id")
+        r["stops_count"] = stops_count_map.get(rid, 0)
+        
+    # Filter by search string if provided
+    if search:
+        s = search.lower()
+        filtered = []
+        for r in routes:
+            code = (r.get("route_code") or "").lower()
+            name = (r.get("route_name") or "").lower()
+            zone = (r.get("area_zone") or "").lower()
+            bus_num = (r.get("bus_routes") or {}).get("bus_number", "") or ""
+            bus_num = bus_num.lower()
+            drv_name = (r.get("drivers") or {}).get("name", "") or ""
+            drv_name = drv_name.lower()
+            
+            if s in code or s in name or s in zone or s in bus_num or s in drv_name:
+                filtered.append(r)
+        routes = filtered
+        
+    return {"success": True, "data": routes}
+
+
+@router.get("/routes/{route_id}")
+async def get_route(route_id: str, user=Depends(require_transport_admin)):
+    """Get specific route and its stops."""
+    sb = get_supabase()
+    r_res = await sb.table("transport_routes").select("*, bus_routes(*), drivers(*)").eq("id", route_id).single().aexecute()
+    route = r_res.data
+    if not route:
+        raise HTTPException(status_code=404, detail="Route not found")
+        
+    stops_res = await sb.table("transport_route_stops").select("*").eq("route_id", route_id).order("stop_order").aexecute()
+    stops = stops_res.data or []
+    
+    return {
+        "success": True,
+        "data": {
+            "route": route,
+            "stops": stops
+        }
+    }
+
+
+@router.post("/routes")
+async def create_route(payload: dict, user=Depends(require_transport_admin)):
+    """Create new route and optional stops."""
+    sb = get_supabase()
+    
+    # Extract route details
+    school_id = payload.get("school_id") or "11111111-1111-1111-1111-111111111111"
+    route_data = {
+        "id": str(uuid.uuid4()),
+        "school_id": school_id,
+        "route_code": payload["route_code"],
+        "route_name": payload["route_name"],
+        "area_zone": payload.get("area_zone"),
+        "distance_km": payload.get("distance_km") or 0.0,
+        "start_time": payload.get("start_time"),
+        "end_time": payload.get("end_time"),
+        "vehicle_id": payload.get("vehicle_id"),
+        "driver_id": payload.get("driver_id"),
+        "status": payload.get("status", "Active"),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    
+    # Insert route
+    res = await sb.table("transport_routes").insert(route_data).aexecute()
+    inserted_route = res.data[0] if res.data else route_data
+    
+    # Insert stops if provided
+    stops = payload.get("stops") or []
+    inserted_stops = []
+    if stops:
+        for idx, stop in enumerate(stops):
+            stop_data = {
+                "id": str(uuid.uuid4()),
+                "school_id": school_id,
+                "route_id": route_data["id"],
+                "stop_name": stop["stop_name"],
+                "latitude": stop["latitude"],
+                "longitude": stop["longitude"],
+                "stop_order": stop.get("stop_order") or (idx + 1),
+                "estimated_arrival": stop.get("estimated_arrival"),
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat(),
+            }
+            inserted_stops.append(stop_data)
+        
+        await sb.table("transport_route_stops").insert(inserted_stops).aexecute()
+        
+    return {
+        "success": True,
+        "data": {
+            "route": inserted_route,
+            "stops": inserted_stops
+        }
+    }
+
+
+@router.put("/routes/{route_id}")
+async def update_route(route_id: str, payload: dict, user=Depends(require_transport_admin)):
+    """Update route and replace its stops."""
+    sb = get_supabase()
+    
+    # Extract route details
+    allowed = {
+        "route_code", "route_name", "area_zone", "distance_km",
+        "start_time", "end_time", "vehicle_id", "driver_id", "status"
+    }
+    route_data = {k: v for k, v in payload.items() if k in allowed}
+    route_data["updated_at"] = datetime.utcnow().isoformat()
+    
+    # Update route
+    await sb.table("transport_routes").update(route_data).eq("id", route_id).aexecute()
+    
+    # Handle stops replacement
+    if "stops" in payload:
+        # 1. Delete old stops
+        await sb.table("transport_route_stops").delete().eq("route_id", route_id).aexecute()
+        
+        # 2. Insert new stops
+        stops = payload["stops"] or []
+        school_id = payload.get("school_id") or "11111111-1111-1111-1111-111111111111"
+        inserted_stops = []
+        if stops:
+            for idx, stop in enumerate(stops):
+                stop_data = {
+                    "id": str(uuid.uuid4()),
+                    "school_id": school_id,
+                    "route_id": route_id,
+                    "stop_name": stop["stop_name"],
+                    "latitude": stop["latitude"],
+                    "longitude": stop["longitude"],
+                    "stop_order": stop.get("stop_order") or (idx + 1),
+                    "estimated_arrival": stop.get("estimated_arrival"),
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat(),
+                }
+                inserted_stops.append(stop_data)
+            
+            await sb.table("transport_route_stops").insert(inserted_stops).aexecute()
+            
+    return {"success": True, "message": "Route updated successfully"}
+
+
+@router.delete("/routes/{route_id}")
+async def delete_route(route_id: str, user=Depends(require_transport_admin)):
+    """Delete route (stops are deleted automatically via cascade)."""
+    sb = get_supabase()
+    await sb.table("transport_routes").delete().eq("id", route_id).aexecute()
+    return {"success": True, "message": "Route deleted successfully"}
+
+
+# ──────────────────────────────────────────────
+# Stops CRUD Endpoints
+# ──────────────────────────────────────────────
+
+@router.get("/stops")
+async def list_stops(
+    school_id: Optional[str] = Query(None),
+    route_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    stop_type: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user=Depends(require_transport_admin),
+):
+    """List all stops with route details, search and filters."""
+    sb = get_supabase()
+    q = sb.table("transport_route_stops").select("*, transport_routes(*)").order("created_at", ascending=False)
+    
+    if school_id:
+        q = q.eq("school_id", school_id)
+    if route_id:
+        q = q.eq("route_id", route_id)
+    if status and status != "All":
+        q = q.eq("status", status)
+    if stop_type and stop_type != "All":
+        q = q.eq("stop_type", stop_type)
+
+    res = await q.aexecute()
+    stops = res.data or []
+
+    # Search filter (Python-side to support flexible sub-matching)
+    if search:
+        s = search.lower()
+        filtered = []
+        for st in stops:
+            code = (st.get("stop_code") or "").lower()
+            name = (st.get("stop_name") or "").lower()
+            route_name = ((st.get("transport_routes") or {}).get("route_name") or "").lower()
+            if s in code or s in name or s in route_name:
+                filtered.append(st)
+        stops = filtered
+
+    total = len(stops)
+    start = (page - 1) * page_size
+    paginated = stops[start: start + page_size]
+
+    return {
+        "success": True,
+        "data": {
+            "stops": paginated,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, (total + page_size - 1) // page_size),
+        }
+    }
+
+
+@router.get("/stops/{stop_id}")
+async def get_stop(stop_id: str, user=Depends(require_transport_admin)):
+    """Get details of a single stop."""
+    sb = get_supabase()
+    res = await sb.table("transport_route_stops").select("*, transport_routes(*)").eq("id", stop_id).single().aexecute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Stop not found")
+    return {"success": True, "data": res.data}
+
+
+@router.post("/stops")
+async def create_stop(payload: dict, user=Depends(require_transport_admin)):
+    """Create a new stop."""
+    sb = get_supabase()
+    
+    school_id = payload.get("school_id") or "11111111-1111-1111-1111-111111111111"
+    
+    # Auto-generate stop code if not provided
+    stop_code = payload.get("stop_code")
+    if not stop_code:
+        count_res = await sb.table("transport_route_stops").select("id", count="exact").aexecute()
+        count = count_res.count or 0
+        stop_code = f"ST-{str(count + 1).zfill(3)}"
+
+    stop_data = {
+        "id": str(uuid.uuid4()),
+        "school_id": school_id,
+        "route_id": payload["route_id"],
+        "stop_name": payload["stop_name"],
+        "latitude": payload["latitude"],
+        "longitude": payload["longitude"],
+        "stop_order": payload.get("stop_order") or 1,
+        "estimated_arrival": payload.get("estimated_arrival"),
+        "stop_code": stop_code,
+        "stop_type": payload.get("stop_type", "Pickup"),
+        "pickup_drop_type": payload.get("pickup_drop_type", "Pickup Only"),
+        "landmark": payload.get("landmark"),
+        "radius_meters": payload.get("radius_meters") or 200,
+        "status": payload.get("status", "Active"),
+        "created_by": payload.get("created_by", "Transport Manager"),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+
+    res = await sb.table("transport_route_stops").insert(stop_data).aexecute()
+    return {"success": True, "data": res.data[0] if res.data else stop_data}
+
+
+@router.put("/stops/{stop_id}")
+async def update_stop(stop_id: str, payload: dict, user=Depends(require_transport_admin)):
+    """Update a stop."""
+    sb = get_supabase()
+    
+    allowed = {
+        "route_id", "stop_name", "latitude", "longitude", "stop_order",
+        "estimated_arrival", "stop_code", "stop_type", "pickup_drop_type",
+        "landmark", "radius_meters", "status", "created_by"
+    }
+    
+    stop_data = {k: v for k, v in payload.items() if k in allowed}
+    stop_data["updated_at"] = datetime.utcnow().isoformat()
+    
+    await sb.table("transport_route_stops").update(stop_data).eq("id", stop_id).aexecute()
+    return {"success": True, "message": "Stop updated successfully"}
+
+
+@router.delete("/stops/{stop_id}")
+async def delete_stop(stop_id: str, user=Depends(require_transport_admin)):
+    """Delete a stop."""
+    sb = get_supabase()
+    await sb.table("transport_route_stops").delete().eq("id", stop_id).aexecute()
+    return {"success": True, "message": "Stop deleted successfully"}
+
+
+@router.get("/reports")
+async def get_route_reports(
+    school_id: Optional[str] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    route_id: Optional[str] = Query(None),
+    vehicle_id: Optional[str] = Query(None),
+    driver_id: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    user=Depends(require_transport_admin),
+):
+    from datetime import timedelta
+    sb = get_supabase()
+    
+    # 1. Base date range defaults to last 30 days
+    if not end_date:
+        end_date = date.today().isoformat()
+    if not start_date:
+        start_date = (date.today() - timedelta(days=30)).isoformat()
+        
+    routes_q = sb.table("transport_routes").select("*, bus_routes(bus_number, driver_name), drivers(name)")
+    if school_id:
+        routes_q = routes_q.eq("school_id", school_id)
+    routes_res = await routes_q.aexecute()
+    routes_list = routes_res.data or []
+    
+    trips_q = sb.table("vehicle_trips").select("*, bus_routes(bus_number, route_name, driver_name)")
+    if school_id:
+        trips_q = trips_q.eq("school_id", school_id)
+    
+    trips_q = trips_q.gte("created_at", f"{start_date}T00:00:00Z")
+    trips_q = trips_q.lte("created_at", f"{end_date}T23:59:59Z")
+    
+    trips_res = await trips_q.aexecute()
+    trips_list = trips_res.data or []
+    
+    selected_vehicle_id = None
+    if route_id:
+        target_route = next((r for r in routes_list if str(r['id']) == str(route_id)), None)
+        if target_route:
+            selected_vehicle_id = target_route.get('vehicle_id')
+            
+    filtered_trips = []
+    for t in trips_list:
+        if selected_vehicle_id and str(t.get('route_id')) != str(selected_vehicle_id):
+            continue
+        if vehicle_id and str(t.get('route_id')) != str(vehicle_id):
+            continue
+        if status and status != 'All':
+            t_status = (t.get('status') or '').lower()
+            if status.lower() == 'completed' and t_status != 'completed':
+                continue
+            if status.lower() == 'cancelled' and t_status != 'cancelled':
+                continue
+            if status.lower() == 'delayed' and (t_status != 'completed' or t.get('delay_minutes', 0) <= 5):
+                continue
+            if status.lower() == 'on time' and (t_status != 'completed' or t.get('delay_minutes', 0) > 5):
+                continue
+        filtered_trips.append(t)
+        
+    total_trips = len(filtered_trips)
+    completed_trips_count = sum(1 for t in filtered_trips if t.get('status') == 'completed')
+    cancelled_trips_count = sum(1 for t in filtered_trips if t.get('status') == 'cancelled')
+    on_time_trips_count = sum(1 for t in filtered_trips if t.get('status') == 'completed' and t.get('delay_minutes', 0) <= 5)
+    delayed_trips_count = sum(1 for t in filtered_trips if t.get('status') == 'completed' and t.get('delay_minutes', 0) > 5)
+    
+    total_distance_km = float(sum(float(t.get('distance_km') or 0) for t in filtered_trips))
+    total_students = int(sum(int(t.get('students_count') or 0) for t in filtered_trips))
+    
+    average_on_time_pct = round((on_time_trips_count / completed_trips_count * 100), 2) if completed_trips_count > 0 else 0.0
+    cancellation_rate_pct = round((cancelled_trips_count / total_trips * 100), 2) if total_trips > 0 else 0.0
+    
+    total_routes_count = len(routes_list)
+    
+    daily_groups = {}
+    for t in filtered_trips:
+        dt_str = t.get('created_at', '')
+        date_part = dt_str.split('T')[0] if dt_str else start_date
+            
+        if date_part not in daily_groups:
+            daily_groups[date_part] = {
+                "date": date_part,
+                "total_distance": 0.0,
+                "total_trips": 0,
+                "on_time_trips": 0,
+                "delayed_trips": 0,
+                "cancelled_trips": 0,
+            }
+        
+        daily_groups[date_part]["total_trips"] += 1
+        if t.get('status') == 'completed':
+            daily_groups[date_part]["total_distance"] += float(t.get('distance_km') or 0)
+            if t.get('delay_minutes', 0) <= 5:
+                daily_groups[date_part]["on_time_trips"] += 1
+            else:
+                daily_groups[date_part]["delayed_trips"] += 1
+        elif t.get('status') == 'cancelled':
+            daily_groups[date_part]["cancelled_trips"] += 1
+            
+    daily_trends = sorted(list(daily_groups.values()), key=lambda x: x['date'])
+    for trend in daily_trends:
+        trend["total_distance"] = round(trend["total_distance"], 2)
+        
+    route_details = []
+    for r in routes_list:
+        r_veh_id = r.get('vehicle_id')
+        r_code = r.get('route_code', '')
+        r_name = r.get('route_name', '')
+        
+        r_trips = [t for t in filtered_trips if str(t.get('route_id')) == str(r_veh_id)]
+        r_total_trips = len(r_trips)
+        r_completed = sum(1 for t in r_trips if t.get('status') == 'completed')
+        r_cancelled = sum(1 for t in r_trips if t.get('status') == 'cancelled')
+        r_on_time = sum(1 for t in r_trips if t.get('status') == 'completed' and t.get('delay_minutes', 0) <= 5)
+        r_on_time_pct = round((r_on_time / r_completed * 100), 2) if r_completed > 0 else 0.0
+        r_avg_delay = round(sum(int(t.get('delay_minutes', 0)) for t in r_trips) / r_completed, 1) if r_completed > 0 else 0.0
+        r_dist = round(sum(float(t.get('distance_km') or 0) for t in r_trips), 2)
+        r_students = sum(int(t.get('students_count') or 0) for t in r_trips)
+        
+        route_details.append({
+            "route_id": str(r.get('id')),
+            "route_code": r_code,
+            "route_name": r_name,
+            "total_trips": r_total_trips,
+            "completed_trips": r_completed,
+            "cancelled_trips": r_cancelled,
+            "on_time_pct": r_on_time_pct,
+            "avg_delay": r_avg_delay,
+            "total_distance": r_dist,
+            "students_transported": r_students,
+        })
+        
+    route_details = sorted(route_details, key=lambda x: x['route_code'])
+    
+    routes_with_completed = [r for r in route_details if r['completed_trips'] > 0]
+    
+    best_route = max(routes_with_completed, key=lambda x: x['on_time_pct'], default=None)
+    worst_route = min(routes_with_completed, key=lambda x: x['on_time_pct'], default=None)
+    most_trips = max(route_details, key=lambda x: x['total_trips'], default=None)
+    least_trips = min(route_details, key=lambda x: x['total_trips'], default=None)
+    longest_route = max(route_details, key=lambda x: x['total_distance'], default=None)
+    shortest_route = min(route_details, key=lambda x: x['total_distance'], default=None)
+    
+    summary = {
+        "best_performing_route": {"name": best_route['route_name'] if best_route else "—", "value": f"{best_route['on_time_pct']}%" if best_route else "0.0%"},
+        "worst_performing_route": {"name": worst_route['route_name'] if worst_route else "—", "value": f"{worst_route['on_time_pct']}%" if worst_route else "0.0%"},
+        "most_trips_route": {"name": most_trips['route_name'] if most_trips else "—", "value": str(most_trips['total_trips']) if most_trips else "0"},
+        "least_trips_route": {"name": least_trips['route_name'] if least_trips else "—", "value": str(least_trips['total_trips']) if least_trips else "0"},
+        "longest_route": {"name": longest_route['route_name'] if longest_route else "—", "value": f"{longest_route['total_distance']} km" if longest_route else "0 km"},
+        "shortest_route": {"name": shortest_route['route_name'] if shortest_route else "—", "value": f"{shortest_route['total_distance']} km" if shortest_route else "0 km"},
+    }
+    
+    return {
+        "success": True,
+        "data": {
+            "summary": {
+                "total_routes": total_routes_count,
+                "total_trips": total_trips,
+                "total_distance": round(total_distance_km, 2),
+                "total_students": total_students,
+                "average_on_time": average_on_time_pct,
+                "cancellation_rate": cancellation_rate_pct,
+            },
+            "status_donut": {
+                "completed": completed_trips_count,
+                "on_time": on_time_trips_count,
+                "delayed": delayed_trips_count,
+                "cancelled": cancelled_trips_count,
+            },
+            "trends": daily_trends,
+            "routes_performance": route_details,
+            "performance_summary": summary,
+        }
+    }
+
+
+
 
 

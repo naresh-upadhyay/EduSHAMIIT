@@ -7,7 +7,8 @@ import 'package:image_picker/image_picker.dart';
 
 class DriverManagementTab extends StatefulWidget {
   final String? schoolId;
-  const DriverManagementTab({super.key, this.schoolId});
+  final int initialTab;
+  const DriverManagementTab({super.key, this.schoolId, this.initialTab = 0});
 
   @override
   State<DriverManagementTab> createState() => DriverManagementTabState();
@@ -97,7 +98,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 6, vsync: this, initialIndex: widget.initialTab);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
@@ -134,6 +135,14 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         _violCurrentPage = 1;
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(DriverManagementTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      _tabController.animateTo(widget.initialTab);
+    }
   }
 
   @override

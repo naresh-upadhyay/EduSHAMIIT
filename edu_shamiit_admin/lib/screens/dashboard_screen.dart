@@ -168,6 +168,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     // Fleet Management
     _NavItem(
+        icon: Icons.insights_rounded,
+        label: 'Live Dashboard',
+        route: '/admin/vehicle-dashboard',
+        section: NavSection.fleetManagement),
+    _NavItem(
         icon: Icons.directions_bus_rounded,
         label: 'Fleet Management',
         route: '/admin/fleet',
@@ -181,16 +186,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         icon: Icons.map_outlined,
         label: 'Route Management',
         route: '/admin/route-management',
-        section: NavSection.fleetManagement),
-    _NavItem(
-        icon: Icons.calendar_today_outlined,
-        label: 'Trips & Schedule',
-        route: '/admin/trips-schedule',
-        section: NavSection.fleetManagement),
-    _NavItem(
-        icon: Icons.location_on_outlined,
-        label: 'Stops',
-        route: '/admin/stops',
         section: NavSection.fleetManagement),
   ];
 
@@ -299,6 +294,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/support' ||
                item.route == '/admin/contact-queries' ||
                item.route == '/admin/my-profile' ||
+               item.route == '/admin/vehicle-dashboard' ||
                item.route.startsWith('/admin/fleet') ||
                item.route == '/admin/driver-management' ||
                item.route == '/admin/route-management' ||
@@ -318,6 +314,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/announcements' ||
                item.route == '/admin/support' ||
                item.route == '/admin/my-profile' ||
+               item.route == '/admin/vehicle-dashboard' ||
                item.route.startsWith('/admin/fleet') ||
                item.route == '/admin/driver-management' ||
                item.route == '/admin/route-management' ||
@@ -326,6 +323,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } else if (role == 'transport') {
         return item.route == '/admin/dashboard' ||
                item.route == '/admin/my-profile' ||
+               item.route == '/admin/vehicle-dashboard' ||
                item.route.startsWith('/admin/fleet') ||
                item.route == '/admin/driver-management' ||
                item.route == '/admin/route-management' ||
@@ -430,6 +428,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
                               if (item.label == 'Fleet Management') {
                                 final expandableTile = _buildExpandableFleetTile(isDark, showLabels, location);
+                                if (header != null) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [header, expandableTile],
+                                  );
+                                }
+                                return expandableTile;
+                              }
+
+                              if (item.label == 'Driver Management') {
+                                final expandableTile = _buildExpandableDriverTile(isDark, showLabels, location);
+                                if (header != null) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [header, expandableTile],
+                                  );
+                                }
+                                return expandableTile;
+                              }
+
+                              if (item.label == 'Route Management') {
+                                final expandableTile = _buildExpandableRouteTile(isDark, showLabels, location);
                                 if (header != null) {
                                   return Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -844,8 +864,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       },
     );
   }
-
   bool _isFleetExpanded = true;
+  bool _isDriverExpanded = true;
+  bool _isRouteExpanded = true;
 
   Widget _buildExpandableFleetTile(bool isDark, bool showLabels, String location) {
     final isFleetRoute = location.startsWith('/admin/fleet');
@@ -880,23 +901,112 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               : null,
         ),
         if (_isFleetExpanded && showLabels) ...[
-          _buildSubTile('Overview', 0, isFleetRoute && activeTab == 0, isDark),
-          _buildSubTile('Vehicles', 1, isFleetRoute && activeTab == 1, isDark),
-          _buildSubTile('Vehicle Categories', 2, isFleetRoute && activeTab == 2, isDark),
-          _buildSubTile('Vehicle Documents', 3, isFleetRoute && activeTab == 3, isDark),
-          _buildSubTile('GPS Devices', 4, isFleetRoute && activeTab == 4, isDark),
+          _buildSubTile('Overview', '/admin/fleet', 0, isFleetRoute && activeTab == 0, isDark),
+          _buildSubTile('Vehicles', '/admin/fleet', 1, isFleetRoute && activeTab == 1, isDark),
+          _buildSubTile('Vehicle Categories', '/admin/fleet', 2, isFleetRoute && activeTab == 2, isDark),
+          _buildSubTile('Vehicle Documents', '/admin/fleet', 3, isFleetRoute && activeTab == 3, isDark),
+          _buildSubTile('GPS Devices', '/admin/fleet', 4, isFleetRoute && activeTab == 4, isDark),
         ],
       ],
     );
   }
 
-  Widget _buildSubTile(String label, int tabIndex, bool isSelected, bool isDark) {
+  Widget _buildExpandableDriverTile(bool isDark, bool showLabels, String location) {
+    final isDriverRoute = location.startsWith('/admin/driver-management');
+    final activeTab = int.tryParse(Uri.parse(location).queryParameters['tab'] ?? '0') ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSidebarTile(
+          item: const _NavItem(
+            icon: Icons.person_outline_rounded,
+            label: 'Driver Management',
+            route: '/admin/driver-management',
+            section: NavSection.fleetManagement,
+          ),
+          isSelected: isDriverRoute && !_isDriverExpanded,
+          isDark: isDark,
+          showLabels: showLabels,
+          onTap: () {
+            setState(() {
+              _isDriverExpanded = !_isDriverExpanded;
+            });
+          },
+          trailing: showLabels
+              ? Icon(
+                  _isDriverExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                  color: isDriverRoute
+                      ? const Color(0xFF4F46E5)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  size: 16,
+                )
+              : null,
+        ),
+        if (_isDriverExpanded && showLabels) ...[
+          _buildSubTile('Driver List', '/admin/driver-management', 0, isDriverRoute && activeTab == 0, isDark),
+          _buildSubTile('License & Documents', '/admin/driver-management', 1, isDriverRoute && activeTab == 1, isDark),
+          _buildSubTile('Performance', '/admin/driver-management', 2, isDriverRoute && activeTab == 2, isDark),
+          _buildSubTile('Assignments', '/admin/driver-management', 3, isDriverRoute && activeTab == 3, isDark),
+          _buildSubTile('Training', '/admin/driver-management', 4, isDriverRoute && activeTab == 4, isDark),
+          _buildSubTile('Violations', '/admin/driver-management', 5, isDriverRoute && activeTab == 5, isDark),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildExpandableRouteTile(bool isDark, bool showLabels, String location) {
+    final isRouteRoute = location.startsWith('/admin/route-management');
+    final activeTab = int.tryParse(Uri.parse(location).queryParameters['tab'] ?? '0') ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSidebarTile(
+          item: const _NavItem(
+            icon: Icons.map_outlined,
+            label: 'Route Management',
+            route: '/admin/route-management',
+            section: NavSection.fleetManagement,
+          ),
+          isSelected: isRouteRoute && !_isRouteExpanded,
+          isDark: isDark,
+          showLabels: showLabels,
+          onTap: () {
+            setState(() {
+              _isRouteExpanded = !_isRouteExpanded;
+            });
+          },
+          trailing: showLabels
+              ? Icon(
+                  _isRouteExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right,
+                  color: isRouteRoute
+                      ? const Color(0xFF4F46E5)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  size: 16,
+                )
+              : null,
+        ),
+        if (_isRouteExpanded && showLabels) ...[
+          _buildSubTile('Overview', '/admin/route-management', 0, isRouteRoute && activeTab == 0, isDark),
+          _buildSubTile('Route List', '/admin/route-management', 1, isRouteRoute && activeTab == 1, isDark),
+          _buildSubTile('Trips & Schedule', '/admin/route-management', 2, isRouteRoute && activeTab == 2, isDark),
+          _buildSubTile('Assign Bus', '/admin/route-management', 3, isRouteRoute && activeTab == 3, isDark),
+          _buildSubTile('Live Tracking', '/admin/route-management', 4, isRouteRoute && activeTab == 4, isDark),
+          _buildSubTile('Route Reports', '/admin/route-management', 5, isRouteRoute && activeTab == 5, isDark),
+          _buildSubTile('Stops', '/admin/route-management', 6, isRouteRoute && activeTab == 6, isDark),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSubTile(String label, String baseRoute, int tabIndex, bool isSelected, bool isDark) {
     return Container(
       margin: const EdgeInsets.only(left: 28, bottom: 2),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.go('/admin/fleet?tab=$tabIndex'),
+          onTap: () => context.go('$baseRoute?tab=$tabIndex'),
           borderRadius: BorderRadius.circular(8),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),

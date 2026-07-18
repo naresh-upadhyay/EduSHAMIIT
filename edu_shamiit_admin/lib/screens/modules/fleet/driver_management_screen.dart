@@ -5,7 +5,8 @@ import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'driver_management_tab.dart';
 
 class DriverManagementScreen extends ConsumerStatefulWidget {
-  const DriverManagementScreen({super.key});
+  final int initialTab;
+  const DriverManagementScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<DriverManagementScreen> createState() => _DriverManagementScreenState();
@@ -51,6 +52,7 @@ class _DriverManagementScreenState extends ConsumerState<DriverManagementScreen>
               child: DriverManagementTab(
                 key: _driverTabKey,
                 schoolId: schoolId,
+                initialTab: widget.initialTab,
               ),
             ),
           ),
