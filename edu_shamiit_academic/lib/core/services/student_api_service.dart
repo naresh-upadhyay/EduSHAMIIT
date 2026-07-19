@@ -1519,7 +1519,8 @@ class StudentApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return TransportRoute.fromJson(data);
+        final routeData = data.containsKey('data') ? data['data'] as Map<String, dynamic> : data;
+        return TransportRoute.fromJson(routeData);
       } else if (response.statusCode == 404) {
         return null; // No transport assigned
       } else {

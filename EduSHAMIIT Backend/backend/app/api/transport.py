@@ -11,6 +11,20 @@ from app.middleware.auth import get_current_user, require_any_role
 from app.services.supabase_client import get_supabase
 
 router = APIRouter()
+def _resolve_school_id(user, payload=None, query_school_id=None):
+    # 1. Enforce user's token school_id first (for tenant separation)
+    user_school_id = user.get("school_id")
+    if user_school_id:
+        return user_school_id
+    # 2. Super-admin fallback to request params/payload
+    if query_school_id:
+        return query_school_id
+    if payload and payload.get("school_id"):
+        return payload.get("school_id")
+    # 3. Last resort fallback
+    return "11111111-1111-1111-1111-111111111111"
+
+
 
 require_transport_admin = require_any_role("super_admin", "director", "transport_admin", "admin")
 
@@ -233,8 +247,7 @@ async def create_vehicle(payload: dict, user=Depends(require_transport_admin)):
     }
     data = {k: v for k, v in payload.items() if k in allowed}
     data["id"] = str(uuid.uuid4())
-    if not data.get("school_id"):
-        data["school_id"] = "e1f11111-1111-1111-1111-111111111111" # default to Greenfield Public School
+    data["school_id"] = _resolve_school_id(user, data)
     res = await sb.table("bus_routes").insert(data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else data}
 
@@ -549,7 +562,7 @@ async def create_category(payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     data = {
         "id": str(uuid.uuid4()),
-        "school_id": payload.get("school_id") or "e1f11111-1111-1111-1111-111111111111",
+        "school_id": _resolve_school_id(user, payload),
         "name": payload["name"],
         "description": payload.get("description"),
         "capacity": payload.get("capacity", 52),
@@ -655,7 +668,7 @@ async def create_document(payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     data = {
         "id": str(uuid.uuid4()),
-        "school_id": payload.get("school_id") or "11111111-1111-1111-1111-111111111111",
+        "school_id": _resolve_school_id(user, payload),
         "vehicle_id": payload["vehicle_id"],
         "document_type": payload["document_type"],
         "document_name": payload.get("document_name"),
@@ -942,7 +955,7 @@ async def create_driver_document(payload: dict, user=Depends(require_transport_a
     sb = get_supabase()
     data = {
       "id": str(uuid.uuid4()),
-      "school_id": payload.get("school_id") or "11111111-1111-1111-1111-111111111111",
+      "school_id": _resolve_school_id(user, payload),
       "driver_id": payload["driver_id"],
       "document_type": payload["document_type"],
       "document_no": payload["document_no"],
@@ -1083,7 +1096,7 @@ async def create_driver_assignment(payload: dict, user=Depends(require_transport
     sb = get_supabase()
     data = {
       "id": str(uuid.uuid4()),
-      "school_id": payload.get("school_id") or "11111111-1111-1111-1111-111111111111",
+      "school_id": _resolve_school_id(user, payload),
       "driver_id": payload["driver_id"],
       "vehicle_id": payload.get("vehicle_id"),
       "route_id": payload.get("route_id"),
@@ -1154,7 +1167,7 @@ async def create_driver_training(payload: dict, user=Depends(require_transport_a
     sb = get_supabase()
     data = {
       "id": str(uuid.uuid4()),
-      "school_id": payload.get("school_id") or "11111111-1111-1111-1111-111111111111",
+      "school_id": _resolve_school_id(user, payload),
       "driver_id": payload["driver_id"],
       "training_program": payload["training_program"],
       "training_type": payload["training_type"],
@@ -1223,7 +1236,7 @@ async def create_driver_violation(payload: dict, user=Depends(require_transport_
     sb = get_supabase()
     data = {
       "id": str(uuid.uuid4()),
-      "school_id": payload.get("school_id") or "11111111-1111-1111-1111-111111111111",
+      "school_id": _resolve_school_id(user, payload),
       "driver_id": payload["driver_id"],
       "violation_type": payload["violation_type"],
       "description": payload.get("description"),
@@ -1352,7 +1365,7 @@ async def create_route(payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     
     # Extract route details
-    school_id = payload.get("school_id") or "11111111-1111-1111-1111-111111111111"
+    school_id = _resolve_school_id(user, payload)
     route_data = {
         "id": str(uuid.uuid4()),
         "school_id": school_id,
@@ -1426,7 +1439,7 @@ async def update_route(route_id: str, payload: dict, user=Depends(require_transp
         
         # 2. Insert new stops
         stops = payload["stops"] or []
-        school_id = payload.get("school_id") or "11111111-1111-1111-1111-111111111111"
+        school_id = _resolve_school_id(user, payload)
         inserted_stops = []
         if stops:
             for idx, stop in enumerate(stops):
@@ -1531,7 +1544,7 @@ async def create_stop(payload: dict, user=Depends(require_transport_admin)):
     """Create a new stop."""
     sb = get_supabase()
     
-    school_id = payload.get("school_id") or "11111111-1111-1111-1111-111111111111"
+    school_id = _resolve_school_id(user, payload)
     
     # Auto-generate stop code if not provided
     stop_code = payload.get("stop_code")

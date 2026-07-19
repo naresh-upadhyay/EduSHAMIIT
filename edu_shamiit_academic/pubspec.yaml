@@ -42,6 +42,7 @@ dependencies:
   # Maps
   flutter_map: ^6.1.0
   latlong2: ^0.9.1
+  geolocator: ^13.0.2
 
   # Markdown
   flutter_markdown: ^0.6.18

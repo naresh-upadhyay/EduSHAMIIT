@@ -1183,6 +1183,16 @@ class TransportRoute {
   final DateTime? estimatedArrival;
   final String? vehicleNumber;
 
+  // Dynamic API fields
+  final String? nextStop;
+  final double? nextStopDistance;
+  final String? arrivalTimeStr;
+  final int? timeLeftMinutes;
+  final double? distanceLeftKm;
+  final Map<String, dynamic>? myStopRaw;
+  final double? liveLatitude;
+  final double? liveLongitude;
+
   TransportRoute({
     required this.id,
     required this.routeName,
@@ -1196,11 +1206,26 @@ class TransportRoute {
     this.seatNumber,
     this.estimatedArrival,
     this.vehicleNumber,
+    this.nextStop,
+    this.nextStopDistance,
+    this.arrivalTimeStr,
+    this.timeLeftMinutes,
+    this.distanceLeftKm,
+    this.myStopRaw,
+    this.liveLatitude,
+    this.liveLongitude,
   });
 
   factory TransportRoute.fromJson(Map<String, dynamic> json) {
+    double? liveLat;
+    double? liveLng;
+    if (json['live_location'] != null) {
+      liveLat = double.tryParse(json['live_location']['latitude'].toString());
+      liveLng = double.tryParse(json['live_location']['longitude'].toString());
+    }
+
     return TransportRoute(
-      id: json['id'] ?? '',
+      id: json['route_id'] ?? json['id'] ?? '',
       routeName: json['route_name'] ?? '',
       busNumber: json['bus_number'] ?? '',
       driverName: json['driver_name'] ?? '',
@@ -1214,12 +1239,26 @@ class TransportRoute {
       arrivalTime: json['arrival_time'] != null
           ? DateTime.tryParse(json['arrival_time'])
           : null,
-      studentStopName: json['student_stop_name'],
+      studentStopName: json['student_stop_name'] ?? (json['my_stop'] != null ? json['my_stop']['stop_name'] : null),
       seatNumber: json['seat_number'],
       estimatedArrival: json['estimated_arrival'] != null
           ? DateTime.tryParse(json['estimated_arrival'])
           : null,
       vehicleNumber: json['vehicle_number'],
+      nextStop: json['next_stop'],
+      nextStopDistance: json['next_stop_distance'] != null
+          ? double.tryParse(json['next_stop_distance'].toString())
+          : null,
+      arrivalTimeStr: json['estimated_arrival'],
+      timeLeftMinutes: json['time_left_minutes'] != null
+          ? int.tryParse(json['time_left_minutes'].toString())
+          : null,
+      distanceLeftKm: json['distance_left_km'] != null
+          ? double.tryParse(json['distance_left_km'].toString())
+          : null,
+      myStopRaw: json['my_stop'] as Map<String, dynamic>?,
+      liveLatitude: liveLat,
+      liveLongitude: liveLng,
     );
   }
 
@@ -1237,6 +1276,14 @@ class TransportRoute {
       'seat_number': seatNumber,
       'estimated_arrival': estimatedArrival?.toIso8601String(),
       'vehicle_number': vehicleNumber,
+      'next_stop': nextStop,
+      'next_stop_distance': nextStopDistance,
+      'time_left_minutes': timeLeftMinutes,
+      'distance_left_km': distanceLeftKm,
+      'my_stop': myStopRaw,
+      'live_location': liveLatitude != null && liveLongitude != null
+          ? {'latitude': liveLatitude, 'longitude': liveLongitude}
+          : null,
     };
   }
 }
@@ -1247,12 +1294,18 @@ class TransportStop {
   final String stopName;
   final String? arrivalTime;
   final bool isBoarded;
+  final double? latitude;
+  final double? longitude;
+  final int? stopOrder;
 
   TransportStop({
     required this.id,
     required this.stopName,
     this.arrivalTime,
     required this.isBoarded,
+    this.latitude,
+    this.longitude,
+    this.stopOrder,
   });
 
   factory TransportStop.fromJson(Map<String, dynamic> json) {
@@ -1261,6 +1314,9 @@ class TransportStop {
       stopName: json['stop_name'] ?? '',
       arrivalTime: json['arrival_time'],
       isBoarded: json['is_boarded'] ?? false,
+      latitude: json['latitude'] != null ? double.tryParse(json['latitude'].toString()) : null,
+      longitude: json['longitude'] != null ? double.tryParse(json['longitude'].toString()) : null,
+      stopOrder: json['stop_order'] != null ? int.tryParse(json['stop_order'].toString()) : null,
     );
   }
 
@@ -1270,6 +1326,9 @@ class TransportStop {
       'stop_name': stopName,
       'arrival_time': arrivalTime,
       'is_boarded': isBoarded,
+      'latitude': latitude,
+      'longitude': longitude,
+      'stop_order': stopOrder,
     };
   }
 }

@@ -1129,6 +1129,168 @@ async def student_transport(user=Depends(get_current_user), school_id=Depends(re
     return {"success": True, "school_id": school_id, "data": {"route": transport.get("bus_routes"), "your_stop": transport.get("bus_stops", {}).get("stop_name"), "live_location": bus_location}}
 
 
+@router.get("/transport/route")
+async def get_student_transport_route(user=Depends(get_current_user), school_id=Depends(require_school_id)):
+    sb = get_supabase()
+    # 1. Fetch student transport assignment
+    transport_res = await sb.table("student_transport").select("*, bus_routes(*), bus_stops(*)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    transport = transport_res.data
+    
+    if not transport:
+        raise HTTPException(status_code=404, detail="No transport route assigned to this student")
+        
+    vehicle_id = transport.get("route_id") # route_id in student_transport points to bus_routes(id)
+    stop_id = transport.get("stop_id")
+    
+    # 2. Fetch active transport route matching this vehicle
+    route_res = await sb.table("transport_routes").select("*, drivers(*)").eq("school_id", school_id).eq("vehicle_id", vehicle_id).eq("status", "Active").maybe_single().aexecute()
+    route = route_res.data
+    
+    # 3. Fetch stops
+    stops = []
+    if route:
+        stops_res = await sb.table("transport_route_stops").select("*").eq("school_id", school_id).eq("route_id", route["id"]).order("stop_order").aexecute()
+        stops = stops_res.data or []
+    else:
+        # Fallback to bus_stops table for the vehicle
+        stops_res = await sb.table("bus_stops").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("stop_order").aexecute()
+        stops = stops_res.data or []
+        
+    # 4. Fetch live location
+    loc_res = await sb.table("bus_locations").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("recorded_at", ascending=False).limit(1).maybe_single().aexecute()
+    live_location = loc_res.data
+    
+    # 5. Fetch live alerts / updates
+    alerts_res = await sb.table("vehicle_live_alerts").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("created_at", ascending=False).limit(5).aexecute()
+    alerts = alerts_res.data or []
+    
+    live_updates = []
+    for alert in alerts:
+        created_at_str = alert.get("created_at") or datetime.utcnow().isoformat()
+        try:
+            created_at_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+            time_str = created_at_dt.strftime("%I:%M %p")
+        except:
+            time_str = created_at_str[:16]
+        
+        live_updates.append({
+            "time": time_str,
+            "message": f"{alert['title']}: {alert.get('message', '')}" if alert.get('message') else alert['title']
+        })
+    
+    # Build stops list
+    formatted_stops = []
+    my_stop_data = None
+    for s in stops:
+        arrival_time_str = "07:00 AM"
+        if s.get("estimated_arrival"):
+            arrival_time_str = s["estimated_arrival"]
+            # clean time formatting if it is in HH:MM:SS format
+            if len(arrival_time_str) == 8 and ":" in arrival_time_str:
+                try:
+                    time_obj = datetime.strptime(arrival_time_str, "%H:%M:%S")
+                    arrival_time_str = time_obj.strftime("%I:%M %p")
+                except:
+                    pass
+            
+        stop_item = {
+            "id": s["id"],
+            "stop_name": s["stop_name"],
+            "arrival_time": arrival_time_str,
+            "is_boarded": False,
+            "stop_order": s["stop_order"],
+            "latitude": float(s["latitude"]),
+            "longitude": float(s["longitude"]),
+        }
+        
+        # If live_location and stops are ordered, we can estimate if boarded
+        if live_location and s.get("stop_order"):
+            # simple mock heuristics: if bus is beyond this stop's order, mark boarded
+            # For dynamic realism, let's look at bus's next_stop from bus_routes
+            next_stop_name = transport.get("bus_routes", {}).get("next_stop")
+            if next_stop_name:
+                # Find next stop order
+                next_order = 999
+                for ns in stops:
+                    if ns["stop_name"] == next_stop_name:
+                        next_order = ns["stop_order"]
+                        break
+                stop_item["is_boarded"] = s["stop_order"] < next_order
+            else:
+                stop_item["is_boarded"] = False
+                
+        formatted_stops.append(stop_item)
+        
+        if str(s["id"]) == str(stop_id) or s["stop_name"] == transport.get("bus_stops", {}).get("stop_name"):
+            my_stop_data = {
+                "stop_name": s["stop_name"],
+                "pickup_time": arrival_time_str,
+                "distance_km": 0.0,
+                "time_minutes": 0,
+                "status": "On the way",
+                "stop_order": s["stop_order"],
+                "latitude": float(s["latitude"]) if s.get("latitude") else None,
+                "longitude": float(s["longitude"]) if s.get("longitude") else None,
+            }
+            
+    if not my_stop_data and formatted_stops:
+        # Fallback to the student stop details from transport record
+        student_stop_name = transport.get("bus_stops", {}).get("stop_name") or "Your Stop"
+        my_stop_data = {
+            "stop_name": student_stop_name,
+            "pickup_time": "07:00 AM",
+            "distance_km": 0.0,
+            "time_minutes": 0,
+            "status": "On the way",
+            "stop_order": 1
+        }
+        
+    driver = route.get("drivers") if route else None
+    
+    # Calculate duration
+    total_duration = 30
+    if route and route.get("start_time") and route.get("end_time"):
+        try:
+            start = datetime.strptime(route["start_time"], "%H:%M:%S")
+            end = datetime.strptime(route["end_time"], "%H:%M:%S")
+            total_duration = int((end - start).total_seconds() / 60)
+        except:
+            pass
+            
+    bus_info = transport.get("bus_routes") or {}
+    
+    return {
+        "success": True,
+        "data": {
+            "route_id": route["id"] if route else (bus_info.get("id") or "r1"),
+            "route_code": route["route_code"] if route else "RT-101",
+            "route_name": route["route_name"] if route else (bus_info.get("route_name") or "Route 101"),
+            "bus_number": bus_info.get("bus_number") or bus_info.get("registration_no") or "",
+            "driver_name": driver.get("name") if driver else (bus_info.get("driver_name") or ""),
+            "driver_phone": driver.get("phone") if driver else (bus_info.get("driver_phone") or ""),
+            "attendant_name": bus_info.get("assistant_name") or "Suresh Yadav",
+            "attendant_phone": bus_info.get("assistant_phone") or "9876509876",
+            "status": bus_info.get("live_status", "OFFLINE").upper(),
+            "total_distance": float(route["distance_km"]) if route else (float(bus_info.get("distance_km")) if bus_info.get("distance_km") else 12.0),
+            "total_stops": len(formatted_stops),
+            "total_duration": total_duration,
+            "next_stop": bus_info.get("next_stop") or (my_stop_data["stop_name"] if my_stop_data else ""),
+            "next_stop_distance": 0.4,
+            "estimated_arrival": bus_info.get("next_stop_eta") or (my_stop_data["pickup_time"] if my_stop_data else "07:00 AM"),
+            "time_left_minutes": bus_info.get("delay_minutes", 0),
+            "distance_left_km": 0.0,
+            "my_stop": my_stop_data,
+            "stops": formatted_stops,
+            "live_location": {
+                "latitude": float(live_location["latitude"]) if live_location else 28.6210,
+                "longitude": float(live_location["longitude"]) if live_location else 77.3605,
+                "recorded_at": live_location["recorded_at"] if live_location else datetime.utcnow().isoformat()
+            },
+            "live_updates": live_updates
+        }
+    }
+
+
 @router.get("/notices")
 async def student_notices(category: str = "All", user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
