@@ -22,7 +22,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
 
   // Pagination & Filtering state
   int _currentPage = 1;
-  int _pageSize = 10;
+  final int _pageSize = 10;
   String _searchQuery = "";
   String _selectedStatus = "All";
 
@@ -145,7 +145,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? Colors.white70 : const Color(0xFF64748B);
     final textMuted = isDark ? Colors.white30 : const Color(0xFF94A3B8);
-    final accentColor = const Color(0xFF6366F1);
+    const accentColor = Color(0xFF6366F1);
 
     final isWideScreen = MediaQuery.of(context).size.width >= 1000;
 
@@ -334,7 +334,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
               final isSelected = _selectedQuery != null && _selectedQuery['id'] == query['id'];
 
               final selectedBg = isDark 
-                  ? const Color(0xFF4F46E5).withOpacity(0.12)
+                  ? const Color(0xFF4F46E5).withValues(alpha: 0.12)
                   : const Color(0xFFEEF2FF);
               
               final selectedBorder = isDark
@@ -355,7 +355,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -457,7 +457,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -473,7 +473,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
               // Avatar
               CircleAvatar(
                 radius: 22,
-                backgroundColor: accentColor.withOpacity(0.15),
+                backgroundColor: accentColor.withValues(alpha: 0.15),
                 child: Text(
                   initial,
                   style: GoogleFonts.outfit(
@@ -539,7 +539,7 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: borderColor),
             ),
@@ -634,9 +634,9 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF064E3B).withOpacity(0.2) : const Color(0xFFF0FDF4),
+                color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.2) : const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? const Color(0xFF064E3B).withOpacity(0.4) : const Color(0xFFBBF7D0)),
+                border: Border.all(color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.4) : const Color(0xFFBBF7D0)),
               ),
               child: Text(
                 query['response'] != null && query['response'].isNotEmpty
@@ -681,11 +681,11 @@ class _ContactQueriesScreenState extends ConsumerState<ContactQueriesScreen> {
 
     switch (status) {
       case 'Resolved':
-        bg = isDark ? const Color(0xFF064E3B).withOpacity(0.25) : const Color(0xFFDCFCE7);
+        bg = isDark ? const Color(0xFF064E3B).withValues(alpha: 0.25) : const Color(0xFFDCFCE7);
         fg = isDark ? Colors.green.shade300 : const Color(0xFF15803D);
         break;
       case 'In Progress':
-        bg = isDark ? const Color(0xFF78350F).withOpacity(0.25) : const Color(0xFFFEF3C7);
+        bg = isDark ? const Color(0xFF78350F).withValues(alpha: 0.25) : const Color(0xFFFEF3C7);
         fg = isDark ? Colors.amber.shade300 : const Color(0xFFD97706);
         break;
       case 'Pending':

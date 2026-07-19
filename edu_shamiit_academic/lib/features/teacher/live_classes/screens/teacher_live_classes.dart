@@ -21,8 +21,6 @@ class TeacherLiveClasses extends ConsumerStatefulWidget {
 class _TeacherLiveClassesState extends ConsumerState<TeacherLiveClasses> {
   final TeacherApiService _apiService = TeacherApiService();
 
-  final String _selectedStatus = 'All';
-  final List<String> _statuses = ['All', 'Scheduled', 'Ongoing', 'Completed'];
   List<TeacherLiveClass> _liveClasses = [];
   bool _isLoading = true;
   String? _error;

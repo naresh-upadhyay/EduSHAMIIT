@@ -1517,7 +1517,7 @@ class _SuperAdminDashboardScreenState extends ConsumerState<SuperAdminDashboardS
         }).toList(),
       );
     } else {
-      final double cardHeight = 118.0;
+      const double cardHeight = 118.0;
       final double cardWidth = (width - (crossAxisCount - 1) * 16) / crossAxisCount;
       final double calculatedAspectRatio = cardWidth / cardHeight;
 

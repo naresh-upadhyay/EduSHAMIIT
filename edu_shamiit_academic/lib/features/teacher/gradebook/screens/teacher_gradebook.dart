@@ -10,12 +10,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Premium Palette
 const _kPrimary = Color(0xFF4F46E5); // Indigo
-const _kPrimaryGrad = Color(0xFF6366F1); // Indigo light
 const _kSecondary = Color(0xFF0EA5E9); // Sky
 const _kSuccess = Color(0xFF10B981); // Emerald
 const _kWarning = Color(0xFFF59E0B); // Amber
 const _kDanger = Color(0xFFEF4444); // Red
-const _kSurface = Colors.white;
 const _kBg = Color(0xFFF8FAFC);
 const _kBorder = Color(0xFFE2E8F0);
 const _kText = Color(0xFF0F172A);

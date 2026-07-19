@@ -1,10 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
-import 'quick_access_widgets.dart';
 
 class ApisScreen extends StatefulWidget {
   const ApisScreen({super.key});
@@ -120,7 +117,7 @@ class _ApisScreenState extends State<ApisScreen> {
       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
       prefixIcon: Icon(prefixIcon, color: const Color(0xFF64748B), size: 16),
       filled: true,
-      fillColor: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -378,7 +375,7 @@ class _ApisScreenState extends State<ApisScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -397,7 +394,7 @@ class _ApisScreenState extends State<ApisScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 16),
@@ -440,7 +437,7 @@ class _ApisScreenState extends State<ApisScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -464,7 +461,7 @@ class _ApisScreenState extends State<ApisScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.05) : const Color(0xFFF1F5F9),
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -495,7 +492,7 @@ class _ApisScreenState extends State<ApisScreen> {
                         drawVerticalLine: false,
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
-                            color: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF1F5F9),
+                            color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1F5F9),
                             strokeWidth: 1,
                           );
                         },
@@ -553,7 +550,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           dotData: const FlDotData(show: false),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: const Color(0xFF8B5CF6).withOpacity(0.08),
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
                           ),
                         ),
                         LineChartBarData(
@@ -565,7 +562,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           dotData: const FlDotData(show: false),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: const Color(0xFF10B981).withOpacity(0.05),
+                            color: const Color(0xFF10B981).withValues(alpha: 0.05),
                           ),
                         ),
                         LineChartBarData(
@@ -577,7 +574,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           dotData: const FlDotData(show: false),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: const Color(0xFFEF4444).withOpacity(0.03),
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.03),
                           ),
                         ),
                       ],
@@ -623,7 +620,7 @@ class _ApisScreenState extends State<ApisScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -752,7 +749,7 @@ class _ApisScreenState extends State<ApisScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -791,7 +788,7 @@ class _ApisScreenState extends State<ApisScreen> {
                   hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                   prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B), size: 16),
                   filled: true,
-                  fillColor: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
+                  fillColor: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                   enabledBorder: OutlineInputBorder(
@@ -873,7 +870,7 @@ class _ApisScreenState extends State<ApisScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                      color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Row(
@@ -936,7 +933,7 @@ class _ApisScreenState extends State<ApisScreen> {
                     height: 28,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                      color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                     ),
@@ -1067,7 +1064,7 @@ class _ApisScreenState extends State<ApisScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
+        color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
       ),
@@ -1126,7 +1123,7 @@ class _ApisScreenState extends State<ApisScreen> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(icon, color: color, size: 16),
@@ -1187,7 +1184,7 @@ class _ApisScreenState extends State<ApisScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFF10B981).withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                    color: isActive ? const Color(0xFF10B981).withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -1241,7 +1238,7 @@ class _ApisScreenState extends State<ApisScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1265,7 +1262,7 @@ class _ApisScreenState extends State<ApisScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.15),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -1331,7 +1328,7 @@ class _ApisScreenState extends State<ApisScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1399,7 +1396,7 @@ class _ApisScreenState extends State<ApisScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -1500,7 +1497,7 @@ class _ApisScreenState extends State<ApisScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withOpacity(0.1),
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.info_outline, color: Color(0xFF4F46E5), size: 20),
@@ -1621,7 +1618,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withOpacity(0.1),
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.add_link, color: Color(0xFF4F46E5), size: 20),
@@ -1703,7 +1700,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                              color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                             ),
@@ -1833,7 +1830,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withOpacity(0.1),
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.edit, color: Color(0xFF4F46E5), size: 20),
@@ -1907,7 +1904,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                              color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                             ),
@@ -1948,7 +1945,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           ),
                           Switch(
                             value: isActive,
-                            activeColor: const Color(0xFF10B981),
+                            activeThumbColor: const Color(0xFF10B981),
                             onChanged: (val) {
                               setDialogState(() {
                                 isActive = val;
@@ -1988,8 +1985,8 @@ class _ApisScreenState extends State<ApisScreen> {
                               if (nameController.text.isEmpty) return;
                               Navigator.pop(context);
                               try {
-                                final path_prefix = api['path_prefix']?.toString() ?? '';
-                                final urlPath = path_prefix.startsWith('/') ? path_prefix.substring(1) : path_prefix;
+                                final pathPrefix = api['path_prefix']?.toString() ?? '';
+                                final urlPath = pathPrefix.startsWith('/') ? pathPrefix.substring(1) : pathPrefix;
                                 final payload = {
                                   'api_name': nameController.text,
                                   'version': versionController.text,
@@ -2062,7 +2059,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withOpacity(0.1),
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.speed, color: Color(0xFF4F46E5), size: 20),
@@ -2150,7 +2147,7 @@ class _ApisScreenState extends State<ApisScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                              color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                             ),

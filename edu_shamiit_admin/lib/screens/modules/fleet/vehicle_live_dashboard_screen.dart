@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
@@ -485,7 +484,7 @@ class _VehicleLiveDashboardScreenState
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-                color: m.color.withOpacity(0.1),
+                color: m.color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10)),
             child: Icon(m.icon, color: m.color, size: 18),
           ),
@@ -531,9 +530,9 @@ class _VehicleLiveDashboardScreenState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: _accent.withOpacity(0.05),
+        color: _accent.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _accent.withOpacity(0.2)),
+        border: Border.all(color: _accent.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -541,7 +540,7 @@ class _VehicleLiveDashboardScreenState
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-                color: _accent.withOpacity(0.12),
+                color: _accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.people_rounded, color: _accent, size: 20),
           ),
@@ -681,7 +680,7 @@ class _VehicleLiveDashboardScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: _cardBg.withOpacity(0.92),
+                      color: _cardBg.withValues(alpha: 0.92),
                       border:
                           const Border(top: BorderSide(color: _border)),
                     ),
@@ -753,7 +752,7 @@ class _VehicleLiveDashboardScreenState
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.12),
+                color: Colors.black.withValues(alpha: 0.12),
                 blurRadius: 12,
                 offset: const Offset(0, 4))
           ],
@@ -889,7 +888,7 @@ class _VehicleLiveDashboardScreenState
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                  color: sevColor.withOpacity(0.1),
+                  color: sevColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6)),
               child:
                   Icon(Icons.warning_amber_rounded, color: sevColor, size: 14),
@@ -1021,14 +1020,14 @@ class _VehicleLiveDashboardScreenState
   // ─────── QUICK ACTIONS ───────
   Widget _buildQuickActionsPanel() {
     final actions = [
-      _QA(Icons.directions_bus_rounded, 'Add Vehicle', _accent),
-      _QA(Icons.person_add_alt_1_rounded, 'Add Driver', _accent),
-      _QA(Icons.route_rounded, 'Add Route', _accent),
-      _QA(Icons.location_on_rounded, 'Add Stop', _accent),
-      _QA(Icons.notifications_rounded, 'Send Notification', _accent),
-      _QA(Icons.add_road_rounded, 'Create Trip', _accent),
-      _QA(Icons.bar_chart_rounded, 'View Reports', _accent),
-      _QA(Icons.emergency_rounded, 'Emergency Alert', _red),
+      const _QA(Icons.directions_bus_rounded, 'Add Vehicle', _accent),
+      const _QA(Icons.person_add_alt_1_rounded, 'Add Driver', _accent),
+      const _QA(Icons.route_rounded, 'Add Route', _accent),
+      const _QA(Icons.location_on_rounded, 'Add Stop', _accent),
+      const _QA(Icons.notifications_rounded, 'Send Notification', _accent),
+      const _QA(Icons.add_road_rounded, 'Create Trip', _accent),
+      const _QA(Icons.bar_chart_rounded, 'View Reports', _accent),
+      const _QA(Icons.emergency_rounded, 'Emergency Alert', _red),
     ];
     return _card(
       header: Text('Quick Actions',
@@ -1151,7 +1150,7 @@ class _VehicleLiveDashboardScreenState
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                            color: _red.withOpacity(0.1),
+                            color: _red.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8)),
                         child: Text('$delay mins',
                             style: GoogleFonts.inter(
@@ -1204,9 +1203,9 @@ class _VehicleLiveDashboardScreenState
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _accent.withOpacity(0.04),
+                color: _accent.withValues(alpha: 0.04),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _accent.withOpacity(0.15)),
+                border: Border.all(color: _accent.withValues(alpha: 0.15)),
               ),
               child: Row(children: [
                 Container(
@@ -1346,8 +1345,8 @@ class _VehicleLiveDashboardScreenState
                             horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: isStarting
-                              ? _orange.withOpacity(0.1)
-                              : _blue.withOpacity(0.1),
+                              ? _orange.withValues(alpha: 0.1)
+                              : _blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -1445,7 +1444,7 @@ class _VehiclePin extends StatelessWidget {
             border: Border.all(color: Colors.white, width: 2.5),
             boxShadow: [
               BoxShadow(
-                  color: color.withOpacity(0.4),
+                  color: color.withValues(alpha: 0.4),
                   blurRadius: isSelected ? 10 : 6,
                   spreadRadius: isSelected ? 2 : 0),
             ],

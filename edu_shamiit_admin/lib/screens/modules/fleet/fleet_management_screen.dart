@@ -151,11 +151,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       ]);
 
       setState(() {
-        _vehicles = (results[0]?['data']?['vehicles'] as List<dynamic>?) ?? [];
-        _categories = (results[1]?['data'] as List<dynamic>?) ?? [];
-        _documents = (results[2]?['data'] as List<dynamic>?) ?? [];
-        _insuranceFitness = (results[3]?['data'] as List<dynamic>?) ?? [];
-        _gpsDevices = (results[4]?['data'] as List<dynamic>?) ?? [];
+        _vehicles = (results[0]['data']?['vehicles'] as List<dynamic>?) ?? [];
+        _categories = (results[1]['data'] as List<dynamic>?) ?? [];
+        _documents = (results[2]['data'] as List<dynamic>?) ?? [];
+        _insuranceFitness = (results[3]['data'] as List<dynamic>?) ?? [];
+        _gpsDevices = (results[4]['data'] as List<dynamic>?) ?? [];
 
         // Set default selected items
         if (_vehicles.isNotEmpty && _selectedVehicle == null) {
@@ -700,7 +700,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 20),
@@ -766,7 +766,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           child: CircularProgressIndicator(
                             value: 0.75,
                             strokeWidth: 16,
-                            backgroundColor: _red.withOpacity(0.2),
+                            backgroundColor: _red.withValues(alpha: 0.2),
                             valueColor: const AlwaysStoppedAnimation<Color>(_green),
                           ),
                         ),
@@ -921,7 +921,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           child: CircularProgressIndicator(
                             value: 0.81,
                             strokeWidth: 16,
-                            backgroundColor: _blue.withOpacity(0.2),
+                            backgroundColor: _blue.withValues(alpha: 0.2),
                             valueColor: const AlwaysStoppedAnimation<Color>(_green),
                           ),
                         ),
@@ -1012,7 +1012,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 16),
           ),
           const SizedBox(width: 8),
@@ -1283,10 +1283,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       children: [
         SizedBox(width: 180, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus, const Color(0xFF6366F1), 'View all vehicles')),
         SizedBox(width: 180, child: _buildKpiCardMini('Active Vehicles', '$active', Icons.insert_drive_file_outlined, Colors.green, _pct(active, totalVehicles))),
-        SizedBox(width: 180, child: _buildKpiCardMini('In Maintenance', '${maintenance.toString().padLeft(2, '0')}', Icons.build_outlined, Colors.orange, _pct(maintenance, totalVehicles))),
-        SizedBox(width: 180, child: _buildKpiCardMini('Inactive Vehicles', '${inactive.toString().padLeft(2, '0')}', Icons.lock_outline, Colors.blue, _pct(inactive, totalVehicles))),
+        SizedBox(width: 180, child: _buildKpiCardMini('In Maintenance', maintenance.toString().padLeft(2, '0'), Icons.build_outlined, Colors.orange, _pct(maintenance, totalVehicles))),
+        SizedBox(width: 180, child: _buildKpiCardMini('Inactive Vehicles', inactive.toString().padLeft(2, '0'), Icons.lock_outline, Colors.blue, _pct(inactive, totalVehicles))),
         SizedBox(width: 180, child: _buildKpiCardMini('Average Utilization', '78.45%', Icons.check_circle_outline, Colors.green, 'This month')),
-        SizedBox(width: 180, child: _buildKpiCardMini('Total Capacity', '${NumberFormat('#,###').format(totalSeats)}', Icons.airline_seat_recline_normal, const Color(0xFF6366F1), 'Seats')),
+        SizedBox(width: 180, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal, const Color(0xFF6366F1), 'Seats')),
       ],
     );
   }
@@ -1308,7 +1308,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 16),
@@ -1485,7 +1485,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     DataCell(_buildFuelIndicator(v['fuel_level_pct'])),
                     DataCell(Text('${v['total_capacity'] ?? 52}')),
                     DataCell(_buildSpeedBadge(v['speed_kmh'])),
-                    DataCell(Text('2 min ago')),
+                    const DataCell(Text('2 min ago')),
                     DataCell(Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1543,7 +1543,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     if (speed == null || speed == 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: _blue.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: _blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
         child: Text('0 km/h', style: GoogleFonts.inter(fontSize: 11, color: _blue, fontWeight: FontWeight.w600)),
       );
     }
@@ -1551,7 +1551,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     if (speed > 50) c = _red;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
       child: Text('$speed km/h', style: GoogleFonts.inter(fontSize: 11, color: c, fontWeight: FontWeight.w600)),
     );
   }
@@ -1580,7 +1580,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
       child: Text(label, style: GoogleFonts.inter(fontSize: 10, color: c, fontWeight: FontWeight.w600)),
     );
   }
@@ -1829,7 +1829,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isValid ? _green.withOpacity(0.1) : _red.withOpacity(0.1),
+        color: isValid ? _green.withValues(alpha: 0.1) : _red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -1897,7 +1897,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 16),
           ),
           const SizedBox(width: 8),
@@ -2005,7 +2005,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         SizedBox(width: 180, child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_outlined, const Color(0xFF6366F1), 'All categories')),
         SizedBox(width: 180, child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_outline, Colors.green, _pct(active, totalCats))),
         SizedBox(width: 180, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_filled, Colors.orange, 'Across all categories')),
-        SizedBox(width: 180, child: _buildKpiCardMini('Total Capacity', '${NumberFormat('#,###').format(totalSeats)}', Icons.airline_seat_recline_normal, Colors.blue, 'Total seats')),
+        SizedBox(width: 180, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal, Colors.blue, 'Total seats')),
         SizedBox(width: 180, child: _buildKpiCardMini('Average Utilization', '78.45%', Icons.trending_up, Colors.red, 'This month')),
       ],
     );
@@ -2188,7 +2188,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     Color c = status.toLowerCase() == 'active' ? _green : _red;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
       child: Text(status, style: GoogleFonts.inter(fontSize: 10, color: c, fontWeight: FontWeight.w600)),
     );
   }
@@ -2462,7 +2462,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -2542,7 +2542,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       ),
     );
 
-    final statusWidget = Container(
+    final statusWidget = SizedBox(
       width: showWrap ? (availableWidth < 600 ? double.infinity : 150) : null,
       child: _buildFilterDropdown(
         value: _docStatusFilter,
@@ -2557,7 +2557,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       ),
     );
 
-    final typeWidget = Container(
+    final typeWidget = SizedBox(
       width: showWrap ? (availableWidth < 600 ? double.infinity : 150) : null,
       child: _buildFilterDropdown(
         value: _docTypeFilter,
@@ -2750,7 +2750,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   },
                   cells: [
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 200,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -2783,7 +2783,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     DataCell(Text(doc['document_type'] ?? '—', style: GoogleFonts.inter(fontSize: 13))),
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 120,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2807,7 +2807,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     DataCell(Text(_formatDate(doc['issued_date']), style: GoogleFonts.inter(fontSize: 13))),
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 110,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2832,7 +2832,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     DataCell(_buildDocStatusBadge(doc['status'] ?? 'Valid')),
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 140,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3156,7 +3156,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -3216,7 +3216,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -3271,7 +3271,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     Icon(
                       Icons.verified_user,
                       size: 24,
-                      color: primaryColor.withOpacity(0.8),
+                      color: primaryColor.withValues(alpha: 0.8),
                     ),
                   ],
                 ),
@@ -3306,7 +3306,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                       width: 20,
                       height: 20,
                       decoration: BoxDecoration(
-                        border: Border.all(color: primaryColor.withOpacity(0.5)),
+                        border: Border.all(color: primaryColor.withValues(alpha: 0.5)),
                         borderRadius: BorderRadius.circular(2),
                       ),
                       child: Icon(Icons.qr_code_2, size: 16, color: primaryColor),
@@ -3369,7 +3369,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Icon(icon, color: color, size: 16),
@@ -3383,29 +3383,29 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     switch (status.toLowerCase()) {
       case 'valid':
         color = _green;
-        bg = _green.withOpacity(0.1);
+        bg = _green.withValues(alpha: 0.1);
         break;
       case 'permanent':
         color = Colors.teal;
-        bg = Colors.teal.withOpacity(0.1);
+        bg = Colors.teal.withValues(alpha: 0.1);
         break;
       case 'expiring soon':
       case 'expiring_soon':
         color = _orange;
-        bg = _orange.withOpacity(0.1);
+        bg = _orange.withValues(alpha: 0.1);
         break;
       case 'expiring today':
       case 'expiring_today':
         color = _red;
-        bg = _red.withOpacity(0.1);
+        bg = _red.withValues(alpha: 0.1);
         break;
       case 'expired':
         color = _red;
-        bg = _red.withOpacity(0.1);
+        bg = _red.withValues(alpha: 0.1);
         break;
       default:
         color = _gray;
-        bg = _gray.withOpacity(0.1);
+        bg = _gray.withValues(alpha: 0.1);
         status = 'N/A';
     }
     
@@ -3546,7 +3546,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         DropdownButtonFormField<String>(
-                          value: selectedVehicleId,
+                          initialValue: selectedVehicleId,
                           decoration: const InputDecoration(labelText: 'Select Vehicle'),
                           items: _vehicles.map((v) {
                             final reg = v['registration_no'] ?? v['bus_number'] ?? 'Vehicle';
@@ -3557,7 +3557,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: docType,
+                          initialValue: docType,
                           decoration: const InputDecoration(labelText: 'Document Type'),
                           items: ['Registration', 'Insurance', 'Pollution', 'Fitness', 'Permit', 'Other']
                               .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -3602,7 +3602,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Valid', 'Expiring Soon', 'Expired']
                               .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -3638,7 +3638,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               icon: const Icon(Icons.attach_file, size: 16),
                               label: const Text('Attach File'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _accent.withOpacity(0.1),
+                                backgroundColor: _accent.withValues(alpha: 0.1),
                                 foregroundColor: _accent,
                                 elevation: 0,
                               ),
@@ -3865,7 +3865,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       // Search Box
       Expanded(
         flex: wrapFilters ? 0 : 2,
-        child: Container(
+        child: SizedBox(
           height: 40,
           child: TextField(
             controller: _gpsSearchController,
@@ -3883,11 +3883,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       if (wrapFilters) const SizedBox(height: 12) else const SizedBox(width: 12),
       
       // Status Filter
-      Container(
+      SizedBox(
         height: 40,
         width: wrapFilters ? double.infinity : 160,
         child: DropdownButtonFormField<String>(
-          value: _gpsStatusFilter,
+          initialValue: _gpsStatusFilter,
           isExpanded: true,
           decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
           items: ['All', 'Online', 'Offline', 'Issues'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
@@ -3900,11 +3900,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       if (wrapFilters) const SizedBox(height: 12) else const SizedBox(width: 12),
 
       // Provider Filter
-      Container(
+      SizedBox(
         height: 40,
         width: wrapFilters ? double.infinity : 180,
         child: DropdownButtonFormField<String>(
-          value: _gpsProviderFilter,
+          initialValue: _gpsProviderFilter,
           isExpanded: true,
           decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
           items: ['All', 'Jio', 'Airtel', 'Vi'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Providers' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
@@ -3917,11 +3917,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       if (wrapFilters) const SizedBox(height: 12) else const SizedBox(width: 12),
 
       // Vehicle Type Filter
-      Container(
+      SizedBox(
         height: 40,
         width: wrapFilters ? double.infinity : 200,
         child: DropdownButtonFormField<String>(
-          value: _gpsVehicleFilter,
+          initialValue: _gpsVehicleFilter,
           isExpanded: true,
           decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
           items: ['All', 'AC Bus', 'Non AC Bus', 'Mini Bus', 'Tempo Traveller', 'Electric Bus'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Types' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
@@ -3998,7 +3998,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             constraints: const BoxConstraints(minWidth: 1100),
             child: DataTable(
               showCheckboxColumn: false,
-              headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
               horizontalMargin: 16,
               columnSpacing: 24,
               columns: [
@@ -4044,7 +4044,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   cells: [
                     // Device ID
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 130,
                         child: Row(
                           children: [
@@ -4070,7 +4070,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     // IMEI Number
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 140,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4084,7 +4084,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     // Provider
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 80,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4098,7 +4098,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     // Installed In
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 120,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4112,7 +4112,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     // Installed On
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 140,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4126,7 +4126,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     // Status
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 100,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4145,7 +4145,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     // Signal & Battery
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 130,
                         child: Row(
                           children: [
@@ -4158,7 +4158,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     ),
                     // Expiry Date
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 120,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4543,7 +4543,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text('Register GPS Device', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: Container(
+              content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
                   child: Form(
@@ -4569,7 +4569,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedVehicleId,
+                          initialValue: selectedVehicleId,
                           decoration: const InputDecoration(labelText: 'Select Vehicle'),
                           items: _vehicles.map((v) {
                             final reg = v['registration_no'] ?? v['bus_number'] ?? 'Vehicle';
@@ -4598,7 +4598,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Active', 'Offline', 'Faulty'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (val) => setDialogState(() => status = val!),
@@ -4704,7 +4704,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text('Edit GPS Device', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: Container(
+              content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
                   child: Form(
@@ -4730,7 +4730,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedVehicleId,
+                          initialValue: selectedVehicleId,
                           decoration: const InputDecoration(labelText: 'Select Vehicle'),
                           items: _vehicles.map((v) {
                             final reg = v['registration_no'] ?? v['bus_number'] ?? 'Vehicle';
@@ -4759,7 +4759,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Active', 'Offline', 'Faulty'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (val) => setDialogState(() => status = val!),
@@ -4929,7 +4929,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: vehicleType,
+                                initialValue: vehicleType,
                                 decoration: const InputDecoration(labelText: 'Vehicle Type'),
                                 items: ['AC Bus', 'Non AC', 'Mini Bus', 'Van'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => vehicleType = val!),
@@ -4938,7 +4938,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: fuelType,
+                                initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
                                 items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => fuelType = val!),
@@ -4992,7 +4992,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: liveStatus,
+                                initialValue: liveStatus,
                                 decoration: const InputDecoration(labelText: 'Live Status'),
                                 items: ['on_route', 'at_school', 'returning', 'delayed', 'offline', 'idle'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => liveStatus = val!),
@@ -5001,7 +5001,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: status,
+                                initialValue: status,
                                 decoration: const InputDecoration(labelText: 'Status'),
                                 items: ['Active', 'Inactive', 'In Maintenance'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => status = val!),
@@ -5179,7 +5179,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: vehicleType,
+                                initialValue: vehicleType,
                                 decoration: const InputDecoration(labelText: 'Vehicle Type'),
                                 items: ['AC Bus', 'Non AC', 'Mini Bus', 'Van'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => vehicleType = val!),
@@ -5188,7 +5188,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: fuelType,
+                                initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
                                 items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => fuelType = val!),
@@ -5242,7 +5242,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: liveStatus,
+                                initialValue: liveStatus,
                                 decoration: const InputDecoration(labelText: 'Live Status'),
                                 items: ['on_route', 'at_school', 'returning', 'delayed', 'offline', 'idle'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => liveStatus = val!),
@@ -5251,7 +5251,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: status,
+                                initialValue: status,
                                 decoration: const InputDecoration(labelText: 'Status'),
                                 items: ['Active', 'Inactive', 'In Maintenance'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => status = val!),
@@ -5440,7 +5440,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: vehicleType,
+                                initialValue: vehicleType,
                                 decoration: const InputDecoration(labelText: 'Vehicle Type'),
                                 items: ['Bus', 'Mini Bus', 'Van', 'Coach'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => vehicleType = val!),
@@ -5453,7 +5453,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: fuelType,
+                                initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
                                 items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => fuelType = val!),
@@ -5462,7 +5462,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: transmission,
+                                initialValue: transmission,
                                 decoration: const InputDecoration(labelText: 'Transmission'),
                                 items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => transmission = val!),
@@ -5492,7 +5492,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Active', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (val) => setDialogState(() => status = val!),
@@ -5588,7 +5588,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: vehicleType,
+                                initialValue: vehicleType,
                                 decoration: const InputDecoration(labelText: 'Vehicle Type'),
                                 items: ['Bus', 'Mini Bus', 'Van', 'Coach'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => vehicleType = val!),
@@ -5601,7 +5601,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: fuelType,
+                                initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
                                 items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => fuelType = val!),
@@ -5610,7 +5610,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: transmission,
+                                initialValue: transmission,
                                 decoration: const InputDecoration(labelText: 'Transmission'),
                                 items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => transmission = val!),
@@ -5640,7 +5640,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: status,
+                          initialValue: status,
                           decoration: const InputDecoration(labelText: 'Status'),
                           items: ['Active', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (val) => setDialogState(() => status = val!),
@@ -5754,7 +5754,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         return AlertDialog(
           contentPadding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          content: Container(
+          content: SizedBox(
             width: 800,
             height: 600,
             child: Column(
@@ -5780,7 +5780,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             ),
                             Text(
                               'Vehicle: ${doc['bus_routes']?['registration_no'] ?? doc['bus_routes']?['bus_number'] ?? 'Unassigned'} • Status: ${doc['status']}',
-                              style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withOpacity(0.8)),
+                              style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.8)),
                             ),
                           ],
                         ),
@@ -5918,7 +5918,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       builder: (ctx) {
         return AlertDialog(
           title: Text('GPS History Logs – ${doc['device_id']}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          content: Container(
+          content: SizedBox(
             width: 500,
             height: 400,
             child: ListView.builder(
@@ -6010,9 +6010,9 @@ class _PulseAnimationRingState extends State<_PulseAnimationRing>
           height: 20.0 + (_controller.value * 60.0),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF4F46E5).withOpacity(1.0 - _controller.value),
+            color: const Color(0xFF4F46E5).withValues(alpha: 1.0 - _controller.value),
             border: Border.all(
-              color: const Color(0xFF4F46E5).withOpacity(1.0 - _controller.value),
+              color: const Color(0xFF4F46E5).withValues(alpha: 1.0 - _controller.value),
               width: 2,
             ),
           ),
@@ -6033,7 +6033,7 @@ class _LineChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final fillPaint = Paint()
-      ..color = const Color(0xFF22C55E).withOpacity(0.08)
+      ..color = const Color(0xFF22C55E).withValues(alpha: 0.08)
       ..style = PaintingStyle.fill;
 
     final gridPaint = Paint()

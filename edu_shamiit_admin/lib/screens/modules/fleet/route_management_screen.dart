@@ -159,7 +159,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   );
   String _reportsRouteFilter = 'All';
   String _reportsBusFilter = 'All';
-  String _reportsDriverFilter = 'All';
+  final String _reportsDriverFilter = 'All';
   String _reportsStatusFilter = 'All';
   
   int _reportsTableCurrentPage = 1;
@@ -563,7 +563,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         DropdownButtonFormField<String>(
-                          value: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
+                          initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
                           decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder()),
                           items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name']))).toList(),
                           onChanged: (val) => setDialogState(() => selectedRouteId = val),
@@ -625,14 +625,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: ['Pickup', 'Drop', 'Pickup & Drop'].contains(stopType) ? stopType : 'Pickup',
+                          initialValue: ['Pickup', 'Drop', 'Pickup & Drop'].contains(stopType) ? stopType : 'Pickup',
                           decoration: const InputDecoration(labelText: 'Stop Type *', border: OutlineInputBorder()),
                           items: ['Pickup', 'Drop', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                           onChanged: (val) => setDialogState(() => stopType = val!),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].contains(pickupDropType) ? pickupDropType : 'Pickup Only',
+                          initialValue: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].contains(pickupDropType) ? pickupDropType : 'Pickup Only',
                           decoration: const InputDecoration(labelText: 'Pickup / Drop Type *', border: OutlineInputBorder()),
                           items: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                           onChanged: (val) => setDialogState(() => pickupDropType = val!),
@@ -651,7 +651,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: ['Active', 'Inactive', 'Deleted'].contains(status) ? status : 'Active',
+                          initialValue: ['Active', 'Inactive', 'Deleted'].contains(status) ? status : 'Active',
                           decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                           items: ['Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (val) => setDialogState(() => status = val!),
@@ -815,7 +815,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: _accent.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
                     child: const Icon(Icons.map_rounded, color: _accent, size: 20),
                   ),
                   const SizedBox(width: 12),
@@ -1449,7 +1449,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 width: 1050,
                 child: DataTable(
                   columnSpacing: 16,
-                  headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
+                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                   dataRowMinHeight: 48,
                   dataRowMaxHeight: 54,
                   columns: [
@@ -1485,20 +1485,20 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       cells: [
                         DataCell(Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(color: codeCol.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                          decoration: BoxDecoration(color: codeCol.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                           child: Text(code, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: codeCol)),
                         )),
                         DataCell(Text(name, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500))),
                         DataCell(Text(area, style: GoogleFonts.inter(fontSize: 10))),
                         DataCell(Text(type, style: GoogleFonts.inter(fontSize: 10))),
-                        DataCell(Text('${distance} km', style: GoogleFonts.inter(fontSize: 10))),
+                        DataCell(Text('$distance km', style: GoogleFonts.inter(fontSize: 10))),
                         DataCell(Text('$stops', style: GoogleFonts.inter(fontSize: 10))),
                         DataCell(Text(busNum, style: GoogleFonts.inter(fontSize: 10))),
                         DataCell(Text(driver, style: GoogleFonts.inter(fontSize: 10))),
                         DataCell(Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: status == 'Active' ? _green.withOpacity(0.1) : _orange.withOpacity(0.1),
+                            color: status == 'Active' ? _green.withValues(alpha: 0.1) : _orange.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(status, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: status == 'Active' ? _green : _orange)),
@@ -1660,7 +1660,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 ],
               ),
             );
-          }).toList(),
+          }),
           const Divider(height: 8),
           const SizedBox(height: 8),
           TextButton(
@@ -1725,7 +1725,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     Container(
                       width: 24,
                       height: 24,
-                      decoration: BoxDecoration(color: (a['color'] as Color).withOpacity(0.1), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: (a['color'] as Color).withValues(alpha: 0.1), shape: BoxShape.circle),
                       child: Icon(a['icon'] as IconData, size: 12, color: a['color'] as Color),
                     ),
                     Container(width: 2, height: 24, color: _border),
@@ -1745,7 +1745,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 Text(a['time'] as String, style: GoogleFonts.inter(fontSize: 8, color: _textSecondary)),
               ],
             );
-          }).toList(),
+          }),
           const Divider(height: 8),
           const SizedBox(height: 8),
           TextButton(
@@ -1922,7 +1922,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               cells: [
                                                 DataCell(Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(color: _accent.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                                                  decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                                                   child: Text(r['route_code'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: _accent, fontSize: 11)),
                                                 )),
                                                 DataCell(Text(r['route_name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12))),
@@ -1932,7 +1932,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               DataCell(Text((r['bus_routes'] ?? {})['bus_number'] ?? 'Unassigned', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
                                               DataCell(Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                                                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                                                 child: Text(r['status'] ?? 'Active', style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
                                               )),
                                               DataCell(Row(
@@ -2056,7 +2056,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                           Switch(
                                             value: true,
                                             onChanged: (_) {},
-                                            activeColor: _accent,
+                                            activeThumbColor: _accent,
                                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                           ),
                                         ],
@@ -2142,7 +2142,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               Expanded(child: Text(_selectedRoute['route_name'] ?? '', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis)),
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                decoration: BoxDecoration(color: _green.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                                                decoration: BoxDecoration(color: _green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
                                                 child: Text(_selectedRoute['status'] ?? 'Active', style: const TextStyle(color: _green, fontSize: 10, fontWeight: FontWeight.bold)),
                                               ),
                                             ],
@@ -2322,7 +2322,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.08), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.08), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 14),
@@ -2364,7 +2364,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             Container(
               width: 22,
               height: 22,
-              decoration: BoxDecoration(color: _accent.withOpacity(0.1), shape: BoxShape.circle, border: Border.all(color: _accent, width: 1.5)),
+              decoration: BoxDecoration(color: _accent.withValues(alpha: 0.1), shape: BoxShape.circle, border: Border.all(color: _accent, width: 1.5)),
               child: Center(
                 child: Text('$order', style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold, fontSize: 10)),
               ),
@@ -2532,7 +2532,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                               ),
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String?>(
-                                value: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
+                                initialValue: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
                                 decoration: const InputDecoration(labelText: 'Assign Bus / Vehicle', border: OutlineInputBorder()),
                                 items: [
                                   const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
@@ -2542,7 +2542,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                               ),
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String?>(
-                                value: (selectedDriverId != null && _drivers.any((d) => d['id'].toString() == selectedDriverId)) ? selectedDriverId : null,
+                                initialValue: (selectedDriverId != null && _drivers.any((d) => d['id'].toString() == selectedDriverId)) ? selectedDriverId : null,
                                 decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder()),
                                 items: [
                                   const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
@@ -2552,7 +2552,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                               ),
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
-                                value: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
+                                initialValue: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
                                 decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                                 items: ['Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => status = val!),
@@ -3009,7 +3009,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       try {
         await ApiService().delete('/transport/trips/$tripId');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Trip deleted successfully'), backgroundColor: _green),
+          const SnackBar(content: Text('Trip deleted successfully'), backgroundColor: _green),
         );
         _loadTrips();
       } catch (e) {
@@ -3054,7 +3054,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         DropdownButtonFormField<String>(
-                          value: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
+                          initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
                           decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder()),
                           items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name']))).toList(),
                           onChanged: (val) => setDialogState(() => selectedRouteId = val),
@@ -3062,7 +3062,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: ['Pickup', 'Drop'].contains(tripType) ? tripType : 'Pickup',
+                          initialValue: ['Pickup', 'Drop'].contains(tripType) ? tripType : 'Pickup',
                           decoration: const InputDecoration(labelText: 'Trip Type *', border: OutlineInputBorder()),
                           items: ['Pickup', 'Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                           onChanged: (val) => setDialogState(() => tripType = val!),
@@ -3095,7 +3095,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String?>(
-                          value: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
+                          initialValue: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
                           decoration: const InputDecoration(labelText: 'Assign Vehicle', border: OutlineInputBorder()),
                           items: [
                             const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
@@ -3105,7 +3105,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String?>(
-                          value: (selectedDriverId != null && _drivers.any((d) => d['id'].toString() == selectedDriverId)) ? selectedDriverId : null,
+                          initialValue: (selectedDriverId != null && _drivers.any((d) => d['id'].toString() == selectedDriverId)) ? selectedDriverId : null,
                           decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder()),
                           items: [
                             const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
@@ -3115,7 +3115,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'].contains(status) ? status : 'Scheduled',
+                          initialValue: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'].contains(status) ? status : 'Scheduled',
                           decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                           items: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (val) => setDialogState(() => status = val!),
@@ -3243,7 +3243,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Trip created successfully'), backgroundColor: _green),
+          const SnackBar(content: Text('Trip created successfully'), backgroundColor: _green),
         );
       } else {
         await ApiService().put('/transport/trips/$id', payload);
@@ -3280,7 +3280,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Trip updated successfully'), backgroundColor: _green),
+          const SnackBar(content: Text('Trip updated successfully'), backgroundColor: _green),
         );
       }
       _loadTrips();
@@ -3302,7 +3302,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: color.withOpacity(0.1),
+            backgroundColor: color.withValues(alpha: 0.1),
             radius: 20,
             child: Icon(icon, color: color, size: 20),
           ),
@@ -3353,7 +3353,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: isActive ? _accent.withOpacity(0.1) : const Color(0xFFF1F5F9),
+                color: isActive ? _accent.withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -3377,16 +3377,16 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     
     final s = status.toLowerCase();
     if (s == 'completed') {
-      bg = _green.withOpacity(0.1);
+      bg = _green.withValues(alpha: 0.1);
       fg = _green;
     } else if (s == 'ongoing' || s == 'in_progress') {
-      bg = Colors.blue.withOpacity(0.1);
+      bg = Colors.blue.withValues(alpha: 0.1);
       fg = Colors.blue;
     } else if (s == 'scheduled') {
-      bg = _orange.withOpacity(0.1);
+      bg = _orange.withValues(alpha: 0.1);
       fg = _orange;
     } else if (s == 'cancelled') {
-      bg = _red.withOpacity(0.1);
+      bg = _red.withValues(alpha: 0.1);
       fg = _red;
     }
 
@@ -3589,7 +3589,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     decoration: BoxDecoration(
                       color: isSelected 
                           ? _accent 
-                          : (isToday ? _accent.withOpacity(0.08) : Colors.transparent),
+                          : (isToday ? _accent.withValues(alpha: 0.08) : Colors.transparent),
                       shape: BoxShape.circle,
                       border: isSelected
                           ? null
@@ -3719,7 +3719,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: isPickup ? _green.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                        color: isPickup ? _green.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -3734,7 +3734,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   ],
                 ),
               );
-            }).toList(),
+            }),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () {
@@ -4095,7 +4095,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                             child: SizedBox(
                                               width: 1250,
                                               child: DataTable(
-                                                    headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
+                                                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                                                     dataRowMinHeight: 64,
                                                     dataRowMaxHeight: 76,
                                                     columnSpacing: 24,
@@ -4142,7 +4142,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                             Container(
                                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                               decoration: BoxDecoration(
-                                                                color: t['trip_type'] == 'Pickup' ? _green.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                                                                color: t['trip_type'] == 'Pickup' ? _green.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
                                                                 borderRadius: BorderRadius.circular(4),
                                                               ),
                                                               child: Text(
@@ -4382,7 +4382,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Bus assigned successfully!'), backgroundColor: _green),
+        const SnackBar(content: Text('Bus assigned successfully!'), backgroundColor: _green),
       );
 
       _loadData();
@@ -4434,7 +4434,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Bus unassigned successfully'), backgroundColor: _green),
+          const SnackBar(content: Text('Bus unassigned successfully'), backgroundColor: _green),
         );
         _loadData();
       } catch (e) {
@@ -4459,7 +4459,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.08), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.08), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
@@ -4714,7 +4714,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                             child: SizedBox(
                                               width: 1000,
                                               child: DataTable(
-                                                headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
+                                                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                                                 dataRowMinHeight: 64,
                                                 dataRowMaxHeight: 76,
                                                 columnSpacing: 20,
@@ -4742,7 +4742,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                     cells: [
                                                       DataCell(Container(
                                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                        decoration: BoxDecoration(color: _accent.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                                                        decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                                                         child: Text(code, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: _accent, fontSize: 11)),
                                                       )),
                                                       DataCell(
@@ -4751,7 +4751,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                           mainAxisAlignment: MainAxisAlignment.center,
                                                           children: [
                                                             Text(r['route_name'] ?? 'Morning Route', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
-                                                            Text(_getRouteType(r) + ' Route', style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
+                                                            Text('${_getRouteType(r)} Route', style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
                                                           ],
                                                         ),
                                                       ),
@@ -4773,7 +4773,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                         Container(
                                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                           decoration: BoxDecoration(
-                                                            color: isAssigned ? _green.withOpacity(0.1) : _orange.withOpacity(0.1),
+                                                            color: isAssigned ? _green.withValues(alpha: 0.1) : _orange.withValues(alpha: 0.1),
                                                             borderRadius: BorderRadius.circular(4),
                                                           ),
                                                           child: Text(
@@ -5124,8 +5124,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                         ),
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(color: _green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                                          child: Text('Available', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: _green)),
+                                          decoration: BoxDecoration(color: _green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                                          child: const Text('Available', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: _green)),
                                         ),
                                       ],
                                     ),
@@ -5369,7 +5369,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.08), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.08), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
@@ -5690,7 +5690,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               color: _getVehicleStatusColor(_selectedTrackingVehicle['live_status']),
                                               shape: BoxShape.circle,
                                               border: Border.all(color: Colors.white, width: 2),
-                                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6)],
+                                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6)],
                                             ),
                                             child: const Icon(Icons.directions_bus, color: Colors.white, size: 20),
                                           ),
@@ -5748,7 +5748,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)],
+                                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
                               ),
                               child: Row(
                                 children: [
@@ -5802,7 +5802,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: _getVehicleStatusColor(_selectedTrackingVehicle['live_status']).withOpacity(0.1),
+                                          color: _getVehicleStatusColor(_selectedTrackingVehicle['live_status']).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
@@ -5944,7 +5944,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       child: SizedBox(
                                         width: tableWidth,
                                         child: DataTable(
-                                          headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
+                                          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                                           dataRowMinHeight: 56,
                                           dataRowMaxHeight: 64,
                                           columns: [
@@ -5985,7 +5985,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                 DataCell(Text(v['driver_name'] ?? 'Ramesh Kumar', style: GoogleFonts.inter(fontSize: 11))),
                                                 DataCell(Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(color: statusCol.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                                  decoration: BoxDecoration(color: statusCol.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                                                   child: Text(status, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: statusCol)),
                                                 )),
                                                 DataCell(Text(v['latest_location'] != null ? 'Sector 62, Noida' : 'Depot', style: GoogleFonts.inter(fontSize: 11))),
@@ -6144,13 +6144,13 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         reportsPath += '&school_id=$schoolId';
       }
       if (_reportsRouteFilter != 'All') {
-        reportsPath += '&route_id=${_reportsRouteFilter}';
+        reportsPath += '&route_id=$_reportsRouteFilter';
       }
       if (_reportsBusFilter != 'All') {
-        reportsPath += '&vehicle_id=${_reportsBusFilter}';
+        reportsPath += '&vehicle_id=$_reportsBusFilter';
       }
       if (_reportsStatusFilter != 'All') {
-        reportsPath += '&status=${_reportsStatusFilter}';
+        reportsPath += '&status=$_reportsStatusFilter';
       }
       
       final res = await ApiService().get(reportsPath, useCache: false);
@@ -6457,7 +6457,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 12),
@@ -6762,7 +6762,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: _accent.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                          decoration: BoxDecoration(color: _accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                           child: Text(code, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _accent)),
                         ),
                         const SizedBox(width: 12),
@@ -6866,7 +6866,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               Container(
                                                 width: 16,
                                                 height: 16,
-                                                decoration: BoxDecoration(color: _accent, shape: BoxShape.circle),
+                                                decoration: const BoxDecoration(color: _accent, shape: BoxShape.circle),
                                                 child: Center(
                                                   child: Text('${index + 1}', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
                                                 ),
@@ -6974,7 +6974,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     width: tableWidth,
                     child: DataTable(
                       columnSpacing: 18,
-                      headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
+                      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                       dataRowMinHeight: 52,
                       dataRowMaxHeight: 58,
                       columns: [
@@ -7011,7 +7011,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                           cells: [
                             DataCell(Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(color: codeCol.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                              decoration: BoxDecoration(color: codeCol.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                               child: Text(code, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: codeCol)),
                             )),
                             DataCell(Text(name, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500))),
@@ -7205,7 +7205,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   children: [
                     Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: _accent.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                      decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                       child: const Icon(Icons.insert_drive_file_outlined, size: 14, color: _accent),
                     ),
                     const SizedBox(width: 12),
@@ -7264,7 +7264,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: _green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(color: _green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: Text('Active', style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: _green)),
                   ),
                 ],
@@ -7486,7 +7486,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               cells: [
                                                 DataCell(Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(color: _accent.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                                                  decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                                                   child: Text(s['stop_code'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: _accent, fontSize: 11)),
                                                 )),
                                                 DataCell(Text(s['stop_name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12))),
@@ -7494,13 +7494,13 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               DataCell(Text('${s['stop_order'] ?? 1}', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(color: _blue.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                                                decoration: BoxDecoration(color: _blue.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                                                 child: Text(s['stop_type'] ?? 'Pickup', style: GoogleFonts.inter(fontSize: 11, color: _blue, fontWeight: FontWeight.bold)),
                                               )),
                                               DataCell(Text(s['pickup_drop_type'] ?? 'Pickup Only', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                                                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                                                 child: Text(s['status'] ?? 'Active', style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
                                               )),
                                               DataCell(Row(
@@ -7744,7 +7744,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                       children: [
                                                         Container(
                                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                          decoration: BoxDecoration(color: _accent.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                                                          decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                                                           child: Text(_selectedStop['stop_code'] ?? 'ST-000', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _accent, fontSize: 12)),
                                                         ),
                                                         const SizedBox(width: 8),
@@ -7764,7 +7764,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                                 decoration: BoxDecoration(
-                                                  color: (_selectedStop['status'] == 'Active' ? _green : _orange).withOpacity(0.12),
+                                                  color: (_selectedStop['status'] == 'Active' ? _green : _orange).withValues(alpha: 0.12),
                                                   borderRadius: BorderRadius.circular(6),
                                                 ),
                                                 child: Text(_selectedStop['status'] ?? 'Active', style: TextStyle(color: _selectedStop['status'] == 'Active' ? _green : _orange, fontSize: 11, fontWeight: FontWeight.bold)),

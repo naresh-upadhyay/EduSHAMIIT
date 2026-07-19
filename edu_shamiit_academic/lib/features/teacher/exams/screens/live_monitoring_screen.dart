@@ -25,9 +25,7 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
   bool _isLoading = true;
   String? _error;
 
-  // Offline exam attendance state variables
   bool _isOfflineExam = false;
-  Map<String, dynamic>? _examDetails;
   List<Map<String, dynamic>> _attendanceList = [];
   List<String> _presentStudentIds = [];
   String _searchQuery = '';
@@ -47,7 +45,6 @@ class _LiveMonitoringScreenState extends ConsumerState<LiveMonitoringScreen> {
       });
 
       final exam = await _apiService.getExam(widget.examId);
-      _examDetails = exam;
       _isOfflineExam =
           (exam['exam_type']?.toString().toLowerCase() == 'offline');
 
@@ -1513,8 +1510,6 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
   RealtimeChannel? _signalingChannel;
   VideoTrack? _cameraTrack;
   VideoTrack? _screenTrack;
-  bool _isConnecting = true;
-  String? _connectError;
   Timer? _timer;
   EventsListener<RoomEvent>? _roomListener;
 
@@ -1556,11 +1551,6 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
 
   Future<void> _connectToLiveKit() async {
     try {
-      setState(() {
-        _isConnecting = true;
-        _connectError = null;
-      });
-
       final roomName = 'proctor_session_${widget.sessionId}';
       final tokenRes = await _teacherApiService.getLiveKitToken(
         room: roomName,
@@ -1597,20 +1587,10 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
 
       await _proctorRoom!.connect(sfuUrl, token);
 
-      setState(() {
-        _isConnecting = false;
-      });
-
       _updateTracks();
       _sendConnectRequest();
     } catch (e) {
       debugPrint('[TeacherProctor] Connection error: $e');
-      if (mounted) {
-        setState(() {
-          _isConnecting = false;
-          _connectError = e.toString();
-        });
-      }
     }
   }
 
@@ -1787,7 +1767,6 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
     }
 
     final isPaused = session['is_paused'] as bool? ?? false;
-    final warnings = session['warnings_count'] as int? ?? 0;
     final status = session['status'] as String? ?? 'active';
     final lastPingStr = session['last_ping'] as String?;
     bool isOnline = session['is_online'] as bool? ?? false;
@@ -2366,7 +2345,9 @@ class _ProctorFeedDialogState extends State<_ProctorFeedDialog> {
                                     onPressed: () async {
                                       await widget.onSuspend(
                                           widget.sessionId, widget.studentName);
-                                      Navigator.pop(context);
+                                      if (context.mounted) {
+                                        Navigator.pop(context);
+                                      }
                                     },
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.red.shade900),

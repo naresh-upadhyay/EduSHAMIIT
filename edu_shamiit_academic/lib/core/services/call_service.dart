@@ -850,11 +850,11 @@ class CallService {
 
           // Wait 2 seconds before unsubscribing to allow the WebSocket server to process the message
           Future.delayed(const Duration(seconds: 2), () {
-            incomingChannel.unsubscribe().catchError((_) {});
+            incomingChannel.unsubscribe().catchError((_) => '');
           });
         } else if (status == RealtimeSubscribeStatus.channelError ||
                    status == RealtimeSubscribeStatus.timedOut) {
-          incomingChannel.unsubscribe().catchError((_) {});
+          incomingChannel.unsubscribe().catchError((_) => '');
         }
       });
     }

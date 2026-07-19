@@ -19,7 +19,6 @@ import 'package:edu_shamiit_admin/screens/tabs/support_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/tickets/contact_queries_screen.dart';
 import 'package:edu_shamiit_admin/screens/tabs/system_control_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_screens.dart';
-import 'package:edu_shamiit_admin/screens/modules/fleet/fleet_management_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/driver_management_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/route_management_screen.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
@@ -431,7 +430,7 @@ class PlaceholderScreen extends StatelessWidget {
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
+                color: Colors.black.withValues(alpha: 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -443,7 +442,7 @@ class PlaceholderScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withOpacity(0.08),
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(

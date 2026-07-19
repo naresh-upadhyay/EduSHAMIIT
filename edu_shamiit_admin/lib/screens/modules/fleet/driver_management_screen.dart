@@ -72,7 +72,7 @@ class _DriverManagementScreenState extends ConsumerState<DriverManagementScreen>
               // Breadcrumb
               Row(
                 children: [
-                  Icon(Icons.directions_bus_rounded, size: 12, color: _textSecondary),
+                  const Icon(Icons.directions_bus_rounded, size: 12, color: _textSecondary),
                   const SizedBox(width: 4),
                   Text(
                     'Fleet Management',

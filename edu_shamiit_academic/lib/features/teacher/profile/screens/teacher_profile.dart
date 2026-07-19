@@ -1287,11 +1287,16 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
 
     if (['Male', 'Female', 'Other'].contains(p.gender)) _gender = p.gender;
     if (['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-']
-        .contains(p.bloodGroup)) _bloodGroup = p.bloodGroup;
+        .contains(p.bloodGroup)) {
+      _bloodGroup = p.bloodGroup;
+    }
     if (['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other']
-        .contains(p.religion)) _religion = p.religion;
-    if (['General', 'OBC', 'SC', 'ST', 'EWS'].contains(p.category))
+        .contains(p.religion)) {
+      _religion = p.religion;
+    }
+    if (['General', 'OBC', 'SC', 'ST', 'EWS'].contains(p.category)) {
       _category = p.category;
+    }
     if (p.dateOfBirth.isNotEmpty) _dob = DateTime.tryParse(p.dateOfBirth);
   }
 

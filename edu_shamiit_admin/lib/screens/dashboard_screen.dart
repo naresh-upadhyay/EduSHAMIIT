@@ -1013,7 +1013,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             decoration: BoxDecoration(
               color: isSelected
                   ? (isDark
-                      ? const Color(0xFF4F46E5).withOpacity(0.15)
+                      ? const Color(0xFF4F46E5).withValues(alpha: 0.15)
                       : const Color(0xFFEEF2FF))
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:edu_shamiit_core/services/api_service.dart';
-import 'package:edu_shamiit_admin/widgets/azure_grid.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -376,7 +375,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final textPrimary = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.white70 : Colors.black54;
     final textMuted = isDark ? Colors.white30 : Colors.black38;
-    final accentColor = const Color(0xFF6366F1);
+    const accentColor = Color(0xFF6366F1);
 
     final totalCount = _statsData?['total_users'] ?? 1248;
     final activeCount = _statsData?['active_users'] ?? 1102;
@@ -704,7 +703,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.015),
+            color: Colors.black.withValues(alpha: 0.015),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -731,7 +730,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
+                  color: color.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(icon, color: color, size: 14),
@@ -806,7 +805,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -835,7 +834,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 backgroundImage: user['avatar_url'] != null && user['avatar_url'].isNotEmpty
                     ? NetworkImage(user['avatar_url'])
                     : null,
-                backgroundColor: roleColor.withOpacity(0.1),
+                backgroundColor: roleColor.withValues(alpha: 0.1),
                 child: user['avatar_url'] == null || user['avatar_url'].isEmpty
                     ? Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'U',
@@ -879,9 +878,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: roleColor.withOpacity(0.1),
+                  color: roleColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: roleColor.withOpacity(0.2)),
+                  border: Border.all(color: roleColor.withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   roleLabel,
@@ -891,9 +890,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: statusColor.withOpacity(0.2)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1112,7 +1111,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                         backgroundImage: user['avatar_url'] != null && user['avatar_url'].isNotEmpty
                                             ? NetworkImage(user['avatar_url'])
                                             : null,
-                                        backgroundColor: roleColor.withOpacity(0.1),
+                                        backgroundColor: roleColor.withValues(alpha: 0.1),
                                         child: user['avatar_url'] == null || user['avatar_url'].isEmpty
                                             ? Text(
                                                 name.isNotEmpty ? name[0].toUpperCase() : 'U',
@@ -1159,9 +1158,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: roleColor.withOpacity(0.12),
+                                        color: roleColor.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: roleColor.withOpacity(0.24)),
+                                        border: Border.all(color: roleColor.withValues(alpha: 0.24)),
                                       ),
                                       child: Text(
                                         roleLabel,
@@ -1319,7 +1318,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                     ),
                                   ),
                                 );
-                              }).toList(),
+                              }),
                               IconButton(
                                 icon: const Icon(Icons.chevron_right, size: 16),
                                 color: displayPage < maxPage ? textPrimary : textMuted,
@@ -1399,7 +1398,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                     ),
                                   ),
                                 );
-                              }).toList(),
+                              }),
                               IconButton(
                                 icon: const Icon(Icons.chevron_right, size: 16),
                                 color: displayPage < maxPage ? textPrimary : textMuted,
@@ -1483,7 +1482,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       runSpacing: 12,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Container(
+        SizedBox(
           width: 260,
           height: 38,
           child: TextField(
@@ -1838,8 +1837,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           style: GoogleFonts.outfit(color: textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(Icons.arrow_upward, color: Color(0xFF10B981), size: 10),
                             SizedBox(width: 2),
                             Text('12.4%', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
@@ -1861,8 +1860,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           style: GoogleFonts.outfit(color: textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(Icons.arrow_upward, color: Color(0xFF10B981), size: 10),
                             SizedBox(width: 2),
                             Text('5.3%', style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold)),
@@ -2030,7 +2029,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(icon, color: iconColor, size: 16),
@@ -2096,7 +2095,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 backgroundImage: user['avatar_url'] != null && user['avatar_url'].isNotEmpty
                     ? NetworkImage(user['avatar_url'])
                     : null,
-                backgroundColor: roleColor.withOpacity(0.1),
+                backgroundColor: roleColor.withValues(alpha: 0.1),
                 child: user['avatar_url'] == null || user['avatar_url'].isEmpty
                     ? Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'U',
@@ -2116,7 +2115,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ),
             ],
           ),
-          content: Container(
+          content: SizedBox(
             width: 500,
             child: SingleChildScrollView(
               child: Column(

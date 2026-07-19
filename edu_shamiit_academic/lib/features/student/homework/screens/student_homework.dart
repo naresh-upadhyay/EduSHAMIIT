@@ -24,8 +24,6 @@ class StudentHomework extends ConsumerStatefulWidget {
 
 class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   final StudentApiService _apiService = StudentApiService();
-  final int _selectedTab = 0;
-  final List<String> _tabs = ['Pending', 'Submitted', 'Graded'];
   // Load all statuses at once and filter client-side
   List<HomeworkAssignment> _allHomework = [];
   bool _isLoading = true;
@@ -76,29 +74,6 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
     }
   }
 
-  List<HomeworkAssignment> get _filteredHomework {
-    switch (_selectedTab) {
-      case 0: // Pending
-        return _allHomework.where((hw) {
-          final s = hw.status.toLowerCase();
-          return s == 'pending' || s == 'late' || s == 'returned';
-        }).toList()
-          ..sort((a, b) => a.dueDate.compareTo(b.dueDate)); // soonest first
-      case 1: // Submitted
-        return _allHomework
-            .where((hw) => hw.status.toLowerCase() == 'submitted')
-            .toList()
-          ..sort((a, b) => (b.submittedAt ?? b.dueDate)
-              .compareTo(a.submittedAt ?? a.dueDate));
-      case 2: // Graded
-        return _allHomework
-            .where((hw) => hw.status.toLowerCase() == 'graded')
-            .toList()
-          ..sort((a, b) => b.dueDate.compareTo(a.dueDate));
-      default:
-        return [];
-    }
-  }
 
   // Helper method to get status display text
   String _getStatusText(HomeworkAssignment hw) {
@@ -169,7 +144,6 @@ class _StudentHomeworkState extends ConsumerState<StudentHomework> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     if (_isLoading) {
       return Scaffold(

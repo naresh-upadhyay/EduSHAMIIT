@@ -316,7 +316,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Announcement deleted successfully!"),
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: Color(0xFFEF4444),
             ),
           );
         }
@@ -1214,7 +1214,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                         Text(key, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                       ],
                     ),
-                    Text("$val ($pct%)", style: const TextStyle(fontSize: 11, color: const Color(0xFF64748B))),
+                    Text("$val ($pct%)", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                   ],
                 ),
               ),
@@ -1602,7 +1602,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                         return FilterChip(
                           label: Text(roleName.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                           selected: isSelected,
-                          selectedColor: const Color(0xFF4F46E5).withOpacity(0.2),
+                          selectedColor: const Color(0xFF4F46E5).withValues(alpha: 0.2),
                           checkmarkColor: const Color(0xFF4F46E5),
                           onSelected: (bool selected) {
                             setState(() {
@@ -1767,7 +1767,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           height: 38,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+            color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
           ),
@@ -1800,7 +1800,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
       floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
-      fillColor: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),

@@ -263,7 +263,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF4F46E5).withOpacity(0.1),
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -295,7 +295,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                         decoration: InputDecoration(
                           hintText: 'e.g. DB Connection String',
                           filled: true,
-                          fillColor: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
                         ),
                       ),
@@ -310,7 +310,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                         decoration: InputDecoration(
                           hintText: 'e.g. secret/data/database/prod',
                           filled: true,
-                          fillColor: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
                         ),
                       ),
@@ -328,7 +328,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                                    color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                                   ),
@@ -375,7 +375,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                                     decoration: BoxDecoration(
-                                      color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                                      color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                                     ),
@@ -410,7 +410,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                         decoration: InputDecoration(
                           hintText: isDecryptingValue ? 'Decrypting value...' : 'Paste your secret keys or tokens here...',
                           filled: true,
-                          fillColor: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
                           suffixIcon: isDecryptingValue ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))) : null,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
                         ),
@@ -427,7 +427,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                         decoration: InputDecoration(
                           hintText: 'Add a brief note about this secret\'s usage...',
                           filled: true,
-                          fillColor: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                          fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
                         ),
                       ),
@@ -536,7 +536,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                     return ListTile(
                                       contentPadding: EdgeInsets.zero,
                                       leading: CircleAvatar(
-                                        backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
+                                        backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                                         child: Text('v${ver['version']}', style: GoogleFonts.dmSans(color: const Color(0xFF4F46E5), fontWeight: FontWeight.bold, fontSize: 13)),
                                       ),
                                       title: Text('Version ${ver['version']}', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -598,7 +598,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? Colors.white70 : const Color(0xFF64748B);
     final textMuted = isDark ? Colors.white30 : const Color(0xFF94A3B8);
-    final accentColor = const Color(0xFF4F46E5);
+    const accentColor = Color(0xFF4F46E5);
 
     // Apply client side filters
     final filteredSecrets = _secrets.where((s) {
@@ -872,7 +872,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -883,7 +883,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 24),
@@ -923,7 +923,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
             Container(
               height: 40,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: borderColor),
               ),
@@ -1035,7 +1035,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
             child: Container(
               height: 40,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: borderColor),
               ),
@@ -1182,7 +1182,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final double containerWidth = constraints.maxWidth - 32;
-                final double baseWidth = 860.0;
+                const double baseWidth = 860.0;
                 final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
                 final double colName = (isMobile ? 140.0 : 180.0) * scale;
@@ -1241,7 +1241,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(color: accentColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                        decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                                         child: Icon(Icons.code_rounded, size: 12, color: accentColor),
                                       ),
                                       const SizedBox(width: 6),
@@ -1448,7 +1448,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.02),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1481,7 +1481,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: accentColor.withOpacity(0.12), shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.12), shape: BoxShape.circle),
                   child: Icon(Icons.code, color: accentColor, size: 20),
                 ),
                 const SizedBox(width: 12),
@@ -1518,7 +1518,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: borderColor),
               ),
@@ -1567,7 +1567,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: accentColor.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
+                      decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(4)),
                       child: Text('v$version', style: GoogleFonts.dmSans(color: accentColor, fontWeight: FontWeight.bold, fontSize: 11)),
                     ),
                   ],
@@ -1587,7 +1587,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
               label: Text('Rotate Secret', style: GoogleFonts.dmSans(fontWeight: FontWeight.bold, color: accentColor)),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                side: BorderSide(color: accentColor.withOpacity(0.5)),
+                side: BorderSide(color: accentColor.withValues(alpha: 0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
@@ -1608,7 +1608,7 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF1F5F9),
+                color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: borderColor),
               ),
@@ -1714,16 +1714,16 @@ class _VaultSecretsScreenState extends State<VaultSecretsScreen> {
 
     switch (status) {
       case 'Expired':
-        bg = isDark ? const Color(0xFF991B1B).withOpacity(0.2) : const Color(0xFFFEE2E2);
+        bg = isDark ? const Color(0xFF991B1B).withValues(alpha: 0.2) : const Color(0xFFFEE2E2);
         fg = isDark ? Colors.red.shade300 : const Color(0xFF991B1B);
         break;
       case 'Expiring Soon':
-        bg = isDark ? const Color(0xFF78350F).withOpacity(0.2) : const Color(0xFFFEF3C7);
+        bg = isDark ? const Color(0xFF78350F).withValues(alpha: 0.2) : const Color(0xFFFEF3C7);
         fg = isDark ? Colors.amber.shade300 : const Color(0xFF78350F);
         break;
       case 'Active':
       default:
-        bg = isDark ? const Color(0xFF064E3B).withOpacity(0.2) : const Color(0xFFD1FAE5);
+        bg = isDark ? const Color(0xFF064E3B).withValues(alpha: 0.2) : const Color(0xFFD1FAE5);
         fg = isDark ? Colors.green.shade300 : const Color(0xFF064E3B);
         break;
     }

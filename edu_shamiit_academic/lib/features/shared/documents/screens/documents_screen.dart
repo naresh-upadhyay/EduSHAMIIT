@@ -545,56 +545,7 @@ class _TabBar extends StatelessWidget {
   }
 }
 
-// ─── Document Grid ───────────────────────────────────────────────────────────
 
-class _DocumentGrid extends StatelessWidget {
-  final List<DocumentModel> documents;
-  final void Function(DocumentModel) onDownload;
-  final void Function(DocumentModel) onDelete;
-
-  const _DocumentGrid({
-    required this.documents,
-    required this.onDownload,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isWide = MediaQuery.sizeOf(context).width >= 700;
-    return RefreshIndicator(
-      color: _kPrimary,
-      onRefresh: () async {},
-      child: isWide
-          ? GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 340,
-                mainAxisExtent: 200,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: documents.length,
-              itemBuilder: (ctx, i) => _DocumentCard(
-                doc: documents[i],
-                onDownload: onDownload,
-                onDelete: onDelete,
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: documents.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (ctx, i) => _DocumentCard(
-                doc: documents[i],
-                onDownload: onDownload,
-                onDelete: onDelete,
-              ),
-            ),
-    );
-  }
-}
-
-// ─── Document Card ────────────────────────────────────────────────────────────
 
 class _DocumentCard extends StatefulWidget {
   final DocumentModel doc;
@@ -881,82 +832,6 @@ class _IconBtn extends StatelessWidget {
           ),
           child: Icon(icon, size: 16, color: color),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  final DocumentCategory? category;
-  final VoidCallback onUpload;
-
-  const _EmptyState({required this.onUpload}) : category = null;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = category?.label ?? 'documents';
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
-              ),
-              borderRadius: BorderRadius.circular(28),
-            ),
-            child: const Icon(Icons.folder_open_rounded,
-                size: 48, color: _kPrimary),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'No $label yet',
-            style: const TextStyle(
-              fontFamily: AppFonts.heading,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: _kText,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Documents will appear here once they\nare saved or shared with you.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontFamily: AppFonts.body,
-                fontSize: 14,
-                color: _kSubText,
-                height: 1.5),
-          ),
-          if (category == null || category == DocumentCategory.myUploads) ...[
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onUpload,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _kPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              icon: const Icon(Icons.upload_rounded,
-                  color: Colors.white, size: 18),
-              label: const Text(
-                'Upload Document',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: AppFonts.heading,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }

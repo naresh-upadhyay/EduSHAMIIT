@@ -87,6 +87,8 @@ dependencies:
   image_cropper: ^12.2.1
   flutter_tts: ^4.2.5
 
+  flutter_web_plugins:
+    sdk: flutter
 dev_dependencies:
   flutter_test:
     sdk: flutter

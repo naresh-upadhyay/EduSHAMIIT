@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1392,7 +1391,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
           Switch(
             value: val,
             onChanged: onChange,
-            activeColor: const Color(0xFF4F46E5),
+            activeThumbColor: const Color(0xFF4F46E5),
           ),
         ],
       ),
@@ -1684,7 +1683,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
               Switch(
                 value: twoFactorEnabled,
                 onChanged: _toggle2FA,
-                activeColor: const Color(0xFF10B981),
+                activeThumbColor: const Color(0xFF10B981),
               ),
             ],
           ),

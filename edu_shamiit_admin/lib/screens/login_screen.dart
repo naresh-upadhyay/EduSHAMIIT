@@ -304,7 +304,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
+                                color: Colors.black.withValues(alpha: 0.25),
                                 blurRadius: 25,
                                 offset: const Offset(0, 10),
                               ),
@@ -333,9 +333,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
               ),
               clipBehavior: Clip.antiAlias,
               child: Image.network(
@@ -354,9 +354,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
               ),
               child: const Icon(
                 Icons.shield_outlined,
@@ -419,7 +419,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       clipBehavior: Clip.antiAlias,
@@ -439,7 +439,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -539,7 +539,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       radius: 0.7,
                       colors: [
                         Colors.black,
-                        Colors.black.withOpacity(0.85),
+                        Colors.black.withValues(alpha: 0.85),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.85, 1.0],
@@ -594,10 +594,10 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.white.withValues(alpha: 0.08),
                         ),
                       ),
                       child: Row(
@@ -605,10 +605,10 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withValues(alpha: 0.05),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.08),
+                                color: Colors.white.withValues(alpha: 0.08),
                               ),
                             ),
                             child: const Icon(
@@ -659,7 +659,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -763,7 +763,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 24,
                       spreadRadius: 4,
                     ),
@@ -986,11 +986,11 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                                   fontSize: 12,
                                   color: const Color(0xFF64748B),
                                 ),
-                                children: [
-                                  const TextSpan(text: "Don't have an account? "),
+                                children: const [
+                                  TextSpan(text: "Don't have an account? "),
                                   TextSpan(
                                     text: 'Contact your administrator',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Color(0xFF4F46E5),
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1265,7 +1265,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   width: double.infinity,
                   height: imageHeight,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Center(
@@ -1288,7 +1288,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   width: double.infinity,
                   height: imageHeight,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Center(

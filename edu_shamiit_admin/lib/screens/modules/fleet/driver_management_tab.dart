@@ -639,7 +639,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -687,7 +687,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   Widget _buildFiltersSection(double availableWidth) {
     final bool wrapFilters = availableWidth < 1250;
     
-    final searchField = Container(
+    final searchField = SizedBox(
       height: 40,
       child: TextField(
         controller: _searchController,
@@ -703,7 +703,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final statusFilter = DropdownButtonFormField<String>(
-      value: _statusFilter,
+      initialValue: _statusFilter,
       isExpanded: true,
       decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
       items: ['All', 'On Duty', 'On Leave', 'Inactive', 'Active'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s))).toList(),
@@ -714,7 +714,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final categoryFilter = DropdownButtonFormField<String>(
-      value: _licenseTypeFilter,
+      initialValue: _licenseTypeFilter,
       isExpanded: true,
       decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
       items: ['All', 'LMV', 'HMV'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Categories' : s))).toList(),
@@ -725,7 +725,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final assignmentFilter = DropdownButtonFormField<String>(
-      value: _assignmentFilter,
+      initialValue: _assignmentFilter,
       isExpanded: true,
       decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
       items: ['All', 'Assigned', 'Unassigned'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Assignments' : s))).toList(),
@@ -803,11 +803,11 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         children: [
           Expanded(flex: 3, child: searchField),
           const SizedBox(width: 12),
-          Container(width: 150, child: statusFilter),
+          SizedBox(width: 150, child: statusFilter),
           const SizedBox(width: 12),
-          Container(width: 160, child: categoryFilter),
+          SizedBox(width: 160, child: categoryFilter),
           const SizedBox(width: 12),
-          Container(width: 180, child: assignmentFilter),
+          SizedBox(width: 180, child: assignmentFilter),
           const SizedBox(width: 12),
           actions,
         ],
@@ -856,19 +856,19 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 switch (status.toLowerCase()) {
                   case 'on duty':
                     statusColor = _green;
-                    statusBg = _green.withOpacity(0.12);
+                    statusBg = _green.withValues(alpha: 0.12);
                     break;
                   case 'on leave':
                     statusColor = _orange;
-                    statusBg = _orange.withOpacity(0.12);
+                    statusBg = _orange.withValues(alpha: 0.12);
                     break;
                   case 'inactive':
                     statusColor = _gray;
-                    statusBg = _gray.withOpacity(0.12);
+                    statusBg = _gray.withValues(alpha: 0.12);
                     break;
                   default:
                     statusColor = _blue;
-                    statusBg = _blue.withOpacity(0.12);
+                    statusBg = _blue.withValues(alpha: 0.12);
                 }
 
                 // Assignment details
@@ -886,13 +886,13 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                   cells: [
                     // Driver info
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 180,
                         child: Row(
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: _accent.withOpacity(0.1),
+                              backgroundColor: _accent.withValues(alpha: 0.1),
                               backgroundImage: dev['photo_url'] != null ? NetworkImage(dev['photo_url']) : null,
                               child: dev['photo_url'] == null 
                                 ? Text(dev['name'].toString().substring(0, 1).toUpperCase(), style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold, fontSize: 13))
@@ -915,7 +915,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     ),
                     // License info
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 140,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -929,7 +929,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     ),
                     // Contact
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 160,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -943,14 +943,14 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     ),
                     // Experience
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 90,
                         child: Text(experience, style: GoogleFonts.inter(fontSize: 12)),
                       ),
                     ),
                     // Status
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 95,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -989,7 +989,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     ),
                     // Assignment
                     DataCell(
-                      Container(
+                      SizedBox(
                         width: 140,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1066,19 +1066,19 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     switch (status.toLowerCase()) {
       case 'on duty':
         statusColor = _green;
-        statusBg = _green.withOpacity(0.12);
+        statusBg = _green.withValues(alpha: 0.12);
         break;
       case 'on leave':
         statusColor = _orange;
-        statusBg = _orange.withOpacity(0.12);
+        statusBg = _orange.withValues(alpha: 0.12);
         break;
       case 'inactive':
         statusColor = _gray;
-        statusBg = _gray.withOpacity(0.12);
+        statusBg = _gray.withValues(alpha: 0.12);
         break;
       default:
         statusColor = _blue;
-        statusBg = _blue.withOpacity(0.12);
+        statusBg = _blue.withValues(alpha: 0.12);
     }
 
     final veh = dev['bus_routes'];
@@ -1098,7 +1098,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundColor: _accent.withOpacity(0.1),
+                backgroundColor: _accent.withValues(alpha: 0.1),
                 backgroundImage: dev['photo_url'] != null ? NetworkImage(dev['photo_url']) : null,
                 child: dev['photo_url'] == null 
                   ? Text(dev['name'].toString().substring(0, 1).toUpperCase(), style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold, fontSize: 22))
@@ -1178,7 +1178,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           if (veh != null) ...[
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: _accent.withOpacity(0.04), borderRadius: BorderRadius.circular(8), border: Border.all(color: _accent.withOpacity(0.2))),
+              decoration: BoxDecoration(color: _accent.withValues(alpha: 0.04), borderRadius: BorderRadius.circular(8), border: Border.all(color: _accent.withValues(alpha: 0.2))),
               child: Row(
                 children: [
                   const Icon(Icons.directions_bus_outlined, color: _accent, size: 24),
@@ -1195,7 +1195,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                   TextButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Navigating to vehicle live dashboard...'), backgroundColor: _accent),
+                        const SnackBar(content: Text('Navigating to vehicle live dashboard...'), backgroundColor: _accent),
                       );
                     },
                     child: Text('View Vehicle', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _accent)),
@@ -1215,7 +1215,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 child: OutlinedButton(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Opening Full Profile...'), backgroundColor: _accent),
+                      const SnackBar(content: Text('Opening Full Profile...'), backgroundColor: _accent),
                     );
                   },
                   style: OutlinedButton.styleFrom(
@@ -1416,7 +1416,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final docDriverFilterDropdown = DropdownButtonFormField<String>(
-      value: _docDriverFilter,
+      initialValue: _docDriverFilter,
       isExpanded: true,
       decoration: InputDecoration(
         isDense: true,
@@ -1440,7 +1440,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final docTypeFilterDropdown = DropdownButtonFormField<String>(
-      value: _docTypeFilter,
+      initialValue: _docTypeFilter,
       isExpanded: true,
       decoration: InputDecoration(
         isDense: true,
@@ -1464,7 +1464,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final docStatusFilterDropdown = DropdownButtonFormField<String>(
-      value: _docStatusFilter,
+      initialValue: _docStatusFilter,
       isExpanded: true,
       decoration: InputDecoration(
         isDense: true,
@@ -1652,23 +1652,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 switch (status.toLowerCase()) {
                   case 'valid':
                     statusColor = _green;
-                    statusBg = _green.withOpacity(0.12);
+                    statusBg = _green.withValues(alpha: 0.12);
                     break;
                   case 'expiring soon':
                     statusColor = _orange;
-                    statusBg = _orange.withOpacity(0.12);
+                    statusBg = _orange.withValues(alpha: 0.12);
                     break;
                   case 'expired':
                     statusColor = _red;
-                    statusBg = _red.withOpacity(0.12);
+                    statusBg = _red.withValues(alpha: 0.12);
                     break;
                   case 'permanent':
                     statusColor = _blue;
-                    statusBg = _blue.withOpacity(0.12);
+                    statusBg = _blue.withValues(alpha: 0.12);
                     break;
                   default:
                     statusColor = _blue;
-                    statusBg = _blue.withOpacity(0.12);
+                    statusBg = _blue.withValues(alpha: 0.12);
                 }
 
                 // Days left computation
@@ -1703,7 +1703,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           CircleAvatar(
                             radius: 16,
-                            backgroundColor: _accent.withOpacity(0.1),
+                            backgroundColor: _accent.withValues(alpha: 0.1),
                             backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                             child: drv['photo_url'] == null 
                               ? Text(drvName.substring(0, 1).toUpperCase(), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _accent))
@@ -1863,7 +1863,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: _accent.withOpacity(0.1),
+                backgroundColor: _accent.withValues(alpha: 0.1),
                 backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                 child: drv['photo_url'] == null 
                   ? Text(drvName.substring(0, 1).toUpperCase(), style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _accent))
@@ -2063,7 +2063,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     double avgScore = 0.0;
     int excellent = 0;
     int good = 0;
-    int needs_improvement = 0;
+    int needsImprovement = 0;
     int poor = 0;
 
     if (totalCount > 0) {
@@ -2077,9 +2077,10 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           double.parse((r['feedback_score'] ?? 0.0).toString()) * 0.15
         );
         totalSum += score;
-        if (score >= 4.5) excellent++;
-        else if (score >= 3.5) good++;
-        else if (score >= 2.5) needs_improvement++;
+        if (score >= 4.5) {
+          excellent++;
+        } else if (score >= 3.5) good++;
+        else if (score >= 2.5) needsImprovement++;
         else poor++;
       }
       avgScore = totalSum / totalCount;
@@ -2087,7 +2088,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
 
     final double excellentPct = totalCount > 0 ? (excellent.toDouble() / totalCount * 100) : 0.0;
     final double goodPct = totalCount > 0 ? (good.toDouble() / totalCount * 100) : 0.0;
-    final double improvementPct = totalCount > 0 ? (needs_improvement.toDouble() / totalCount * 100) : 0.0;
+    final double improvementPct = totalCount > 0 ? (needsImprovement.toDouble() / totalCount * 100) : 0.0;
     final double poorPct = totalCount > 0 ? (poor.toDouble() / totalCount * 100) : 0.0;
 
     // Find performance score of selected driver for details panel
@@ -2110,7 +2111,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             _buildKpiCard('Average Performance Score', '${avgScore.toStringAsFixed(1)} / 5.0', 'Out of 5', const Color(0xFF8B5CF6), Icons.star),
             _buildKpiCard('Excellent Drivers', '$excellent', '${excellentPct.toStringAsFixed(2)}%', const Color(0xFF10B981), Icons.verified_user_outlined, _green),
             _buildKpiCard('Good Drivers', '$good', '${goodPct.toStringAsFixed(2)}%', const Color(0xFF3B82F6), Icons.thumb_up_alt_outlined, _blue),
-            _buildKpiCard('Needs Improvement', '$needs_improvement', '${improvementPct.toStringAsFixed(2)}%', const Color(0xFFF59E0B), Icons.warning_amber_rounded, _orange),
+            _buildKpiCard('Needs Improvement', '$needsImprovement', '${improvementPct.toStringAsFixed(2)}%', const Color(0xFFF59E0B), Icons.warning_amber_rounded, _orange),
             _buildKpiCard('Poor Performance', '$poor', '${poorPct.toStringAsFixed(2)}%', const Color(0xFFEF4444), Icons.cancel_outlined, _red),
           ]),
           const SizedBox(height: 20),
@@ -2126,7 +2127,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _buildScoreDistributionCard(excellent, good, needs_improvement, poor, totalCount)),
+                          Expanded(child: _buildScoreDistributionCard(excellent, good, needsImprovement, poor, totalCount)),
                           const SizedBox(width: 12),
                           Expanded(child: _buildTrendLineCard()),
                           const SizedBox(width: 12),
@@ -2163,7 +2164,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           ] else ...[
             Column(
               children: [
-                _buildScoreDistributionCard(excellent, good, needs_improvement, poor, totalCount),
+                _buildScoreDistributionCard(excellent, good, needsImprovement, poor, totalCount),
                 const SizedBox(height: 12),
                 _buildTrendLineCard(),
                 const SizedBox(height: 12),
@@ -2291,11 +2292,11 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           Expanded(
             child: LineChart(
               LineChartData(
-                gridData: FlGridData(show: false),
+                gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -2332,10 +2333,10 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     color: _accent,
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(show: true),
+                    dotData: const FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: _accent.withOpacity(0.1),
+                      color: _accent.withValues(alpha: 0.1),
                     ),
                   ),
                 ],
@@ -2409,7 +2410,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     driverNames.sort();
 
     final perfDriverFilterDropdown = DropdownButtonFormField<String>(
-      value: _perfDriverFilter,
+      initialValue: _perfDriverFilter,
       isExpanded: true,
       decoration: InputDecoration(
         isDense: true,
@@ -2432,7 +2433,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final perfVehicleFilterDropdown = DropdownButtonFormField<String>(
-      value: _perfVehicleFilter,
+      initialValue: _perfVehicleFilter,
       isExpanded: true,
       decoration: InputDecoration(
         isDense: true,
@@ -2454,7 +2455,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final perfTimePeriodDropdown = DropdownButtonFormField<String>(
-      value: _perfTimePeriod,
+      initialValue: _perfTimePeriod,
       isExpanded: true,
       decoration: InputDecoration(
         isDense: true,
@@ -2632,23 +2633,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
 
                 String status = 'Good';
                 Color statusColor = _blue;
-                Color statusBg = _blue.withOpacity(0.1);
+                Color statusBg = _blue.withValues(alpha: 0.1);
                 if (score >= 4.5) {
                   status = 'Excellent';
                   statusColor = _green;
-                  statusBg = _green.withOpacity(0.1);
+                  statusBg = _green.withValues(alpha: 0.1);
                 } else if (score >= 3.5) {
                   status = 'Good';
                   statusColor = _blue;
-                  statusBg = _blue.withOpacity(0.1);
+                  statusBg = _blue.withValues(alpha: 0.1);
                 } else if (score >= 2.5) {
                   status = 'Average';
                   statusColor = _orange;
-                  statusBg = _orange.withOpacity(0.1);
+                  statusBg = _orange.withValues(alpha: 0.1);
                 } else {
                   status = 'Poor';
                   statusColor = _red;
-                  statusBg = _red.withOpacity(0.1);
+                  statusBg = _red.withValues(alpha: 0.1);
                 }
 
                 return DataRow(
@@ -2665,7 +2666,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           CircleAvatar(
                             radius: 16,
-                            backgroundColor: _accent.withOpacity(0.1),
+                            backgroundColor: _accent.withValues(alpha: 0.1),
                             backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                             child: drv['photo_url'] == null 
                               ? Text(drvName.substring(0, 1).toUpperCase(), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _accent))
@@ -2800,7 +2801,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: _accent.withOpacity(0.1),
+                backgroundColor: _accent.withValues(alpha: 0.1),
                 backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                 child: drv['photo_url'] == null 
                   ? Text(drvName.substring(0, 1).toUpperCase(), style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _accent))
@@ -3098,7 +3099,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final statusFilter = DropdownButtonFormField<String>(
-      value: _assignStatusFilter,
+      initialValue: _assignStatusFilter,
       isExpanded: true,
       decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
       items: ['All', 'Active', 'Upcoming', 'Ended', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -3109,7 +3110,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final typeFilter = DropdownButtonFormField<String>(
-      value: _assignTypeFilter,
+      initialValue: _assignTypeFilter,
       isExpanded: true,
       decoration: const InputDecoration(labelText: 'Assignment Type', border: OutlineInputBorder()),
       items: ['All', 'Route', 'Trip'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -3153,9 +3154,9 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         children: [
           Expanded(flex: 3, child: searchField),
           const SizedBox(width: 12),
-          Container(width: 160, child: statusFilter),
+          SizedBox(width: 160, child: statusFilter),
           const SizedBox(width: 12),
-          Container(width: 180, child: typeFilter),
+          SizedBox(width: 180, child: typeFilter),
           const SizedBox(width: 12),
           actions,
         ],
@@ -3224,24 +3225,24 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 switch (status.toLowerCase()) {
                   case 'active':
                     statusColor = _green;
-                    statusBg = _green.withOpacity(0.12);
+                    statusBg = _green.withValues(alpha: 0.12);
                     break;
                   case 'upcoming':
                     statusColor = _blue;
-                    statusBg = _blue.withOpacity(0.12);
+                    statusBg = _blue.withValues(alpha: 0.12);
                     break;
                   case 'ended':
                   case 'completed':
                     statusColor = _gray;
-                    statusBg = _gray.withOpacity(0.12);
+                    statusBg = _gray.withValues(alpha: 0.12);
                     break;
                   case 'cancelled':
                     statusColor = _red;
-                    statusBg = _red.withOpacity(0.12);
+                    statusBg = _red.withValues(alpha: 0.12);
                     break;
                   default:
                     statusColor = _orange;
-                    statusBg = _orange.withOpacity(0.12);
+                    statusBg = _orange.withValues(alpha: 0.12);
                 }
 
                 Color typeColor = const Color(0xFF4F46E5);
@@ -3264,7 +3265,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           CircleAvatar(
                             radius: 16,
-                            backgroundColor: _accent.withOpacity(0.1),
+                            backgroundColor: _accent.withValues(alpha: 0.1),
                             backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                             child: drv['photo_url'] == null
                                 ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontSize: 12, fontWeight: FontWeight.bold))
@@ -3412,24 +3413,24 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     switch (status.toLowerCase()) {
       case 'active':
         statusColor = _green;
-        statusBg = _green.withOpacity(0.12);
+        statusBg = _green.withValues(alpha: 0.12);
         break;
       case 'upcoming':
         statusColor = _blue;
-        statusBg = _blue.withOpacity(0.12);
+        statusBg = _blue.withValues(alpha: 0.12);
         break;
       case 'ended':
       case 'completed':
         statusColor = _gray;
-        statusBg = _gray.withOpacity(0.12);
+        statusBg = _gray.withValues(alpha: 0.12);
         break;
       case 'cancelled':
         statusColor = _red;
-        statusBg = _red.withOpacity(0.12);
+        statusBg = _red.withValues(alpha: 0.12);
         break;
       default:
         statusColor = _orange;
-        statusBg = _orange.withOpacity(0.12);
+        statusBg = _orange.withValues(alpha: 0.12);
     }
 
     return Container(
@@ -3468,7 +3469,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: _accent.withOpacity(0.1),
+                backgroundColor: _accent.withValues(alpha: 0.1),
                 backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                 child: drv['photo_url'] == null
                     ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold))
@@ -3824,7 +3825,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final statusFilter = DropdownButtonFormField<String>(
-      value: _trainStatusFilter,
+      initialValue: _trainStatusFilter,
       isExpanded: true,
       decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
       items: ['All', 'Completed', 'In Progress', 'Upcoming', 'Overdue'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -3835,7 +3836,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final typeFilter = DropdownButtonFormField<String>(
-      value: _trainTypeFilter,
+      initialValue: _trainTypeFilter,
       isExpanded: true,
       decoration: const InputDecoration(labelText: 'Training Type', border: OutlineInputBorder()),
       items: ['All', 'Safety', 'Medical', 'Technical', 'Operational'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -3879,9 +3880,9 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         children: [
           Expanded(flex: 3, child: searchField),
           const SizedBox(width: 12),
-          Container(width: 160, child: statusFilter),
+          SizedBox(width: 160, child: statusFilter),
           const SizedBox(width: 12),
-          Container(width: 180, child: typeFilter),
+          SizedBox(width: 180, child: typeFilter),
           const SizedBox(width: 12),
           actions,
         ],
@@ -3939,23 +3940,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 switch (status.toLowerCase()) {
                   case 'completed':
                     statusColor = _green;
-                    statusBg = _green.withOpacity(0.12);
+                    statusBg = _green.withValues(alpha: 0.12);
                     break;
                   case 'in progress':
                     statusColor = _orange;
-                    statusBg = _orange.withOpacity(0.12);
+                    statusBg = _orange.withValues(alpha: 0.12);
                     break;
                   case 'upcoming':
                     statusColor = _blue;
-                    statusBg = _blue.withOpacity(0.12);
+                    statusBg = _blue.withValues(alpha: 0.12);
                     break;
                   case 'overdue':
                     statusColor = _red;
-                    statusBg = _red.withOpacity(0.12);
+                    statusBg = _red.withValues(alpha: 0.12);
                     break;
                   default:
                     statusColor = _gray;
-                    statusBg = _gray.withOpacity(0.12);
+                    statusBg = _gray.withValues(alpha: 0.12);
                 }
 
                 return DataRow(
@@ -3972,7 +3973,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           CircleAvatar(
                             radius: 14,
-                            backgroundColor: _accent.withOpacity(0.1),
+                            backgroundColor: _accent.withValues(alpha: 0.1),
                             backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                             child: drv['photo_url'] == null
                                 ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontSize: 11, fontWeight: FontWeight.bold))
@@ -4070,23 +4071,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     switch (status.toLowerCase()) {
       case 'completed':
         statusColor = _green;
-        statusBg = _green.withOpacity(0.12);
+        statusBg = _green.withValues(alpha: 0.12);
         break;
       case 'in progress':
         statusColor = _orange;
-        statusBg = _orange.withOpacity(0.12);
+        statusBg = _orange.withValues(alpha: 0.12);
         break;
       case 'upcoming':
         statusColor = _blue;
-        statusBg = _blue.withOpacity(0.12);
+        statusBg = _blue.withValues(alpha: 0.12);
         break;
       case 'overdue':
         statusColor = _red;
-        statusBg = _red.withOpacity(0.12);
+        statusBg = _red.withValues(alpha: 0.12);
         break;
       default:
         statusColor = _gray;
-        statusBg = _gray.withOpacity(0.12);
+        statusBg = _gray.withValues(alpha: 0.12);
     }
 
     // Mandatory Compliance logic
@@ -4125,7 +4126,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: _accent.withOpacity(0.1),
+                backgroundColor: _accent.withValues(alpha: 0.1),
                 backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                 child: drv['photo_url'] == null
                     ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold))
@@ -4358,7 +4359,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(isEdit ? 'Edit Training Record' : 'Add Training Record', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: Container(
+              content: SizedBox(
                 width: 500,
                 child: Form(
                   key: formKey,
@@ -4366,7 +4367,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
-                        value: selectedDriverId,
+                        initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Driver *', border: OutlineInputBorder()),
                         items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text(d['name'] ?? 'Driver'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
@@ -4383,7 +4384,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: type,
+                              initialValue: type,
                               decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
                               items: ['Safety', 'Medical', 'Technical', 'Operational', 'Awareness'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => type = val!),
@@ -4392,7 +4393,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: status,
+                              initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                               items: ['Completed', 'In Progress', 'Upcoming', 'Overdue'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => status = val!),
@@ -4672,7 +4673,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final statusFilter = DropdownButtonFormField<String>(
-      value: _violStatusFilter,
+      initialValue: _violStatusFilter,
       isExpanded: true,
       decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
       items: ['All', 'Pending', 'Resolved', 'Cancelled', 'Waived'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -4683,7 +4684,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
 
     final severityFilter = DropdownButtonFormField<String>(
-      value: _violSeverityFilter,
+      initialValue: _violSeverityFilter,
       isExpanded: true,
       decoration: const InputDecoration(labelText: 'Severity', border: OutlineInputBorder()),
       items: ['All', 'High', 'Medium', 'Low'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -4727,9 +4728,9 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         children: [
           Expanded(flex: 3, child: searchField),
           const SizedBox(width: 12),
-          Container(width: 160, child: statusFilter),
+          SizedBox(width: 160, child: statusFilter),
           const SizedBox(width: 12),
-          Container(width: 180, child: severityFilter),
+          SizedBox(width: 180, child: severityFilter),
           const SizedBox(width: 12),
           actions,
         ],
@@ -4790,23 +4791,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 switch (status.toLowerCase()) {
                   case 'resolved':
                     statusColor = _green;
-                    statusBg = _green.withOpacity(0.12);
+                    statusBg = _green.withValues(alpha: 0.12);
                     break;
                   case 'pending':
                     statusColor = _red;
-                    statusBg = _red.withOpacity(0.12);
+                    statusBg = _red.withValues(alpha: 0.12);
                     break;
                   case 'cancelled':
                     statusColor = _gray;
-                    statusBg = _gray.withOpacity(0.12);
+                    statusBg = _gray.withValues(alpha: 0.12);
                     break;
                   case 'waived':
                     statusColor = _blue;
-                    statusBg = _blue.withOpacity(0.12);
+                    statusBg = _blue.withValues(alpha: 0.12);
                     break;
                   default:
                     statusColor = _orange;
-                    statusBg = _orange.withOpacity(0.12);
+                    statusBg = _orange.withValues(alpha: 0.12);
                 }
 
                 Color sevColor;
@@ -4814,15 +4815,15 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 switch (severity.toLowerCase()) {
                   case 'high':
                     sevColor = _red;
-                    sevBg = _red.withOpacity(0.12);
+                    sevBg = _red.withValues(alpha: 0.12);
                     break;
                   case 'medium':
                     sevColor = _orange;
-                    sevBg = _orange.withOpacity(0.12);
+                    sevBg = _orange.withValues(alpha: 0.12);
                     break;
                   default:
                     sevColor = _blue;
-                    sevBg = _blue.withOpacity(0.12);
+                    sevBg = _blue.withValues(alpha: 0.12);
                 }
 
                 // Format DateTime
@@ -4849,7 +4850,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           CircleAvatar(
                             radius: 14,
-                            backgroundColor: _accent.withOpacity(0.1),
+                            backgroundColor: _accent.withValues(alpha: 0.1),
                             backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                             child: drv['photo_url'] == null
                                 ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontSize: 11, fontWeight: FontWeight.bold))
@@ -4962,23 +4963,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     switch (status.toLowerCase()) {
       case 'resolved':
         statusColor = _green;
-        statusBg = _green.withOpacity(0.12);
+        statusBg = _green.withValues(alpha: 0.12);
         break;
       case 'pending':
         statusColor = _red;
-        statusBg = _red.withOpacity(0.12);
+        statusBg = _red.withValues(alpha: 0.12);
         break;
       case 'cancelled':
         statusColor = _gray;
-        statusBg = _gray.withOpacity(0.12);
+        statusBg = _gray.withValues(alpha: 0.12);
         break;
       case 'waived':
         statusColor = _blue;
-        statusBg = _blue.withOpacity(0.12);
+        statusBg = _blue.withValues(alpha: 0.12);
         break;
       default:
         statusColor = _orange;
-        statusBg = _orange.withOpacity(0.12);
+        statusBg = _orange.withValues(alpha: 0.12);
     }
 
     Color sevColor;
@@ -5039,7 +5040,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: _accent.withOpacity(0.1),
+                backgroundColor: _accent.withValues(alpha: 0.1),
                 backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                 child: drv['photo_url'] == null
                     ? Text(drv['name']?.substring(0, 1).toUpperCase() ?? 'D', style: GoogleFonts.inter(color: _accent, fontWeight: FontWeight.bold))
@@ -5253,7 +5254,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(isEdit ? 'Edit Violation Record' : 'Log New Violation', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: Container(
+              content: SizedBox(
                 width: 500,
                 child: Form(
                   key: formKey,
@@ -5261,7 +5262,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
-                        value: selectedDriverId,
+                        initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Driver *', border: OutlineInputBorder()),
                         items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text(d['name'] ?? 'Driver'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
@@ -5269,7 +5270,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedVehicleId,
+                        initialValue: selectedVehicleId,
                         decoration: const InputDecoration(labelText: 'Vehicle Involved *', border: OutlineInputBorder()),
                         items: _vehicles.map((v) {
                           final label = '${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} (${v['route_name'] ?? 'Route'})';
@@ -5283,7 +5284,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: type,
+                              initialValue: type,
                               decoration: const InputDecoration(labelText: 'Violation Type', border: OutlineInputBorder()),
                               items: ['Overspeeding', 'Signal Jump', 'Seat Belt Not Worn', 'Mobile Usage', 'Harsh Braking', 'Wrong Route', 'Overtime Driving', 'Parking Violation'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => type = val!),
@@ -5292,7 +5293,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: severity,
+                              initialValue: severity,
                               decoration: const InputDecoration(labelText: 'Severity', border: OutlineInputBorder()),
                               items: ['High', 'Medium', 'Low'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => severity = val!),
@@ -5327,7 +5328,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: status,
+                        initialValue: status,
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                         items: ['Pending', 'Resolved', 'Cancelled', 'Waived'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (val) => setDialogState(() => status = val!),
@@ -5361,7 +5362,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       if (!dtValue.contains('T') && dtValue.length == 10) {
                         dtValue = '${dtValue}T12:00:00Z';
                       } else if (dtValue.length == 16) {
-                        dtValue = dtValue.replaceFirst(' ', 'T') + ':00Z';
+                        dtValue = '${dtValue.replaceFirst(' ', 'T')}:00Z';
                       }
 
                       final data = {
@@ -5554,7 +5555,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
-                        value: selectedDriverId,
+                        initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
                         items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name']} (${d['driver_code']})'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
@@ -5562,7 +5563,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedVehicleId,
+                        initialValue: selectedVehicleId,
                         decoration: const InputDecoration(labelText: 'Select Vehicle / Route *', border: OutlineInputBorder()),
                         items: _vehicles.map((v) {
                           final label = '${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} - ${v['route_name'] ?? 'Route'}';
@@ -5576,7 +5577,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: shift,
+                              initialValue: shift,
                               decoration: const InputDecoration(labelText: 'Shift *', border: OutlineInputBorder()),
                               items: ['Morning', 'Evening', 'Both', 'Night'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => shift = val!),
@@ -5585,7 +5586,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: status,
+                              initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                               items: ['Active', 'Upcoming', 'Ended', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => status = val!),
@@ -5770,7 +5771,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                                     DataCell(
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                                        decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
                                         child: Text(status, style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
                                       ),
                                     ),
@@ -5905,7 +5906,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
-                        value: selectedDriverId,
+                        initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
                         items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name']} (${d['driver_code']})'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
@@ -5916,7 +5917,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: docType,
+                              initialValue: docType,
                               decoration: const InputDecoration(labelText: 'Document Type *', border: OutlineInputBorder()),
                               items: ['Driving License', 'Badge', 'Police Verification', 'Aadhaar Card', 'Medical Certificate', 'Other'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => docType = val!),
@@ -5925,7 +5926,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: status,
+                              initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
                               items: ['Valid', 'Expiring Soon', 'Expired', 'Permanent'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => status = val!),
@@ -6026,7 +6027,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                                 : const Icon(Icons.attach_file, size: 16),
                             label: Text(isUploading ? 'Uploading...' : 'Attach File'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _accent.withOpacity(0.1),
+                              backgroundColor: _accent.withValues(alpha: 0.1),
                               foregroundColor: _accent,
                               elevation: 0,
                             ),
@@ -6163,7 +6164,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
-                        value: selectedDriverId,
+                        initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
                         items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name']} (${d['driver_code']})'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
@@ -6171,7 +6172,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedVehicleId,
+                        initialValue: selectedVehicleId,
                         decoration: const InputDecoration(labelText: 'Vehicle Assigned', border: OutlineInputBorder()),
                         items: _vehicles.map((v) => DropdownMenuItem<String>(value: v['id'].toString(), child: Text('${v['registration_no'] ?? v['bus_number']} (${v['vehicle_type'] ?? 'Bus'})'))).toList(),
                         onChanged: (val) => setDialogState(() => selectedVehicleId = val),
@@ -6405,7 +6406,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(isEdit ? 'Edit Driver Details' : 'Add New Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: Container(
+              content: SizedBox(
                 width: 600,
                 height: 520,
                 child: Form(
@@ -6463,7 +6464,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: licenseType,
+                              initialValue: licenseType,
                               decoration: const InputDecoration(labelText: 'License Type', border: OutlineInputBorder()),
                               items: ['LMV', 'HMV'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => licenseType = val!),
@@ -6484,7 +6485,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: status,
+                              initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                               items: ['Active', 'On Duty', 'On Leave', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                               onChanged: (val) => setDialogState(() => status = val!),
@@ -6564,7 +6565,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: assignedVehicleId,
+                        initialValue: assignedVehicleId,
                         decoration: const InputDecoration(labelText: 'Assign Vehicle', border: OutlineInputBorder()),
                         items: [
                           const DropdownMenuItem<String>(value: null, child: Text('Unassigned / None')),

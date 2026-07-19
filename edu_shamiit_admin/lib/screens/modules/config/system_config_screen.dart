@@ -366,10 +366,10 @@ class _AdminSystemConfigScreenState
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
                   'Image uploaded successfully!'),
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: Color(0xFF10B981),
             ),
           );
         }
@@ -931,8 +931,8 @@ class _AdminSystemConfigScreenState
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: isSuccess
-                                          ? const Color(0xFF10B981).withOpacity(0.1)
-                                          : const Color(0xFFEF4444).withOpacity(0.1),
+                                          ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                                          : const Color(0xFFEF4444).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -1016,8 +1016,8 @@ class _AdminSystemConfigScreenState
                   height: 56,
                   decoration: BoxDecoration(
                     color: servicesStatus == 'healthy'
-                        ? const Color(0xFF10B981).withOpacity(0.08)
-                        : const Color(0xFFF59E0B).withOpacity(0.08),
+                        ? const Color(0xFF10B981).withValues(alpha: 0.08)
+                        : const Color(0xFFF59E0B).withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -1979,16 +1979,16 @@ class _AdminSystemConfigScreenState
                     const Divider(height: 24, color: Colors.white10),
                     Row(
                       children: [
-                        Expanded(
+                        const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Auto Logout (minutes)",
+                              Text("Auto Logout (minutes)",
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 2),
-                              const Text("Automatically logout inactive users",
+                              SizedBox(height: 2),
+                              Text("Automatically logout inactive users",
                                   style: TextStyle(
                                       fontSize: 10, color: Colors.grey)),
                             ],
@@ -2015,16 +2015,16 @@ class _AdminSystemConfigScreenState
                     const Divider(height: 24, color: Colors.white10),
                     Row(
                       children: [
-                        Expanded(
+                        const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Session Timeout (minutes)",
+                              Text("Session Timeout (minutes)",
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 2),
-                              const Text("Maximum session duration",
+                              SizedBox(height: 2),
+                              Text("Maximum session duration",
                                   style: TextStyle(
                                       fontSize: 10, color: Colors.grey)),
                             ],
@@ -2219,7 +2219,7 @@ class _AdminSystemConfigScreenState
                         fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<int>(
-                  value: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                  initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
                       ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
                       : 5,
                   dropdownColor:
@@ -2254,7 +2254,7 @@ class _AdminSystemConfigScreenState
                         fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<int>(
-                  value: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                  initialValue: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
                       ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
                       : 5,
                   dropdownColor:
@@ -2292,7 +2292,7 @@ class _AdminSystemConfigScreenState
                               fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<int>(
-                        value: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
+                        initialValue: [1, 2, 5, 10, 20].contains(int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
                             ? (int.tryParse(_securitySettings['session_limit']?.toString() ?? '5') ?? 5)
                             : 5,
                         dropdownColor:
@@ -2329,7 +2329,7 @@ class _AdminSystemConfigScreenState
                               fontSize: 12, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<int>(
-                        value: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
+                        initialValue: [3, 5, 10, 15].contains(int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
                             ? (int.tryParse(_securitySettings['failed_attempts_lockout']?.toString() ?? '5') ?? 5)
                             : 5,
                         dropdownColor:
@@ -2461,7 +2461,7 @@ class _AdminSystemConfigScreenState
               Colors.purple
             ].map((c) {
               final hex =
-                  '#${c.value.toRadixString(16).substring(2).toUpperCase()}';
+                  '#${c.toARGB32().toRadixString(16).substring(2).toUpperCase()}';
               final isSel = _appearanceSettings['primary_color'] == hex ||
                   (_appearanceSettings['primary_color'] == null &&
                       c == Colors.indigo);
@@ -2767,7 +2767,7 @@ class _AdminSystemConfigScreenState
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: items.contains(value) ? value : items.first,
+          initialValue: items.contains(value) ? value : items.first,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
           isExpanded: true,
           decoration: InputDecoration(
@@ -2818,7 +2818,7 @@ class _AdminSystemConfigScreenState
           value: value,
           onChanged: onChanged,
           activeTrackColor: theme.primaryColor.withValues(alpha: 0.5),
-          activeColor: theme.primaryColor,
+          activeThumbColor: theme.primaryColor,
         ),
       ],
     );

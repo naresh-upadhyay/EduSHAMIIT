@@ -15,7 +15,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
   Color get _scaffoldBg => _isDark ? const Color(0xFF070913) : const Color(0xFFF8FAFC);
   Color get _cardBg => _isDark ? const Color(0xFF101323) : Colors.white;
   Color get _dialogBg => _isDark ? const Color(0xFF13182C) : Colors.white;
-  Color get _borderColor => _isDark ? const Color(0xFF1E293B) : Colors.black.withOpacity(0.06);
+  Color get _borderColor => _isDark ? const Color(0xFF1E293B) : Colors.black.withValues(alpha: 0.06);
   Color get _textPrimary => _isDark ? Colors.white : Colors.black87;
   Color get _textSecondary => _isDark ? Colors.white70 : Colors.black54;
   Color get _textFaded => _isDark ? Colors.white54 : Colors.black45;
@@ -177,7 +177,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         content: Row(
           children: [
             Icon(Icons.error_outline, color: _textPrimary),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
@@ -194,7 +194,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         content: Row(
           children: [
             Icon(Icons.check_circle_outline, color: _textPrimary),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
@@ -243,14 +243,14 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.08),
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.08),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.2), width: 1.5),
+                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2), width: 1.5),
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Icon(
                       Icons.gpp_bad_outlined,
-                      color: const Color(0xFFEF4444),
+                      color: Color(0xFFEF4444),
                       size: 32,
                     ),
                   ),
@@ -277,12 +277,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.people_alt_outlined, size: 14, color: const Color(0xFFEF4444)),
+                      const Icon(Icons.people_alt_outlined, size: 14, color: Color(0xFFEF4444)),
                       const SizedBox(width: 6),
                       Text(
                         '$uCount User${uCount > 1 ? "s" : ""} Assigned',
-                        style: TextStyle(
-                          color: const Color(0xFFEF4444),
+                        style: const TextStyle(
+                          color: Color(0xFFEF4444),
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.2,
@@ -317,7 +317,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                             side: BorderSide(color: _borderColor),
                           ),
                         ),
-                        child: Text(
+                        child: const Text(
                           'Acknowledge',
                           style: TextStyle(
                             fontSize: 13,
@@ -400,7 +400,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.1),
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
@@ -409,7 +409,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                             size: 20,
                           ),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             isEdit ? 'Edit Role Details' : 'Create New Role',
@@ -442,7 +442,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      const Text(
                                         'Role Name',
                                         style: TextStyle(
                                           color: Color(0xFF94A3B8),
@@ -450,7 +450,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      SizedBox(height: 6),
+                                      const SizedBox(height: 6),
                                       TextField(
                                         controller: nameController,
                                         enabled: !isBuiltIn,
@@ -460,7 +460,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                         ),
                                         decoration: InputDecoration(
                                           hintText: 'e.g., Accountant',
-                                          hintStyle: TextStyle(
+                                          hintStyle: const TextStyle(
                                             color: Color(0xFF475569),
                                             fontSize: 13,
                                           ),
@@ -476,14 +476,14 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     ],
                                   ),
                                 ),
-                                SizedBox(width: 16),
+                                const SizedBox(width: 16),
                                 
                                 // Role Code
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      const Text(
                                         'Role Code (System Identifier)',
                                         style: TextStyle(
                                           color: Color(0xFF94A3B8),
@@ -491,7 +491,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      SizedBox(height: 6),
+                                      const SizedBox(height: 6),
                                       TextField(
                                         controller: codeController,
                                         enabled: !isBuiltIn,
@@ -501,7 +501,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                         ),
                                         decoration: InputDecoration(
                                           hintText: 'e.g., ROLE_ACCOUNTANT',
-                                          hintStyle: TextStyle(
+                                          hintStyle: const TextStyle(
                                             color: Color(0xFF475569),
                                             fontSize: 13,
                                           ),
@@ -519,7 +519,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             
                             // Status & Type row
                             Row(
@@ -528,7 +528,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      const Text(
                                         'Status',
                                         style: TextStyle(
                                           color: Color(0xFF94A3B8),
@@ -536,7 +536,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      SizedBox(height: 6),
+                                      const SizedBox(height: 6),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 12),
                                         decoration: BoxDecoration(
@@ -568,13 +568,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     ],
                                   ),
                                 ),
-                                SizedBox(width: 16),
+                                const SizedBox(width: 16),
                                 
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      const Text(
                                         'Role Type',
                                         style: TextStyle(
                                           color: Color(0xFF94A3B8),
@@ -582,12 +582,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      SizedBox(height: 6),
+                                      const SizedBox(height: 6),
                                       Container(
                                         width: double.infinity,
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF1E2135).withOpacity(0.3),
+                                          color: const Color(0xFF1E2135).withValues(alpha: 0.3),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
@@ -606,9 +606,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             
-                            Text(
+                            const Text(
                               'Description',
                               style: TextStyle(
                                 color: Color(0xFF94A3B8),
@@ -616,7 +616,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(height: 6),
+                            const SizedBox(height: 6),
                             TextField(
                               controller: descController,
                               maxLines: 2,
@@ -626,7 +626,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Enter role details and responsibilities...',
-                                hintStyle: TextStyle(
+                                hintStyle: const TextStyle(
                                   color: Color(0xFF475569),
                                   fontSize: 13,
                                 ),
@@ -639,7 +639,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(height: 20),
+                            const SizedBox(height: 20),
                             
                             LayoutBuilder(
                               builder: (context, dialogConstraints) {
@@ -647,7 +647,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 
                                 final titleText = Text(
                                   'System Permissions (${selectedPermissions.length} selected)',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Color(0xFF94A3B8),
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -669,9 +669,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                         minimumSize: Size.zero,
                                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                       ),
-                                      child: Text('Select All', style: TextStyle(fontSize: 11)),
+                                      child: const Text('Select All', style: TextStyle(fontSize: 11)),
                                     ),
-                                    SizedBox(width: 8),
+                                    const SizedBox(width: 8),
                                     TextButton(
                                       onPressed: () {
                                         setDialogState(() {
@@ -683,7 +683,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                         minimumSize: Size.zero,
                                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                       ),
-                                      child: Text('Clear All', style: TextStyle(fontSize: 11)),
+                                      child: const Text('Clear All', style: TextStyle(fontSize: 11)),
                                     ),
                                   ],
                                 );
@@ -693,7 +693,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       titleText,
-                                      SizedBox(height: 4),
+                                      const SizedBox(height: 4),
                                       actionButtons,
                                     ],
                                   );
@@ -708,7 +708,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 );
                               }
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             
                             Container(
                               padding: const EdgeInsets.all(12),
@@ -769,13 +769,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF94A3B8),
                             side: BorderSide(
-                              color: _textPrimary.withOpacity(0.1),
+                              color: _textPrimary.withValues(alpha: 0.1),
                             ),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: Text('Cancel'),
+                          child: const Text('Cancel'),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () async {
                             final name = nameController.text.trim();
@@ -864,7 +864,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       child: Scaffold(
         backgroundColor: _scaffoldBg,
         body: _isLoading
-            ? Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+            ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
             : LayoutBuilder(
                 builder: (context, constraints) {
                   final showSplitScreen = constraints.maxWidth > 800;
@@ -875,7 +875,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           children: [
                             _buildHeader(constraints.maxWidth),
                             _buildMetricsRow(constraints.maxWidth),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -905,7 +905,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                   
                                   // RIGHT COLUMN: SIDEBAR PANELS (30% width)
                                   if (showSplitScreen && _selectedRole != null) ...[
-                                    SizedBox(width: 16),
+                                    const SizedBox(width: 16),
                                     Expanded(
                                       flex: 3,
                                       child: SizedBox(
@@ -917,7 +917,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 ],
                               ),
                             ),
-                            SizedBox(height: 24),
+                            const SizedBox(height: 24),
                           ],
                         ),
                       );
@@ -943,7 +943,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       case "Drafted Permissions":
         return _buildDraftedPermissionsView();
       default:
-        return SizedBox();
+        return const SizedBox();
     }
   }
 
@@ -967,11 +967,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             fontFamily: 'Outfit',
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
           'Create and manage roles to control access and permissions across the system.',
           style: TextStyle(
-            color: _textPrimary.withOpacity(0.6),
+            color: _textPrimary.withValues(alpha: 0.6),
             fontSize: 13,
           ),
           maxLines: 1,
@@ -992,8 +992,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           ),
           child: Row(
             children: [
-              Icon(Icons.business, size: 14, color: Color(0xFF6366F1)),
-              SizedBox(width: 6),
+              const Icon(Icons.business, size: 14, color: Color(0xFF6366F1)),
+              const SizedBox(width: 6),
               Text(
                 'All Institutions',
                 style: TextStyle(
@@ -1002,12 +1002,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Icon(Icons.keyboard_arrow_down, size: 14, color: _textSecondary),
             ],
           ),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 10),
         
         Container(
           width: searchWidth,
@@ -1036,20 +1036,20 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         ),
         
         if (showHelpAndNotif) ...[
-          SizedBox(width: 12),
-          Icon(Icons.help_outline_rounded, size: 18, color: _textPrimary.withOpacity(0.6)),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
+          Icon(Icons.help_outline_rounded, size: 18, color: _textPrimary.withValues(alpha: 0.6)),
+          const SizedBox(width: 12),
           
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Icon(Icons.notifications_none_rounded, size: 18, color: _textPrimary.withOpacity(0.6)),
+              Icon(Icons.notifications_none_rounded, size: 18, color: _textPrimary.withValues(alpha: 0.6)),
               Positioned(
                 top: -4,
                 right: -4,
                 child: Container(
                   padding: const EdgeInsets.all(2.5),
-                  decoration: BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
+                  decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
                   child: Text(
                     '12',
                     style: TextStyle(color: _textPrimary, fontSize: 6, fontWeight: FontWeight.bold),
@@ -1061,7 +1061,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         ],
         
         if (showProfileText) ...[
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1078,11 +1078,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             ],
           ),
         ],
-        SizedBox(width: 12),
+        const SizedBox(width: 12),
         
         CircleAvatar(
           radius: 14,
-          backgroundColor: Color(0xFF6366F1),
+          backgroundColor: const Color(0xFF6366F1),
           child: Text('SA', style: TextStyle(color: _textPrimary, fontSize: 10, fontWeight: FontWeight.bold)),
         )
       ],
@@ -1095,7 +1095,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             titleColumn,
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: actionsRow,
@@ -1111,7 +1111,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(child: titleColumn),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           actionsRow,
         ],
       ),
@@ -1138,13 +1138,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         child: Row(
           children: [
             _buildMetricCardItem('Total Roles', '${systemRoles + customRoles}', 'Active roles in system', Icons.shield_outlined, const Color(0xFF818CF8), cardWidth),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             _buildMetricCardItem('System Roles', '$systemRoles', 'Default system roles', Icons.security_outlined, const Color(0xFF38BDF8), cardWidth),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             _buildMetricCardItem('Custom Roles', '$customRoles', 'Custom created roles', Icons.group_outlined, const Color(0xFF60A5FA), cardWidth),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             _buildMetricCardItem('Users Assigned', '$usersCount', 'Users with roles', Icons.people_outline, const Color(0xFF34D399), cardWidth),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             _buildMetricCardItem('Permissions', '$totalPermissionsAssigned', 'Total assigned permissions', Icons.key_outlined, const Color(0xFFFBBF24), cardWidth),
           ],
         ),
@@ -1177,7 +1177,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     letterSpacing: 0.5,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
                   value,
                   style: TextStyle(
@@ -1187,7 +1187,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     fontFamily: 'Outfit',
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -1201,7 +1201,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.08),
+              color: accentColor.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: accentColor, size: 20),
@@ -1254,12 +1254,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         child: Row(
           children: [
             _buildTabButton("Roles"),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             _buildTabButton("Role Hierarchy"),
             if (_selectedRole != null) ...[
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               _buildTabButton("Assign Permissions"),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               _buildTabButton("Drafted Permissions"),
             ],
           ],
@@ -1332,8 +1332,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
 
       final filterButton = OutlinedButton.icon(
         onPressed: () {},
-        icon: Icon(Icons.tune, size: 14, color: Color(0xFF64748B)),
-        label: Text('Filters', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+        icon: const Icon(Icons.tune, size: 14, color: Color(0xFF64748B)),
+        label: const Text('Filters', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: _borderColor),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1351,11 +1351,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               searchField,
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(child: statusDropdown),
-                  SizedBox(width: 10),
+                  const SizedBox(width: 10),
                   filterButton,
                 ],
               ),
@@ -1375,7 +1375,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             Row(
               children: [
                 searchField,
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 statusDropdown,
               ],
             ),
@@ -1415,8 +1415,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shield_outlined, size: 48, color: Color(0xFF475569)),
-            SizedBox(height: 12),
+            const Icon(Icons.shield_outlined, size: 48, color: Color(0xFF475569)),
+            const SizedBox(height: 12),
             Text(
               'No roles match your search filters.',
               style: TextStyle(color: _textSecondary, fontSize: 13),
@@ -1436,7 +1436,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                 child: SingleChildScrollView(
                   controller: _horizScrollController,
                   scrollDirection: Axis.horizontal,
-                  child: Container(
+                  child: SizedBox(
                     height: constraints.maxHeight,
                     width: constraints.maxWidth > 950 ? constraints.maxWidth : 950.0,
                     child: Column(
@@ -1444,7 +1444,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: _scaffoldBg.withOpacity(0.5),
+            color: _scaffoldBg.withValues(alpha: 0.5),
             border: Border(bottom: BorderSide(color: _borderColor)),
           ),
           child: Row(
@@ -1489,8 +1489,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                 }).join(' ');
                 
                 Color avatarColor = const Color(0xFF6366F1);
-                if (name == 'super_admin') avatarColor = const Color(0xFF818CF8);
-                else if (name == 'admin') avatarColor = const Color(0xFF38BDF8);
+                if (name == 'super_admin') {
+                  avatarColor = const Color(0xFF818CF8);
+                } else if (name == 'admin') avatarColor = const Color(0xFF38BDF8);
                 else if (name == 'director') avatarColor = const Color(0xFF60A5FA);
                 else if (isCustom) avatarColor = const Color(0xFFC084FC);
 
@@ -1505,7 +1506,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF6366F1).withOpacity(0.04) : null,
+                      color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.04) : null,
                       border: Border(
                         bottom: BorderSide(color: _borderColor),
                         left: BorderSide(
@@ -1522,14 +1523,14 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 15,
-                                backgroundColor: avatarColor.withOpacity(0.1),
+                                backgroundColor: avatarColor.withValues(alpha: 0.1),
                                 child: Icon(
                                   name == 'super_admin' ? Icons.security_rounded : Icons.person_rounded, 
                                   size: 14, 
                                   color: avatarColor,
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1548,15 +1549,15 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           ),
                                         ),
                                         if (_hasPendingPublish(role)) ...[
-                                          SizedBox(width: 6),
+                                          const SizedBox(width: 6),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFFF59E0B).withOpacity(0.12),
+                                              color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                                               borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.2), width: 0.5),
+                                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2), width: 0.5),
                                             ),
-                                            child: Text(
+                                            child: const Text(
                                               'DRAFT',
                                               style: TextStyle(
                                                 color: Color(0xFFF59E0B),
@@ -1567,7 +1568,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           ),
                                         ],
                                         if (Responsive.isMobile(context)) ...[
-                                          SizedBox(width: 6),
+                                          const SizedBox(width: 6),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                             decoration: BoxDecoration(
@@ -1588,12 +1589,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                         ],
                                       ],
                                     ),
-                                    SizedBox(height: 2),
+                                    const SizedBox(height: 2),
                                     Text(
                                       description,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: _textPrimary.withOpacity(0.4), fontSize: 11),
+                                      style: TextStyle(color: _textPrimary.withValues(alpha: 0.4), fontSize: 11),
                                     ),
                                   ],
                                 ),
@@ -1611,8 +1612,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: isCustom
-                                      ? const Color(0xFF3B82F6).withOpacity(0.1)
-                                      : const Color(0xFF6366F1).withOpacity(0.1),
+                                      ? const Color(0xFF3B82F6).withValues(alpha: 0.1)
+                                      : const Color(0xFF6366F1).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -1631,8 +1632,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                             flex: 1,
                             child: Row(
                               children: [
-                                Icon(Icons.person_outline, size: 12, color: _textPrimary.withOpacity(0.4)),
-                                SizedBox(width: 4),
+                                Icon(Icons.person_outline, size: 12, color: _textPrimary.withValues(alpha: 0.4)),
+                                const SizedBox(width: 4),
                                 Text('$userCount', style: TextStyle(color: _textSecondary, fontSize: 12)),
                               ],
                             ),
@@ -1692,21 +1693,21 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     CacheService().set('selected_role_id', role['id']);
                                   });
                                 },
-                                child: Padding(
+                                child: const Padding(
                                   padding: EdgeInsets.all(4),
                                   child: Icon(Icons.vpn_key_outlined, size: 16, color: Color(0xFF818CF8)),
                                 ),
                               ),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               InkWell(
                                 borderRadius: BorderRadius.circular(4),
                                 onTap: () => _openRoleFormDialog(role),
                                 child: Padding(
-                                  padding: EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(4),
                                   child: Icon(Icons.edit_outlined, size: 16, color: _textSecondary),
                                 ),
                               ),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               
                               PopupMenuButton<String>(
                                 padding: EdgeInsets.zero,
@@ -1723,9 +1724,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                           return AlertDialog(
                                             backgroundColor: _dialogBg,
                                             title: Text('Delete Role?', style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-                                            content: Text('Are you sure you want to delete custom role "$name"? this action is permanent.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                                            content: Text('Are you sure you want to delete custom role "$name"? this action is permanent.', style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
                                             actions: [
-                                              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Cancel', style: TextStyle(color: Color(0xFF64748B)))),
+                                              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B)))),
                                               ElevatedButton(
                                                 onPressed: () {
                                                   Navigator.of(context).pop();
@@ -1757,12 +1758,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     child: Row(
                                       children: [
                                         Icon(status == 'Active' ? Icons.block : Icons.check_circle_outline, size: 14),
-                                        SizedBox(width: 8),
-                                        Text(status == 'Active' ? 'Deactivate Role' : 'Activate Role', style: TextStyle(fontSize: 12)),
+                                        const SizedBox(width: 8),
+                                        Text(status == 'Active' ? 'Deactivate Role' : 'Activate Role', style: const TextStyle(fontSize: 12)),
                                       ],
                                     ),
                                   ),
-                                  PopupMenuItem(
+                                  const PopupMenuItem(
                                     value: 'delete',
                                     child: Row(
                                       children: [
@@ -1774,7 +1775,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                   ),
                                 ],
                                 child: Padding(
-                                  padding: EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(4),
                                   child: Icon(Icons.more_horiz_rounded, size: 16, color: _textSecondary),
                                 ),
                               ),
@@ -1815,7 +1816,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: Icon(Icons.chevron_left, size: 18),
+                  icon: const Icon(Icons.chevron_left, size: 18),
                   onPressed: _currentPage > 1 ? () {
                     setState(() {
                       _currentPage--;
@@ -1849,7 +1850,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   ),
                 
                 IconButton(
-                  icon: Icon(Icons.chevron_right, size: 18),
+                  icon: const Icon(Icons.chevron_right, size: 18),
                   onPressed: _currentPage < totalPages ? () {
                     setState(() {
                       _currentPage++;
@@ -1857,7 +1858,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   } : null,
                 ),
                 
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   height: 28,
@@ -1896,7 +1897,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               return Column(
                 children: [
                   countText,
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: controlsRow,
@@ -1924,7 +1925,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
     
     final treeContent = Column(
       children: [
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         _buildTreeNodeItem("Super Admin", "Full system access with all permissions", const Color(0xFF6366F1)),
         _buildVerticalConnector(),
         Row(
@@ -1932,7 +1933,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildTreeNodeItem("Institute Admin", "Manage institute settings and data", const Color(0xFF10B981)),
-            SizedBox(width: 48),
+            const SizedBox(width: 48),
             _buildTreeNodeItem("Academic Admin", "Manage academics and curriculum", const Color(0xFF3B82F6)),
           ],
         ),
@@ -1942,13 +1943,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildTreeNodeItem("Teacher", "Manage classes and students", const Color(0xFF8B5CF6)),
-            SizedBox(width: 48),
+            const SizedBox(width: 48),
             _buildTreeNodeItem("Finance Staff", "Manage finance and accounts", const Color(0xFFF59E0B)),
           ],
         ),
         _buildVerticalConnector(),
         _buildTreeNodeItem("Student", "Access own learning and profile", const Color(0xFF64748B)),
-        SizedBox(height: 24),
+        const SizedBox(height: 24),
       ],
     );
 
@@ -1974,9 +1975,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       decoration: BoxDecoration(
         color: _scaffoldBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: highlightColor.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: highlightColor.withValues(alpha: 0.3), width: 1.5),
         boxShadow: [
-          BoxShadow(color: highlightColor.withOpacity(0.04), blurRadius: 10, spreadRadius: 2),
+          BoxShadow(color: highlightColor.withValues(alpha: 0.04), blurRadius: 10, spreadRadius: 2),
         ],
       ),
       child: Column(
@@ -1985,10 +1986,10 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             children: [
               CircleAvatar(
                 radius: 12,
-                backgroundColor: highlightColor.withOpacity(0.1),
+                backgroundColor: highlightColor.withValues(alpha: 0.1),
                 child: Icon(Icons.shield_outlined, color: highlightColor, size: 12),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   name,
@@ -1997,7 +1998,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               ),
             ],
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
             desc,
             style: TextStyle(color: _textMuted, fontSize: 10),
@@ -2052,8 +2053,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF6366F1).withOpacity(0.08),
-        border: Border(bottom: BorderSide(color: const Color(0xFF6366F1).withOpacity(0.2))),
+        color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+        border: Border(bottom: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.2))),
       ),
       child: isMobile
           ? Column(
@@ -2061,8 +2062,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.shield_outlined, color: Color(0xFF818CF8), size: 16),
-                    SizedBox(width: 8),
+                    const Icon(Icons.shield_outlined, color: Color(0xFF818CF8), size: 16),
+                    const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         'Configure Access Level For Role:',
@@ -2071,7 +2072,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -2079,9 +2080,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       children: [
                         Text(
                           formattedRoleName,
-                          style: TextStyle(color: Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                          style: const TextStyle(color: Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           '(${_selectedRole!['code'] ?? ''})',
                           style: TextStyle(color: _textMuted, fontSize: 10),
@@ -2091,13 +2092,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.15),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3), width: 0.5),
+                        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 0.5),
                       ),
                       child: Text(
                         '$totalAllowed / $totalSystemPerms Configured',
-                        style: TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -2106,18 +2107,18 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             )
           : Row(
               children: [
-                Icon(Icons.shield_outlined, color: Color(0xFF818CF8), size: 16),
-                SizedBox(width: 8),
+                const Icon(Icons.shield_outlined, color: Color(0xFF818CF8), size: 16),
+                const SizedBox(width: 8),
                 Text(
                   'Configure Access Level For Role:',
                   style: TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
                   formattedRoleName,
-                  style: TextStyle(color: Color(0xFF818CF8), fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                  style: const TextStyle(color: Color(0xFF818CF8), fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
                   '(${_selectedRole!['code'] ?? ''})',
                   style: TextStyle(color: _textMuted, fontSize: 11),
@@ -2126,13 +2127,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withOpacity(0.15),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.3), width: 0.5),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3), width: 0.5),
                   ),
                   child: Text(
                     '$totalAllowed / $totalSystemPerms Configured',
-                    style: TextStyle(color: Color(0xFF818CF8), fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Color(0xFF818CF8), fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -2212,7 +2213,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           // Tree list
           Expanded(
             child: _isLoadingModules
-                ? Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
                 : ListView.builder(
                     itemCount: filteredModules.length,
                     itemBuilder: (context, idx) {
@@ -2241,13 +2242,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF6366F1).withOpacity(0.08) : null,
+                            color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.08) : null,
                             border: Border(
                               left: BorderSide(
                                 color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
                                 width: 3.5,
                               ),
-                              bottom: BorderSide(color: _textPrimary.withOpacity(0.02)),
+                              bottom: BorderSide(color: _textPrimary.withValues(alpha: 0.02)),
                             ),
                           ),
                           child: Row(
@@ -2278,13 +2279,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               Icon(
                                 Icons.extension_outlined,
                                 size: 14,
                                 color: isSelected ? const Color(0xFF818CF8) : (hasAnyPerm ? const Color(0xFF10B981) : Colors.white38),
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   modName,
@@ -2299,19 +2300,19 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withOpacity(0.12),
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     '$allowedCount Configured',
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: Color(0xFF818CF8),
                                       fontSize: 8,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
-                                SizedBox(width: 6),
+                                const SizedBox(width: 6),
                               ],
                               Icon(Icons.chevron_right, size: 14, color: _borderColor),
                             ],
@@ -2353,39 +2354,39 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     _selectedModule = null;
                                   });
                                 },
-                                icon: Icon(Icons.arrow_back, size: 16, color: Color(0xFF818CF8)),
-                                label: Text('Back to Modules', style: TextStyle(color: Color(0xFF818CF8), fontSize: 12)),
+                                icon: const Icon(Icons.arrow_back, size: 16, color: Color(0xFF818CF8)),
+                                label: const Text('Back to Modules', style: TextStyle(color: Color(0xFF818CF8), fontSize: 12)),
                                 style: TextButton.styleFrom(
                                   padding: EdgeInsets.zero,
                                   minimumSize: Size.zero,
                                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
                               ),
-                              SizedBox(height: 12),
+                              const SizedBox(height: 12),
                               Row(
                                 children: [
                                   Text(
                                     _selectedModule!['name'] ?? '',
                                     style: TextStyle(color: _textPrimary, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                                   ),
-                                  SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF6366F1).withOpacity(0.1),
+                                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: Text(
+                                    child: const Text(
                                       '9 Permissions',
                                       style: TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                 ],
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 'Configure permissions for the selected module',
-                                style: TextStyle(color: _textPrimary.withOpacity(0.4), fontSize: 11),
+                                style: TextStyle(color: _textPrimary.withValues(alpha: 0.4), fontSize: 11),
                               ),
                             ],
                           ),
@@ -2403,7 +2404,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                       decoration: BoxDecoration(
-                                        color: _scaffoldBg.withOpacity(0.3),
+                                        color: _scaffoldBg.withValues(alpha: 0.3),
                                         border: Border(bottom: BorderSide(color: _borderColor)),
                                       ),
                                       child: Row(
@@ -2441,7 +2442,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                                 ),
                                                 Expanded(
                                                   flex: 5,
-                                                  child: Text(desc, style: TextStyle(color: _textPrimary.withOpacity(0.4), fontSize: 11)),
+                                                  child: Text(desc, style: TextStyle(color: _textPrimary.withValues(alpha: 0.4), fontSize: 11)),
                                                 ),
                                                 Expanded(
                                                   flex: 2,
@@ -2560,24 +2561,24 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                         _selectedModule!['name'] ?? '',
                                         style: TextStyle(color: _textPrimary, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF6366F1).withOpacity(0.1),
+                                          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(4),
                                         ),
-                                        child: Text(
+                                        child: const Text(
                                           '9 Permissions',
                                           style: TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Text(
                                     'Configure permissions for the selected module',
-                                    style: TextStyle(color: _textPrimary.withOpacity(0.4), fontSize: 11),
+                                    style: TextStyle(color: _textPrimary.withValues(alpha: 0.4), fontSize: 11),
                                   ),
                                 ],
                               ),
@@ -2597,7 +2598,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                               decoration: BoxDecoration(
-                                                color: _scaffoldBg.withOpacity(0.3),
+                                                color: _scaffoldBg.withValues(alpha: 0.3),
                                                 border: Border(bottom: BorderSide(color: _borderColor)),
                                               ),
                                               child: Row(
@@ -2635,7 +2636,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                                         ),
                                                         Expanded(
                                                           flex: 5,
-                                                          child: Text(desc, style: TextStyle(color: _textPrimary.withOpacity(0.4), fontSize: 11)),
+                                                          child: Text(desc, style: TextStyle(color: _textPrimary.withValues(alpha: 0.4), fontSize: 11)),
                                                         ),
                                                         Expanded(
                                                           flex: 2,
@@ -2754,11 +2755,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           _activeTab = "Roles";
                         });
                       },
-                      icon: Icon(Icons.arrow_back, size: 14),
-                      label: Text('Back', style: TextStyle(fontSize: 12)),
+                      icon: const Icon(Icons.arrow_back, size: 14),
+                      label: const Text('Back', style: TextStyle(fontSize: 12)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _textSecondary,
-                        side: BorderSide(color: _textPrimary.withOpacity(0.1)),
+                        side: BorderSide(color: _textPrimary.withValues(alpha: 0.1)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
@@ -2767,11 +2768,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       onPressed: () => _savePermissions(publish: false),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _textSecondary,
-                        side: BorderSide(color: _textPrimary.withOpacity(0.1)),
+                        side: BorderSide(color: _textPrimary.withValues(alpha: 0.1)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      child: Text('Save as Draft', style: TextStyle(fontSize: 12)),
+                      child: const Text('Save as Draft', style: TextStyle(fontSize: 12)),
                     ),
                     ElevatedButton(
                       onPressed: () async {
@@ -2786,7 +2787,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      child: Text('Review & Save', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      child: const Text('Review & Save', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 )
@@ -2799,11 +2800,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           _activeTab = "Roles";
                         });
                       },
-                      icon: Icon(Icons.arrow_back, size: 14),
-                      label: Text('Back', style: TextStyle(fontSize: 12)),
+                      icon: const Icon(Icons.arrow_back, size: 14),
+                      label: const Text('Back', style: TextStyle(fontSize: 12)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _textSecondary,
-                        side: BorderSide(color: _textPrimary.withOpacity(0.1)),
+                        side: BorderSide(color: _textPrimary.withValues(alpha: 0.1)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
@@ -2813,12 +2814,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           onPressed: () => _savePermissions(publish: false),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _textSecondary,
-                            side: BorderSide(color: _textPrimary.withOpacity(0.1)),
+                            side: BorderSide(color: _textPrimary.withValues(alpha: 0.1)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: Text('Save as Draft', style: TextStyle(fontSize: 12)),
+                          child: const Text('Save as Draft', style: TextStyle(fontSize: 12)),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () async {
                             await _savePermissions(publish: true);
@@ -2831,7 +2832,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: Text('Review & Save', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text('Review & Save', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -2850,7 +2851,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           backgroundColor: isActive ? const Color(0xFF6366F1) : const Color(0xFF1F2937),
           child: Text(index, style: TextStyle(color: _textPrimary, fontSize: 10, fontWeight: FontWeight.bold)),
         ),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         Text(
           title,
           style: TextStyle(
@@ -2875,7 +2876,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
 
   // Right sidebar details section
   Widget _buildRightSidebarSection() {
-    if (_selectedRole == null) return SizedBox();
+    if (_selectedRole == null) return const SizedBox();
     
     final name = (_selectedRole!['name'] ?? '').toString();
     final code = (_selectedRole!['code'] ?? 'ROLE_${name.toUpperCase()}').toString();
@@ -2936,7 +2937,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               child: ElevatedButton.icon(
                 onPressed: () => _openRoleFormDialog(),
                 icon: Icon(Icons.add, size: 16, color: _textPrimary),
-                label: Text(
+                label: const Text(
                   'Create New Role',
                   style: TextStyle(
                     fontSize: 13,
@@ -2952,19 +2953,19 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               ),
             ),
             if (_hasPendingPublish(_selectedRole!)) ...[
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withOpacity(0.08),
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.2)),
+                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
                         Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 16),
                         SizedBox(width: 8),
@@ -2976,12 +2977,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 6),
+                    const SizedBox(height: 6),
                     Text(
                       'This role has draft changes that are not yet active in the system.',
                       style: TextStyle(color: _textSecondary, fontSize: 11),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       height: 32,
@@ -3005,14 +3006,14 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        child: Text('Publish Draft Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        child: const Text('Publish Draft Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
                 ),
               ),
             ],
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // PANEL 1: Role Details
             Container(
@@ -3032,10 +3033,10 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         'Role Details',
                         style: TextStyle(color: _textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                       ),
-                      Icon(Icons.shield_outlined, color: Color(0xFF6366F1), size: 18),
+                      const Icon(Icons.shield_outlined, color: Color(0xFF6366F1), size: 18),
                     ],
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   
                   Row(
                     children: [
@@ -3046,26 +3047,26 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.1),
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           isCustom ? 'Custom Role' : 'System Role',
-                          style: TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold),
                         ),
                       )
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     name == 'super_admin' ? 'Full system access with all permissions' : 'Manage $name system configurations and access',
-                    style: TextStyle(color: _textPrimary.withOpacity(0.4), fontSize: 11),
+                    style: TextStyle(color: _textPrimary.withValues(alpha: 0.4), fontSize: 11),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   
                   _buildDetailRowItem('Role Name', formattedName),
                   _buildDetailRowItem('Role Code', code),
@@ -3080,15 +3081,15 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   _buildDetailRowItem('Created On', createdAtStr),
                   _buildDetailRowItem('Last Updated', updatedAtStr),
                   
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () => _openRoleFormDialog(_selectedRole),
-                          icon: Icon(Icons.edit_outlined, size: 14),
-                          label: Text('Edit Role', style: TextStyle(fontSize: 11)),
+                          icon: const Icon(Icons.edit_outlined, size: 14),
+                          label: const Text('Edit Role', style: TextStyle(fontSize: 11)),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _textPrimary,
                             side: BorderSide(color: _borderColor),
@@ -3096,18 +3097,18 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () {
                             context.go('/admin/users?role=$name');
                           },
-                          icon: Icon(Icons.people_outline, size: 14),
-                          label: Text('View Users ($userCount)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.people_outline, size: 14),
+                          label: Text('View Users ($userCount)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF818CF8),
-                            backgroundColor: const Color(0xFF6366F1).withOpacity(0.08),
-                            side: BorderSide(color: const Color(0xFF6366F1).withOpacity(0.25)),
+                            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                            side: BorderSide(color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
@@ -3115,7 +3116,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     ],
                   ),
                   if (true) ...[
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -3131,7 +3132,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 surfaceTintColor: Colors.transparent,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                 title: Text('Delete Role?', style: TextStyle(color: _textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-                                content: Text('Are you sure you want to delete custom role "$formattedName"? This action is permanent.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                                content: Text('Are you sure you want to delete custom role "$formattedName"? This action is permanent.', style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
@@ -3147,19 +3148,19 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                     ),
-                                    child: Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
                             );
                           }
                         },
-                        icon: Icon(Icons.delete_outline, size: 14),
-                        label: Text('Delete Role', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        icon: const Icon(Icons.delete_outline, size: 14),
+                        label: const Text('Delete Role', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFFEF4444),
-                          backgroundColor: const Color(0xFFEF4444).withOpacity(0.05),
-                          side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.25)),
+                          backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.05),
+                          side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.25)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
@@ -3169,7 +3170,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // PANEL 2: Permissions Overview
             Container(
@@ -3186,7 +3187,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     'Permissions Overview',
                     style: TextStyle(color: _textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   
                   Center(
                     child: SizedBox(
@@ -3230,18 +3231,18 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       ),
                     ),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   
                   _buildLegendDotRow('Granted', '$activeAllowedCount (${(activeAllowedPercent * 100).toInt()}%)', const Color(0xFF10B981)),
                   _buildLegendDotRow('Denied', '$activeDeniedCount (${totalSystemPerms == 0 ? 0 : (activeDeniedCount / totalSystemPerms * 100).toInt()}%)', const Color(0xFFEF4444)),
                   _buildLegendDotRow('Not Set', '$activeNotSetCount (${totalSystemPerms == 0 ? 0 : (activeNotSetCount / totalSystemPerms * 100).toInt()}%)', const Color(0xFF64748B)),
                   
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Divider(color: _borderColor),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   
                   _buildLegendDotRow('Modules Selected', '$activeModulesSelectedCount/${_modules.length}', const Color(0xFF6366F1)),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   
                   SizedBox(
                     width: double.infinity,
@@ -3251,8 +3252,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           _activeTab = "Assign Permissions";
                         });
                       },
-                      icon: Icon(Icons.settings_outlined, size: 14),
-                      label: Text('Manage Permissions', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      icon: const Icon(Icons.settings_outlined, size: 14),
+                      label: const Text('Manage Permissions', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF818CF8),
                         side: BorderSide(color: _borderColor),
@@ -3263,7 +3264,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             
             // PANEL 3: Role Hierarchy
             Container(
@@ -3280,7 +3281,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     'Role Hierarchy',
                     style: TextStyle(color: _textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   
                   Column(
                     children: [
@@ -3289,7 +3290,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       _buildMiniNode(formattedName, const Color(0xFF10B981)),
                     ],
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   
                   SizedBox(
                     width: double.infinity,
@@ -3304,13 +3305,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         side: BorderSide(color: _borderColor),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: Text('View Full Hierarchy →', style: TextStyle(fontSize: 11)),
+                      child: const Text('View Full Hierarchy →', style: TextStyle(fontSize: 11)),
                     ),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -3325,7 +3326,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(key, style: TextStyle(color: _textMuted, fontSize: 11)),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               val,
@@ -3349,7 +3350,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           Row(
             children: [
               Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(label, style: TextStyle(color: _textSecondary, fontSize: 11)),
             ],
           ),
@@ -3366,12 +3367,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       decoration: BoxDecoration(
         color: _scaffoldBg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
           Icon(Icons.shield_outlined, color: color, size: 12),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
@@ -3462,8 +3463,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.08),
-              border: Border(bottom: BorderSide(color: const Color(0xFF10B981).withOpacity(0.2))),
+              color: const Color(0xFF10B981).withValues(alpha: 0.08),
+              border: Border(bottom: BorderSide(color: const Color(0xFF10B981).withValues(alpha: 0.2))),
             ),
             child: isMobile
                 ? Column(
@@ -3471,15 +3472,15 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 16),
-                          SizedBox(width: 8),
+                          const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 16),
+                          const SizedBox(width: 8),
                           Text(
                             'All permissions are fully published for:',
-                            style: TextStyle(color: _textPrimary.withOpacity(0.6), fontSize: 11),
+                            style: TextStyle(color: _textPrimary.withValues(alpha: 0.6), fontSize: 11),
                           ),
                         ],
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Padding(
                         padding: const EdgeInsets.only(left: 24.0),
                         child: Text(
@@ -3491,11 +3492,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                   )
                 : Row(
                     children: [
-                      Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 16),
-                      SizedBox(width: 8),
+                      const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 16),
+                      const SizedBox(width: 8),
                       Text(
                         'All permissions are fully published for: ',
-                        style: TextStyle(color: _textPrimary.withOpacity(0.6), fontSize: 12),
+                        style: TextStyle(color: _textPrimary.withValues(alpha: 0.6), fontSize: 12),
                       ),
                       Text(
                         '$formattedRoleName ($code)',
@@ -3509,13 +3510,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.done_all_rounded, size: 48, color: const Color(0xFF10B981).withOpacity(0.4)),
-                  SizedBox(height: 16),
+                  Icon(Icons.done_all_rounded, size: 48, color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                  const SizedBox(height: 16),
                   Text(
                     'No Pending Drafts Found',
                     style: TextStyle(color: _textPrimary, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   Text(
                     'All permissions are in sync with the live system.',
                     style: TextStyle(color: _textMuted, fontSize: 12),
@@ -3537,8 +3538,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF59E0B).withOpacity(0.08),
-        border: Border(bottom: BorderSide(color: const Color(0xFFF59E0B).withOpacity(0.2))),
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+        border: Border(bottom: BorderSide(color: const Color(0xFFF59E0B).withValues(alpha: 0.2))),
       ),
       child: isMobile
           ? Column(
@@ -3546,8 +3547,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.rate_review_outlined, color: Color(0xFFF59E0B), size: 16),
-                    SizedBox(width: 8),
+                    const Icon(Icons.rate_review_outlined, color: Color(0xFFF59E0B), size: 16),
+                    const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         'Reviewing Draft Permissions For:',
@@ -3556,7 +3557,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -3564,9 +3565,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       children: [
                         Text(
                           formattedRoleName,
-                          style: TextStyle(color: Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                          style: const TextStyle(color: Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           '($code)',
                           style: TextStyle(color: _textMuted, fontSize: 10),
@@ -3576,13 +3577,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withOpacity(0.15),
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 0.5),
+                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 0.5),
                       ),
                       child: Text(
                         '$totalDraftChanges Pending Changes',
-                        style: TextStyle(color: Color(0xFFF59E0B), fontSize: 9, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -3591,18 +3592,18 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
             )
           : Row(
               children: [
-                Icon(Icons.rate_review_outlined, color: Color(0xFFF59E0B), size: 16),
-                SizedBox(width: 8),
+                const Icon(Icons.rate_review_outlined, color: Color(0xFFF59E0B), size: 16),
+                const SizedBox(width: 8),
                 Text(
                   'Reviewing Draft Permissions For:',
                   style: TextStyle(color: _textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
                   formattedRoleName,
-                  style: TextStyle(color: Color(0xFF818CF8), fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+                  style: const TextStyle(color: Color(0xFF818CF8), fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                 ),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(
                   '($code)',
                   style: TextStyle(color: _textMuted, fontSize: 11),
@@ -3611,13 +3612,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B).withOpacity(0.15),
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 0.5),
+                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3), width: 0.5),
                   ),
                   child: Text(
                     '$totalDraftChanges Pending Changes',
-                    style: TextStyle(color: Color(0xFFF59E0B), fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -3664,7 +3665,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
           // List
           Expanded(
             child: _isLoadingModules
-                ? Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
                 : ListView.builder(
                     itemCount: filteredModules.length,
                     itemBuilder: (context, idx) {
@@ -3685,13 +3686,13 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF6366F1).withOpacity(0.08) : null,
+                            color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.08) : null,
                             border: Border(
                               left: BorderSide(
                                 color: isSelected ? const Color(0xFF6366F1) : Colors.transparent,
                                 width: 3.5,
                               ),
-                              bottom: BorderSide(color: _textPrimary.withOpacity(0.02)),
+                              bottom: BorderSide(color: _textPrimary.withValues(alpha: 0.02)),
                             ),
                           ),
                           child: Row(
@@ -3701,7 +3702,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 size: 14,
                                 color: isSelected ? const Color(0xFF818CF8) : (hasDraftChange ? const Color(0xFFF59E0B) : Colors.white38),
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   modName,
@@ -3716,10 +3717,10 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF59E0B).withOpacity(0.12),
+                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
-                                  child: Text(
+                                  child: const Text(
                                     'PENDING',
                                     style: TextStyle(
                                       color: Color(0xFFF59E0B),
@@ -3728,7 +3729,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                     ),
                                   ),
                                 ),
-                                SizedBox(width: 6),
+                                const SizedBox(width: 6),
                               ],
                               Icon(Icons.chevron_right, size: 14, color: _borderColor),
                             ],
@@ -3764,15 +3765,15 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         _selectedModule = null;
                       });
                     },
-                    icon: Icon(Icons.arrow_back, size: 16, color: Color(0xFFF59E0B)),
-                    label: Text('Back to Modules', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
+                    icon: const Icon(Icons.arrow_back, size: 16, color: Color(0xFFF59E0B)),
+                    label: const Text('Back to Modules', style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12)),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                 ],
                 Row(
                   children: [
@@ -3780,24 +3781,24 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       activeSelectedModule['name'] ?? '',
                       style: TextStyle(color: _textPrimary, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withOpacity(0.1),
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(
+                      child: const Text(
                         'Draft Comparison',
                         style: TextStyle(color: Color(0xFFF59E0B), fontSize: 9, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'Compare active (published) permissions vs draft (unpublished) changes',
-                  style: TextStyle(color: _textPrimary.withOpacity(0.4), fontSize: 11),
+                  style: TextStyle(color: _textPrimary.withValues(alpha: 0.4), fontSize: 11),
                 ),
               ],
             ),
@@ -3818,7 +3819,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: _scaffoldBg.withOpacity(0.3),
+                              color: _scaffoldBg.withValues(alpha: 0.3),
                               border: Border(bottom: BorderSide(color: _borderColor)),
                             ),
                             child: Row(
@@ -3873,8 +3874,8 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
                                               color: isDifferent
-                                                  ? const Color(0xFFF59E0B).withOpacity(0.12)
-                                                  : Colors.white.withOpacity(0.04),
+                                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
+                                                  : Colors.white.withValues(alpha: 0.04),
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Text(
@@ -3940,11 +3941,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           _activeTab = "Roles";
                         });
                       },
-                      icon: Icon(Icons.arrow_back, size: 14),
-                      label: Text('Back', style: TextStyle(fontSize: 12)),
+                      icon: const Icon(Icons.arrow_back, size: 14),
+                      label: const Text('Back', style: TextStyle(fontSize: 12)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _textSecondary,
-                        side: BorderSide(color: _textPrimary.withOpacity(0.1)),
+                        side: BorderSide(color: _textPrimary.withValues(alpha: 0.1)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
@@ -3968,11 +3969,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFEF4444),
-                        side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                        side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      child: Text('Discard Draft', style: TextStyle(fontSize: 12)),
+                      child: const Text('Discard Draft', style: TextStyle(fontSize: 12)),
                     ),
                     ElevatedButton(
                       onPressed: () async {
@@ -3997,7 +3998,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
-                      child: Text('Publish Changes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      child: const Text('Publish Changes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 )
@@ -4010,11 +4011,11 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           _activeTab = "Roles";
                         });
                       },
-                      icon: Icon(Icons.arrow_back, size: 14),
-                      label: Text('Back', style: TextStyle(fontSize: 12)),
+                      icon: const Icon(Icons.arrow_back, size: 14),
+                      label: const Text('Back', style: TextStyle(fontSize: 12)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _textSecondary,
-                        side: BorderSide(color: _textPrimary.withOpacity(0.1)),
+                        side: BorderSide(color: _textPrimary.withValues(alpha: 0.1)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
@@ -4039,12 +4040,12 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                           },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFEF4444),
-                            side: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                            side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: Text('Discard Draft', style: TextStyle(fontSize: 12)),
+                          child: const Text('Discard Draft', style: TextStyle(fontSize: 12)),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () async {
                             try {
@@ -4067,7 +4068,7 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: Text('Publish Changes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text('Publish Changes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -4138,9 +4139,9 @@ class _AdminRolesScreenState extends State<AdminRolesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.12),
+        color: badgeColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: badgeColor.withOpacity(0.24)),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.24)),
       ),
       child: Text(
         label,

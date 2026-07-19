@@ -22,14 +22,6 @@ class StudentNotices extends ConsumerStatefulWidget {
 class _StudentNoticesState extends ConsumerState<StudentNotices> {
   final StudentApiService _apiService = StudentApiService();
   final TextEditingController _searchController = TextEditingController();
-  final String _selectedCategory = 'All';
-  final List<String> _categories = [
-    'All',
-    'Urgent',
-    'General',
-    'Event',
-    'Academic'
-  ];
   List<Notice> _allNotices = [];
   bool _isLoading = true;
   String? _error;
@@ -68,31 +60,6 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
     }
   }
 
-  List<Notice> get _filteredNotices {
-    var result = _allNotices;
-
-    // Filter by category
-    if (_selectedCategory != 'All') {
-      final catKey = _selectedCategory.toLowerCase();
-      result = result.where((n) {
-        final nCat = n.category.toLowerCase();
-        if (catKey == 'event') return nCat == 'event' || nCat == 'events';
-        return nCat == catKey;
-      }).toList();
-    }
-
-    // Filter by search query
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isNotEmpty) {
-      result = result.where((n) {
-        return n.title.toLowerCase().contains(query) ||
-            n.content.toLowerCase().contains(query) ||
-            (n.authorName?.toLowerCase().contains(query) ?? false);
-      }).toList();
-    }
-
-    return result;
-  }
 
   int get _urgentCount =>
       _allNotices.where((n) => n.category.toLowerCase() == 'urgent').length;
@@ -385,7 +352,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                                       .registerForNotice(
                                                           item.id);
                                                   if (ok) {
-                                                    if (mounted) {
+                                                    if (context.mounted) {
                                                       ScaffoldMessenger.of(
                                                               context)
                                                           .showSnackBar(
@@ -395,9 +362,12 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                                       );
                                                       _loadNotices();
                                                     }
+                                                  } else {
+                                                    throw Exception(
+                                                        'Failed to register');
                                                   }
                                                 } catch (e) {
-                                                  if (mounted) {
+                                                  if (context.mounted) {
                                                     ScaffoldMessenger.of(
                                                             context)
                                                         .showSnackBar(
@@ -745,7 +715,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                       final ok = await _apiService
                                           .registerForNotice(notice.id);
                                       if (ok) {
-                                        if (mounted) {
+                                        if (context.mounted) {
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
                                             const SnackBar(
@@ -759,7 +729,7 @@ class _StudentNoticesState extends ConsumerState<StudentNotices> {
                                         throw Exception('Failed to register');
                                       }
                                     } catch (e) {
-                                      if (mounted) {
+                                      if (context.mounted) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           SnackBar(content: Text('Error: $e')),

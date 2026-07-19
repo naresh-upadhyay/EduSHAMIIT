@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -129,10 +128,10 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
         "system_alert_sounds": _settings["system_alert_sounds"] ?? false
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text("Notification settings updated!"),
-          backgroundColor: const Color(0xFF10B981),
-          duration: const Duration(seconds: 1),
+          backgroundColor: Color(0xFF10B981),
+          duration: Duration(seconds: 1),
         ),
       );
     } catch (e) {
@@ -1039,20 +1038,20 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
                         ],
                       ),
                     ),
-                    PopupMenuItem(
+                    const PopupMenuItem(
                       value: 'edit',
                       child: Row(
-                        children: const [
+                        children: [
                           Icon(Icons.edit_outlined, size: 14, color: Colors.orange),
                           SizedBox(width: 8),
                           Text('Edit / Resolve', style: TextStyle(fontSize: 11)),
                         ],
                       ),
                     ),
-                    PopupMenuItem(
+                    const PopupMenuItem(
                       value: 'delete',
                       child: Row(
-                        children: const [
+                        children: [
                           Icon(Icons.delete_outline_rounded, size: 14, color: Color(0xFFEF4444)),
                           SizedBox(width: 8),
                           Text('Delete', style: TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
@@ -1364,7 +1363,7 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
           Text(label, style: const TextStyle(fontSize: 11)),
           Switch(
             value: isEnabled,
-            activeColor: const Color(0xFF10B981),
+            activeThumbColor: const Color(0xFF10B981),
             onChanged: (val) => _updateSettings(settingsKey, val),
           ),
         ],

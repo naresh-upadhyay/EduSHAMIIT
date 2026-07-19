@@ -422,14 +422,6 @@ class _TeacherAttendanceState extends ConsumerState<TeacherAttendance> {
 
   Widget _buildDesktopLayout(BuildContext context, int pct, int presents,
       int absents, int lates, int voids) {
-    final filteredStudents = _studentsData.where((s) {
-      if (_studentSearchQuery.isEmpty) return true;
-      final name = (s['name'] ?? '').toString().toLowerCase();
-      final roll = (s['roll_no'] ?? '').toString().toLowerCase();
-      return name.contains(_studentSearchQuery.toLowerCase()) ||
-          roll.contains(_studentSearchQuery.toLowerCase());
-    }).toList();
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

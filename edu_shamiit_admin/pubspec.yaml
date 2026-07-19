@@ -45,6 +45,9 @@ dependencies:
   image_cropper: ^12.2.1
   url_launcher: ^6.2.5
 
+  flutter_web_plugins:
+    sdk: flutter
+  shared_preferences: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

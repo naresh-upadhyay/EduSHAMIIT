@@ -633,7 +633,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                       item['title'] as String,
                       style: TextStyle(color: isDark ? Colors.white54 : const Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold),
                     ),
-                    Icon(item['icon'] as IconData, color: accentColor.withOpacity(0.8), size: 16),
+                    Icon(item['icon'] as IconData, color: accentColor.withValues(alpha: 0.8), size: 16),
                   ],
                 ),
                 Row(
@@ -696,13 +696,13 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                     });
                     _fetchTickets();
                   },
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: 'Search tickets...',
-                    hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B), size: 16),
+                    hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                    prefixIcon: Icon(Icons.search, color: Color(0xFF64748B), size: 16),
                     border: InputBorder.none,
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),
               ),
@@ -785,7 +785,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+        color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
       ),
@@ -893,7 +893,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF4F46E5).withOpacity(0.1),
+                                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(ticket['category'] ?? 'Others', style: const TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold)),
@@ -963,14 +963,14 @@ class _SupportTabState extends ConsumerState<SupportTab> {
   }
 
   Widget _buildPriorityBadge(String priority) {
-    Color bg = const Color(0xFF10B981).withOpacity(0.1);
+    Color bg = const Color(0xFF10B981).withValues(alpha: 0.1);
     Color fg = const Color(0xFF10B981);
 
     if (priority == 'High') {
-      bg = const Color(0xFFEF4444).withOpacity(0.1);
+      bg = const Color(0xFFEF4444).withValues(alpha: 0.1);
       fg = const Color(0xFFEF4444);
     } else if (priority == 'Medium') {
-      bg = const Color(0xFFF59E0B).withOpacity(0.1);
+      bg = const Color(0xFFF59E0B).withValues(alpha: 0.1);
       fg = const Color(0xFFF59E0B);
     }
 
@@ -982,24 +982,24 @@ class _SupportTabState extends ConsumerState<SupportTab> {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color bg = const Color(0xFF3B82F6).withOpacity(0.1);
+    Color bg = const Color(0xFF3B82F6).withValues(alpha: 0.1);
     Color fg = const Color(0xFF3B82F6);
 
     switch (status) {
       case 'In Progress':
-        bg = const Color(0xFF8B5CF6).withOpacity(0.1);
+        bg = const Color(0xFF8B5CF6).withValues(alpha: 0.1);
         fg = const Color(0xFF8B5CF6);
         break;
       case 'Pending User':
-        bg = const Color(0xFFF59E0B).withOpacity(0.1);
+        bg = const Color(0xFFF59E0B).withValues(alpha: 0.1);
         fg = const Color(0xFFF59E0B);
         break;
       case 'Resolved':
-        bg = const Color(0xFF10B981).withOpacity(0.1);
+        bg = const Color(0xFF10B981).withValues(alpha: 0.1);
         fg = const Color(0xFF10B981);
         break;
       case 'Closed':
-        bg = const Color(0xFF64748B).withOpacity(0.1);
+        bg = const Color(0xFF64748B).withValues(alpha: 0.1);
         fg = const Color(0xFF64748B);
         break;
     }
@@ -1030,7 +1030,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+            color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
           ),
@@ -1408,7 +1408,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                         _messageType = 'conversation';
                       });
                     },
-                    selectedColor: const Color(0xFF4F46E5).withOpacity(0.2),
+                    selectedColor: const Color(0xFF4F46E5).withValues(alpha: 0.2),
                     checkmarkColor: const Color(0xFF4F46E5),
                   ),
                   const SizedBox(width: 8),
@@ -1420,7 +1420,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                         _messageType = 'note';
                       });
                     },
-                    selectedColor: Colors.amber.withOpacity(0.2),
+                    selectedColor: Colors.amber.withValues(alpha: 0.2),
                     checkmarkColor: Colors.amber,
                   ),
                 ],
@@ -1432,7 +1432,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                        color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
                       ),
@@ -1535,10 +1535,10 @@ class _SupportTabState extends ConsumerState<SupportTab> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isNote
-                ? Colors.amber.withOpacity(0.05)
-                : (isDark ? Colors.white.withOpacity(0.01) : const Color(0xFFF8FAFC)),
+                ? Colors.amber.withValues(alpha: 0.05)
+                : (isDark ? Colors.white.withValues(alpha: 0.01) : const Color(0xFFF8FAFC)),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isNote ? Colors.amber.withOpacity(0.3) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
+            border: Border.all(color: isNote ? Colors.amber.withValues(alpha: 0.3) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0))),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1666,7 +1666,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                       return Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                          color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                         ),
@@ -1675,7 +1675,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: fileColor.withOpacity(0.1),
+                                color: fileColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(fileIcon, color: fileColor, size: 20),
@@ -1757,7 +1757,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withOpacity(0.1),
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.support_agent_rounded, color: Color(0xFF4F46E5), size: 20),
@@ -1979,7 +1979,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+            color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
           ),
@@ -2012,7 +2012,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
       floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
-      fillColor: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+      fillColor: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),

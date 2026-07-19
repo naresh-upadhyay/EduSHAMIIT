@@ -154,22 +154,17 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
         _autoSubmitOnTimer = exam.autoSubmitOnTimer;
         _status = exam.status;
 
-        // Find matching subject ID from the loaded subjects list
-        if (_subjects.isNotEmpty) {
-          final match = _subjects.firstWhere((sub) => sub.name == exam.subject,
-              orElse: () => _subjects.first);
-          _selectedSubjectId = match.id;
-        }
-
         _isLoadingData = false;
       });
     } catch (e) {
       setState(() {
         _isLoadingData = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load exam details: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load exam details: $e')),
+        );
+      }
     }
   }
 
@@ -822,6 +817,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
 
       if (widget.examId != null) {
         await _apiService.updateExam(widget.examId!, payload);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('🎉 Exam details updated successfully!')),
@@ -850,6 +846,7 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
           autoSubmitOnTimer: _autoSubmitOnTimer,
         );
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
@@ -859,9 +856,11 @@ class _CreateExamScreenState extends ConsumerState<CreateExamScreen> {
             '/teacher/exams/paper-builder?examId=${newExam.id}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving exam: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving exam: $e')),
+        );
+      }
     } finally {
       setState(() {
         _isSaving = false;

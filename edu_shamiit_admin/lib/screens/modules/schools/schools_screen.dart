@@ -2207,7 +2207,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _tier,
+                        initialValue: _tier,
                         style: TextStyle(
                             color: isDark ? Colors.white : const Color(0xFF0F172A)),
                         decoration:
@@ -2289,7 +2289,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                     ),
                     borderRadius: BorderRadius.circular(8),
                     color: _enableMailServer
-                        ? const Color(0xFF4F46E5).withOpacity(0.05)
+                        ? const Color(0xFF4F46E5).withValues(alpha: 0.05)
                         : (isDark
                             ? const Color(0xFF1E293B)
                             : const Color(0xFFF8FAFC)),
@@ -2325,7 +2325,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                       ),
                       Switch(
                         value: _enableMailServer,
-                        activeColor: const Color(0xFF4F46E5),
+                        activeThumbColor: const Color(0xFF4F46E5),
                         onChanged: (val) =>
                             setState(() => _enableMailServer = val),
                       ),
@@ -2335,7 +2335,7 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
                 if (_enableMailServer) ...[
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _mailPlanCode,
+                    initialValue: _mailPlanCode,
                     style: TextStyle(
                         color: isDark ? Colors.white : const Color(0xFF0F172A)),
                     decoration: const InputDecoration(
@@ -2857,7 +2857,7 @@ class _MailConfigDialogState extends State<MailConfigDialog> {
                         color: Color(0xFF4F46E5))),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: _mailPlanCode,
+                  initialValue: _mailPlanCode,
                   style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A)),
                   decoration: const InputDecoration(

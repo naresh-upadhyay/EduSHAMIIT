@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
-import 'package:go_router/go_router.dart';
 
 class ModuleToggleScreen extends StatefulWidget {
   const ModuleToggleScreen({super.key});
@@ -110,7 +109,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(labelText: 'Status'),
                   items: ['Active', 'Inactive'].map((s) {
                     return DropdownMenuItem(value: s, child: Text(s));
@@ -213,7 +212,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
               border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   blurRadius: 24,
                   offset: const Offset(0, 12),
                 ),
@@ -227,13 +226,13 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.08),
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.08),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(16),
                       topRight: Radius.circular(16),
                     ),
                     border: Border(
-                      bottom: BorderSide(color: const Color(0xFFEF4444).withOpacity(0.15)),
+                      bottom: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.15)),
                     ),
                   ),
                   child: Row(
@@ -241,7 +240,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.12),
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 20),
@@ -281,7 +280,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                       Container(
                         constraints: const BoxConstraints(maxHeight: 180),
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                          color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                         ),
@@ -301,7 +300,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                               decoration: BoxDecoration(
                                 color: cardColor,
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9)),
+                                border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9)),
                               ),
                               child: Row(
                                 children: [
@@ -358,7 +357,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+                    color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(16),
                       bottomRight: Radius.circular(16),
@@ -696,7 +695,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withOpacity(0.1),
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -756,10 +755,10 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444).withOpacity(0.08),
+                            color: const Color(0xFFEF4444).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFFEF4444).withOpacity(0.15),
+                              color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                             ),
                           ),
                           child: Row(
@@ -1050,7 +1049,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
     final textPrimary = isDark ? Colors.white : Colors.black87;
     final textSecondary = isDark ? Colors.white70 : Colors.black54;
     final textMuted = isDark ? Colors.white30 : Colors.black38;
-    final accentColor = const Color(0xFF6366F1);
+    const accentColor = Color(0xFF6366F1);
 
     // Dynamic stats calculations
     final totalModules = _modules.length;
@@ -1235,14 +1234,14 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                 const SizedBox(height: 8),
                 Text(value, style: GoogleFonts.outfit(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(desc, style: GoogleFonts.dmSans(color: textSecondary.withOpacity(0.7), fontSize: 11)),
+                Text(desc, style: GoogleFonts.dmSans(color: textSecondary.withValues(alpha: 0.7), fontSize: 11)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -1308,7 +1307,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           LayoutBuilder(
             builder: (context, constraints) {
               final double containerWidth = constraints.maxWidth - 32;
-              final double baseWidth = 930.0;
+              const double baseWidth = 930.0;
               final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
               final double col1 = 300.0 * scale;
@@ -1392,9 +1391,9 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: catColor.withOpacity(0.12),
+                                    color: catColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: catColor.withOpacity(0.24)),
+                                    border: Border.all(color: catColor.withValues(alpha: 0.24)),
                                   ),
                                   child: Text(
                                     category,
@@ -1442,7 +1441,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                                     scale: 0.75,
                                     child: Switch(
                                       value: isEnabled,
-                                      activeColor: const Color(0xFF4F46E5),
+                                      activeThumbColor: const Color(0xFF4F46E5),
                                       onChanged: (val) => _saveModule(id, {'is_enabled': val}),
                                     ),
                                   ),
@@ -1610,7 +1609,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
             child: Container(
               height: 40,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
               ),
@@ -1752,7 +1751,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(_getModuleIcon(module['icon']), color: accentColor, size: 24),
@@ -1775,7 +1774,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: isEnabled ? const Color(0xFF10B981).withOpacity(0.12) : const Color(0xFFEF4444).withOpacity(0.12),
+                                color: isEnabled ? const Color(0xFF10B981).withValues(alpha: 0.12) : const Color(0xFFEF4444).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -1852,7 +1851,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
               Container(
                 height: 36,
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                  color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                 ),
@@ -2056,7 +2055,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   child: Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                      color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
                     ),
@@ -2106,7 +2105,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           LayoutBuilder(
             builder: (context, constraints) {
               final double containerWidth = constraints.maxWidth - 32;
-              final double baseWidth = 960.0;
+              const double baseWidth = 960.0;
               final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
               final double col1 = 200.0 * scale;
@@ -2174,7 +2173,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withOpacity(0.12),
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -2397,7 +2396,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.folder_open_outlined, color: Color(0xFF8B5CF6), size: 24),
@@ -2599,7 +2598,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           Container(
             height: 40,
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+              color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: borderColor),
             ),
@@ -2667,7 +2666,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4F46E5).withOpacity(0.1),
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: ClipOval(
@@ -2768,7 +2767,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
+                  color: accentColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.school_outlined, color: accentColor, size: 24),
@@ -2960,7 +2959,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   child: Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                      color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: borderColor),
                     ),
@@ -3009,7 +3008,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           LayoutBuilder(
             builder: (context, constraints) {
               final double containerWidth = constraints.maxWidth - 32;
-              final double baseWidth = 860.0;
+              const double baseWidth = 860.0;
               final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
               final double col1 = 220.0 * scale;
@@ -3085,9 +3084,9 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: catColor.withOpacity(0.12),
+                                    color: catColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: catColor.withOpacity(0.24)),
+                                    border: Border.all(color: catColor.withValues(alpha: 0.24)),
                                   ),
                                   child: Text(
                                     category,
@@ -3123,7 +3122,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: isEnabled ? const Color(0xFF10B981).withOpacity(0.12) : const Color(0xFFEF4444).withOpacity(0.12),
+                                  color: isEnabled ? const Color(0xFF10B981).withValues(alpha: 0.12) : const Color(0xFFEF4444).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -3143,7 +3142,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: originalAssigned ? const Color(0xFF10B981).withOpacity(0.12) : Colors.white10,
+                                  color: originalAssigned ? const Color(0xFF10B981).withValues(alpha: 0.12) : Colors.white10,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -3365,7 +3364,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
-                              color: catColor.withOpacity(0.1),
+                              color: catColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(cat, style: GoogleFonts.dmSans(color: catColor, fontSize: 8, fontWeight: FontWeight.bold)),
@@ -3615,7 +3614,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.02) : const Color(0xFFF8FAFC),
+        color: isDark ? Colors.white.withValues(alpha: 0.02) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListView(
@@ -3797,7 +3796,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   child: Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9),
+                      color: isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: borderColor),
                     ),
@@ -3834,7 +3833,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
           LayoutBuilder(
             builder: (context, constraints) {
               final double containerWidth = constraints.maxWidth - 32;
-              final double baseWidth = 880.0;
+              const double baseWidth = 880.0;
               final double scale = containerWidth > baseWidth ? containerWidth / baseWidth : 1.0;
 
               final double col1 = 110.0 * scale;
@@ -3949,7 +3948,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.12),
+                                  color: statusColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -4135,7 +4134,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   Text('Request Details', style: GoogleFonts.outfit(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: priorityColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: Text(status, style: GoogleFonts.dmSans(color: priorityColor, fontSize: 9, fontWeight: FontWeight.bold)),
                   ),
                 ],
@@ -4146,7 +4145,7 @@ class _ModuleToggleScreenState extends State<ModuleToggleScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.1),
+                      color: accentColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(_getModuleIcon(moduleIcon), color: accentColor, size: 24),
@@ -4399,7 +4398,7 @@ class CategoryDonutPainter extends CustomPainter {
 
     final total = data.values.fold(0, (sum, val) => sum + val);
     if (total == 0) {
-      paint.color = Colors.grey.withOpacity(0.2);
+      paint.color = Colors.grey.withValues(alpha: 0.2);
       canvas.drawCircle(center, radius - strokeWidth / 2, paint);
       return;
     }
@@ -4458,7 +4457,7 @@ class AssignmentSummaryDonutPainter extends CustomPainter {
 
     final total = assigned + newlySelected + notSelected;
     if (total == 0) {
-      paint.color = Colors.grey.withOpacity(0.2);
+      paint.color = Colors.grey.withValues(alpha: 0.2);
       canvas.drawCircle(center, radius - strokeWidth / 2, paint);
       return;
     }

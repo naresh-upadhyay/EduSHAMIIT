@@ -33,14 +33,12 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen>
   bool _isInitializingStreams = false;
   String? _proctorStreamsError;
   RealtimeChannel? _proctorSignalingChannel;
-  final int _pausedSecondsOffset = 0;
   String? _sessionId;
   DateTime? _sessionStartedAt;
   List<dynamic> _proctorLogs = [];
 
   // Timer settings
   late Timer _examTimer;
-  final int _elapsedSeconds = 0;
   int _secondsRemaining = 90 * 60;
   int _baseDurationMinutes = 90;
   late Timer _autoSaveTimer;
@@ -1040,19 +1038,23 @@ class _LiveExamTakingScreenState extends ConsumerState<LiveExamTakingScreen>
               };
             });
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('File uploaded successfully!'),
-                  backgroundColor: Colors.green),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('File uploaded successfully!'),
+                    backgroundColor: Colors.green),
+              );
+            }
           }
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Upload failed: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       setState(() {
         _isUploadingFile = false;

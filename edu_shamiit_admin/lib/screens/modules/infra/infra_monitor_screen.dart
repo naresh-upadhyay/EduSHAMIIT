@@ -1065,8 +1065,9 @@ class _AdminInfraMonitorScreenState extends State<AdminInfraMonitorScreen> {
     
     // Map service name to real clean Docker container name on the host system
     String cmdName = "";
-    if (serviceName.contains("Nginx")) cmdName = "edushamiit-nginx";
-    else if (serviceName.contains("Node")) cmdName = "edushamiit-api";
+    if (serviceName.contains("Nginx")) {
+      cmdName = "edushamiit-nginx";
+    } else if (serviceName.contains("Node")) cmdName = "edushamiit-api";
     else if (serviceName.contains("Postgres")) cmdName = "supabase-db";
     else if (serviceName.contains("Redis")) cmdName = "edushamiit-redis";
     else cmdName = serviceName.toLowerCase().replaceAll(' ', '_');
