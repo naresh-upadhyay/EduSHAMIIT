@@ -1779,6 +1779,464 @@ async def get_route_reports(
     }
 
 
+# ──────────────────────────────────────────────
+# DRIVER DASHBOARD CONSOLE CRUD ENDPOINTS
+# ──────────────────────────────────────────────
+
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+
+require_driver_or_admin = require_any_role("super_admin", "director", "transport_admin", "admin", "driver")
+
+class StartTripRequest(BaseModel):
+    route_id: str  # References transport_routes.id
+    trip_type: str = "pickup"  # "pickup" or "drop"
+
+class StudentStatusUpdate(BaseModel):
+    student_id: str
+    status: str  # "yet_to_pick", "picked", "dropped", "absent"
+    drop_stop_id: Optional[str] = None
+
+class UpdateStudentsStatusRequest(BaseModel):
+    students: List[StudentStatusUpdate]
+
+class UpdateLocationRequest(BaseModel):
+    latitude: float
+    longitude: float
+    speed: Optional[float] = None
+    heading: Optional[float] = None
+    accuracy_m: Optional[float] = None
+    live_status: Optional[str] = None
+    students_on_board: Optional[int] = None
+
+class EmergencyAlertRequest(BaseModel):
+    title: str
+    message: str
+    latitude: float
+    longitude: float
+
+class DeviationAlertRequest(BaseModel):
+    message: str
+    latitude: float
+    longitude: float
+
+class ReorderStopsRequest(BaseModel):
+    stop_ids: List[str]
+
+class UpdateStopEtaRequest(BaseModel):
+    estimated_arrival: str
+
+
+
+@router.get("/driver/routes")
+async def list_driver_routes(user=Depends(require_driver_or_admin)):
+    """List all routes so driver can choose theirs."""
+    sb = get_supabase()
+    school_id = user.get("school_id")
+    
+    q = sb.table("transport_routes").select("*, bus_routes(bus_number, registration_no, vehicle_type, total_capacity, live_status), drivers(name, phone)")
+    if school_id:
+        q = q.eq("school_id", school_id)
+        
+    res = await q.aexecute()
+    return {"success": True, "data": res.data or []}
+
+
+@router.post("/driver/trips/start")
+async def driver_start_trip(payload: StartTripRequest, user=Depends(require_driver_or_admin)):
+    """Start a new trip for a selected route."""
+    sb = get_supabase()
+    school_id = user.get("school_id") or "11111111-1111-1111-1111-111111111111"
+    
+    # 1. Fetch route details
+    route_res = await sb.table("transport_routes").select("*").eq("id", payload.route_id).single().aexecute()
+    route = route_res.data
+    if not route:
+        raise HTTPException(status_code=404, detail="Route not found")
+        
+    vehicle_id = route.get("vehicle_id")
+    if not vehicle_id:
+        raise HTTPException(status_code=400, detail="No vehicle assigned to this route")
+        
+    # 2. Check for existing active (in_progress) trip for this vehicle
+    active_res = await sb.table("vehicle_trips").select("*").eq("route_id", vehicle_id).eq("status", "in_progress").aexecute()
+    active_trips = active_res.data or []
+    if active_trips:
+        return {"success": True, "message": "Resuming active trip", "data": active_trips[0]}
+        
+    # 3. Get students count assigned to this route
+    students_res = await sb.table("student_transport").select("student_id").eq("transport_route_id", payload.route_id).aexecute()
+    students_list = students_res.data or []
+    students_count = len(students_list)
+    
+    # 4. Create new trip
+    trip_id = str(uuid.uuid4())
+    now_str = datetime.utcnow().isoformat()
+    
+    trip_data = {
+        "id": trip_id,
+        "school_id": school_id,
+        "route_id": vehicle_id,  # references bus_routes.id
+        "trip_type": payload.trip_type,
+        "status": "in_progress",
+        "scheduled_start": now_str,
+        "actual_start": now_str,
+        "students_count": students_count,
+        "distance_km": 0.0,
+        "delay_minutes": 0,
+        "incident_count": 0,
+        "notes": f"Trip started for route {route.get('route_name')}",
+    }
+    
+    await sb.table("vehicle_trips").insert(trip_data).aexecute()
+    
+    # Update vehicle's live status
+    await sb.table("bus_routes").update({
+        "live_status": "on_route",
+        "updated_at": now_str
+    }).eq("id", vehicle_id).aexecute()
+    
+    # 5. Initialize trip stop logs
+    stops_res = await sb.table("transport_route_stops").select("id").eq("route_id", payload.route_id).order("stop_order").aexecute()
+    stops = stops_res.data or []
+    stop_logs = []
+    for s in stops:
+        stop_logs.append({
+            "id": str(uuid.uuid4()),
+            "school_id": school_id,
+            "trip_id": trip_id,
+            "stop_id": s["id"],
+            "status": "pending"
+        })
+    if stop_logs:
+        await sb.table("trip_stop_logs").insert(stop_logs).aexecute()
+        
+    # 6. Initialize student trip logs
+    student_logs = []
+    for st in students_list:
+        # Get student's assigned stop
+        st_detail_res = await sb.table("student_transport").select("transport_stop_id").eq("transport_route_id", payload.route_id).eq("student_id", st["student_id"]).single().aexecute()
+        stop_id = st_detail_res.data.get("transport_stop_id") if st_detail_res.data else None
+        
+        student_logs.append({
+            "id": str(uuid.uuid4()),
+            "school_id": school_id,
+            "trip_id": trip_id,
+            "student_id": st["student_id"],
+            "stop_id": stop_id,
+            "status": "yet_to_pick"
+        })
+    if student_logs:
+        await sb.table("student_trip_logs").insert(student_logs).aexecute()
+        
+    return {"success": True, "message": "Trip started successfully", "data": {"id": trip_id}}
+
+
+@router.get("/driver/trips/active")
+async def get_active_trip(user=Depends(require_driver_or_admin)):
+    """Fetch the active trip for the driver (or latest in_progress trip)."""
+    sb = get_supabase()
+    school_id = user.get("school_id")
+    
+    q = sb.table("vehicle_trips").select("*, bus_routes(route_name, bus_number, registration_no, vehicle_type)").eq("status", "in_progress")
+    if school_id:
+        q = q.eq("school_id", school_id)
+        
+    res = await q.aexecute()
+    trips = res.data or []
+    if not trips:
+        return {"success": True, "data": None}
+        
+    # Find the corresponding transport_route_id
+    trip = trips[0]
+    veh_id = trip.get("route_id")
+    route_res = await sb.table("transport_routes").select("id").eq("vehicle_id", veh_id).limit(1).aexecute()
+    route_data = route_res.data or []
+    trip["transport_route_id"] = route_data[0]["id"] if route_data else None
+    
+    return {"success": True, "data": trip}
+
+
+@router.get("/driver/trips/{trip_id}/state")
+async def get_trip_state(trip_id: str, user=Depends(require_driver_or_admin)):
+    """Get the full state of a trip, including stops timeline and student boardings."""
+    sb = get_supabase()
+    
+    # 1. Fetch trip
+    trip_res = await sb.table("vehicle_trips").select("*, bus_routes(*)").eq("id", trip_id).single().aexecute()
+    trip = trip_res.data
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    veh_id = trip.get("route_id")
+    
+    # 2. Fetch corresponding transport route
+    route_res = await sb.table("transport_routes").select("*, drivers(*)").eq("vehicle_id", veh_id).maybe_single().aexecute()
+    route = route_res.data or {}
+    route_id = route.get("id")
+    
+    # 3. Fetch stops and their logs
+    stops = []
+    if route_id:
+        stops_res = await sb.table("transport_route_stops").select("*").eq("route_id", route_id).order("stop_order").aexecute()
+        stops = stops_res.data or []
+        
+        # Merge with trip stop logs
+        stop_logs_res = await sb.table("trip_stop_logs").select("*").eq("trip_id", trip_id).aexecute()
+        logs_map = {l["stop_id"]: l for l in (stop_logs_res.data or [])}
+        
+        for s in stops:
+            s_log = logs_map.get(s["id"]) or {}
+            s["status"] = s_log.get("status", "pending")
+            s["actual_arrival"] = s_log.get("actual_arrival")
+            
+    # 4. Fetch students and their logs
+    students = []
+    if route_id:
+        st_res = await sb.table("student_transport").select("*, profiles(*)").eq("transport_route_id", route_id).aexecute()
+        student_assignments = st_res.data or []
+        
+        # Merge with student trip logs
+        st_logs_res = await sb.table("student_trip_logs").select("*").eq("trip_id", trip_id).aexecute()
+        st_logs_map = {l["student_id"]: l for l in (st_logs_res.data or [])}
+        
+        for sa in student_assignments:
+            p = sa.get("profiles") or {}
+            st_log = st_logs_map.get(sa["student_id"]) or {}
+            students.append({
+                "id": sa["student_id"],
+                "full_name": p.get("full_name"),
+                "class_name": p.get("class"),
+                "roll_number": p.get("roll_number"),
+                "phone": p.get("phone"),
+                "avatar_url": p.get("avatar_url"),
+                "stop_id": sa.get("transport_stop_id"),
+                "seat_no": sa.get("seat_no"),
+                "status": st_log.get("status", "yet_to_pick"),
+                "drop_stop_id": st_log.get("drop_stop_id")
+            })
+            
+    return {
+        "success": True,
+        "data": {
+            "trip": trip,
+            "route": route,
+            "stops": stops,
+            "students": students
+        }
+    }
+
+
+@router.post("/driver/trips/{trip_id}/students/status")
+async def update_students_status(trip_id: str, payload: UpdateStudentsStatusRequest, user=Depends(require_driver_or_admin)):
+    """Update pick/drop/absent statuses for students on a trip."""
+    sb = get_supabase()
+    now_str = datetime.utcnow().isoformat()
+    
+    for s in payload.students:
+        update_data = {
+            "status": s.status,
+            "updated_at": now_str
+        }
+        if s.drop_stop_id:
+            update_data["drop_stop_id"] = s.drop_stop_id
+        elif s.status == "picked": # Clear drop stop if boarding again
+            update_data["drop_stop_id"] = None
+            
+        await sb.table("student_trip_logs").update(update_data).eq("trip_id", trip_id).eq("student_id", s.student_id).aexecute()
+        
+    return {"success": True, "message": "Student statuses updated"}
+
+
+@router.post("/driver/trips/{trip_id}/stops/{stop_id}/complete")
+async def complete_stop(trip_id: str, stop_id: str, user=Depends(require_driver_or_admin)):
+    """Mark a stop as completed during a trip."""
+    sb = get_supabase()
+    now_str = datetime.utcnow().isoformat()
+    
+    # Update stop visit log
+    await sb.table("trip_stop_logs").update({
+        "status": "completed",
+        "actual_arrival": now_str,
+        "updated_at": now_str
+    }).eq("trip_id", trip_id).eq("stop_id", stop_id).aexecute()
+    
+    # Fetch next stop details to update the active trip's current/next stop pointers
+    stop_res = await sb.table("transport_route_stops").select("route_id, stop_order").eq("id", stop_id).single().aexecute()
+    if stop_res.data:
+        route_id = stop_res.data["route_id"]
+        order = stop_res.data["stop_order"]
+        
+        # Get next stop
+        next_res = await sb.table("transport_route_stops").select("stop_name, estimated_arrival").eq("route_id", route_id).eq("stop_order", order + 1).maybe_single().aexecute()
+        if next_res.data:
+            next_name = next_res.data["stop_name"]
+            # Update trip
+            trip_res = await sb.table("vehicle_trips").select("route_id").eq("id", trip_id).single().aexecute()
+            if trip_res.data:
+                veh_id = trip_res.data["route_id"]
+                await sb.table("bus_routes").update({
+                    "next_stop": next_name,
+                    "next_stop_eta": next_res.data.get("estimated_arrival"),
+                    "updated_at": now_str
+                }).eq("id", veh_id).aexecute()
+                
+    return {"success": True, "message": "Stop completed"}
+
+
+@router.post("/driver/trips/{trip_id}/location")
+async def update_trip_location(trip_id: str, payload: UpdateLocationRequest, user=Depends(require_driver_or_admin)):
+    """Push GPS coordinates during a trip."""
+    sb = get_supabase()
+    now_str = datetime.utcnow().isoformat()
+    
+    trip_res = await sb.table("vehicle_trips").select("route_id, school_id").eq("id", trip_id).single().aexecute()
+    trip = trip_res.data
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    veh_id = trip["route_id"]
+    
+    # Insert to bus_locations
+    loc_data = {
+        "id": str(uuid.uuid4()),
+        "school_id": trip["school_id"],
+        "route_id": veh_id,  # bus_routes.id
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "speed": payload.speed,
+        "heading": payload.heading,
+        "accuracy_m": payload.accuracy_m,
+        "recorded_at": now_str
+    }
+    await sb.table("bus_locations").insert(loc_data).aexecute()
+    
+    # Update bus_routes live variables
+    update_data = {}
+    if payload.live_status:
+        update_data["live_status"] = payload.live_status
+    if payload.students_on_board is not None:
+        update_data["students_on_board"] = payload.students_on_board
+        
+    if update_data:
+        update_data["updated_at"] = now_str
+        await sb.table("bus_routes").update(update_data).eq("id", veh_id).aexecute()
+        
+    return {"success": True, "message": "Location and states updated"}
+
+
+@router.post("/driver/trips/{trip_id}/emergency")
+async def raise_emergency(trip_id: str, payload: EmergencyAlertRequest, user=Depends(require_driver_or_admin)):
+    """Raise an emergency alert during a trip."""
+    sb = get_supabase()
+    trip_res = await sb.table("vehicle_trips").select("route_id, school_id").eq("id", trip_id).single().aexecute()
+    trip = trip_res.data
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    veh_id = trip["route_id"]
+    
+    alert_data = {
+        "id": str(uuid.uuid4()),
+        "school_id": trip["school_id"],
+        "route_id": veh_id,
+        "trip_id": trip_id,
+        "alert_type": "Emergency",
+        "severity": "critical",
+        "title": payload.title,
+        "message": payload.message,
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "is_resolved": False
+    }
+    await sb.table("vehicle_live_alerts").insert(alert_data).aexecute()
+    return {"success": True, "message": "Emergency alert raised"}
+
+
+@router.post("/driver/trips/{trip_id}/deviation")
+async def raise_deviation(trip_id: str, payload: DeviationAlertRequest, user=Depends(require_driver_or_admin)):
+    """Raise a route deviation alert."""
+    sb = get_supabase()
+    trip_res = await sb.table("vehicle_trips").select("route_id, school_id").eq("id", trip_id).single().aexecute()
+    trip = trip_res.data
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    veh_id = trip["route_id"]
+    
+    alert_data = {
+        "id": str(uuid.uuid4()),
+        "school_id": trip["school_id"],
+        "route_id": veh_id,
+        "trip_id": trip_id,
+        "alert_type": "Route Deviation",
+        "severity": "warning",
+        "title": "Route Deviation Warning",
+        "message": payload.message,
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "is_resolved": False
+    }
+    await sb.table("vehicle_live_alerts").insert(alert_data).aexecute()
+    return {"success": True, "message": "Route deviation alert raised"}
+
+
+@router.post("/driver/trips/{trip_id}/reorder")
+async def reorder_stops(trip_id: str, payload: ReorderStopsRequest, user=Depends(require_driver_or_admin)):
+    """Reorder stop orders for the active trip (updates stop_order dynamically)."""
+    sb = get_supabase()
+    now_str = datetime.utcnow().isoformat()
+    
+    for idx, sid in enumerate(payload.stop_ids, 1):
+        await sb.table("transport_route_stops").update({
+            "stop_order": idx,
+            "updated_at": now_str
+        }).eq("id", sid).aexecute()
+        
+    return {"success": True, "message": "Stops reordered successfully"}
+
+
+@router.post("/driver/trips/{trip_id}/stops/{stop_id}/eta")
+async def update_stop_eta(trip_id: str, stop_id: str, payload: UpdateStopEtaRequest, user=Depends(require_driver_or_admin)):
+    """Update estimated arrival time for a specific stop."""
+    sb = get_supabase()
+    now_str = datetime.utcnow().isoformat()
+    
+    await sb.table("transport_route_stops").update({
+        "estimated_arrival": payload.estimated_arrival,
+        "updated_at": now_str
+    }).eq("id", stop_id).aexecute()
+    
+    return {"success": True, "message": "Stop ETA updated successfully"}
+
+
+@router.post("/driver/trips/{trip_id}/end")
+async def driver_end_trip(trip_id: str, user=Depends(require_driver_or_admin)):
+    """End the active trip."""
+    sb = get_supabase()
+    now_str = datetime.utcnow().isoformat()
+    
+    # 1. Update trip status to completed
+    await sb.table("vehicle_trips").update({
+        "status": "completed",
+        "actual_end": now_str,
+    }).eq("id", trip_id).aexecute()
+    
+    # 2. Get vehicle id
+    trip_res = await sb.table("vehicle_trips").select("route_id").eq("id", trip_id).single().aexecute()
+    if trip_res.data:
+        veh_id = trip_res.data["route_id"]
+        # Update vehicle's live status to offline/idle
+        await sb.table("bus_routes").update({
+            "live_status": "offline",
+            "students_on_board": 0,
+            "updated_at": now_str
+        }).eq("id", veh_id).aexecute()
+        
+    return {"success": True, "message": "Trip ended successfully"}
+
+
+
 
 
 

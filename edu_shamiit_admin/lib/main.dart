@@ -37,6 +37,13 @@ class EduShamiitAdminApp extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final systemConfig = ref.watch(systemConfigProvider);
 
+    // Global interceptor for 401 Unauthorized API responses
+    ApiService().onUnauthorized = () {
+      Future.microtask(() {
+        ref.read(authProvider.notifier).signOut();
+      });
+    };
+
     Color? customPrimary;
     if (systemConfig != null) {
       try {

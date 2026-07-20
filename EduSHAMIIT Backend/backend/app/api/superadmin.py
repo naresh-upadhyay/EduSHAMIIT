@@ -2549,9 +2549,9 @@ async def global_search(
 # Super Admin Profile Endpoints
 # ===========================================================
 
-@router.get("/my-profile", summary="Fetch current super admin profile, active sessions, and logs")
+@router.get("/my-profile", summary="Fetch current user profile, active sessions, and logs")
 async def get_my_profile(
-    user=Depends(require_super_admin_or_director),
+    user=Depends(get_current_user),
 ):
     sb = get_supabase()
     user_id = user["id"]
@@ -2581,19 +2581,33 @@ async def get_my_profile(
         "logs": logs
     }
 
-@router.post("/my-profile/update", summary="Update super admin profile fields")
+@router.post("/my-profile/update", summary="Update profile fields")
 async def update_my_profile(
     request: dict,
-    user=Depends(require_super_admin_or_director),
+    user=Depends(get_current_user),
 ):
     sb = get_supabase()
     user_id = user["id"]
     
+    dob = request.get("dateOfBirth")
+    if dob and isinstance(dob, str):
+        try:
+            if "/" in dob:
+                parts = dob.split("/")
+                if len(parts) == 3 and len(parts[2]) == 4:
+                    dob = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+        except Exception:
+            pass
+
+    gender = request.get("gender")
+    if gender and gender not in ["Male", "Female", "Other"]:
+        gender = "Other"
+
     update_data = {
         "full_name": request.get("fullName"),
         "phone": request.get("phone"),
-        "gender": request.get("gender"),
-        "date_of_birth": request.get("dateOfBirth"),
+        "gender": gender,
+        "date_of_birth": dob,
         "bio": request.get("bio"),
         "specialization": request.get("language"),
         "address": request.get("timezone"),
@@ -2613,15 +2627,19 @@ async def update_my_profile(
     # Clean nulls
     update_data = {k: v for k, v in update_data.items() if v is not None}
     
-    await sb.table("profiles").update(update_data).eq("id", user_id).aexecute()
+    try:
+        await sb.table("profiles").update(update_data).eq("id", user_id).aexecute()
+    except Exception as e:
+        print(f"Failed to update profile: {e}", flush=True)
+        raise HTTPException(status_code=400, detail=f"Failed to update profile: {e}")
     
     # Log audit event
     try:
         await sb.table("audit_logs").insert({
             "user_id": user_id,
             "user_email": user.get("email"),
-            "user_name": request.get("fullName", "Super Admin"),
-            "user_role": "super_admin",
+            "user_name": request.get("fullName", user.get("email", "User")),
+            "user_role": user.get("role", "user"),
             "event_type": "Update",
             "module": "Profile",
             "action": "Updated profile information",
@@ -2636,7 +2654,7 @@ async def update_my_profile(
 @router.post("/my-profile/two-factor", summary="Toggle 2FA state")
 async def toggle_2fa(
     request: dict,
-    user=Depends(require_super_admin_or_director),
+    user=Depends(get_current_user),
 ):
     sb = get_supabase()
     user_id = user["id"]
@@ -2649,7 +2667,7 @@ async def toggle_2fa(
 @router.post("/my-profile/revoke-session", summary="Revoke a user active session")
 async def revoke_session(
     request: dict,
-    user=Depends(require_super_admin_or_director),
+    user=Depends(get_current_user),
 ):
     sb = get_supabase()
     session_id = request.get("sessionId")

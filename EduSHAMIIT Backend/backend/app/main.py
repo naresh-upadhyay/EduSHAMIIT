@@ -357,6 +357,8 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
+app.add_middleware(AuditLoggingMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex="https?://.*",
@@ -364,8 +366,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(AuditLoggingMiddleware)
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])

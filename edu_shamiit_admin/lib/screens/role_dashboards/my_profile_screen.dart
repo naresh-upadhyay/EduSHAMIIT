@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -99,7 +100,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
           _emailController.text = profileData['email'] ?? '';
           _phoneController.text = profileData['phone'] ?? '';
           _dobController.text = profileData['date_of_birth'] ?? '01/01/1990';
-          _bioController.text = profileData['bio'] ?? 'System administrator with full access to manage all modules, users, and system settings.';
+          _bioController.text = profileData['bio'] ?? (profileData['role'] == 'super_admin' ? 'System administrator with full access to manage all modules, users, and system settings.' : '');
           
           _selectedGender = profileData['gender'] ?? 'Prefer not to say';
           _selectedLanguage = profileData['specialization'] ?? 'English (US)';
@@ -449,7 +450,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
                     });
 
                     try {
-                      final res = await ApiService().post('/shared/user/change-password', {
+                      final res = await ApiService().post('/user/change-password', {
                         'currentPassword': currentPasswordController.text,
                         'newPassword': newPasswordController.text,
                       });
@@ -727,11 +728,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
             // Breadcrumbs Title
             Row(
               children: [
-                Text(
-                  'Dashboard',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                InkWell(
+                  onTap: () => context.go('/admin/dashboard'),
+                  child: Text(
+                    'Dashboard',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
                   ),
                 ),
                 const Icon(Icons.chevron_right_rounded, size: 14, color: Colors.grey),
@@ -853,19 +857,48 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
   }
 
   Widget _buildProfileSummaryCard(bool isDark) {
-    final joiningDate = _profile['joining_date'] != null
-        ? DateFormat('MMM dd, yyyy').format(DateTime.parse(_profile['joining_date']))
-        : 'Jan 01, 2023';
+    final rawRole = _profile['role']?.toString().toLowerCase() ?? 'super_admin';
+    String displayRole = 'User';
+    if (rawRole == 'super_admin') {
+      displayRole = 'Super Administrator';
+    } else if (rawRole == 'director') {
+      displayRole = 'Director';
+    } else if (rawRole == 'driver') {
+      displayRole = 'Bus Driver';
+    } else if (rawRole == 'teacher') {
+      displayRole = 'Teacher';
+    } else if (rawRole == 'student') {
+      displayRole = 'Student';
+    } else if (rawRole == 'transport') {
+      displayRole = 'Transport Manager';
+    } else {
+      displayRole = rawRole.replaceAll('_', ' ').split(' ').map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+    }
 
-    final lastLoginStr = _profile['last_login'];
-    String lastLoginFormatted = '--';
-    if (lastLoginStr != null) {
+    final userIdDisplay = _profile['user_id'] ?? _profile['employee_id'] ?? _profile['roll_number'] ?? (_profile['id'] != null ? _profile['id'].toString().substring(0, 8).toUpperCase() : 'N/A');
+    final departmentDisplay = _profile['department'] ?? (rawRole == 'driver' ? 'Transport Department' : (rawRole == 'super_admin' ? 'System Administration' : 'General'));
+    
+    final joinedOnRaw = _profile['joining_date'] ?? _profile['created_at'];
+    String joinedOnDisplay = 'N/A';
+    if (joinedOnRaw != null) {
       try {
-        lastLoginFormatted = DateFormat('MMM dd, yyyy hh:mm a').format(DateTime.parse(lastLoginStr).toLocal());
+        joinedOnDisplay = DateFormat('MMM dd, yyyy').format(DateTime.parse(joinedOnRaw.toString()).toLocal());
       } catch (_) {
-        lastLoginFormatted = lastLoginStr;
+        joinedOnDisplay = joinedOnRaw.toString();
       }
     }
+
+    final lastLoginStr = _profile['last_login'];
+    String lastLoginFormatted = 'N/A';
+    if (lastLoginStr != null) {
+      try {
+        lastLoginFormatted = DateFormat('MMM dd, yyyy hh:mm a').format(DateTime.parse(lastLoginStr.toString()).toLocal());
+      } catch (_) {
+        lastLoginFormatted = lastLoginStr.toString();
+      }
+    }
+
+    final statusDisplay = _profile['status'] != null ? _profile['status'].toString().toUpperCase() : 'ACTIVE';
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -889,7 +922,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
                     backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
                     child: avatarUrl == null
                         ? Text(
-                            _profile['full_name'] != null ? _profile['full_name'].substring(0, 2).toUpperCase() : 'SA',
+                            _profile['full_name'] != null && _profile['full_name'].toString().isNotEmpty
+                                ? _profile['full_name'].toString().substring(0, math.min(2, _profile['full_name'].toString().length)).toUpperCase()
+                                : 'U',
                             style: GoogleFonts.outfit(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -923,7 +958,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
                     Row(
                       children: [
                         Text(
-                          _profile['full_name'] ?? 'Super Admin',
+                          _profile['full_name'] ?? 'User',
                           style: GoogleFonts.outfit(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -938,7 +973,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'Super Admin',
+                            displayRole,
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -950,7 +985,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _profile['email'] ?? 'superadmin@schoolerp.com',
+                      _profile['email'] ?? '',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: isDark ? Colors.white70 : const Color(0xFF64748B),
@@ -987,12 +1022,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> with SingleTi
           Widget rightSide = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSummaryMetaRow(isDark, Icons.badge_outlined, 'User ID', 'ADM001'),
-              _buildSummaryMetaRow(isDark, Icons.person_outline, 'Role', 'Super Administrator'),
-              _buildSummaryMetaRow(isDark, Icons.domain_outlined, 'Department', 'System Administration'),
-              _buildSummaryMetaRow(isDark, Icons.calendar_today_outlined, 'Joined On', '$joiningDate 10:30 AM'),
+              _buildSummaryMetaRow(isDark, Icons.badge_outlined, 'User ID', userIdDisplay),
+              _buildSummaryMetaRow(isDark, Icons.person_outline, 'Role', displayRole),
+              _buildSummaryMetaRow(isDark, Icons.domain_outlined, 'Department', departmentDisplay),
+              _buildSummaryMetaRow(isDark, Icons.calendar_today_outlined, 'Joined On', joinedOnDisplay),
               _buildSummaryMetaRow(isDark, Icons.history_toggle_off_rounded, 'Last Login', lastLoginFormatted),
-              _buildSummaryMetaRow(isDark, Icons.check_circle_outline_rounded, 'Status', 'Active', isBadge: true),
+              _buildSummaryMetaRow(isDark, Icons.check_circle_outline_rounded, 'Status', statusDisplay, isBadge: true),
             ],
           );
 

@@ -255,12 +255,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final user = authState.userData;
+    final role = user?['role']?.toString().toLowerCase() ?? 'super_admin';
+
     final userName = user?['full_name'] ?? 'System Administrator';
     final isDesktop = Responsive.isDesktop(context);
     final location = GoRouterState.of(context).uri.toString();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final role = user?['role']?.toString().toLowerCase() ?? 'super_admin';
 
     final filteredItems = _sidebarItems.where((item) {
       for (final m in _modules) {

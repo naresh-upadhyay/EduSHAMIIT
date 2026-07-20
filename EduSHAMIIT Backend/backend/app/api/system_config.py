@@ -175,7 +175,7 @@ async def save_system_config(payload: SystemConfigSave, user=Depends(require_sup
 async def upload_system_file(
     file: UploadFile = File(...),
     file_type: str = Query("logo"), # "logo" or "favicon"
-    user=Depends(require_super_admin_or_director)
+    user=Depends(get_current_user)
 ):
     content_type = file.content_type or "application/octet-stream"
     if content_type == "application/octet-stream" or not content_type.startswith("image/"):

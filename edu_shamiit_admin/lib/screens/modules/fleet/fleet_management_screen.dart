@@ -1119,10 +1119,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _maintenanceStatItem('Total Maintenance', '12', _blue),
-              _maintenanceStatItem('Completed', '8 (66.67%)', _green),
-              _maintenanceStatItem('In Progress', '2 (16.67%)', _orange),
-              _maintenanceStatItem('Pending', '2 (16.67%)', _red),
+              Expanded(child: _maintenanceStatItem('Total Maintenance', '12', _blue)),
+              Expanded(child: _maintenanceStatItem('Completed', '8 (66.67%)', _green)),
+              Expanded(child: _maintenanceStatItem('In Progress', '2 (16.67%)', _orange)),
+              Expanded(child: _maintenanceStatItem('Pending', '2 (16.67%)', _red)),
             ],
           ),
           const Spacer(),
@@ -1139,10 +1139,17 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   Widget _maintenanceStatItem(String label, String value, Color color) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(value, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        ),
         const SizedBox(height: 4),
-        Text(label, style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(label, style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
+        ),
       ],
     );
   }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_admin/screens/login_screen.dart';
 import 'package:edu_shamiit_admin/screens/dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/super_admin_dashboard_screen.dart';
+import 'package:edu_shamiit_admin/screens/role_dashboards/driver_dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/my_profile_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
@@ -31,7 +32,11 @@ class RouterNotifier extends ChangeNotifier {
   RouterNotifier(this._ref) {
     _ref.listen<AuthState>(
       authProvider,
-      (_, __) => notifyListeners(),
+      (previous, next) {
+        if (previous?.isAuthenticated != next.isAuthenticated) {
+          notifyListeners();
+        }
+      },
     );
   }
 }
@@ -226,7 +231,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/admin/dashboard',
-            pageBuilder: (_, __) => const NoTransitionPage(child: SuperAdminDashboardScreen()),
+            pageBuilder: (context, state) {
+              final authState = ref.read(authProvider);
+              final role = authState.userData?['role']?.toString().toLowerCase();
+              if (role == 'driver') {
+                return const NoTransitionPage(child: DriverDashboardScreen());
+              }
+              return const NoTransitionPage(child: SuperAdminDashboardScreen());
+            },
           ),
           GoRoute(
             path: '/admin/schools',
