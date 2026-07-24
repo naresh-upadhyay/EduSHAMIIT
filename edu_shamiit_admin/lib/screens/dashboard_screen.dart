@@ -46,10 +46,27 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         route: '/admin/dashboard',
         section: NavSection.overview),
     _NavItem(
+        icon: Icons.calendar_today_rounded,
+        label: 'Timetable',
+        route: '/driver/timetable',
+        section: NavSection.overview),
+    _NavItem(
         icon: Icons.person_outline_rounded,
         label: 'My Profile',
         route: '/admin/my-profile',
         section: NavSection.overview),
+
+    // General console
+    _NavItem(
+        icon: Icons.notifications_active_outlined,
+        label: 'Alerts & Notifications',
+        route: '/admin/alerts-notifications',
+        section: NavSection.general),
+    _NavItem(
+        icon: Icons.shield_outlined,
+        label: 'Emergency',
+        route: '/admin/emergency',
+        section: NavSection.general),
 
     // Organization console
     _NavItem(
@@ -160,11 +177,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         label: 'Vault Secrets',
         route: '/admin/vault',
         section: NavSection.systemDev),
-    _NavItem(
-        icon: Icons.notifications_active_outlined,
-        label: 'Alerts & Notifications',
-        route: '/admin/alerts-notifications',
-        section: NavSection.systemDev),
 
     // Fleet Management
     _NavItem(
@@ -240,7 +252,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     int maxLen = 0;
     for (int i = 0; i < items.length; i++) {
       final route = items[i].route;
-      if (location == route) {
+      if (location == route ||
+          (location == '/driver/dashboard' && route == '/admin/dashboard') ||
+          (location == '/driver/dashboard' && route == '/driver/dashboard') ||
+          (location == '/driver/timetable' && route == '/driver/timetable')) {
         return i;
       }
       if (location.startsWith(route) && route.length > maxLen) {
@@ -291,6 +306,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/insights' ||
                item.route == '/admin/apis' ||
                item.route == '/admin/vault' ||
+               item.route == '/admin/alerts-notifications' ||
+               item.route == '/admin/emergency' ||
+               item.route == '/admin/announcements' ||
                item.route == '/admin/audit-log' ||
                item.route == '/admin/support' ||
                item.route == '/admin/contact-queries' ||
@@ -312,6 +330,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/gate-scanner' ||
                item.route == '/admin/system-control' ||
                item.route == '/admin/alerts-notifications' ||
+               item.route == '/admin/emergency' ||
                item.route == '/admin/announcements' ||
                item.route == '/admin/support' ||
                item.route == '/admin/my-profile' ||
@@ -323,6 +342,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/stops';
       } else if (role == 'transport') {
         return item.route == '/admin/dashboard' ||
+               item.route == '/admin/alerts-notifications' ||
+               item.route == '/admin/emergency' ||
                item.route == '/admin/my-profile' ||
                item.route == '/admin/vehicle-dashboard' ||
                item.route.startsWith('/admin/fleet') ||
@@ -330,8 +351,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                item.route == '/admin/route-management' ||
                item.route == '/admin/trips-schedule' ||
                item.route == '/admin/stops';
+      } else if (role == 'driver') {
+        return item.route == '/admin/dashboard' ||
+               item.route == '/driver/dashboard' ||
+               item.route == '/driver/timetable' ||
+               item.route == '/admin/alerts-notifications' ||
+               item.route == '/admin/emergency' ||
+               item.route == '/admin/my-profile';
       }
-      return item.route == '/admin/dashboard' || item.route == '/admin/my-profile';
+      return item.route == '/admin/dashboard' || item.route == '/admin/alerts-notifications' || item.route == '/admin/emergency' || item.route == '/admin/my-profile';
     }).toList();
 
     if (isDesktop) {
@@ -389,6 +417,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 switch (currentSection) {
                                   case NavSection.overview:
                                     headerText = 'OVERVIEW';
+                                    break;
+                                  case NavSection.general:
+                                    headerText = 'GENERAL';
                                     break;
                                   case NavSection.organization:
                                     headerText = 'ORGANIZATION';
@@ -465,7 +496,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                                 isSelected: isSelected,
                                 isDark: isDark,
                                 showLabels: showLabels,
-                                onTap: () => context.go(item.route),
+                                onTap: () {
+                                  if (role == 'driver' && item.route == '/admin/dashboard') {
+                                    context.go('/driver/dashboard');
+                                  } else {
+                                    context.go(item.route);
+                                  }
+                                },
                               );
 
                               if (header != null) {
@@ -1044,7 +1081,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-enum NavSection { overview, organization, operations, finance, security, systemDev, fleetManagement }
+enum NavSection { overview, general, organization, operations, finance, security, systemDev, fleetManagement }
 
 class _NavItem {
   final IconData icon;

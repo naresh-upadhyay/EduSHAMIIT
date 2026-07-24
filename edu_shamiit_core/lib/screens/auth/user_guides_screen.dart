@@ -13,14 +13,14 @@ class SharedUserGuidesScreen extends StatefulWidget {
   final String? initialArticleId;
 
   const SharedUserGuidesScreen({
-    Key? key,
+    super.key,
     this.systemName,
     this.systemLogo,
     this.illustrationUrl,
     this.videoIllustrationUrl,
     this.initialCategory,
     this.initialArticleId,
-  }) : super(key: key);
+  });
 
   @override
   State<SharedUserGuidesScreen> createState() => _SharedUserGuidesScreenState();
@@ -1019,7 +1019,7 @@ The school instance will transition to the expired status and all user logins wi
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Image.network(
@@ -1036,7 +1036,7 @@ The school instance will transition to the expired status and all user logins wi
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -1182,7 +1182,7 @@ The school instance will transition to the expired status and all user logins wi
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -1199,10 +1199,10 @@ The school instance will transition to the expired status and all user logins wi
           text: TextSpan(
             text: 'User ',
             style: GoogleFonts.outfit(fontSize: 40, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
-            children: [
+            children: const [
               TextSpan(
                 text: 'Guides',
-                style: TextStyle(color: const Color(0xFF6366F1)),
+                style: TextStyle(color: Color(0xFF6366F1)),
               ),
             ],
           ),
@@ -1391,7 +1391,7 @@ The school instance will transition to the expired status and all user logins wi
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : const Color(0xFFF1F5F9),
+                              color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -1408,7 +1408,7 @@ The school instance will transition to the expired status and all user logins wi
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -1417,7 +1417,7 @@ The school instance will transition to the expired status and all user logins wi
         // Help Card
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFEEF2F6).withOpacity(0.4),
+            color: const Color(0xFFEEF2F6).withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
@@ -1428,7 +1428,7 @@ The school instance will transition to the expired status and all user logins wi
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.headset_mic_outlined, color: Color(0xFF6366F1), size: 18),
@@ -1563,7 +1563,7 @@ The school instance will transition to the expired status and all user logins wi
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.01),
+                      color: Colors.black.withValues(alpha: 0.01),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -1668,7 +1668,7 @@ The school instance will transition to the expired status and all user logins wi
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.08),
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
@@ -1782,7 +1782,7 @@ The school instance will transition to the expired status and all user logins wi
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.08),
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(art['icon'], color: const Color(0xFF6366F1), size: 24),
@@ -1911,7 +1911,7 @@ The school instance will transition to the expired status and all user logins wi
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.08),
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -2002,7 +2002,7 @@ The school instance will transition to the expired status and all user logins wi
                     ),
                   );
                 }
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -2014,7 +2014,7 @@ The school instance will transition to the expired status and all user logins wi
     final videoImg = widget.videoIllustrationUrl ?? 'assets/images/video_tutorials_illustration.png';
     return Container(
       width: double.infinity,
-      color: const Color(0xFFEEF2F6).withOpacity(0.6),
+      color: const Color(0xFFEEF2F6).withValues(alpha: 0.6),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Center(
         child: Container(

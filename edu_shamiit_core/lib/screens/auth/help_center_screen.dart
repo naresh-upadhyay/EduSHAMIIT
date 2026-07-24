@@ -10,11 +10,11 @@ class SharedHelpCenterScreen extends StatefulWidget {
   final String? illustrationUrl;
 
   const SharedHelpCenterScreen({
-    Key? key,
+    super.key,
     this.systemName,
     this.systemLogo,
     this.illustrationUrl,
-  }) : super(key: key);
+  });
 
   @override
   State<SharedHelpCenterScreen> createState() => _SharedHelpCenterScreenState();
@@ -57,7 +57,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
     },
     {
       'title': 'Support & Services',
-      'summary': 'Get help from our support team and find additional resources.',
+      'summary':
+          'Get help from our support team and find additional resources.',
       'icon': Icons.support_agent_outlined,
       'category': 'FAQ'
     }
@@ -66,19 +67,22 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
   final List<Map<String, dynamic>> _popularArticles = [
     {
       'title': 'How do I add a new student?',
-      'summary': 'Learn how to add student details, contact information and admission data.',
+      'summary':
+          'Learn how to add student details, contact information and admission data.',
       'category': 'Student Management',
       'article': 'welcome'
     },
     {
       'title': 'How can I manage employee roles and permissions?',
-      'summary': 'Understand user roles, permissions and how to add staff members.',
+      'summary':
+          'Understand user roles, permissions and how to add staff members.',
       'category': 'User Management',
       'article': 'welcome'
     },
     {
       'title': 'How to take attendance in School ERP?',
-      'summary': 'A quick guide to taking daily attendance for students and staff.',
+      'summary':
+          'A quick guide to taking daily attendance for students and staff.',
       'category': 'Attendance Management',
       'article': 'welcome'
     },
@@ -133,8 +137,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
   List<Map<String, dynamic>> _getFilteredArticles() {
     if (_searchQuery.isEmpty) return _popularArticles;
     return _popularArticles.where((art) {
-      return art['title'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          art['summary'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+      return art['title']
+              .toString()
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          art['summary']
+              .toString()
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
     }).toList();
   }
 
@@ -221,13 +231,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Image.network(
                         AppConfig.resolveUrl(logoUrl),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
                           Icons.school_outlined,
                           color: Color(0xFF6366F1),
                           size: 20,
@@ -238,7 +249,7 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -286,10 +297,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Login',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
@@ -298,10 +313,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Get Started', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Get Started',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ] else
               IconButton(
@@ -314,13 +333,15 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
     );
   }
 
-  Widget _buildNavbarLink(String label, VoidCallback onTap, {bool isActive = false}) {
+  Widget _buildNavbarLink(String label, VoidCallback onTap,
+      {bool isActive = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          foregroundColor: isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
+          foregroundColor:
+              isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -384,7 +405,7 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -400,13 +421,17 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
         RichText(
           text: TextSpan(
             text: 'How can we\n',
-            style: GoogleFonts.outfit(fontSize: 40, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A), height: 1.2),
-            children: [
+            style: GoogleFonts.outfit(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF0F172A),
+                height: 1.2),
+            children: const [
               TextSpan(
                 text: 'help you',
-                style: TextStyle(color: const Color(0xFF6366F1)),
+                style: TextStyle(color: Color(0xFF6366F1)),
               ),
-              const TextSpan(
+              TextSpan(
                 text: ' today?',
               ),
             ],
@@ -434,11 +459,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
             },
             decoration: InputDecoration(
               hintText: 'Search for articles, topics or keywords...',
-              hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 18),
+              hintStyle: GoogleFonts.dmSans(
+                  color: const Color(0xFF94A3B8), fontSize: 13),
+              prefixIcon:
+                  const Icon(Icons.search, color: Color(0xFF94A3B8), size: 18),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18, color: Color(0xFF64748B)),
+                      icon: const Icon(Icons.clear,
+                          size: 18, color: Color(0xFF64748B)),
                       onPressed: () {
                         _searchController.clear();
                         setState(() {
@@ -447,7 +475,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                       },
                     )
                   : null,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -458,12 +487,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                borderSide:
+                    const BorderSide(color: Color(0xFF6366F1), width: 1.5),
               ),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
             ),
-            style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF0F172A)),
+            style: GoogleFonts.dmSans(
+                fontSize: 13, color: const Color(0xFF0F172A)),
           ),
         ),
       ],
@@ -471,7 +502,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
   }
 
   Widget _buildHeroRightImage() {
-    final imgUrl = widget.illustrationUrl ?? 'assets/images/help_center_illustration.png';
+    final imgUrl =
+        widget.illustrationUrl ?? 'assets/images/help_center_illustration.png';
     return Center(
       child: Image.asset(
         imgUrl,
@@ -484,7 +516,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
             color: const Color(0xFFEEF2F6),
             borderRadius: BorderRadius.circular(24),
           ),
-          child: const Icon(Icons.live_help_outlined, size: 80, color: Color(0xFF6366F1)),
+          child: const Icon(Icons.live_help_outlined,
+              size: 80, color: Color(0xFF6366F1)),
         ),
       ),
     );
@@ -513,10 +546,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                 children: [
                   Text(
                     'View all topics',
-                    style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF6366F1)),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF6366F1)),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward, size: 14, color: Color(0xFF6366F1)),
+                  const Icon(Icons.arrow_forward,
+                      size: 14, color: Color(0xFF6366F1)),
                 ],
               ),
             ),
@@ -554,7 +591,7 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.08),
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: const Color(0xFF6366F1), size: 24),
@@ -585,16 +622,21 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                   ),
                   const SizedBox(height: 12),
                   InkWell(
-                    onTap: () => context.go('/user-guides?category=${Uri.encodeComponent(category)}'),
+                    onTap: () => context.go(
+                        '/user-guides?category=${Uri.encodeComponent(category)}'),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           'Explore Articles',
-                          style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5)),
+                          style: GoogleFonts.dmSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF4F46E5)),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward, size: 12, color: Color(0xFF4F46E5)),
+                        const Icon(Icons.arrow_forward,
+                            size: 12, color: Color(0xFF4F46E5)),
                       ],
                     ),
                   ),
@@ -623,10 +665,14 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                 children: [
                   Text(
                     'View all articles',
-                    style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF6366F1)),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF6366F1)),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward, size: 14, color: Color(0xFF6366F1)),
+                  const Icon(Icons.arrow_forward,
+                      size: 14, color: Color(0xFF6366F1)),
                 ],
               ),
             ),
@@ -668,20 +714,24 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                   onTap: () {
                     final cat = art['category'] as String;
                     // For welcome articles, route to guides screen
-                    context.go('/user-guides?category=${Uri.encodeComponent(cat)}&article=welcome');
+                    context.go(
+                        '/user-guides?category=${Uri.encodeComponent(cat)}&article=welcome');
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 16),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.08),
+                            color:
+                                const Color(0xFF6366F1).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.description_outlined, color: Color(0xFF6366F1), size: 18),
+                          child: const Icon(Icons.description_outlined,
+                              color: Color(0xFF6366F1), size: 18),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -707,7 +757,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right, color: Color(0xFF94A3B8), size: 20),
+                        const Icon(Icons.chevron_right,
+                            color: Color(0xFF94A3B8), size: 20),
                       ],
                     ),
                   ),
@@ -722,15 +773,18 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF4F46E5),
                 side: const BorderSide(color: Color(0xFFE2E8F0)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'View All Articles',
-                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.dmSans(
+                        fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
                   const Icon(Icons.arrow_forward, size: 14),
@@ -760,7 +814,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.star_outline, color: Color(0xFF6366F1), size: 20),
+                  const Icon(Icons.star_outline,
+                      color: Color(0xFF6366F1), size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Popular Guides',
@@ -778,17 +833,20 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: InkWell(
-                    onTap: () => context.go('/user-guides?category=${Uri.encodeComponent(cat)}'),
+                    onTap: () => context.go(
+                        '/user-guides?category=${Uri.encodeComponent(cat)}'),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.08),
+                            color:
+                                const Color(0xFF6366F1).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.menu_book_outlined, color: Color(0xFF6366F1), size: 16),
+                          child: const Icon(Icons.menu_book_outlined,
+                              color: Color(0xFF6366F1), size: 16),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -818,14 +876,15 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: () => context.go('/user-guides'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF4F46E5),
                   side: const BorderSide(color: Color(0xFFE2E8F0)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   minimumSize: const Size(double.infinity, 44),
                 ),
                 child: Row(
@@ -833,7 +892,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                   children: [
                     Text(
                       'View All Guides',
-                      style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
                     const Icon(Icons.arrow_forward, size: 14),
@@ -858,7 +918,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.contact_support_outlined, color: Color(0xFF16A34A), size: 20),
+                  const Icon(Icons.contact_support_outlined,
+                      color: Color(0xFF16A34A), size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Still Need Help?',
@@ -886,7 +947,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                   backgroundColor: const Color(0xFF16A34A),
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                   elevation: 0,
                 ),
                 child: Row(
@@ -894,7 +956,8 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                   children: [
                     Text(
                       'Contact Support',
-                      style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
                     const Icon(Icons.arrow_forward, size: 14),
@@ -911,9 +974,12 @@ class _SharedHelpCenterScreenState extends State<SharedHelpCenterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildContactSidebarItem(Icons.email_outlined, AppConfig.contactEmail),
-              _buildContactSidebarItem(Icons.phone_outlined, AppConfig.contactPhone),
-              _buildContactSidebarItem(Icons.chat_bubble_outline, 'Live Chat\n${AppConfig.liveChatInfo}'),
+              _buildContactSidebarItem(
+                  Icons.email_outlined, AppConfig.contactEmail),
+              _buildContactSidebarItem(
+                  Icons.phone_outlined, AppConfig.contactPhone),
+              _buildContactSidebarItem(Icons.chat_bubble_outline,
+                  'Live Chat\n${AppConfig.liveChatInfo}'),
             ],
           ),
         ),

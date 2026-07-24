@@ -83,7 +83,8 @@ class _SharedForgotPasswordScreenState
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: Colors.red.shade700,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -96,7 +97,8 @@ class _SharedForgotPasswordScreenState
     final isDesktop = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
-      backgroundColor: isDesktop ? const Color(0xFFF8FAFC) : const Color(0xFF0F1026),
+      backgroundColor:
+          isDesktop ? const Color(0xFFF8FAFC) : const Color(0xFF0F1026),
       body: isDesktop
           ? SingleChildScrollView(
               child: IntrinsicHeight(
@@ -128,7 +130,8 @@ class _SharedForgotPasswordScreenState
               ),
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 480),
                     child: Column(
@@ -143,7 +146,7 @@ class _SharedForgotPasswordScreenState
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
+                                color: Colors.black.withValues(alpha: 0.25),
                                 blurRadius: 25,
                                 offset: const Offset(0, 10),
                               ),
@@ -170,9 +173,9 @@ class _SharedForgotPasswordScreenState
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             ),
             clipBehavior: Clip.antiAlias,
             child: Image.network(
@@ -191,9 +194,9 @@ class _SharedForgotPasswordScreenState
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.12)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             ),
             child: const Icon(
               Icons.shield_outlined,
@@ -248,232 +251,242 @@ class _SharedForgotPasswordScreenState
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Row(
               children: [
-                  if (logoUrl != null && logoUrl.isNotEmpty)
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.network(
-                        AppConfig.resolveUrl(logoUrl),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.shield_outlined,
-                            color: Color(0xFF818CF8),
-                            size: 24,
-                          );
-                        },
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.shield_outlined,
-                        color: Color(0xFF818CF8),
-                        size: 24,
-                      ),
+                if (logoUrl != null && logoUrl.isNotEmpty)
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        'Smart Management. Better Education.',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          color: Colors.white60,
-                        ),
-                      ),
-                    ],
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.network(
+                      AppConfig.resolveUrl(logoUrl),
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.shield_outlined,
+                          color: Color(0xFF818CF8),
+                          size: 24,
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.shield_outlined,
+                      color: Color(0xFF818CF8),
+                      size: 24,
+                    ),
                   ),
-                ],
-              ),
-            ),
-            if (!isMobile) ...[
-              const SizedBox(height: 48),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48),
-                child: Column(
+                const SizedBox(width: 12),
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: GoogleFonts.outfit(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        children: const [
-                          TextSpan(text: 'Secure Your '),
-                          TextSpan(
-                            text: 'Account',
-                            style: TextStyle(color: Color(0xFF818CF8)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Glowing gradient underline accent
-                    Container(
-                      width: 40,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(1.5),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     Text(
-                      "Don't worry! It happens. Reset your password securely and get back to managing everything in one place.",
-                      style: GoogleFonts.dmSans(
-                        fontSize: 14,
+                      name,
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Smart Management. Better Education.',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
                         color: Colors.white60,
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 48),
-              // 3D illustration (dynamic with fallback)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ShaderMask(
-                  shaderCallback: (Rect bounds) {
-                    return RadialGradient(
-                      center: Alignment.center,
-                      radius: 0.7,
-                      colors: [
-                        Colors.black,
-                        Colors.black.withOpacity(0.85),
-                        Colors.transparent,
+              ],
+            ),
+          ),
+          if (!isMobile) ...[
+            const SizedBox(height: 48),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 48),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.outfit(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      children: const [
+                        TextSpan(text: 'Secure Your '),
+                        TextSpan(
+                          text: 'Account',
+                          style: TextStyle(color: Color(0xFF818CF8)),
+                        ),
                       ],
-                      stops: const [0.0, 0.85, 1.0],
-                    ).createShader(bounds);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: Builder(
-                    builder: (context) {
-                      final screenHeight = MediaQuery.of(context).size.height;
-                      final imageHeight = (screenHeight * 0.38).clamp(240.0, 420.0);
-                      final imageUrl = widget.illustrationUrl ?? '';
-                      if (imageUrl.isNotEmpty) {
-                        return Image.network(
-                          AppConfig.resolveUrl(imageUrl),
-                          width: double.infinity,
-                          height: imageHeight,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildFallbackIllustration('assets/images/forgot_password_illustration.png', imageHeight: imageHeight),
-                        );
-                      }
-                      return _buildFallbackIllustration('assets/images/forgot_password_illustration.png', imageHeight: imageHeight);
-                    },
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  // Glowing gradient underline accent
+                  Container(
+                    width: 40,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(1.5),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Don't worry! It happens. Reset your password securely and get back to managing everything in one place.",
+                    style: GoogleFonts.dmSans(
+                      fontSize: 14,
+                      color: Colors.white60,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 48),
+            // 3D illustration (dynamic with fallback)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return RadialGradient(
+                    center: Alignment.center,
+                    radius: 0.7,
+                    colors: [
+                      Colors.black,
+                      Colors.black.withValues(alpha: 0.85),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.85, 1.0],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: Builder(
+                  builder: (context) {
+                    final screenHeight = MediaQuery.of(context).size.height;
+                    final imageHeight =
+                        (screenHeight * 0.38).clamp(240.0, 420.0);
+                    final imageUrl = widget.illustrationUrl ?? '';
+                    if (imageUrl.isNotEmpty) {
+                      return Image.network(
+                        AppConfig.resolveUrl(imageUrl),
+                        width: double.infinity,
+                        height: imageHeight,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildFallbackIllustration(
+                                'assets/images/forgot_password_illustration.png',
+                                imageHeight: imageHeight),
+                      );
+                    }
+                    return _buildFallbackIllustration(
+                        'assets/images/forgot_password_illustration.png',
+                        imageHeight: imageHeight);
+                  },
                 ),
               ),
-              const SizedBox(height: 48),
-              // Feature grid & bottom banner
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            ),
+            const SizedBox(height: 48),
+            // Feature grid & bottom banner
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 48),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: _buildFeatureIcon(
+                            Icons.lock_outline, 'Secure\nAccess'),
+                      ),
+                      Expanded(
+                        child: _buildFeatureIcon(
+                            Icons.shield_outlined, 'Data\nProtection'),
+                      ),
+                      Expanded(
+                        child: _buildFeatureIcon(
+                            Icons.restore_outlined, 'Quick\nRecovery'),
+                      ),
+                      Expanded(
+                        child: _buildFeatureIcon(
+                            Icons.sentiment_satisfied_alt_outlined,
+                            'Peace of\nMind'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  // Bottom trusted banner
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: _buildFeatureIcon(Icons.lock_outline, 'Secure\nAccess'),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.shield_outlined,
+                            color: Color(0xFF818CF8),
+                            size: 20,
+                          ),
                         ),
+                        const SizedBox(width: 16),
                         Expanded(
-                          child: _buildFeatureIcon(Icons.shield_outlined, 'Data\nProtection'),
-                        ),
-                        Expanded(
-                          child: _buildFeatureIcon(Icons.restore_outlined, 'Quick\nRecovery'),
-                        ),
-                        Expanded(
-                          child: _buildFeatureIcon(Icons.sentiment_satisfied_alt_outlined, 'Peace of\nMind'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Secure & Trusted Platform',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Your data is protected with enterprise-grade security and privacy.',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  color: Colors.white60,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
-                    // Bottom trusted banner
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.08),
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.shield_outlined,
-                              color: Color(0xFF818CF8),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Secure & Trusted Platform',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Your data is protected with enterprise-grade security and privacy.',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 11,
-                                    color: Colors.white60,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ],
-        ),
+        ],
+      ),
     );
   }
 
@@ -483,7 +496,7 @@ class _SharedForgotPasswordScreenState
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -523,7 +536,8 @@ class _SharedForgotPasswordScreenState
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
@@ -531,7 +545,8 @@ class _SharedForgotPasswordScreenState
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.language_outlined, size: 14, color: Colors.black54),
+                        const Icon(Icons.language_outlined,
+                            size: 14, color: Colors.black54),
                         const SizedBox(width: 6),
                         Text(
                           'English',
@@ -542,7 +557,8 @@ class _SharedForgotPasswordScreenState
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black54),
+                        const Icon(Icons.keyboard_arrow_down,
+                            size: 14, color: Colors.black54),
                       ],
                     ),
                   ),
@@ -571,7 +587,7 @@ class _SharedForgotPasswordScreenState
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 24,
                       spreadRadius: 4,
                     ),
@@ -637,27 +653,35 @@ class _SharedForgotPasswordScreenState
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _emailController,
-                        style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A)),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, color: const Color(0xFF0F172A)),
                         decoration: InputDecoration(
                           hintText: 'Enter your registered email address',
-                          hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
-                          prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF94A3B8), size: 18),
+                          hintStyle: GoogleFonts.dmSans(
+                              color: const Color(0xFF94A3B8), fontSize: 13),
+                          prefixIcon: const Icon(Icons.email_outlined,
+                              color: Color(0xFF94A3B8), size: 18),
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF6366F1), width: 1.5),
                           ),
-                          errorStyle: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          errorStyle: const TextStyle(
+                              color: Color(0xFFFF5252), fontSize: 11),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -679,7 +703,8 @@ class _SharedForgotPasswordScreenState
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                                  valueColor:
+                                      AlwaysStoppedAnimation(Colors.white),
                                 ),
                               )
                             : const Icon(Icons.mail_outline, size: 16),
@@ -702,14 +727,15 @@ class _SharedForgotPasswordScreenState
                       ),
                       const SizedBox(height: 20),
                       // Divider
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 12),
                             child: Text(
                               'or',
-                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                              style: TextStyle(
+                                  color: Color(0xFF94A3B8), fontSize: 12),
                             ),
                           ),
                           Expanded(child: Divider(color: Color(0xFFE2E8F0))),
@@ -793,11 +819,11 @@ class _SharedForgotPasswordScreenState
                       fontSize: 12,
                       color: const Color(0xFF64748B),
                     ),
-                    children: [
-                      const TextSpan(text: 'Still having trouble? '),
+                    children: const [
+                      TextSpan(text: 'Still having trouble? '),
                       TextSpan(
                         text: 'Contact your administrator',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Color(0xFF4F46E5),
                           fontWeight: FontWeight.bold,
                         ),
@@ -832,7 +858,8 @@ class _SharedForgotPasswordScreenState
     );
   }
 
-  Widget _buildFallbackIllustration(String defaultUrl, {required double imageHeight}) {
+  Widget _buildFallbackIllustration(String defaultUrl,
+      {required double imageHeight}) {
     final isAsset = defaultUrl.startsWith('assets/');
     return Container(
       width: double.infinity,
@@ -851,7 +878,7 @@ class _SharedForgotPasswordScreenState
                   width: double.infinity,
                   height: imageHeight,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Center(
@@ -874,7 +901,7 @@ class _SharedForgotPasswordScreenState
                   width: double.infinity,
                   height: imageHeight,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Center(

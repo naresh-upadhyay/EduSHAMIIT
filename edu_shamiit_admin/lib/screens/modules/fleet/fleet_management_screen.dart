@@ -3547,6 +3547,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -4553,6 +4555,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -4714,6 +4718,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -4907,6 +4913,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               content: SizedBox(
                 width: 600,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -5157,6 +5165,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               content: SizedBox(
                 width: 600,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -5425,6 +5435,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -5573,6 +5585,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(

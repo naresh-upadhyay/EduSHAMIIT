@@ -533,7 +533,26 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
-    String? selectedRouteId = existing?['route_id']?.toString() ?? (_routes.isNotEmpty ? _routes[0]['id'].toString() : null);
+    String? selectedRouteId;
+    if (_routes.isNotEmpty) {
+      if (existing != null) {
+        final rawRouteId = existing['route_id']?.toString();
+        final routeName = (existing['route_name'] ?? existing['transport_routes']?['route_name'] ?? '').toString().trim();
+
+        if (rawRouteId != null && _routes.any((r) => r['id']?.toString() == rawRouteId)) {
+          selectedRouteId = rawRouteId;
+        } else if (routeName.isNotEmpty) {
+          final matchByName = _routes.firstWhere(
+            (r) => (r['route_name'] ?? '').toString().trim().toLowerCase() == routeName.toLowerCase(),
+            orElse: () => null,
+          );
+          if (matchByName != null) {
+            selectedRouteId = matchByName['id']?.toString();
+          }
+        }
+      }
+      selectedRouteId ??= _routes[0]['id']?.toString();
+    }
     final nameController = TextEditingController(text: existing?['stop_name'] ?? '');
     final codeController = TextEditingController(text: existing?['stop_code'] ?? '');
     final latController = TextEditingController(text: (existing?['latitude'] ?? 28.62).toString());
@@ -557,6 +576,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -2484,6 +2505,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       Expanded(
                         flex: 4,
                         child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: 10, bottom: 4),
+                          clipBehavior: Clip.none,
                           child: Column(
                             children: [
                               TextFormField(
@@ -3027,7 +3050,50 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
-    String? selectedRouteId = existing?['route_id']?.toString() ?? (_routes.isNotEmpty ? _routes[0]['id'].toString() : null);
+    String? selectedRouteId;
+    if (_routes.isNotEmpty) {
+      if (existing != null) {
+        final rawRouteId = existing['route_id']?.toString();
+        final rawTransportRouteId = existing['transport_route_id']?.toString() ?? existing['transport_routes']?['id']?.toString();
+        final routeName = (existing['transport_routes']?['route_name'] ?? existing['route_name'] ?? '').toString().trim();
+
+        if (rawRouteId != null && _routes.any((r) => r['id']?.toString() == rawRouteId)) {
+          selectedRouteId = rawRouteId;
+        } else if (rawTransportRouteId != null && _routes.any((r) => r['id']?.toString() == rawTransportRouteId)) {
+          selectedRouteId = rawTransportRouteId;
+        } else if (routeName.isNotEmpty) {
+          final matchByName = _routes.firstWhere(
+            (r) => (r['route_name'] ?? '').toString().trim().toLowerCase() == routeName.toLowerCase(),
+            orElse: () => null,
+          );
+          if (matchByName != null) {
+            selectedRouteId = matchByName['id']?.toString();
+          } else {
+            final matchPartial = _routes.firstWhere(
+              (r) {
+                final rName = (r['route_name'] ?? '').toString().trim().toLowerCase();
+                return rName.isNotEmpty && (rName.contains(routeName.toLowerCase()) || routeName.toLowerCase().contains(rName));
+              },
+              orElse: () => null,
+            );
+            if (matchPartial != null) {
+              selectedRouteId = matchPartial['id']?.toString();
+            }
+          }
+        }
+        if (selectedRouteId == null && rawRouteId != null) {
+          final matchByVehicle = _routes.firstWhere(
+            (r) => r['vehicle_id']?.toString() == rawRouteId || r['bus_id']?.toString() == rawRouteId,
+            orElse: () => null,
+          );
+          if (matchByVehicle != null) {
+            selectedRouteId = matchByVehicle['id']?.toString();
+          }
+        }
+      }
+      selectedRouteId ??= _routes[0]['id']?.toString();
+    }
+
     String tripType = existing?['trip_type'] ?? 'Pickup';
     final dateController = TextEditingController(text: existing?['trip_date'] ?? '2024-05-01');
     final startTimeController = TextEditingController(text: existing?['start_time'] ?? '06:30:00');
@@ -3048,6 +3114,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(

@@ -4364,6 +4364,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 child: Form(
                   key: formKey,
                   child: ListView(
+                    padding: const EdgeInsets.only(top: 10, bottom: 6),
+                    clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
@@ -5259,6 +5261,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 child: Form(
                   key: formKey,
                   child: ListView(
+                    padding: const EdgeInsets.only(top: 10, bottom: 6),
+                    clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
@@ -5552,6 +5556,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 child: Form(
                   key: formKey,
                   child: ListView(
+                    padding: const EdgeInsets.only(top: 10, bottom: 6),
+                    clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
@@ -5903,6 +5909,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 child: Form(
                   key: formKey,
                   child: ListView(
+                    padding: const EdgeInsets.only(top: 10, bottom: 6),
+                    clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
@@ -6161,6 +6169,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 child: Form(
                   key: formKey,
                   child: ListView(
+                    padding: const EdgeInsets.only(top: 10, bottom: 6),
+                    clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
                       DropdownButtonFormField<String>(
@@ -6412,6 +6422,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                 child: Form(
                   key: formKey,
                   child: ListView(
+                    padding: const EdgeInsets.only(top: 10, bottom: 6),
+                    clipBehavior: Clip.none,
                     children: [
                       Row(
                         children: [

@@ -10,10 +10,10 @@ class SharedHomeScreen extends StatefulWidget {
   final String? systemLogo;
 
   const SharedHomeScreen({
-    Key? key,
+    super.key,
     this.systemName,
     this.systemLogo,
-  }) : super(key: key);
+  });
 
   @override
   State<SharedHomeScreen> createState() => _SharedHomeScreenState();
@@ -81,25 +81,27 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
         preferredSize: const Size.fromHeight(70),
         child: _buildNavbar(showDesktopNavbar, name),
       ),
-      drawer: showDesktopNavbar ? null : PublicDrawer(
-        systemName: name,
-        systemLogo: widget.systemLogo,
-        onScrollToSection: (section) {
-          if (section == 'Home') {
-            _scrollToSection(_homeKey);
-          } else if (section == 'Features') {
-            _scrollToSection(_featuresKey);
-          } else if (section == 'Modules') {
-            _scrollToSection(_modulesKey);
-          } else if (section == 'Benefits') {
-            _scrollToSection(_benefitsKey);
-          } else if (section == 'Pricing') {
-            _scrollToSection(_pricingKey);
-          } else if (section == 'About Us') {
-            _scrollToSection(_aboutKey);
-          }
-        },
-      ),
+      drawer: showDesktopNavbar
+          ? null
+          : PublicDrawer(
+              systemName: name,
+              systemLogo: widget.systemLogo,
+              onScrollToSection: (section) {
+                if (section == 'Home') {
+                  _scrollToSection(_homeKey);
+                } else if (section == 'Features') {
+                  _scrollToSection(_featuresKey);
+                } else if (section == 'Modules') {
+                  _scrollToSection(_modulesKey);
+                } else if (section == 'Benefits') {
+                  _scrollToSection(_benefitsKey);
+                } else if (section == 'Pricing') {
+                  _scrollToSection(_pricingKey);
+                } else if (section == 'About Us') {
+                  _scrollToSection(_aboutKey);
+                }
+              },
+            ),
       body: SingleChildScrollView(
         controller: _scrollController,
         child: Column(
@@ -139,11 +141,13 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
     final logoUrl = widget.systemLogo;
     return Container(
       decoration: BoxDecoration(
-        color: _isNavbarSticky ? Colors.white.withOpacity(0.95) : Colors.white,
+        color: _isNavbarSticky
+            ? Colors.white.withValues(alpha: 0.95)
+            : Colors.white,
         boxShadow: _isNavbarSticky
             ? [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 )
@@ -151,7 +155,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
             : null,
         border: Border(
           bottom: BorderSide(
-            color: const Color(0xFFE2E8F0).withOpacity(_isNavbarSticky ? 0.0 : 1.0),
+            color: const Color(0xFFE2E8F0)
+                .withValues(alpha: _isNavbarSticky ? 0.0 : 1.0),
           ),
         ),
       ),
@@ -169,13 +174,14 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Image.network(
                         AppConfig.resolveUrl(logoUrl),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
                           Icons.school_outlined,
                           color: Color(0xFF6366F1),
                           size: 20,
@@ -186,7 +192,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -225,9 +231,11 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
             // Desktop Links
             if (showDesktopNavbar) ...[
               _buildNavbarLink('Home', () => _scrollToSection(_homeKey)),
-              _buildNavbarLink('Features', () => _scrollToSection(_featuresKey)),
+              _buildNavbarLink(
+                  'Features', () => _scrollToSection(_featuresKey)),
               _buildNavbarLink('Modules', () => _scrollToSection(_modulesKey)),
-              _buildNavbarLink('Benefits', () => _scrollToSection(_benefitsKey)),
+              _buildNavbarLink(
+                  'Benefits', () => _scrollToSection(_benefitsKey)),
               _buildNavbarLink('Pricing', () => _scrollToSection(_pricingKey)),
               _buildNavbarLink('About Us', () => _scrollToSection(_aboutKey)),
               _buildNavbarLink('Contact Us', () => context.go('/contact')),
@@ -237,10 +245,14 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Login',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
@@ -249,10 +261,14 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                   backgroundColor: const Color(0xFF4F46E5),
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Get Started', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Get Started',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ] else
               Builder(
@@ -311,7 +327,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFFE0E7FF),
                         borderRadius: BorderRadius.circular(20),
@@ -365,7 +382,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                             backgroundColor: const Color(0xFF4F46E5),
                             foregroundColor: Colors.white,
                             minimumSize: const Size(140, 48),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                           child: const Text('Request Demo'),
                         ),
@@ -377,7 +395,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                             foregroundColor: const Color(0xFF4F46E5),
                             side: const BorderSide(color: Color(0xFFE2E8F0)),
                             minimumSize: const Size(160, 48),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                         ),
                       ],
@@ -388,9 +407,12 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                       spacing: 24,
                       runSpacing: 16,
                       children: [
-                        _buildHeroHighlight(Icons.verified_user_outlined, 'Secure & Reliable', 'Enterprise-grade security'),
-                        _buildHeroHighlight(Icons.thumb_up_alt_outlined, 'Easy to Use', 'Intuitive & user-friendly'),
-                        _buildHeroHighlight(Icons.support_agent_outlined, '24/7 Support', 'We\'re here to help'),
+                        _buildHeroHighlight(Icons.verified_user_outlined,
+                            'Secure & Reliable', 'Enterprise-grade security'),
+                        _buildHeroHighlight(Icons.thumb_up_alt_outlined,
+                            'Easy to Use', 'Intuitive & user-friendly'),
+                        _buildHeroHighlight(Icons.support_agent_outlined,
+                            '24/7 Support', 'We\'re here to help'),
                       ],
                     ),
                   ],
@@ -410,7 +432,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Center(
-                        child: Icon(Icons.laptop, size: 80, color: Color(0xFF818CF8)),
+                        child: Icon(Icons.laptop,
+                            size: 80, color: Color(0xFF818CF8)),
                       ),
                     ),
                   ),
@@ -447,7 +470,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: const Color(0xFF6366F1), size: 18),
@@ -569,7 +592,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Center(
-            child: Icon(Icons.analytics_outlined, color: Color(0xFF4F46E5), size: 20),
+            child: Icon(Icons.analytics_outlined,
+                color: Color(0xFF4F46E5), size: 20),
           ),
         ),
         const SizedBox(width: 16),
@@ -634,12 +658,26 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
             crossAxisSpacing: 24,
             childAspectRatio: isDesktop ? 1.5 : 1.8,
             children: [
-              _buildModuleCard(Icons.people_outline, 'Student Management', 'Manage student information, admissions, documents, and profiles easily.'),
-              _buildModuleCard(Icons.how_to_reg_outlined, 'Attendance Management', 'Track attendance in real-time with advanced analytics and reports.'),
-              _buildModuleCard(Icons.assignment_outlined, 'Examination Management', 'Create exams, assign grades, and generate result reports effortlessly.'),
-              _buildModuleCard(Icons.receipt_long_outlined, 'Fee Management', 'Automate fee collection, invoices, discounts and payment tracking.'),
-              _buildModuleCard(Icons.directions_bus_outlined, 'Transport Management', 'Manage routes, vehicles, drivers and student transport details.'),
-              _buildModuleCard(Icons.local_library_outlined, 'Library Management', 'Organize books, issue/return logs, fines and maintain library inventory.'),
+              _buildModuleCard(Icons.people_outline, 'Student Management',
+                  'Manage student information, admissions, documents, and profiles easily.'),
+              _buildModuleCard(
+                  Icons.how_to_reg_outlined,
+                  'Attendance Management',
+                  'Track attendance in real-time with advanced analytics and reports.'),
+              _buildModuleCard(
+                  Icons.assignment_outlined,
+                  'Examination Management',
+                  'Create exams, assign grades, and generate result reports effortlessly.'),
+              _buildModuleCard(Icons.receipt_long_outlined, 'Fee Management',
+                  'Automate fee collection, invoices, discounts and payment tracking.'),
+              _buildModuleCard(
+                  Icons.directions_bus_outlined,
+                  'Transport Management',
+                  'Manage routes, vehicles, drivers and student transport details.'),
+              _buildModuleCard(
+                  Icons.local_library_outlined,
+                  'Library Management',
+                  'Organize books, issue/return logs, fines and maintain library inventory.'),
             ],
           ),
           const SizedBox(height: 40),
@@ -649,7 +687,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
               backgroundColor: const Color(0xFF4F46E5),
               foregroundColor: Colors.white,
               minimumSize: const Size(180, 48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('View All Modules'),
           ),
@@ -667,7 +706,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: Colors.black.withValues(alpha: 0.01),
             blurRadius: 8,
             offset: const Offset(0, 4),
           )
@@ -679,7 +718,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.08),
+              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
@@ -716,7 +755,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(Icons.arrow_forward, size: 10, color: Color(0xFF4F46E5)),
+              const Icon(Icons.arrow_forward,
+                  size: 10, color: Color(0xFF4F46E5)),
             ],
           ),
         ],
@@ -747,7 +787,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Center(
-                    child: Icon(Icons.business_outlined, size: 64, color: Color(0xFF94A3B8)),
+                    child: Icon(Icons.business_outlined,
+                        size: 64, color: Color(0xFF94A3B8)),
                   ),
                 ),
               ),
@@ -770,12 +811,22 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                   spacing: 24,
                   runSpacing: 20,
                   children: [
-                    _buildBenefitItem('Centralized Data', 'All your data in one place, accessible anytime.', isDesktop),
-                    _buildBenefitItem('Save Time & Effort', 'Automate tasks and reduce paperwork.', isDesktop),
-                    _buildBenefitItem('Better Communication', 'Connect students, parents and staff seamlessly.', isDesktop),
-                    _buildBenefitItem('Insightful Reports', 'Make data-driven decisions with reports.', isDesktop),
-                    _buildBenefitItem('Scalable Solution', 'Designed to grow with your institution.', isDesktop),
-                    _buildBenefitItem('Secure & Compliant', 'Your data is always safe with us.', isDesktop),
+                    _buildBenefitItem(
+                        'Centralized Data',
+                        'All your data in one place, accessible anytime.',
+                        isDesktop),
+                    _buildBenefitItem('Save Time & Effort',
+                        'Automate tasks and reduce paperwork.', isDesktop),
+                    _buildBenefitItem(
+                        'Better Communication',
+                        'Connect students, parents and staff seamlessly.',
+                        isDesktop),
+                    _buildBenefitItem('Insightful Reports',
+                        'Make data-driven decisions with reports.', isDesktop),
+                    _buildBenefitItem('Scalable Solution',
+                        'Designed to grow with your institution.', isDesktop),
+                    _buildBenefitItem('Secure & Compliant',
+                        'Your data is always safe with us.', isDesktop),
                   ],
                 ),
               ],
@@ -891,7 +942,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: List.generate(5, (_) => const Icon(Icons.star, color: Colors.amber, size: 14)),
+            children: List.generate(5,
+                (_) => const Icon(Icons.star, color: Colors.amber, size: 14)),
           ),
           const SizedBox(height: 16),
           Text(
@@ -907,11 +959,14 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: const Color(0xFF6366F1).withOpacity(0.1),
+                backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.1),
                 radius: 18,
                 child: Text(
                   name[0],
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4F46E5), fontSize: 13),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4F46E5),
+                      fontSize: 13),
                 ),
               ),
               const SizedBox(width: 12),
@@ -976,7 +1031,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                         'Join hundreds of schools that trust School ERP to simplify their operations.',
                         style: GoogleFonts.dmSans(
                           fontSize: 13,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
                     ],
@@ -989,7 +1044,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF4F46E5),
                     minimumSize: const Size(140, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text('Request Demo'),
                 ),
@@ -1000,7 +1056,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white),
                     minimumSize: const Size(150, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text('Get Started Now'),
                 ),
@@ -1023,7 +1080,7 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                   'Join hundreds of schools that trust School ERP to simplify their operations.',
                   style: GoogleFonts.dmSans(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -1034,7 +1091,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF4F46E5),
                     minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text('Request Demo'),
                 ),
@@ -1045,7 +1103,8 @@ class _SharedHomeScreenState extends State<SharedHomeScreen> {
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white),
                     minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text('Get Started Now'),
                 ),

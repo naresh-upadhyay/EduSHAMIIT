@@ -2005,6 +2005,8 @@ class _SchoolFormDialogState extends State<SchoolFormDialog> {
       content: SizedBox(
         width: 700,
         child: SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          clipBehavior: Clip.none,
           child: Form(
             key: _formKey,
             child: Column(
@@ -2798,6 +2800,8 @@ class _MailConfigDialogState extends State<MailConfigDialog> {
       content: SizedBox(
         width: 500,
         child: SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          clipBehavior: Clip.none,
           child: Form(
             key: _formKey,
             child: Column(
@@ -3245,6 +3249,8 @@ class _PlanFormDialogState extends State<PlanFormDialog> {
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          clipBehavior: Clip.none,
           child: Form(
             key: _formKey,
             child: Column(

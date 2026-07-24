@@ -5,6 +5,7 @@ import 'package:edu_shamiit_admin/screens/login_screen.dart';
 import 'package:edu_shamiit_admin/screens/dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/super_admin_dashboard_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/driver_dashboard_screen.dart';
+import 'package:edu_shamiit_admin/screens/role_dashboards/driver_timetable_screen.dart';
 import 'package:edu_shamiit_admin/screens/role_dashboards/my_profile_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/schools/schools_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/users/users_screen.dart';
@@ -20,6 +21,7 @@ import 'package:edu_shamiit_admin/screens/tabs/support_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/tickets/contact_queries_screen.dart';
 import 'package:edu_shamiit_admin/screens/tabs/system_control_tab.dart';
 import 'package:edu_shamiit_admin/screens/modules/quick_access/quick_access_screens.dart';
+import 'package:edu_shamiit_admin/screens/modules/quick_access/emergency_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/driver_management_screen.dart';
 import 'package:edu_shamiit_admin/screens/modules/fleet/route_management_screen.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
@@ -69,6 +71,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
       if (loggedIn && isPublic) {
+        final role = authState.userData?['role']?.toString().toLowerCase();
+        if (role == 'driver') {
+          return '/driver/dashboard';
+        }
         return '/admin/dashboard';
       }
       return null;
@@ -223,12 +229,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        redirect: (_, __) => '/admin/dashboard',
+        redirect: (context, state) {
+          final authState = ref.read(authProvider);
+          final role = authState.userData?['role']?.toString().toLowerCase();
+          if (role == 'driver') {
+            return '/driver/dashboard';
+          }
+          return '/admin/dashboard';
+        },
       ),
       ShellRoute(
         navigatorKey: adminShellKey,
         builder: (context, state, child) => AdminDashboardScreen(child: child),
         routes: [
+          GoRoute(
+            path: '/driver/dashboard',
+            pageBuilder: (_, __) => const NoTransitionPage(child: DriverDashboardScreen()),
+          ),
+          GoRoute(
+            path: '/driver/timetable',
+            pageBuilder: (_, __) => const NoTransitionPage(child: DriverTimetableScreen()),
+          ),
           GoRoute(
             path: '/admin/dashboard',
             pageBuilder: (context, state) {
@@ -335,6 +356,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/alerts-notifications',
             pageBuilder: (_, __) => const NoTransitionPage(child: AlertsNotificationsScreen()),
+          ),
+          GoRoute(
+            path: '/admin/emergency',
+            pageBuilder: (_, __) => const NoTransitionPage(child: EmergencyScreen()),
           ),
 
 

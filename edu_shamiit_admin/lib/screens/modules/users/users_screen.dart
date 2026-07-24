@@ -2203,6 +2203,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               content: SizedBox(
                 width: (450.0 < MediaQuery.of(context).size.width - 48) ? 450.0 : MediaQuery.of(context).size.width - 48,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -2342,6 +2344,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           content: SizedBox(
             width: (450.0 < MediaQuery.of(context).size.width - 48) ? 450.0 : MediaQuery.of(context).size.width - 48,
             child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 10, bottom: 4),
+              clipBehavior: Clip.none,
               child: Form(
                 key: formKey,
                 child: Column(
@@ -2558,6 +2562,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               content: SizedBox(
                 width: (500.0 < MediaQuery.of(context).size.width - 48) ? 500.0 : MediaQuery.of(context).size.width - 48,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -2977,6 +2983,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               content: SizedBox(
                 width: 450,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -3230,6 +3238,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               content: SizedBox(
                 width: 450,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Form(
                     key: formKey,
                     child: Column(

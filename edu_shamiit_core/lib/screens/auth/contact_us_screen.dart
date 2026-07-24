@@ -12,11 +12,11 @@ class SharedContactUsScreen extends StatefulWidget {
   final String? illustrationUrl;
 
   const SharedContactUsScreen({
-    Key? key,
+    super.key,
     this.systemName,
     this.systemLogo,
     this.illustrationUrl,
-  }) : super(key: key);
+  });
 
   @override
   State<SharedContactUsScreen> createState() => _SharedContactUsScreenState();
@@ -92,7 +92,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
           _selectedSubject = 'General Inquiry';
         });
       } else {
-        _showSnackBar(data['detail'] ?? 'Failed to send query. Try again.', Colors.red);
+        _showSnackBar(
+            data['detail'] ?? 'Failed to send query. Try again.', Colors.red);
       }
     } catch (e) {
       if (!mounted) return;
@@ -109,7 +110,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
   void _showSnackBar(String message, Color backgroundColor) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
+        content:
+            Text(message, style: const TextStyle(fontWeight: FontWeight.w600)),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -128,10 +130,12 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
         preferredSize: const Size.fromHeight(70),
         child: _buildNavbar(isDesktop, name),
       ),
-      drawer: isDesktop ? null : PublicDrawer(
-        systemName: name,
-        systemLogo: widget.systemLogo,
-      ),
+      drawer: isDesktop
+          ? null
+          : PublicDrawer(
+              systemName: name,
+              systemLogo: widget.systemLogo,
+            ),
       body: isDesktop
           ? SingleChildScrollView(
               child: Container(
@@ -172,7 +176,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
               ),
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 480),
                     child: Column(
@@ -186,7 +191,7 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.25),
+                                color: Colors.black.withValues(alpha: 0.25),
                                 blurRadius: 25,
                                 offset: const Offset(0, 10),
                               ),
@@ -229,13 +234,14 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Image.network(
                         AppConfig.resolveUrl(logoUrl),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
                           Icons.school_outlined,
                           color: Color(0xFF6366F1),
                           size: 20,
@@ -246,7 +252,7 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -289,10 +295,14 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Login',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ] else
               Builder(
@@ -314,7 +324,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          foregroundColor: isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
+          foregroundColor:
+              isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
         ),
         child: Text(
           label,
@@ -403,7 +414,7 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                   errorBuilder: (context, error, stackTrace) => Container(
                     height: imageHeight,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Center(
@@ -468,14 +479,15 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
     );
   }
 
-  Widget _buildContactInfoRow(IconData icon, String title, String value, String desc) {
+  Widget _buildContactInfoRow(
+      IconData icon, String title, String value, String desc) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 20),
@@ -531,7 +543,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
@@ -539,7 +552,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.language_outlined, size: 14, color: Colors.black54),
+                          const Icon(Icons.language_outlined,
+                              size: 14, color: Colors.black54),
                           const SizedBox(width: 6),
                           Text(
                             'English',
@@ -550,7 +564,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.black54),
+                          const Icon(Icons.keyboard_arrow_down,
+                              size: 14, color: Colors.black54),
                         ],
                       ),
                     ),
@@ -703,13 +718,18 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
       controller: controller,
       maxLines: maxLines,
       maxLength: maxLength,
-      buildCounter: maxLength != null ? (context, {required currentLength, required isFocused, maxLength}) => null : null,
+      buildCounter: maxLength != null
+          ? (context,
+                  {required currentLength, required isFocused, maxLength}) =>
+              null
+          : null,
       keyboardType: keyboardType,
       validator: validator,
       style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A)),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
+        hintStyle:
+            GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
         prefixIcon: Padding(
           padding: const EdgeInsets.only(bottom: 0),
           child: Icon(icon, color: const Color(0xFF94A3B8), size: 18),
@@ -729,14 +749,15 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
           borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
         ),
         errorStyle: const TextStyle(color: Color(0xFFFF5252), fontSize: 11),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
 
   Widget _buildDropdownField() {
     return DropdownButtonFormField<String>(
-      value: _selectedSubject,
+      initialValue: _selectedSubject,
       onChanged: (val) {
         setState(() {
           _selectedSubject = val ?? 'General Inquiry';
@@ -745,11 +766,14 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
       items: _subjects.map((sub) {
         return DropdownMenuItem<String>(
           value: sub,
-          child: Text(sub, style: GoogleFonts.dmSans(fontSize: 14, color: const Color(0xFF0F172A))),
+          child: Text(sub,
+              style: GoogleFonts.dmSans(
+                  fontSize: 14, color: const Color(0xFF0F172A))),
         );
       }).toList(),
       decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.subject, color: Color(0xFF94A3B8), size: 18),
+        prefixIcon:
+            const Icon(Icons.subject, color: Color(0xFF94A3B8), size: 18),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
@@ -764,7 +788,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
@@ -864,7 +889,8 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, color: Color(0xFF4F46E5), size: 18),
+                    const Icon(Icons.location_on_outlined,
+                        color: Color(0xFF4F46E5), size: 18),
                     const SizedBox(width: 8),
                     Text(
                       'Our Office',
@@ -908,16 +934,19 @@ class _SharedContactUsScreenState extends State<SharedContactUsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.headset_mic_outlined, size: 12, color: Color(0xFF94A3B8)),
+            const Icon(Icons.headset_mic_outlined,
+                size: 12, color: Color(0xFF94A3B8)),
             const SizedBox(width: 6),
             RichText(
               text: TextSpan(
-                style: GoogleFonts.dmSans(fontSize: 11, color: const Color(0xFF94A3B8)),
+                style: GoogleFonts.dmSans(
+                    fontSize: 11, color: const Color(0xFF94A3B8)),
                 children: [
                   const TextSpan(text: 'Need immediate help? '),
                   TextSpan(
                     text: 'Call Us: ${AppConfig.contactPhone}',
-                    style: const TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Color(0xFF4F46E5), fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

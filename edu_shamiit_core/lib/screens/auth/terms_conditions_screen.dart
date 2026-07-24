@@ -11,19 +11,21 @@ class SharedTermsConditionsScreen extends StatefulWidget {
   final String? illustrationUrl;
 
   const SharedTermsConditionsScreen({
-    Key? key,
+    super.key,
     this.systemName,
     this.systemLogo,
     this.illustrationUrl,
-  }) : super(key: key);
+  });
 
   @override
-  State<SharedTermsConditionsScreen> createState() => _SharedTermsConditionsScreenState();
+  State<SharedTermsConditionsScreen> createState() =>
+      _SharedTermsConditionsScreenState();
 }
 
-class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScreen> {
+class _SharedTermsConditionsScreenState
+    extends State<SharedTermsConditionsScreen> {
   final ScrollController _scrollController = ScrollController();
-  
+
   // Section keys for scrolling
   final List<GlobalKey> _sectionKeys = List.generate(12, (_) => GlobalKey());
   int _activeSectionIndex = 0;
@@ -127,10 +129,12 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
         preferredSize: const Size.fromHeight(70),
         child: _buildNavbar(isDesktop, name),
       ),
-      drawer: isDesktop ? null : PublicDrawer(
-        systemName: name,
-        systemLogo: widget.systemLogo,
-      ),
+      drawer: isDesktop
+          ? null
+          : PublicDrawer(
+              systemName: name,
+              systemLogo: widget.systemLogo,
+            ),
       body: SingleChildScrollView(
         controller: _scrollController,
         child: Column(
@@ -195,13 +199,14 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Image.network(
                         AppConfig.resolveUrl(logoUrl),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
                           Icons.school_outlined,
                           color: Color(0xFF6366F1),
                           size: 20,
@@ -212,7 +217,7 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -256,10 +261,14 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Login',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ] else
               Builder(
@@ -310,7 +319,7 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -352,7 +361,8 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
                 color: const Color(0xFFE0E7FF),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(Icons.assignment_outlined, size: 64, color: Color(0xFF6366F1)),
+              child: const Icon(Icons.assignment_outlined,
+                  size: 64, color: Color(0xFF6366F1)),
             ),
           ),
         ],
@@ -392,17 +402,23 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
                   onTap: () => _scrollToSection(index),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isActive ? const Color(0xFF6366F1).withOpacity(0.08) : Colors.transparent,
+                      color: isActive
+                          ? const Color(0xFF6366F1).withValues(alpha: 0.08)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '${index + 1}.  ${_sections[index]}',
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
-                        fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                        color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF475569),
+                        fontWeight:
+                            isActive ? FontWeight.bold : FontWeight.w500,
+                        color: isActive
+                            ? const Color(0xFF4F46E5)
+                            : const Color(0xFF475569),
                       ),
                     ),
                   ),
@@ -414,14 +430,16 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.04),
+              color: const Color(0xFF6366F1).withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.1)),
+              border: Border.all(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.shield_outlined, size: 16, color: Color(0xFF6366F1)),
+                const Icon(Icons.shield_outlined,
+                    size: 16, color: Color(0xFF6366F1)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -465,7 +483,7 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.08),
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -498,9 +516,12 @@ class _SharedTermsConditionsScreenState extends State<SharedTermsConditionsScree
               ),
               if (index == 11) ...[
                 const SizedBox(height: 20),
-                _buildContactInfoRow(Icons.email_outlined, AppConfig.contactEmail),
-                _buildContactInfoRow(Icons.phone_outlined, AppConfig.contactPhone),
-                _buildContactInfoRow(Icons.location_on_outlined, AppConfig.contactAddress),
+                _buildContactInfoRow(
+                    Icons.email_outlined, AppConfig.contactEmail),
+                _buildContactInfoRow(
+                    Icons.phone_outlined, AppConfig.contactPhone),
+                _buildContactInfoRow(
+                    Icons.location_on_outlined, AppConfig.contactAddress),
               ],
             ],
           ),

@@ -10,10 +10,10 @@ class SharedGetStartedScreen extends StatefulWidget {
   final String? systemLogo;
 
   const SharedGetStartedScreen({
-    Key? key,
+    super.key,
     this.systemName,
     this.systemLogo,
-  }) : super(key: key);
+  });
 
   @override
   State<SharedGetStartedScreen> createState() => _SharedGetStartedScreenState();
@@ -48,7 +48,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
   String _selectedPlanCode = 'premium';
   String _billingCycle = 'monthly'; // 'monthly' or 'yearly'
   String _paymentMethod = 'upi'; // 'upi', 'card', 'netbanking'
-  
+
   // Payment Details Controllers
   final _paymentFormKey = GlobalKey<FormState>();
   final _upiIdController = TextEditingController();
@@ -77,7 +77,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    
+
     _schoolNameController.dispose();
     _schoolAddressController.dispose();
     _schoolPhoneController.dispose();
@@ -91,7 +91,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
 
   Future<void> _fetchPlans() async {
     try {
-      final response = await http.get(Uri.parse('${AppConfig.apiBaseUrl}/auth/plans'));
+      final response =
+          await http.get(Uri.parse('${AppConfig.apiBaseUrl}/auth/plans'));
       if (response.statusCode == 200) {
         final body = json.decode(response.body);
         setState(() {
@@ -111,21 +112,37 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             'code': 'basic',
             'price_per_month': 499.0,
             'price_per_year': 4999.0,
-            'features': ['Core ERP Modules', 'LMS access', 'Up to 500 students', 'Email support']
+            'features': [
+              'Core ERP Modules',
+              'LMS access',
+              'Up to 500 students',
+              'Email support'
+            ]
           },
           {
             'name': 'Premium Plan',
             'code': 'premium',
             'price_per_month': 1199.0,
             'price_per_year': 11999.0,
-            'features': ['Advanced Analytics', 'IoT Node controller', 'Up to 2000 students', 'Priority 24/7 support', 'Custom branding']
+            'features': [
+              'Advanced Analytics',
+              'IoT Node controller',
+              'Up to 2000 students',
+              'Priority 24/7 support',
+              'Custom branding'
+            ]
           },
           {
             'name': 'Enterprise Custom',
             'code': 'enterprise',
             'price_per_month': 4999.0,
             'price_per_year': 49999.0,
-            'features': ['Unlimited students', 'Dedicated server hosting', 'Custom API Integrations', 'Dedicated Account Manager']
+            'features': [
+              'Unlimited students',
+              'Dedicated server hosting',
+              'Custom API Integrations',
+              'Dedicated Account Manager'
+            ]
           }
         ];
         _isLoadingPlans = false;
@@ -135,7 +152,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
 
   double _calculateAmount() {
     if (_plans.isEmpty) return 0.0;
-    final plan = _plans.firstWhere((p) => p['code'] == _selectedPlanCode, orElse: () => _plans[0]);
+    final plan = _plans.firstWhere((p) => p['code'] == _selectedPlanCode,
+        orElse: () => _plans[0]);
     if (_billingCycle == 'yearly') {
       return (plan['price_per_year'] ?? 0.0).toDouble();
     } else {
@@ -177,7 +195,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           _currentStep = 3; // Step 4 (Done)
         });
       } else {
-        _showErrorSnackBar(data['detail'] ?? 'Registration failed. Please try again.');
+        _showErrorSnackBar(
+            data['detail'] ?? 'Registration failed. Please try again.');
       }
     } catch (e) {
       _showErrorSnackBar('Network error occurred. Please try again.');
@@ -278,13 +297,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Image.network(
                         AppConfig.resolveUrl(logoUrl),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
                           Icons.school_outlined,
                           color: Color(0xFF6366F1),
                           size: 20,
@@ -295,7 +315,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -343,10 +363,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0F172A),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
-                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text('Login',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ] else
               IconButton(
@@ -383,7 +407,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -428,7 +452,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 color: const Color(0xFFE0E7FF),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(Icons.school, size: 80, color: Color(0xFF6366F1)),
+              child:
+                  const Icon(Icons.school, size: 80, color: Color(0xFF6366F1)),
             ),
           ),
         ),
@@ -442,30 +467,37 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        _buildBenefitItem(Icons.verified_user_outlined, 'All-in-One Solution', 'Manage all academic and administrative operations in one integrated platform.'),
-        _buildBenefitItem(Icons.assignment_outlined, 'Save Time & Effort', 'Automate repetitive tasks and streamline workflows to save valuable time.'),
-        _buildBenefitItem(Icons.people_outline, 'Better Communication', 'Enhance communication between teachers, students, and parents.'),
-        _buildBenefitItem(Icons.lock_outline, 'Secure & Reliable', 'Your data is protected with enterprise-grade security and regular backups.'),
-        _buildBenefitItem(Icons.headset_mic_outlined, '24/7 Support', 'Our dedicated support team is always here to help you succeed.'),
+        _buildBenefitItem(Icons.verified_user_outlined, 'All-in-One Solution',
+            'Manage all academic and administrative operations in one integrated platform.'),
+        _buildBenefitItem(Icons.assignment_outlined, 'Save Time & Effort',
+            'Automate repetitive tasks and streamline workflows to save valuable time.'),
+        _buildBenefitItem(Icons.people_outline, 'Better Communication',
+            'Enhance communication between teachers, students, and parents.'),
+        _buildBenefitItem(Icons.lock_outline, 'Secure & Reliable',
+            'Your data is protected with enterprise-grade security and regular backups.'),
+        _buildBenefitItem(Icons.headset_mic_outlined, '24/7 Support',
+            'Our dedicated support team is always here to help you succeed.'),
         const SizedBox(height: 32),
         // Help Card
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.04),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.1)),
+            border: Border.all(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.1)),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.08),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.headset_mic, color: Color(0xFF6366F1), size: 20),
+                child: const Icon(Icons.headset_mic,
+                    color: Color(0xFF6366F1), size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -497,10 +529,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                   children: [
                     Text(
                       'Contact Support',
-                      style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5)),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF4F46E5)),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.arrow_forward, size: 12, color: Color(0xFF4F46E5)),
+                    const Icon(Icons.arrow_forward,
+                        size: 12, color: Color(0xFF4F46E5)),
                   ],
                 ),
               ),
@@ -520,7 +556,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF6366F1).withOpacity(0.08),
+              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
@@ -563,7 +599,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -577,10 +613,11 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.08),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.rocket_launch_outlined, color: Color(0xFF6366F1), size: 36),
+              child: const Icon(Icons.rocket_launch_outlined,
+                  color: Color(0xFF6366F1), size: 36),
             ),
             const SizedBox(height: 16),
             Text(
@@ -636,7 +673,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             decoration: BoxDecoration(
               color: isDone
                   ? const Color(0xFF10B981)
-                  : (isActive ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0)),
+                  : (isActive
+                      ? const Color(0xFF6366F1)
+                      : const Color(0xFFE2E8F0)),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -647,7 +686,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                       style: GoogleFonts.dmSans(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: isActive || isDone ? Colors.white : const Color(0xFF64748B),
+                        color: isActive || isDone
+                            ? Colors.white
+                            : const Color(0xFF64748B),
                       ),
                     ),
             ),
@@ -658,7 +699,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             style: GoogleFonts.dmSans(
               fontSize: 10,
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+              color:
+                  isActive ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
             ),
             textAlign: TextAlign.center,
           ),
@@ -703,7 +745,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             label: 'Full Name',
             hint: 'Enter your full name',
             icon: Icons.person_outline,
-            validator: (value) => value == null || value.trim().isEmpty ? 'Full name is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Full name is required'
+                : null,
           ),
           const SizedBox(height: 20),
           _buildTextField(
@@ -713,8 +757,10 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
-              if (value == null || value.trim().isEmpty) return 'Email is required';
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return 'Invalid email format';
+              if (value == null || value.trim().isEmpty)
+                return 'Email is required';
+              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value))
+                return 'Invalid email format';
               return null;
             },
           ),
@@ -725,7 +771,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             hint: 'Enter your phone number',
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
-            validator: (value) => value == null || value.trim().isEmpty ? 'Phone number is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Phone number is required'
+                : null,
           ),
           const SizedBox(height: 20),
           _buildTextField(
@@ -735,12 +783,17 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             icon: Icons.lock_outline,
             obscureText: _obscurePassword,
             suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: const Color(0xFF64748B), size: 18),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  color: const Color(0xFF64748B),
+                  size: 18),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Password is required';
-              if (value.length < 6) return 'Password must be at least 6 characters';
+              if (value.length < 6)
+                return 'Password must be at least 6 characters';
               return null;
             },
           ),
@@ -752,12 +805,20 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             icon: Icons.lock_outline,
             obscureText: _obscureConfirmPassword,
             suffixIcon: IconButton(
-              icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: const Color(0xFF64748B), size: 18),
-              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+              icon: Icon(
+                  _obscureConfirmPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  color: const Color(0xFF64748B),
+                  size: 18),
+              onPressed: () => setState(
+                  () => _obscureConfirmPassword = !_obscureConfirmPassword),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Confirm password is required';
-              if (value != _passwordController.text) return 'Passwords do not match';
+              if (value == null || value.isEmpty)
+                return 'Confirm password is required';
+              if (value != _passwordController.text)
+                return 'Passwords do not match';
               return null;
             },
           ),
@@ -777,7 +838,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                   child: RichText(
                     text: TextSpan(
                       text: 'By creating an account, you agree to our ',
-                      style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B)),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 12, color: const Color(0xFF64748B)),
                       children: [
                         WidgetSpan(
                           alignment: PlaceholderAlignment.middle,
@@ -785,7 +847,10 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                             onTap: () => context.go('/terms-conditions'),
                             child: Text(
                               'Terms & Conditions',
-                              style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5)),
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF4F46E5)),
                             ),
                           ),
                         ),
@@ -796,7 +861,10 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                             onTap: () => context.go('/privacy-policy'),
                             child: Text(
                               'Privacy Policy',
-                              style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5)),
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF4F46E5)),
                             ),
                           ),
                         ),
@@ -817,7 +885,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6366F1),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               padding: const EdgeInsets.symmetric(vertical: 18),
             ),
             child: Row(
@@ -825,7 +894,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
               children: [
                 Text(
                   'Next: Add School Information',
-                  style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward, size: 16),
@@ -836,10 +906,16 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Already have an account? ', style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF64748B))),
+              Text('Already have an account? ',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 13, color: const Color(0xFF64748B))),
               InkWell(
                 onTap: () => context.go('/login'),
-                child: Text('Login', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF4F46E5))),
+                child: Text('Login',
+                    style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF4F46E5))),
               ),
             ],
           ),
@@ -859,7 +935,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             label: 'School Name',
             hint: 'Enter your school/institution name',
             icon: Icons.school_outlined,
-            validator: (value) => value == null || value.trim().isEmpty ? 'School name is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'School name is required'
+                : null,
           ),
           const SizedBox(height: 20),
           _buildTextField(
@@ -867,7 +945,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             label: 'School Address',
             hint: 'Enter full school address',
             icon: Icons.location_on_outlined,
-            validator: (value) => value == null || value.trim().isEmpty ? 'School address is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'School address is required'
+                : null,
           ),
           const SizedBox(height: 20),
           // Board Dropdown
@@ -884,10 +964,12 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedBoard,
+                initialValue: _selectedBoard,
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.assignment_ind_outlined, color: Color(0xFF94A3B8), size: 18),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  prefixIcon: const Icon(Icons.assignment_ind_outlined,
+                      color: Color(0xFF94A3B8), size: 18),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -898,12 +980,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF6366F1), width: 1.5),
                   ),
                   filled: true,
                   fillColor: Colors.white,
                 ),
-                style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF0F172A)),
+                style: GoogleFonts.dmSans(
+                    fontSize: 13, color: const Color(0xFF0F172A)),
                 items: _boards.map((board) {
                   return DropdownMenuItem<String>(
                     value: board,
@@ -925,7 +1009,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             hint: 'Enter school contact number',
             icon: Icons.phone_android_outlined,
             keyboardType: TextInputType.phone,
-            validator: (value) => value == null || value.trim().isEmpty ? 'School contact number is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'School contact number is required'
+                : null,
           ),
           const SizedBox(height: 32),
           ElevatedButton(
@@ -937,7 +1023,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6366F1),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               padding: const EdgeInsets.symmetric(vertical: 18),
             ),
             child: Row(
@@ -945,7 +1032,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
               children: [
                 Text(
                   'Next: Choose Plan & Pay',
-                  style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.dmSans(
+                      fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward, size: 16),
@@ -955,8 +1043,11 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => setState(() => _currentStep = 0),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
-            child: Text('Back to Basic Info', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+            style:
+                TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
+            child: Text('Back to Basic Info',
+                style: GoogleFonts.dmSans(
+                    fontSize: 13, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1001,10 +1092,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF6366F1).withOpacity(0.02) : Colors.white,
+                  color: isSelected
+                      ? const Color(0xFF6366F1).withValues(alpha: 0.02)
+                      : Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+                    color: isSelected
+                        ? const Color(0xFF6366F1)
+                        : const Color(0xFFE2E8F0),
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -1035,7 +1130,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                     const SizedBox(height: 8),
                     Text(
                       features.join(' • '),
-                      style: GoogleFonts.dmSans(fontSize: 11, color: const Color(0xFF64748B)),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11, color: const Color(0xFF64748B)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1043,19 +1139,26 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 ),
               ),
             );
-          }).toList(),
+          }),
           const SizedBox(height: 16),
           // Billing Cycle Switcher
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Monthly', style: GoogleFonts.dmSans(fontSize: 12, color: const Color(0xFF64748B))),
+              Text('Monthly',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 12, color: const Color(0xFF64748B))),
               Switch(
                 value: _billingCycle == 'yearly',
-                activeColor: const Color(0xFF6366F1),
-                onChanged: (val) => setState(() => _billingCycle = val ? 'yearly' : 'monthly'),
+                activeThumbColor: const Color(0xFF6366F1),
+                onChanged: (val) =>
+                    setState(() => _billingCycle = val ? 'yearly' : 'monthly'),
               ),
-              Text('Yearly (Save 10%)', style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF10B981))),
+              Text('Yearly (Save 10%)',
+                  style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF10B981))),
             ],
           ),
           const SizedBox(height: 24),
@@ -1072,9 +1175,11 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             children: [
               _buildPaymentMethodOption('upi', 'UPI', Icons.qr_code_outlined),
               const SizedBox(width: 12),
-              _buildPaymentMethodOption('card', 'Cards', Icons.credit_card_outlined),
+              _buildPaymentMethodOption(
+                  'card', 'Cards', Icons.credit_card_outlined),
               const SizedBox(width: 12),
-              _buildPaymentMethodOption('netbanking', 'NetBanking', Icons.account_balance_outlined),
+              _buildPaymentMethodOption(
+                  'netbanking', 'NetBanking', Icons.account_balance_outlined),
             ],
           ),
           const SizedBox(height: 24),
@@ -1087,21 +1192,24 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6366F1),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
               padding: const EdgeInsets.symmetric(vertical: 18),
             ),
             child: _isLoading
                 ? const SizedBox(
                     height: 20,
                     width: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
                   )
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Pay ₹${_calculateAmount().toInt()} & Register School',
-                        style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.dmSans(
+                            fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
                       const Icon(Icons.arrow_forward, size: 16),
@@ -1111,8 +1219,11 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           const SizedBox(height: 12),
           TextButton(
             onPressed: () => setState(() => _currentStep = 1),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
-            child: Text('Back to School Info', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold)),
+            style:
+                TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
+            child: Text('Back to School Info',
+                style: GoogleFonts.dmSans(
+                    fontSize: 13, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1127,23 +1238,33 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF6366F1).withOpacity(0.04) : Colors.white,
+            color: isSelected
+                ? const Color(0xFF6366F1).withValues(alpha: 0.04)
+                : Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+              color: isSelected
+                  ? const Color(0xFF6366F1)
+                  : const Color(0xFFE2E8F0),
               width: isSelected ? 1.5 : 1,
             ),
           ),
           child: Column(
             children: [
-              Icon(icon, color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF64748B), size: 20),
+              Icon(icon,
+                  color: isSelected
+                      ? const Color(0xFF6366F1)
+                      : const Color(0xFF64748B),
+                  size: 20),
               const SizedBox(height: 6),
               Text(
                 label,
                 style: GoogleFonts.dmSans(
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                  color: isSelected
+                      ? const Color(0xFF4F46E5)
+                      : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -1161,7 +1282,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
         hint: 'username@upi',
         icon: Icons.qr_code,
         validator: (value) {
-          if (value == null || value.trim().isEmpty) return 'UPI ID is required';
+          if (value == null || value.trim().isEmpty)
+            return 'UPI ID is required';
           if (!value.contains('@')) return 'Invalid UPI ID';
           return null;
         },
@@ -1175,7 +1297,9 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             hint: '1234 5678 1234 5678',
             icon: Icons.credit_card,
             keyboardType: TextInputType.number,
-            validator: (value) => value == null || value.trim().isEmpty ? 'Card number is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Card number is required'
+                : null,
           ),
           const SizedBox(height: 16),
           Row(
@@ -1187,7 +1311,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                   hint: 'MM/YY',
                   icon: Icons.calendar_today_outlined,
                   keyboardType: TextInputType.datetime,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
                 ),
               ),
               const SizedBox(width: 16),
@@ -1199,7 +1324,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                   icon: Icons.lock_outline,
                   obscureText: true,
                   keyboardType: TextInputType.number,
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
                 ),
               ),
             ],
@@ -1220,10 +1346,12 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedBank,
+            initialValue: _selectedBank,
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.account_balance, color: Color(0xFF94A3B8), size: 18),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              prefixIcon: const Icon(Icons.account_balance,
+                  color: Color(0xFF94A3B8), size: 18),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -1234,12 +1362,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                borderSide:
+                    const BorderSide(color: Color(0xFF6366F1), width: 1.5),
               ),
               filled: true,
               fillColor: Colors.white,
             ),
-            style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF0F172A)),
+            style: GoogleFonts.dmSans(
+                fontSize: 13, color: const Color(0xFF0F172A)),
             items: _banks.map((bank) {
               return DropdownMenuItem<String>(
                 value: bank,
@@ -1264,10 +1394,11 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFF10B981).withOpacity(0.08),
+            color: const Color(0xFF10B981).withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 72),
+          child: const Icon(Icons.check_circle_outline,
+              color: Color(0xFF10B981), size: 72),
         ),
         const SizedBox(height: 24),
         Text(
@@ -1295,12 +1426,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF0F1026),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
           ),
           child: Text(
             'Back to Home',
-            style: GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.bold),
+            style:
+                GoogleFonts.dmSans(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -1336,10 +1469,12 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.dmSans(color: const Color(0xFF94A3B8), fontSize: 13),
+            hintStyle: GoogleFonts.dmSans(
+                color: const Color(0xFF94A3B8), fontSize: 13),
             prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 18),
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -1350,7 +1485,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+              borderSide:
+                  const BorderSide(color: Color(0xFF6366F1), width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -1358,12 +1494,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+              borderSide:
+                  const BorderSide(color: Color(0xFFEF4444), width: 1.5),
             ),
             filled: true,
             fillColor: Colors.white,
           ),
-          style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF0F172A)),
+          style:
+              GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF0F172A)),
         ),
       ],
     );
@@ -1426,17 +1564,39 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 const SizedBox(width: 48),
                 Expanded(
                   flex: 2,
-                  child: _buildFooterColumn('Quick Links', const ['Home', 'Features', 'Modules', 'Pricing', 'About Us', 'Contact Us', 'FAQ', 'Help Center']),
+                  child: _buildFooterColumn('Quick Links', const [
+                    'Home',
+                    'Features',
+                    'Modules',
+                    'Pricing',
+                    'About Us',
+                    'Contact Us',
+                    'FAQ',
+                    'Help Center'
+                  ]),
                 ),
                 const SizedBox(width: 32),
                 Expanded(
                   flex: 2,
-                  child: _buildFooterColumn('Modules', const ['Student Management', 'Attendance Management', 'Examination Management', 'Fee Management', 'Transport Management', 'Library Management']),
+                  child: _buildFooterColumn('Modules', const [
+                    'Student Management',
+                    'Attendance Management',
+                    'Examination Management',
+                    'Fee Management',
+                    'Transport Management',
+                    'Library Management'
+                  ]),
                 ),
                 const SizedBox(width: 32),
                 Expanded(
                   flex: 2,
-                  child: _buildFooterColumn('Support', const ['Help Center', 'User Guides', 'FAQ\'s', 'Privacy Policy', 'Terms & Conditions']),
+                  child: _buildFooterColumn('Support', const [
+                    'Help Center',
+                    'User Guides',
+                    'FAQ\'s',
+                    'Privacy Policy',
+                    'Terms & Conditions'
+                  ]),
                 ),
                 const SizedBox(width: 32),
                 Expanded(
@@ -1453,10 +1613,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildFooterContactItem(Icons.location_on_outlined, AppConfig.contactAddress),
-                      _buildFooterContactItem(Icons.email_outlined, AppConfig.contactEmail),
-                      _buildFooterContactItem(Icons.phone_outlined, AppConfig.contactPhone),
-                      _buildFooterContactItem(Icons.access_time_outlined, 'Mon - Sat: 9:00 AM - 6:00 PM'),
+                      _buildFooterContactItem(
+                          Icons.location_on_outlined, AppConfig.contactAddress),
+                      _buildFooterContactItem(
+                          Icons.email_outlined, AppConfig.contactEmail),
+                      _buildFooterContactItem(
+                          Icons.phone_outlined, AppConfig.contactPhone),
+                      _buildFooterContactItem(Icons.access_time_outlined,
+                          'Mon - Sat: 9:00 AM - 6:00 PM'),
                     ],
                   ),
                 ),
@@ -1473,15 +1637,37 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
               children: [
                 SizedBox(
                   width: 180,
-                  child: _buildFooterColumn('Quick Links', const ['Home', 'Features', 'Modules', 'Pricing', 'About Us', 'Contact Us', 'FAQ', 'Help Center']),
+                  child: _buildFooterColumn('Quick Links', const [
+                    'Home',
+                    'Features',
+                    'Modules',
+                    'Pricing',
+                    'About Us',
+                    'Contact Us',
+                    'FAQ',
+                    'Help Center'
+                  ]),
                 ),
                 SizedBox(
                   width: 220,
-                  child: _buildFooterColumn('Modules', const ['Student Management', 'Attendance Management', 'Examination Management', 'Fee Management', 'Transport Management', 'Library Management']),
+                  child: _buildFooterColumn('Modules', const [
+                    'Student Management',
+                    'Attendance Management',
+                    'Examination Management',
+                    'Fee Management',
+                    'Transport Management',
+                    'Library Management'
+                  ]),
                 ),
                 SizedBox(
                   width: 180,
-                  child: _buildFooterColumn('Support', const ['Help Center', 'User Guides', 'FAQ\'s', 'Privacy Policy', 'Terms & Conditions']),
+                  child: _buildFooterColumn('Support', const [
+                    'Help Center',
+                    'User Guides',
+                    'FAQ\'s',
+                    'Privacy Policy',
+                    'Terms & Conditions'
+                  ]),
                 ),
                 SizedBox(
                   width: 260,
@@ -1497,10 +1683,14 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _buildFooterContactItem(Icons.location_on_outlined, AppConfig.contactAddress),
-                      _buildFooterContactItem(Icons.email_outlined, AppConfig.contactEmail),
-                      _buildFooterContactItem(Icons.phone_outlined, AppConfig.contactPhone),
-                      _buildFooterContactItem(Icons.access_time_outlined, 'Mon - Sat: 9:00 AM - 6:00 PM'),
+                      _buildFooterContactItem(
+                          Icons.location_on_outlined, AppConfig.contactAddress),
+                      _buildFooterContactItem(
+                          Icons.email_outlined, AppConfig.contactEmail),
+                      _buildFooterContactItem(
+                          Icons.phone_outlined, AppConfig.contactPhone),
+                      _buildFooterContactItem(Icons.access_time_outlined,
+                          'Mon - Sat: 9:00 AM - 6:00 PM'),
                     ],
                   ),
                 ),
@@ -1521,7 +1711,8 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.arrow_upward, color: Colors.white54, size: 16),
+                icon: const Icon(Icons.arrow_upward,
+                    color: Colors.white54, size: 16),
                 onPressed: () {},
               ),
             ],
@@ -1537,7 +1728,7 @@ class _SharedGetStartedScreenState extends State<SharedGetStartedScreen> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: Colors.white, size: 14),

@@ -1433,6 +1433,8 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
               content: SizedBox(
                 width: 480,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1586,6 +1588,8 @@ class _AlertsNotificationsScreenState extends ConsumerState<AlertsNotificationsS
               content: SizedBox(
                 width: 480,
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 10, bottom: 4),
+                  clipBehavior: Clip.none,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

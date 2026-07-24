@@ -10,11 +10,11 @@ class SharedFaqScreen extends StatefulWidget {
   final String? illustrationUrl;
 
   const SharedFaqScreen({
-    Key? key,
+    super.key,
     this.systemName,
     this.systemLogo,
     this.illustrationUrl,
-  }) : super(key: key);
+  });
 
   @override
   State<SharedFaqScreen> createState() => _SharedFaqScreenState();
@@ -265,7 +265,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Image.network(
@@ -282,7 +282,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF6366F1).withOpacity(0.1),
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -428,7 +428,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -520,7 +520,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: Colors.black.withValues(alpha: 0.01),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -698,7 +698,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF6366F1).withOpacity(0.1) : const Color(0xFFF1F5F9),
+                              color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -715,7 +715,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -724,7 +724,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
         // Still Need Help Card
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFEEF2F6).withOpacity(0.4),
+            color: const Color(0xFFEEF2F6).withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
@@ -735,7 +735,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.headset_mic_outlined, color: Color(0xFF6366F1), size: 18),
@@ -873,7 +873,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
   Widget _buildBottomBanner() {
     return Container(
       width: double.infinity,
-      color: const Color(0xFFEEF2F6).withOpacity(0.6),
+      color: const Color(0xFFEEF2F6).withValues(alpha: 0.6),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       child: Center(
         child: Container(
@@ -913,7 +913,7 @@ class _SharedFaqScreenState extends State<SharedFaqScreen> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.help_outline, color: Color(0xFF6366F1), size: 24),
@@ -977,10 +977,10 @@ class _FaqAccordionItem extends StatefulWidget {
   final String answer;
 
   const _FaqAccordionItem({
-    Key? key,
+    super.key,
     required this.question,
     required this.answer,
-  }) : super(key: key);
+  });
 
   @override
   State<_FaqAccordionItem> createState() => _FaqAccordionItemState();
@@ -1025,7 +1025,7 @@ class _FaqAccordionItemState extends State<_FaqAccordionItem> with SingleTickerP
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _isExpanded ? const Color(0xFF6366F1).withOpacity(0.02) : Colors.white,
+        color: _isExpanded ? const Color(0xFF6366F1).withValues(alpha: 0.02) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _isExpanded ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),

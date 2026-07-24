@@ -78,8 +78,11 @@ class _SupportTabState extends ConsumerState<SupportTab> {
     _fetchInitialData();
   }
 
+  final ScrollController _horizontalScrollController = ScrollController();
+
   @override
   void dispose() {
+    _horizontalScrollController.dispose();
     _replyController.dispose();
     _searchController.dispose();
     _createSubjectController.dispose();
@@ -782,6 +785,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
     bool isDark, {
     String Function(String)? displayMapper,
   }) {
+    final safeValue = items.contains(value) ? value : (items.isNotEmpty ? items.first : value);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
@@ -791,7 +795,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: safeValue,
           dropdownColor: theme.cardColor,
           style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.w600),
           icon: const Icon(Icons.arrow_drop_down, size: 16),
@@ -833,131 +837,192 @@ class _SupportTabState extends ConsumerState<SupportTab> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          showCheckboxColumn: false,
-          columnSpacing: 20,
-          headingRowHeight: 44,
-          dataRowMinHeight: 56,
-          dataRowMaxHeight: 72,
-          columns: [
-            DataColumn(label: Text('Ticket ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-            DataColumn(label: Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-            DataColumn(label: Text('Priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-            DataColumn(label: Text('Requested By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-            DataColumn(label: Text('Institution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-            DataColumn(label: Text('Updated On', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-            DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
-          ],
-          rows: _tickets.map((ticket) {
-            final isSelected = _selectedTicket?['id'] == ticket['id'];
-            final reqUser = ticket['requested_by'] ?? {};
-            final school = ticket['school'] ?? {};
-
-            final String updatedOnRaw = ticket['updated_at'] ?? ticket['created_at'] ?? '';
-            String formattedDate = '';
-            if (updatedOnRaw.isNotEmpty) {
-              try {
-                final date = DateTime.parse(updatedOnRaw);
-                formattedDate = DateFormat('MMM dd, yyyy\nhh:mm a').format(date);
-              } catch (_) {
-                formattedDate = updatedOnRaw;
-              }
-            }
-
-            return DataRow(
-              selected: isSelected,
-              onSelectChanged: (_) {
-                setState(() {
-                  _selectedTicket = ticket;
-                  _isCreating = false;
-                  _currentView = 'details';
-                });
-                _fetchTicketMessages(ticket['id']);
-              },
-              cells: [
-                DataCell(Text(ticket['ticket_code'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                DataCell(
-                  Container(
-                    constraints: const BoxConstraints(maxWidth: 240),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(ticket['subject'] ?? '', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(ticket['category'] ?? 'Others', style: const TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(child: Text(ticket['description'] ?? '', style: const TextStyle(color: Color(0xFF64748B), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                DataCell(_buildPriorityBadge(ticket['priority'] ?? 'Low')),
-                DataCell(
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: const Color(0xFF4F46E5),
-                        backgroundImage: reqUser['avatar_url'] != null ? NetworkImage(reqUser['avatar_url']) : null,
-                        child: reqUser['avatar_url'] == null
-                            ? Text(
-                                (reqUser['full_name'] ?? 'U').toString().substring(0, 1).toUpperCase(),
-                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(reqUser['full_name'] ?? 'Unknown User', style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.w600)),
-                          Text(reqUser['role'] != null ? reqUser['role'].toString().toUpperCase() : 'USER', style: const TextStyle(color: Color(0xFF64748B), fontSize: 8)),
-                        ],
-                      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SizedBox(
+            width: constraints.maxWidth,
+            child: Scrollbar(
+              controller: _horizontalScrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              child: SingleChildScrollView(
+                controller: _horizontalScrollController,
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 1050),
+                  child: DataTable(
+                    showCheckboxColumn: false,
+                    columnSpacing: 24,
+                    headingRowHeight: 46,
+                    dataRowMinHeight: 58,
+                    dataRowMaxHeight: 74,
+                    columns: [
+                      DataColumn(label: Text('Ticket ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+                      DataColumn(label: Text('Subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+                      DataColumn(label: Text('Priority', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+                      DataColumn(label: Text('Requested By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+                      DataColumn(label: Text('Institution', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+                      DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+                      DataColumn(label: Text('Updated On', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
+                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF0F172A)))),
                     ],
+                    rows: _tickets.map((ticket) {
+                      final isSelected = _selectedTicket?['id'] == ticket['id'];
+                      final reqUser = ticket['requested_by'] ?? {};
+                      final school = ticket['school'] ?? {};
+
+                      final String updatedOnRaw = ticket['updated_at'] ?? ticket['created_at'] ?? '';
+                      String formattedDate = '';
+                      if (updatedOnRaw.isNotEmpty) {
+                        try {
+                          final date = DateTime.parse(updatedOnRaw);
+                          formattedDate = DateFormat('MMM dd, yyyy\nhh:mm a').format(date);
+                        } catch (_) {
+                          formattedDate = updatedOnRaw;
+                        }
+                      }
+
+                      return DataRow(
+                        selected: isSelected,
+                        onSelectChanged: (_) {
+                          setState(() {
+                            _selectedTicket = ticket;
+                            _isCreating = false;
+                            _currentView = 'details';
+                          });
+                          _fetchTicketMessages(ticket['id']);
+                        },
+                        cells: [
+                          DataCell(
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 100, maxWidth: 120),
+                              child: Text(
+                                ticket['ticket_code'] ?? '',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 220, maxWidth: 260),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(ticket['subject'] ?? '', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(ticket['category'] ?? 'Others', style: const TextStyle(color: Color(0xFF818CF8), fontSize: 9, fontWeight: FontWeight.bold)),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(child: Text(ticket['description'] ?? '', style: const TextStyle(color: Color(0xFF64748B), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 75, maxWidth: 90),
+                              child: _buildPriorityBadge(ticket['priority'] ?? 'Low'),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 160, maxWidth: 190),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: const Color(0xFF4F46E5),
+                                    backgroundImage: reqUser['avatar_url'] != null ? NetworkImage(reqUser['avatar_url']) : null,
+                                    child: reqUser['avatar_url'] == null
+                                        ? Text(
+                                            (reqUser['full_name'] ?? 'U').toString().substring(0, 1).toUpperCase(),
+                                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                          )
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          reqUser['full_name'] ?? 'Unknown User',
+                                          style: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.w600),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          reqUser['role'] != null ? reqUser['role'].toString().toUpperCase() : 'USER',
+                                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 8),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 150, maxWidth: 180),
+                              child: Text(
+                                school['name'] ?? 'Global System',
+                                style: TextStyle(color: isDark ? Colors.white60 : const Color(0xFF0F172A), fontSize: 11),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 95, maxWidth: 110),
+                              child: _buildStatusBadge(ticket['status'] ?? 'Open'),
+                            ),
+                          ),
+                          DataCell(
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 110, maxWidth: 130),
+                              child: Text(
+                                formattedDate,
+                                style: const TextStyle(color: Color(0xFF64748B), fontSize: 10),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 16),
+                              onPressed: () {
+                                _showConfirmDeleteDialog(ticket['id']);
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
                   ),
                 ),
-                DataCell(
-                  Container(
-                    constraints: const BoxConstraints(maxWidth: 140),
-                    child: Text(
-                      school['name'] ?? 'Global System',
-                      style: TextStyle(color: isDark ? Colors.white60 : const Color(0xFF0F172A), fontSize: 11),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                DataCell(_buildStatusBadge(ticket['status'] ?? 'Open')),
-                DataCell(Text(formattedDate, style: const TextStyle(color: Color(0xFF64748B), fontSize: 10))),
-                DataCell(
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 16),
-                    onPressed: () {
-                      _showConfirmDeleteDialog(ticket['id']);
-                    },
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1240,65 +1305,83 @@ class _SupportTabState extends ConsumerState<SupportTab> {
               _buildDetailAttributeRow("Institution", school['name'] ?? 'Global System', isDark),
               _buildDetailAttributeRowWidget(
                 "Category",
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedTicket['category'] ?? 'Others',
-                    isDense: true,
-                    dropdownColor: theme.cardColor,
-                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12, fontWeight: FontWeight.w600),
-                    onChanged: (val) {
-                      if (val != null) _updateTicketCategory(val);
-                    },
-                    items: _categories.map((String c) {
-                      return DropdownMenuItem<String>(value: c, child: Text(c));
-                    }).toList(),
-                  ),
+                Builder(
+                  builder: (context) {
+                    final rawCat = _selectedTicket['category']?.toString() ?? 'Others';
+                    final safeCat = _categories.contains(rawCat) ? rawCat : (_categories.contains('Others') ? 'Others' : _categories.first);
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: safeCat,
+                        isDense: true,
+                        dropdownColor: theme.cardColor,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12, fontWeight: FontWeight.w600),
+                        onChanged: (val) {
+                          if (val != null) _updateTicketCategory(val);
+                        },
+                        items: _categories.map((String c) {
+                          return DropdownMenuItem<String>(value: c, child: Text(c));
+                        }).toList(),
+                      ),
+                    );
+                  },
                 ),
                 isDark,
               ),
               _buildDetailAttributeRowWidget(
                 "Priority",
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedTicket['priority'] ?? 'Low',
-                    isDense: true,
-                    dropdownColor: theme.cardColor,
-                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12, fontWeight: FontWeight.w600),
-                    onChanged: (val) {
-                      if (val != null) _updateTicketPriority(val);
-                    },
-                    items: _priorities.map((String p) {
-                      return DropdownMenuItem<String>(value: p, child: Text(p));
-                    }).toList(),
-                  ),
+                Builder(
+                  builder: (context) {
+                    final rawPri = _selectedTicket['priority']?.toString() ?? 'Low';
+                    final safePri = _priorities.contains(rawPri) ? rawPri : (_priorities.contains('Low') ? 'Low' : _priorities.first);
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: safePri,
+                        isDense: true,
+                        dropdownColor: theme.cardColor,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12, fontWeight: FontWeight.w600),
+                        onChanged: (val) {
+                          if (val != null) _updateTicketPriority(val);
+                        },
+                        items: _priorities.map((String p) {
+                          return DropdownMenuItem<String>(value: p, child: Text(p));
+                        }).toList(),
+                      ),
+                    );
+                  },
                 ),
                 isDark,
               ),
               _buildDetailAttributeRowWidget(
                 "Assigned To",
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: assignedUser != null ? assignedUser['id'].toString() : null,
-                    isDense: true,
-                    hint: const Text("Not Assigned", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    dropdownColor: theme.cardColor,
-                    style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12, fontWeight: FontWeight.w600),
-                    onChanged: (val) {
-                      _updateTicketAssignment(val);
-                    },
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text("Not Assigned"),
+                Builder(
+                  builder: (context) {
+                    final assignedId = assignedUser != null ? assignedUser['id']?.toString() : null;
+                    final bool userExists = assignedId != null && _users.any((u) => u['id']?.toString() == assignedId);
+                    final safeAssignedValue = userExists ? assignedId : 'unassigned';
+                    return DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: safeAssignedValue,
+                        isDense: true,
+                        dropdownColor: theme.cardColor,
+                        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12, fontWeight: FontWeight.w600),
+                        onChanged: (val) {
+                          _updateTicketAssignment(val == 'unassigned' ? null : val);
+                        },
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: 'unassigned',
+                            child: Text("Not Assigned", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          ),
+                          ..._users.map((u) {
+                            return DropdownMenuItem<String>(
+                              value: u['id'].toString(),
+                              child: Text(u['full_name'].toString()),
+                            );
+                          }),
+                        ],
                       ),
-                      ..._users.map((u) {
-                        return DropdownMenuItem<String>(
-                          value: u['id'].toString(),
-                          child: Text(u['full_name'].toString()),
-                        );
-                      }),
-                    ],
-                  ),
+                    );
+                  },
                 ),
                 isDark,
               ),
@@ -1962,6 +2045,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
     bool isDark, {
     String Function(String)? displayMapper,
   }) {
+    final safeValue = items.contains(value) ? value : (items.isNotEmpty ? items.first : value);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1985,7 +2069,7 @@ class _SupportTabState extends ConsumerState<SupportTab> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: value,
+              value: safeValue,
               isExpanded: true,
               dropdownColor: theme.cardColor,
               style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontSize: 12),

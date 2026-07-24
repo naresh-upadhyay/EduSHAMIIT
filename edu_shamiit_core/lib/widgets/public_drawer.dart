@@ -18,24 +18,68 @@ class PublicDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     // Premium dark/slate theme matching our administration panel
     const drawerBgColor = Color(0xFF0F1123);
     const accentColor = Color(0xFF6366F1);
     const unselectedColor = Color(0xFF94A3B8);
 
     final items = [
-      _DrawerItem(icon: Icons.home_outlined, label: 'Home', section: 'Home', route: '/'),
-      _DrawerItem(icon: Icons.star_outline, label: 'Features', section: 'Features', route: '/'),
-      _DrawerItem(icon: Icons.widgets_outlined, label: 'Modules', section: 'Modules', route: '/'),
-      _DrawerItem(icon: Icons.check_circle_outline, label: 'Benefits', section: 'Benefits', route: '/'),
-      _DrawerItem(icon: Icons.attach_money_outlined, label: 'Pricing', section: 'Pricing', route: '/'),
-      _DrawerItem(icon: Icons.info_outline, label: 'About Us', section: 'About Us', route: '/'),
-      _DrawerItem(icon: Icons.mail_outline, label: 'Contact Us', section: 'Contact Us', route: '/contact'),
-      _DrawerItem(icon: Icons.help_outline, label: 'FAQ', section: 'FAQ', route: '/faq'),
-      _DrawerItem(icon: Icons.menu_book_outlined, label: 'Help Center', section: 'Help Center', route: '/help-center'),
-      _DrawerItem(icon: Icons.gavel_outlined, label: 'Terms & Conditions', section: 'Terms', route: '/terms'),
-      _DrawerItem(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', section: 'Privacy', route: '/privacy'),
+      const _DrawerItem(
+          icon: Icons.home_outlined,
+          label: 'Home',
+          section: 'Home',
+          route: '/'),
+      const _DrawerItem(
+          icon: Icons.star_outline,
+          label: 'Features',
+          section: 'Features',
+          route: '/'),
+      const _DrawerItem(
+          icon: Icons.widgets_outlined,
+          label: 'Modules',
+          section: 'Modules',
+          route: '/'),
+      const _DrawerItem(
+          icon: Icons.check_circle_outline,
+          label: 'Benefits',
+          section: 'Benefits',
+          route: '/'),
+      const _DrawerItem(
+          icon: Icons.attach_money_outlined,
+          label: 'Pricing',
+          section: 'Pricing',
+          route: '/'),
+      const _DrawerItem(
+          icon: Icons.info_outline,
+          label: 'About Us',
+          section: 'About Us',
+          route: '/'),
+      const _DrawerItem(
+          icon: Icons.mail_outline,
+          label: 'Contact Us',
+          section: 'Contact Us',
+          route: '/contact'),
+      const _DrawerItem(
+          icon: Icons.help_outline,
+          label: 'FAQ',
+          section: 'FAQ',
+          route: '/faq'),
+      const _DrawerItem(
+          icon: Icons.menu_book_outlined,
+          label: 'Help Center',
+          section: 'Help Center',
+          route: '/help-center'),
+      const _DrawerItem(
+          icon: Icons.gavel_outlined,
+          label: 'Terms & Conditions',
+          section: 'Terms',
+          route: '/terms'),
+      const _DrawerItem(
+          icon: Icons.privacy_tip_outlined,
+          label: 'Privacy Policy',
+          section: 'Privacy',
+          route: '/privacy'),
     ];
 
     return Drawer(
@@ -56,7 +100,7 @@ class PublicDrawer extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.1),
+                            color: accentColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: systemLogo != null && systemLogo!.isNotEmpty
@@ -93,7 +137,8 @@ class PublicDrawer extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: unselectedColor, size: 20),
+                    icon: const Icon(Icons.close_rounded,
+                        color: unselectedColor, size: 20),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -104,7 +149,8 @@ class PublicDrawer extends StatelessWidget {
             // Navigation List
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];
@@ -134,7 +180,8 @@ class PublicDrawer extends StatelessWidget {
                       },
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -146,7 +193,7 @@ class PublicDrawer extends StatelessWidget {
                               child: Text(
                                 item.label,
                                 style: GoogleFonts.dmSans(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -186,12 +233,14 @@ class PublicDrawer extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                       minimumSize: const Size.fromHeight(44),
                     ),
                     child: Text(
                       'Login',
-                      style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -204,12 +253,14 @@ class PublicDrawer extends StatelessWidget {
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                       minimumSize: const Size.fromHeight(44),
                     ),
                     child: Text(
                       'Get Started',
-                      style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
