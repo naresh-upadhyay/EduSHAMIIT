@@ -65,6 +65,16 @@ class Settings(BaseSettings):
     GOOGLE_TTS_API_KEY: str = "placeholder_tts_key"
     ELEVENLABS_API_KEY: str = "placeholder_elevenlabs_key"
 
+    # TomTom Maps & GIS (Loaded dynamically from .env environment variable)
+    TOMTOM_API_KEY: str = Field(
+        default="FyoNd3Qxz2ZFFMXpAXN4XyPiIe53TD3v",
+        validation_alias=AliasChoices("TOMTOM_API_KEY", "tomtom_api_key")
+    )
+    TOMTOM_BASE_URL: str = Field(
+        default="https://api.tomtom.com/search/2",
+        validation_alias=AliasChoices("TOMTOM_BASE_URL", "tomtom_base_url")
+    )
+
     # Email Configuration
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587

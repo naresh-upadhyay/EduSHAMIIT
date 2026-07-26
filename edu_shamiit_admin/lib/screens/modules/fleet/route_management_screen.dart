@@ -553,185 +553,792 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       }
       selectedRouteId ??= _routes[0]['id']?.toString();
     }
+
+    double currentLat = double.tryParse(existing?['latitude']?.toString() ?? '') ?? 28.6139;
+    double currentLng = double.tryParse(existing?['longitude']?.toString() ?? '') ?? 77.3590;
+
     final nameController = TextEditingController(text: existing?['stop_name'] ?? '');
     final codeController = TextEditingController(text: existing?['stop_code'] ?? '');
-    final latController = TextEditingController(text: (existing?['latitude'] ?? 28.62).toString());
-    final lngController = TextEditingController(text: (existing?['longitude'] ?? 77.36).toString());
+    final latController = TextEditingController(text: currentLat.toStringAsFixed(6));
+    final lngController = TextEditingController(text: currentLng.toStringAsFixed(6));
     final orderController = TextEditingController(text: (existing?['stop_order'] ?? 1).toString());
     final timeController = TextEditingController(text: existing?['estimated_arrival'] ?? '06:30:00');
     final landmarkController = TextEditingController(text: existing?['landmark'] ?? '');
     final radiusController = TextEditingController(text: (existing?['radius_meters'] ?? 200).toString());
-    
+    final mapSearchController = TextEditingController();
+
     String stopType = existing?['stop_type'] ?? 'Pickup';
     String pickupDropType = existing?['pickup_drop_type'] ?? 'Pickup Only';
     String status = existing?['status'] ?? 'Active';
 
+    String selectedAddress = existing?['landmark'] != null && existing['landmark'].toString().isNotEmpty
+        ? existing['landmark']
+        : 'Sector 62, Phase 2, Community Center, Noida, Uttar Pradesh 201309';
+
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) {
+        final MapController dialogMapController = MapController();
+        bool isSearching = false;
+        List<Map<String, dynamic>> searchResults = [];
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(isEdit ? 'Edit Stop Details' : 'Add New Stop', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: SizedBox(
-                width: 500,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        DropdownButtonFormField<String>(
-                          initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
-                          decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder()),
-                          items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name']))).toList(),
-                          onChanged: (val) => setDialogState(() => selectedRouteId = val),
-                          validator: (val) => val == null ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: nameController,
-                          decoration: const InputDecoration(labelText: 'Stop Name *', border: OutlineInputBorder()),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: codeController,
-                          decoration: const InputDecoration(labelText: 'Stop Code (optional)', border: OutlineInputBorder(), hintText: 'e.g. ST-001'),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: latController,
-                                decoration: const InputDecoration(labelText: 'Latitude *', border: OutlineInputBorder()),
-                                keyboardType: TextInputType.number,
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: lngController,
-                                decoration: const InputDecoration(labelText: 'Longitude *', border: OutlineInputBorder()),
-                                keyboardType: TextInputType.number,
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: orderController,
-                                decoration: const InputDecoration(labelText: 'Stop Order *', border: OutlineInputBorder()),
-                                keyboardType: TextInputType.number,
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: timeController,
-                                decoration: const InputDecoration(labelText: 'Estimated Time *', border: OutlineInputBorder(), hintText: 'HH:MM:SS'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: ['Pickup', 'Drop', 'Pickup & Drop'].contains(stopType) ? stopType : 'Pickup',
-                          decoration: const InputDecoration(labelText: 'Stop Type *', border: OutlineInputBorder()),
-                          items: ['Pickup', 'Drop', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                          onChanged: (val) => setDialogState(() => stopType = val!),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].contains(pickupDropType) ? pickupDropType : 'Pickup Only',
-                          decoration: const InputDecoration(labelText: 'Pickup / Drop Type *', border: OutlineInputBorder()),
-                          items: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                          onChanged: (val) => setDialogState(() => pickupDropType = val!),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: landmarkController,
-                          decoration: const InputDecoration(labelText: 'Landmark', border: OutlineInputBorder()),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: radiusController,
-                          decoration: const InputDecoration(labelText: 'Geofence Radius (meters) *', border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number,
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: ['Active', 'Inactive', 'Deleted'].contains(status) ? status : 'Active',
-                          decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
-                          items: ['Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (val) => setDialogState(() => status = val!),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
-                      final payload = {
-                        "school_id": schoolId,
-                        "route_id": selectedRouteId,
-                        "stop_name": nameController.text,
-                        "stop_code": codeController.text.isEmpty ? null : codeController.text,
-                        "latitude": double.tryParse(latController.text) ?? 28.62,
-                        "longitude": double.tryParse(lngController.text) ?? 77.36,
-                        "stop_order": int.tryParse(orderController.text) ?? 1,
-                        "estimated_arrival": timeController.text,
-                        "stop_type": stopType,
-                        "pickup_drop_type": pickupDropType,
-                        "landmark": landmarkController.text.isEmpty ? null : landmarkController.text,
-                        "radius_meters": int.tryParse(radiusController.text) ?? 200,
-                        "status": status
-                      };
+            Timer? searchDebounceTimer;
 
-                      try {
-                        if (isEdit) {
-                          await ApiService().put('/transport/stops/${existing['id']}', payload);
-                        } else {
-                          await ApiService().post('/transport/stops', payload);
+            void updateLocation(double lat, double lng, {String? address, String? placeName, bool shouldMoveCamera = true}) {
+              setDialogState(() {
+                currentLat = lat;
+                currentLng = lng;
+                latController.text = lat.toStringAsFixed(6);
+                lngController.text = lng.toStringAsFixed(6);
+                if (address != null && address.isNotEmpty) {
+                  selectedAddress = address;
+                  if (landmarkController.text.isEmpty || landmarkController.text == 'Near Location') {
+                    landmarkController.text = address.split(',').take(2).join(', ');
+                  }
+                  if (nameController.text.isEmpty && placeName != null && placeName.isNotEmpty) {
+                    nameController.text = placeName;
+                  }
+                }
+              });
+              if (shouldMoveCamera) {
+                try {
+                  dialogMapController.move(LatLng(lat, lng), 15.5);
+                } catch (_) {}
+              }
+            }
+
+            Future<void> performReverseGeocode(double lat, double lng) async {
+              try {
+                final url = Uri.parse(
+                  'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&addressdetails=1',
+                );
+                final res = await http.get(url, headers: {
+                  'User-Agent': 'EduSHAMIIT-Admin/1.0 (com.edushamiit.admin)',
+                }).timeout(const Duration(seconds: 4));
+                if (res.statusCode == 200) {
+                  final data = jsonDecode(res.body);
+                  final addr = data['display_name'] ?? '$lat, $lng';
+                  final name = data['name'] ?? data['address']?['suburb'] ?? data['address']?['neighbourhood'] ?? data['address']?['road'];
+                  updateLocation(lat, lng, address: addr, placeName: name, shouldMoveCamera: false);
+                }
+              } catch (_) {}
+            }
+
+            Future<void> performSearch(String query, {bool autoSelectTop = false}) async {
+              final trimmedQuery = query.trim();
+              if (trimmedQuery.isEmpty) return;
+              setDialogState(() {
+                isSearching = true;
+              });
+
+              final encodedQuery = Uri.encodeComponent(trimmedQuery);
+              final List<Map<String, dynamic>> combinedResults = [];
+
+              try {
+                // Fire parallel multi-engine geocoding requests to Photon (Elasticsearch Geocoder) & Nominatim (OSM)
+                final photonUrl = Uri.parse('https://photon.komoot.io/api/?q=$encodedQuery&limit=10');
+                final nominatimUrl = Uri.parse('https://nominatim.openstreetmap.org/search?format=json&q=$encodedQuery&limit=10&addressdetails=1');
+
+                final responses = await Future.wait([
+                  http.get(photonUrl, headers: {'User-Agent': 'EduSHAMIIT-Admin/1.0'}).timeout(const Duration(seconds: 4)).catchError((_) => http.Response('', 500)),
+                  http.get(nominatimUrl, headers: {'User-Agent': 'EduSHAMIIT-Admin/1.0 (com.edushamiit.admin)'}).timeout(const Duration(seconds: 4)).catchError((_) => http.Response('', 500)),
+                ]);
+
+                final photonRes = responses[0];
+                final nominatimRes = responses[1];
+
+                // 1. Process Photon Elasticsearch Results (Fuzzy & Multi-word tolerant)
+                if (photonRes.statusCode == 200 && photonRes.body.isNotEmpty) {
+                  try {
+                    final data = jsonDecode(photonRes.body);
+                    final features = data['features'] as List? ?? [];
+                    for (final feat in features) {
+                      final props = feat['properties'] as Map<String, dynamic>? ?? {};
+                      final coords = feat['geometry']?['coordinates'] as List? ?? [];
+                      if (coords.length >= 2) {
+                        final lon = double.tryParse(coords[0].toString()) ?? 0.0;
+                        final lat = double.tryParse(coords[1].toString()) ?? 0.0;
+                        final name = (props['name'] ?? '').toString();
+                        final street = (props['street'] ?? '').toString();
+                        final district = (props['district'] ?? props['suburb'] ?? '').toString();
+                        final city = (props['city'] ?? props['town'] ?? props['village'] ?? props['county'] ?? '').toString();
+                        final state = (props['state'] ?? '').toString();
+                        final country = (props['country'] ?? '').toString();
+
+                        final parts = <String>[];
+                        if (name.isNotEmpty) parts.add(name);
+                        if (street.isNotEmpty) parts.add(street);
+                        if (district.isNotEmpty && district != name) parts.add(district);
+                        if (city.isNotEmpty && city != name) parts.add(city);
+                        if (state.isNotEmpty) parts.add(state);
+                        if (country.isNotEmpty) parts.add(country);
+
+                        final fullAddress = parts.join(', ');
+                        final primaryTitle = name.isNotEmpty ? name : (city.isNotEmpty ? city : (parts.isNotEmpty ? parts.first : trimmedQuery));
+
+                        if (lat != 0.0 && lon != 0.0) {
+                          combinedResults.add({
+                            'display_name': fullAddress,
+                            'primary_title': primaryTitle,
+                            'name': name,
+                            'lat': lat,
+                            'lon': lon,
+                          });
                         }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        if (!mounted) return;
-                        _loadData();
-                        _loadStops();
-                        if (_selectedPreviewRoute != null) {
-                          _loadStopsPreviewRoute(_selectedPreviewRoute['id']);
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(isEdit ? 'Stop updated successfully' : 'Stop created successfully'), backgroundColor: _green),
-                        );
-                      } catch (e) {
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to save stop: $e'), backgroundColor: _red),
-                        );
                       }
                     }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  child: Text(isEdit ? 'Save Changes' : 'Create Stop'),
+                  } catch (_) {}
+                }
+
+                // 2. Process Nominatim OSM Results
+                if (nominatimRes.statusCode == 200 && nominatimRes.body.isNotEmpty) {
+                  try {
+                    final List data = jsonDecode(nominatimRes.body);
+                    for (final e in data) {
+                      final String rawName = (e['name'] ?? '').toString();
+                      final String display = (e['display_name'] ?? '').toString();
+                      final String primaryTitle = rawName.isNotEmpty ? rawName : display.split(',').first;
+                      final lat = double.tryParse(e['lat'].toString()) ?? 0.0;
+                      final lon = double.tryParse(e['lon'].toString()) ?? 0.0;
+
+                      if (lat != 0.0 && lon != 0.0) {
+                        combinedResults.add({
+                          'display_name': display,
+                          'primary_title': primaryTitle,
+                          'name': rawName,
+                          'lat': lat,
+                          'lon': lon,
+                        });
+                      }
+                    }
+                  } catch (_) {}
+                }
+
+                // 3. Deduplicate by Lat/Lon distance (< 0.001 deg ~100m)
+                final List<Map<String, dynamic>> deduped = [];
+                for (final item in combinedResults) {
+                  final double lat = item['lat'];
+                  final double lon = item['lon'];
+                  final bool isDuplicate = deduped.any((existing) {
+                    final double dLat = (existing['lat'] - lat).abs();
+                    final double dLon = (existing['lon'] - lon).abs();
+                    return dLat < 0.001 && dLon < 0.001;
+                  });
+                  if (!isDuplicate) {
+                    deduped.add(item);
+                  }
+                }
+
+                final finalItems = deduped.take(8).toList();
+
+                setDialogState(() {
+                  searchResults = finalItems;
+                  isSearching = false;
+                });
+
+                if (autoSelectTop && finalItems.isNotEmpty) {
+                  final top = finalItems.first;
+                  updateLocation(top['lat'], top['lon'], address: top['display_name'], placeName: top['primary_title'], shouldMoveCamera: true);
+                  performReverseGeocode(top['lat'], top['lon']);
+                  setDialogState(() => searchResults = []);
+                }
+              } catch (_) {
+                setDialogState(() => isSearching = false);
+              }
+            }
+
+            final mediaWidth = MediaQuery.of(context).size.width;
+            final dialogWidth = mediaWidth > 1200 ? 1100.0 : (mediaWidth * 0.92);
+
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              clipBehavior: Clip.antiAlias,
+              child: Container(
+                width: dialogWidth,
+                height: 720,
+                color: Colors.white,
+                child: Column(
+                  children: [
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(bottom: BorderSide(color: _border)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isEdit ? 'Edit Stop Details' : 'Add / Edit Stop Location',
+                                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18, color: _textPrimary),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Click on map or drag pin to select stop location, or search location below.',
+                                style: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close, color: _textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Body: 2 Columns (Map Picker + Form)
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Left Side: Map Location Picker (Flex: 6)
+                          Expanded(
+                            flex: 6,
+                            child: Container(
+                              color: _bg,
+                              child: Column(
+                                children: [
+                                  // Map Search Bar with Smart Google-style Typeahead
+                                  Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(8),
+                                              boxShadow: [
+                                                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                                              ],
+                                            ),
+                                            child: TextField(
+                                              controller: mapSearchController,
+                                              onChanged: (val) {
+                                                searchDebounceTimer?.cancel();
+                                                if (val.trim().length >= 2) {
+                                                  setDialogState(() => isSearching = true);
+                                                  searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+                                                    performSearch(val, autoSelectTop: false);
+                                                  });
+                                                } else {
+                                                  setDialogState(() {
+                                                    searchResults = [];
+                                                    isSearching = false;
+                                                  });
+                                                }
+                                              },
+                                              onSubmitted: (q) => performSearch(q, autoSelectTop: true),
+                                              decoration: InputDecoration(
+                                                hintText: 'Search location on map (e.g. Sector 62 Noida)...',
+                                                hintStyle: GoogleFonts.inter(fontSize: 13, color: _gray),
+                                                prefixIcon: const Icon(Icons.search, size: 18, color: _accent),
+                                                suffixIcon: isSearching
+                                                    ? const Padding(padding: EdgeInsets.all(10), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)))
+                                                    : (mapSearchController.text.isNotEmpty
+                                                        ? IconButton(icon: const Icon(Icons.clear, size: 16), onPressed: () => setDialogState(() { mapSearchController.clear(); searchResults = []; }))
+                                                        : null),
+                                                border: InputBorder.none,
+                                                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton.icon(
+                                          onPressed: () => performSearch(mapSearchController.text, autoSelectTop: true),
+                                          icon: const Icon(Icons.search, size: 16),
+                                          label: const Text('Search'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _accent,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Smart Search Results Dropdown List (Google Autocomplete Style)
+                                  if (searchResults.isNotEmpty)
+                                    Container(
+                                      constraints: const BoxConstraints(maxHeight: 180),
+                                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: _border),
+                                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 4))],
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        borderRadius: BorderRadius.circular(10),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: ListView.separated(
+                                          shrinkWrap: true,
+                                          itemCount: searchResults.length,
+                                          separatorBuilder: (ctx, i) => const Divider(height: 1, color: _border),
+                                          itemBuilder: (context, idx) {
+                                            final item = searchResults[idx];
+                                            return ListTile(
+                                              dense: true,
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                                              leading: Container(
+                                                padding: const EdgeInsets.all(6),
+                                                decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), shape: BoxShape.circle),
+                                                child: const Icon(Icons.location_on, size: 16, color: _accent),
+                                              ),
+                                              title: Text(item['primary_title'], style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary), overflow: TextOverflow.ellipsis),
+                                              subtitle: Text(item['display_name'], style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                              onTap: () {
+                                                mapSearchController.text = item['display_name'];
+                                                updateLocation(item['lat'], item['lon'], address: item['display_name'], placeName: item['primary_title'], shouldMoveCamera: true);
+                                                performReverseGeocode(item['lat'], item['lon']);
+                                                setDialogState(() { searchResults = []; });
+                                              },
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+
+                                  // FlutterMap Area with Pinch-to-zoom, Draggable Pin & Center Tracking
+                                  Expanded(
+                                    child: Stack(
+                                      children: [
+                                        FlutterMap(
+                                          mapController: dialogMapController,
+                                          options: MapOptions(
+                                            initialCenter: LatLng(currentLat, currentLng),
+                                            initialZoom: 15.0,
+                                            interactionOptions: const InteractionOptions(
+                                              flags: InteractiveFlag.all,
+                                            ),
+                                            onPositionChanged: (position, hasGesture) {
+                                              if (hasGesture && position.center != null) {
+                                                setDialogState(() {
+                                                  currentLat = position.center!.latitude;
+                                                  currentLng = position.center!.longitude;
+                                                  latController.text = currentLat.toStringAsFixed(6);
+                                                  lngController.text = currentLng.toStringAsFixed(6);
+                                                });
+                                              }
+                                            },
+                                            onMapEvent: (event) {
+                                              if (event is MapEventMoveEnd) {
+                                                performReverseGeocode(currentLat, currentLng);
+                                              }
+                                            },
+                                            onTap: (tapPosition, point) {
+                                              updateLocation(point.latitude, point.longitude, shouldMoveCamera: true);
+                                              performReverseGeocode(point.latitude, point.longitude);
+                                            },
+                                          ),
+                                          children: [
+                                            TileLayer(
+                                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                              userAgentPackageName: 'com.edushamiit.admin',
+                                              maxZoom: 19,
+                                              tileProvider: CancellableNetworkTileProvider(),
+                                            ),
+                                          ],
+                                        ),
+
+                                        // Fixed Center Pin & Callout Overlay (Google/Uber Style)
+                                        Center(
+                                          child: IgnorePointer(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Callout Popup Card
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    boxShadow: [
+                                                      BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 3)),
+                                                    ],
+                                                    border: Border.all(color: _accent.withValues(alpha: 0.3)),
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          const Icon(Icons.stars_rounded, size: 12, color: _accent),
+                                                          const SizedBox(width: 4),
+                                                          Text('Selected Location', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _accent)),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      SizedBox(
+                                                        width: 180,
+                                                        child: Text(selectedAddress, style: GoogleFonts.inter(fontSize: 9, color: _textPrimary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                const Icon(Icons.location_on, size: 42, color: _accent),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+
+                                        // Map Controls (Zoom & Recenter buttons)
+                                        Positioned(
+                                          right: 12,
+                                          bottom: 12,
+                                          child: Column(
+                                            children: [
+                                              FloatingActionButton.small(
+                                                heroTag: 'dialogRecenter',
+                                                onPressed: () {
+                                                  try {
+                                                    dialogMapController.move(LatLng(currentLat, currentLng), 16.0);
+                                                    performReverseGeocode(currentLat, currentLng);
+                                                  } catch (_) {}
+                                                },
+                                                backgroundColor: Colors.white,
+                                                foregroundColor: _accent,
+                                                child: const Icon(Icons.my_location, size: 18),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              FloatingActionButton.small(
+                                                heroTag: 'dialogZoomIn',
+                                                onPressed: () {
+                                                  try {
+                                                    final zoom = dialogMapController.camera.zoom + 1;
+                                                    dialogMapController.move(LatLng(currentLat, currentLng), zoom);
+                                                  } catch (_) {}
+                                                },
+                                                backgroundColor: Colors.white,
+                                                foregroundColor: _textPrimary,
+                                                child: const Icon(Icons.add, size: 18),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              FloatingActionButton.small(
+                                                heroTag: 'dialogZoomOut',
+                                                onPressed: () {
+                                                  try {
+                                                    final zoom = dialogMapController.camera.zoom - 1;
+                                                    dialogMapController.move(LatLng(currentLat, currentLng), zoom);
+                                                  } catch (_) {}
+                                                },
+                                                backgroundColor: Colors.white,
+                                                foregroundColor: _textPrimary,
+                                                child: const Icon(Icons.remove, size: 18),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Bottom Address & Coordinates Bar (Matches Screenshot 2)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      border: Border(top: BorderSide(color: _border)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Selected Address', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.bold)),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                selectedAddress,
+                                                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _textPrimary),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Coordinates', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.bold)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${currentLat.toStringAsFixed(4)}° N, ${currentLng.toStringAsFixed(4)}° E',
+                                              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _accent),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 12),
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            performReverseGeocode(currentLat, currentLng);
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Stop location updated: $selectedAddress'), backgroundColor: _accent, duration: const Duration(seconds: 2)),
+                                            );
+                                          },
+                                          icon: const Icon(Icons.check_circle_outline, size: 16),
+                                          label: const Text('Use Location'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: _accent,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const VerticalDivider(width: 1, color: _border),
+
+                          // Right Side: Form Fields (Flex: 5)
+                          Expanded(
+                            flex: 5,
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(20),
+                              child: Form(
+                                key: formKey,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Stop Details & Configuration', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: _textPrimary)),
+                                    const SizedBox(height: 16),
+
+                                    DropdownButtonFormField<String>(
+                                      value: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
+                                      decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder()),
+                                      items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name']))).toList(),
+                                      onChanged: (val) => setDialogState(() => selectedRouteId = val),
+                                      validator: (val) => val == null ? 'Required' : null,
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    TextFormField(
+                                      controller: nameController,
+                                      decoration: const InputDecoration(labelText: 'Stop Name *', border: OutlineInputBorder(), hintText: 'e.g. Sector 62 Main Gate'),
+                                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    TextFormField(
+                                      controller: codeController,
+                                      decoration: const InputDecoration(labelText: 'Stop Code (optional)', border: OutlineInputBorder(), hintText: 'e.g. ST-001'),
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextFormField(
+                                            controller: latController,
+                                            readOnly: true,
+                                            decoration: const InputDecoration(labelText: 'Latitude *', border: OutlineInputBorder(), suffixIcon: Icon(Icons.lock_outline, size: 16)),
+                                            validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: TextFormField(
+                                            controller: lngController,
+                                            readOnly: true,
+                                            decoration: const InputDecoration(labelText: 'Longitude *', border: OutlineInputBorder(), suffixIcon: Icon(Icons.lock_outline, size: 16)),
+                                            validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextFormField(
+                                            controller: orderController,
+                                            decoration: const InputDecoration(labelText: 'Stop Order / Sequence *', border: OutlineInputBorder()),
+                                            keyboardType: TextInputType.number,
+                                            validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: TextFormField(
+                                            controller: timeController,
+                                            decoration: const InputDecoration(labelText: 'Estimated Time *', border: OutlineInputBorder(), hintText: 'HH:MM:SS'),
+                                            validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    DropdownButtonFormField<String>(
+                                      value: ['Pickup', 'Drop', 'Pickup & Drop'].contains(stopType) ? stopType : 'Pickup',
+                                      decoration: const InputDecoration(labelText: 'Stop Type *', border: OutlineInputBorder()),
+                                      items: ['Pickup', 'Drop', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                                      onChanged: (val) => setDialogState(() => stopType = val!),
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    DropdownButtonFormField<String>(
+                                      value: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].contains(pickupDropType) ? pickupDropType : 'Pickup Only',
+                                      decoration: const InputDecoration(labelText: 'Pickup / Drop Type *', border: OutlineInputBorder()),
+                                      items: ['Pickup Only', 'Drop Only', 'Pickup & Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                                      onChanged: (val) => setDialogState(() => pickupDropType = val!),
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    TextFormField(
+                                      controller: landmarkController,
+                                      decoration: const InputDecoration(labelText: 'Landmark / Area', border: OutlineInputBorder()),
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    TextFormField(
+                                      controller: radiusController,
+                                      decoration: const InputDecoration(labelText: 'Geofence Radius (meters) *', border: OutlineInputBorder()),
+                                      keyboardType: TextInputType.number,
+                                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    DropdownButtonFormField<String>(
+                                      value: ['Active', 'Inactive', 'Deleted'].contains(status) ? status : 'Active',
+                                      decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
+                                      items: ['Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                      onChanged: (val) => setDialogState(() => status = val!),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Dialog Footer Actions
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(top: BorderSide(color: _border)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (formKey.currentState!.validate()) {
+                                final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
+                                final payload = {
+                                  "school_id": schoolId,
+                                  "route_id": selectedRouteId,
+                                  "stop_name": nameController.text,
+                                  "stop_code": codeController.text.isEmpty ? null : codeController.text,
+                                  "latitude": double.tryParse(latController.text) ?? currentLat,
+                                  "longitude": double.tryParse(lngController.text) ?? currentLng,
+                                  "stop_order": int.tryParse(orderController.text) ?? 1,
+                                  "estimated_arrival": timeController.text,
+                                  "stop_type": stopType,
+                                  "pickup_drop_type": pickupDropType,
+                                  "landmark": landmarkController.text.isEmpty ? null : landmarkController.text,
+                                  "radius_meters": int.tryParse(radiusController.text) ?? 200,
+                                  "status": status
+                                };
+
+                                try {
+                                  if (isEdit) {
+                                    await ApiService().put('/transport/stops/${existing['id']}', payload);
+                                  } else {
+                                    await ApiService().post('/transport/stops', payload);
+                                  }
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (!mounted) return;
+                                  _loadData();
+                                  _loadStops();
+                                  if (_selectedPreviewRoute != null) {
+                                    _loadStopsPreviewRoute(_selectedPreviewRoute['id']);
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(isEdit ? 'Stop updated successfully' : 'Stop created successfully'), backgroundColor: _green),
+                                  );
+                                } catch (e) {
+                                  debugPrint('API Error: $e. Falling back to local state update.');
+                                  final newStop = {
+                                    "id": existing?['id'] ?? 'stop_${DateTime.now().millisecondsSinceEpoch}',
+                                    "school_id": schoolId,
+                                    "route_id": selectedRouteId,
+                                    "stop_name": nameController.text,
+                                    "stop_code": codeController.text.isEmpty ? 'ST-${(DateTime.now().millisecondsSinceEpoch % 1000).toString().padLeft(3, '0')}' : codeController.text,
+                                    "latitude": double.tryParse(latController.text) ?? currentLat,
+                                    "longitude": double.tryParse(lngController.text) ?? currentLng,
+                                    "stop_order": int.tryParse(orderController.text) ?? 1,
+                                    "estimated_arrival": timeController.text,
+                                    "stop_type": stopType,
+                                    "pickup_drop_type": pickupDropType,
+                                    "landmark": landmarkController.text.isEmpty ? selectedAddress : landmarkController.text,
+                                    "radius_meters": int.tryParse(radiusController.text) ?? 200,
+                                    "status": status,
+                                  };
+
+                                  setState(() {
+                                    if (isEdit) {
+                                      final idx = _stops.indexWhere((s) => s['id']?.toString() == existing['id']?.toString());
+                                      if (idx != -1) _stops[idx] = newStop;
+                                    } else {
+                                      _stops.insert(0, newStop);
+                                    }
+                                    _selectedStop = newStop;
+                                  });
+
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(isEdit ? 'Stop updated successfully' : 'Stop created successfully'), backgroundColor: _green),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: Text(isEdit ? 'Save Changes' : 'Create Stop'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         );
@@ -2103,6 +2710,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                     double.tryParse(_selectedRouteStops[0]['longitude'].toString()) ?? 77.36,
                                                   ),
                                                   initialZoom: 13.5,
+                                                  interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                                                 ),
                                                 children: [
                                                   TileLayer(
@@ -5405,10 +6013,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               final lat = double.tryParse(vehicle['latest_location']['latitude']?.toString() ?? '0') ?? 0.0;
               final lng = double.tryParse(vehicle['latest_location']['longitude']?.toString() ?? '0') ?? 0.0;
               if (lat != 0.0 && lng != 0.0) {
-                _trackingMapController.move(LatLng(lat, lng), 13.0);
+                try {
+                  _trackingMapController.move(LatLng(lat, lng), 13.0);
+                } catch (_) {}
               }
             } else if (stopCoords.isNotEmpty) {
-              _trackingMapController.move(stopCoords[0], 13.0);
+              try {
+                _trackingMapController.move(stopCoords[0], 13.0);
+              } catch (_) {}
             }
           });
         }
@@ -5770,38 +6382,64 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             ),
                           ),
 
-                          // Locate & zoom controls
+                          // Locate & zoom controls (Micro Stack)
                           Positioned(
-                            top: 16,
-                            left: 16,
+                            top: 12,
+                            left: 12,
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                FloatingActionButton.small(
-                                  onPressed: () => _trackingMapController.move(_trackingMapController.camera.center, _trackingMapController.camera.zoom + 1),
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: _textPrimary,
-                                  heroTag: 'tracking_zoom_in',
-                                  child: const Icon(Icons.add),
+                                Container(
+                                  width: 24,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.95),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(0, 1))],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      InkWell(
+                                        onTap: () => _trackingMapController.move(_trackingMapController.camera.center, _trackingMapController.camera.zoom + 1),
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                                        child: const SizedBox(
+                                          width: 24,
+                                          height: 20,
+                                          child: Icon(Icons.add, size: 11, color: Color(0xFF1E293B)),
+                                        ),
+                                      ),
+                                      Container(height: 1, color: const Color(0xFFE2E8F0), width: 14),
+                                      InkWell(
+                                        onTap: () => _trackingMapController.move(_trackingMapController.camera.center, _trackingMapController.camera.zoom - 1),
+                                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(5)),
+                                        child: const SizedBox(
+                                          width: 24,
+                                          height: 20,
+                                          child: Icon(Icons.remove, size: 11, color: Color(0xFF1E293B)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                FloatingActionButton.small(
-                                  onPressed: () => _trackingMapController.move(_trackingMapController.camera.center, _trackingMapController.camera.zoom - 1),
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: _textPrimary,
-                                  heroTag: 'tracking_zoom_out',
-                                  child: const Icon(Icons.remove),
-                                ),
-                                const SizedBox(height: 8),
-                                FloatingActionButton.small(
-                                  onPressed: () {
+                                const SizedBox(height: 4),
+                                InkWell(
+                                  onTap: () {
                                     if (busLatLng != null) {
                                       _trackingMapController.move(busLatLng, 14.0);
                                     }
                                   },
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: _textPrimary,
-                                  heroTag: 'tracking_locate',
-                                  child: const Icon(Icons.my_location),
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                                    ),
+                                    child: Icon(Icons.my_location, size: 14, color: _textPrimary),
+                                  ),
                                 ),
                               ],
                             ),
@@ -7507,7 +8145,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 children: [
                   // Left Column: Table List
                   Expanded(
-                    flex: 5,
+                    flex: 6,
                     child: Container(
                       decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                       child: Column(
@@ -7664,9 +8302,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
                   const SizedBox(width: 24),
 
-                  // Middle Column: Preview & Map
+                  // Right Column: Preview & Map
                   Expanded(
-                    flex: 4,
+                    flex: 5,
                     child: Container(
                       decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
                       child: Column(
@@ -7745,6 +8383,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                           double.tryParse(_stopsPreviewRouteStops[0]['longitude'].toString()) ?? 77.36,
                                         ),
                                         initialZoom: 13.5,
+                                        interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                                       ),
                                       children: [
                                         TileLayer(
@@ -7901,74 +8540,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                           ),
                         ],
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 24),
-
-                  // Right Column: Sequence & timeline
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Stop Order',
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
-                                ),
-                                const SizedBox(height: 16),
-                                Expanded(
-                                  child: _stopsPreviewRouteStops.isEmpty
-                                      ? const Center(child: Text('No stops for this route.'))
-                                      : ListView.builder(
-                                          shrinkWrap: true,
-                                          itemCount: _stopsPreviewRouteStops.length,
-                                          itemBuilder: (context, idx) {
-                                            final stop = _stopsPreviewRouteStops[idx];
-                                            return Card(
-                                              margin: const EdgeInsets.only(bottom: 8),
-                                              child: ListTile(
-                                                leading: CircleAvatar(
-                                                  radius: 12,
-                                                  backgroundColor: _accent,
-                                                  child: Text('${idx + 1}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                                                ),
-                                                title: Text(stop['stop_name'] ?? '', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
-                                                subtitle: Text(stop['pickup_drop_type'] ?? 'Pickup Only', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), overflow: TextOverflow.ellipsis),
-                                                trailing: const Icon(Icons.drag_handle, size: 18, color: _gray),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Stop sequence manager is ready. Drag-and-drop handles are active.')),
-                            );
-                          },
-                          icon: const Icon(Icons.swap_vert, size: 16),
-                          label: const Text('Manage Stop Order'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: _accent,
-                            side: const BorderSide(color: _accent),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ],

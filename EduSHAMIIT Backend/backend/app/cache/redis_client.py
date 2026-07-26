@@ -31,6 +31,13 @@ def get_redis():
             if redis_url.startswith("rediss://"):
                 ssl_params["ssl_cert_reqs"] = None
             
+            redis_pass = os.getenv("REDIS_PASSWORD", "redis_password_2026")
+            if redis_pass and "@" not in redis_url:
+                if redis_url.startswith("redis://"):
+                    redis_url = redis_url.replace("redis://", f"redis://:{redis_pass}@")
+                elif redis_url.startswith("rediss://"):
+                    redis_url = redis_url.replace("rediss://", f"rediss://:{redis_pass}@")
+
             _redis_client = redis.from_url(
                 redis_url,
                 decode_responses=True,

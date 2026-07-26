@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart';
+import '../../services/tomtom_service.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -59,11 +60,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   int _expandedStopIndex = 4;
 
   // Map settings
-  String _mapType = "Standard"; // Standard, Satellite, Terrain
+  String _mapType = "Satellite"; // Satellite by default, Standard, Terrain
   bool _showTraffic = true;
   double _zoomLevel = 13.5;
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
+  bool _showMapTypeMenu = false;
+  bool _showPoiFilterMenu = false;
+  bool _hideMapControls = false;
+  bool _hideBottomControls = false;
+
 
   // Timer for GPS simulation
   Timer? _telemetryTimer;
@@ -315,7 +321,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     _isInitialLoading = true;
 
     _initializeDashboard();
-    _startRealGpsSpeedometer();
+    _requestDeviceLocationPermission();
   }
 
   @override
@@ -384,6 +390,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         _syncSelectedMap();
         _isInitialLoading = false;
       });
+      _loadOSRMRouteForStops();
     } else {
       setState(() {
         _isInitialLoading = false;
@@ -469,15 +476,18 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                 "[DRIVER_DASH] _loadTripState: WARNING - studentsFromDb is EMPTY, keeping hardcoded students!");
           }
 
-          _routePoints = _stops.map((s) {
+          final stopCoords = _stops.map((s) {
             final lat = (s['latitude'] as num?)?.toDouble() ?? 28.6280;
             final lng = (s['longitude'] as num?)?.toDouble() ?? 77.3780;
             return LatLng(lat, lng);
           }).toList();
 
+          _routePoints = stopCoords;
           _syncCurrentStopIndex();
           _syncSelectedMap();
         });
+
+        _loadOSRMRouteForStops();
       } else {
         debugPrint(
             "[DRIVER_DASH] _loadTripState: API returned null/failed, keeping hardcoded data!");
@@ -486,6 +496,134 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       debugPrint("[DRIVER_DASH] Error loading trip state: $e");
       debugPrint("[DRIVER_DASH] Stack: $st");
     }
+  }
+
+  static final Map<String, List<LatLng>> _localPolylineCache = {};
+
+  Future<List<LatLng>> _fetchOSMRoutePoints(List<LatLng> stopCoords) async {
+    if (stopCoords.length < 2) return stopCoords;
+    final coordsString = stopCoords.map((c) => '${c.longitude},${c.latitude}').join(';');
+    final cacheKey = coordsString;
+
+    // 1. Memory Cache
+    if (_localPolylineCache.containsKey(cacheKey) && _localPolylineCache[cacheKey]!.length > 5) {
+      return _localPolylineCache[cacheKey]!;
+    }
+
+    // 2. FastAPI GIS Backend Proxy (uses Redis 24h caching + fallback mirrors)
+    try {
+      final res = await ApiService().get('/gis/route-geometry', query: {'waypoints': coordsString});
+      if (res['success'] == true && res['coordinates'] != null) {
+        final coordsList = res['coordinates'] as List;
+        if (coordsList.length > 5) {
+          final points = coordsList.map<LatLng>((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble())).toList();
+          _localPolylineCache[cacheKey] = points;
+          return points;
+        }
+      }
+    } catch (e) {
+      debugPrint('[Backend GIS Route Geometry] Notice: $e');
+    }
+
+    // 3. Direct OSRM Provider Mirrors
+    for (final host in [
+      'https://router.project-osrm.org',
+      'https://routing.openstreetmap.de/routed-car'
+    ]) {
+      try {
+        final url = '$host/route/v1/driving/$coordsString?overview=full&geometries=geojson';
+        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final coordinates = data['routes'][0]['geometry']['coordinates'] as List;
+          final points = coordinates.map<LatLng>((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble())).toList();
+          if (points.length > 5) {
+            _localPolylineCache[cacheKey] = points;
+            return points;
+          }
+        }
+      } catch (e) {
+        debugPrint('[OSRM Mirror] $host notice: $e');
+      }
+    }
+
+    // 4. Stale Cache Fallback
+    if (_localPolylineCache.containsKey(cacheKey)) {
+      return _localPolylineCache[cacheKey]!;
+    }
+
+    return stopCoords;
+  }
+
+  Future<void> _loadOSRMRouteForStops() async {
+    if (_stops.length < 2) return;
+    final stopCoords = _stops.map((s) {
+      final lat = (s['latitude'] as num?)?.toDouble() ?? 28.6280;
+      final lng = (s['longitude'] as num?)?.toDouble() ?? 77.3780;
+      return LatLng(lat, lng);
+    }).toList();
+
+    final osmPoints = await _fetchOSMRoutePoints(stopCoords);
+    if (mounted) {
+      setState(() {
+        _routePoints = osmPoints;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fitMapToAllStopsAndRoute();
+      });
+    }
+  }
+
+  void _fitMapToAllStopsAndRoute() {
+    if (_stops.isEmpty && _routePoints.isEmpty) return;
+
+    final points = <LatLng>[];
+    for (final s in _stops) {
+      final lat = (s['latitude'] as num?)?.toDouble();
+      final lng = (s['longitude'] as num?)?.toDouble();
+      if (lat != null && lng != null) {
+        points.add(LatLng(lat, lng));
+      }
+    }
+    if (_routePoints.isNotEmpty) {
+      points.addAll(_routePoints);
+    } else {
+      points.add(_getBusLocation());
+    }
+
+    if (points.isEmpty) return;
+
+    double minLat = 90.0, maxLat = -90.0, minLng = 180.0, maxLng = -180.0;
+    for (final p in points) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+
+    final centerLat = (minLat + maxLat) / 2;
+    final centerLng = (minLng + maxLng) / 2;
+
+    final latSpan = (maxLat - minLat).abs();
+    final lngSpan = (maxLng - minLng).abs();
+    final maxSpan = math.max(latSpan, lngSpan);
+
+    double zoom = 13.0;
+    if (maxSpan > 0.5) {
+      zoom = 10.0;
+    } else if (maxSpan > 0.2) {
+      zoom = 11.5;
+    } else if (maxSpan > 0.1) {
+      zoom = 12.5;
+    } else if (maxSpan > 0.05) {
+      zoom = 13.5;
+    } else {
+      zoom = 14.5;
+    }
+
+    try {
+      _mapController.move(LatLng(centerLat, centerLng), zoom);
+    } catch (_) {}
   }
 
   void _syncCurrentStopIndex() {
@@ -575,12 +713,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
     final lat = p1.latitude + (p2.latitude - p1.latitude) * segmentRatio;
     final lng = p1.longitude + (p2.longitude - p1.longitude) * segmentRatio;
+
+    // Auto-calculate Navigation Compass Bearing (0° - 360° True North)
+    final double deltaLat = p2.latitude - p1.latitude;
+    final double deltaLng = (p2.longitude - p1.longitude) * math.cos(p1.latitude * math.pi / 180.0);
+    if (deltaLat != 0 || deltaLng != 0) {
+      _vehicleHeading = (math.atan2(deltaLng, deltaLat) * 180.0 / math.pi + 360.0) % 360.0;
+    }
+
     return LatLng(lat, lng);
   }
 
   String _getMapTileUrl() {
     if (_mapType == "Satellite") {
-      return "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+      return "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}";
     } else if (_mapType == "Terrain") {
       return "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
     }
@@ -591,16 +737,94 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   double _currentSpeedKmh = 0.0;
   double _vehicleHeading = 0.0;
   bool _isAutoRerouting = false;
+  bool _hasLocationPermission = false;
+  bool _isRequestingPermission = false;
   StreamSubscription<Position>? _gpsPositionSubscription;
   LatLng? _lastGpsPosition;
   DateTime? _lastGpsTimestamp;
 
-  void _startRealGpsSpeedometer() async {
+  void _requestDeviceLocationPermission() async {
+    if (_isRequestingPermission) return;
+    _isRequestingPermission = true;
+
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("⚠️ Device GPS Location Service is turned OFF. Please enable location."),
+              backgroundColor: Color(0xFFF59E0B),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+        setState(() {
+          _hasLocationPermission = true;
+        });
+        _startRealGpsSpeedometer();
+      } else if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          _showPermissionDeniedDialog();
+        }
+      }
+    } catch (e) {
+      debugPrint("Location permission request error: $e");
+    } finally {
+      _isRequestingPermission = false;
+    }
+  }
+
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.location_disabled, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text("GPS Location Required", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          "EduSHAMIIT Driver App requires device location and compass access to track your bus in real-time and orient map navigation.",
+          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Dismiss", style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Geolocator.openAppSettings();
+            },
+            child: const Text("Open Settings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startRealGpsSpeedometer() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        return;
       }
 
       _gpsPositionSubscription?.cancel();
@@ -757,92 +981,34 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Widget _buildSpeedometerHud() {
-    final bool isOverSpeed = _currentSpeedKmh > 50.0;
+    final double currentSpeed = _isTripActive ? (_isTripPaused ? 0.0 : _currentSpeedKmh) : 0.0;
+    final String speedText = currentSpeed > 0 ? "${currentSpeed.round()} km/h" : "0 km/h";
+    final String statusText = currentSpeed > 0 ? "Live Speed" : "Vehicle Stopped";
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))
-        ],
-        border: Border.all(
-            color: isOverSpeed ? Colors.redAccent : const Color(0xFFE2E8F0),
-            width: 1.5),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white24),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(
-              color: isOverSpeed
-                  ? const Color(0xFFFEF2F2)
-                  : const Color(0xFFEEF2FF),
+              color: currentSpeed > 0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
               shape: BoxShape.circle,
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _currentSpeedKmh.round().toString(),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: isOverSpeed
-                          ? const Color(0xFFEF4444)
-                          : const Color(0xFF4F46E5),
-                    ),
-                  ),
-                  const Text(
-                    "KM/H",
-                    style: TextStyle(
-                        fontSize: 7,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-            ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF10B981),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    "GPS LIVE SENSOR",
-                    style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _currentSpeedKmh > 0 ? "In Motion" : "Vehicle Stopped",
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B)),
-              ),
-            ],
-          )
+          const SizedBox(width: 6),
+          Text(
+            "$speedText • $statusText",
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
         ],
       ),
     );
@@ -862,6 +1028,356 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   double _navDistanceKm = 0.0;
   int _navDurationMins = 0;
 
+  // POI Places on the Way State
+  String? _activePoiCategory;
+  List<Map<String, dynamic>> _poiMarkersData = [];
+  double _searchCorridorRadiusKm = 2.5;
+  bool _isEmergencySearchMode = false;
+
+  // Multi-Route Navigation & Auto-Follow State
+  List<List<LatLng>> _navigationRoutePaths = [];
+  List<Map<String, dynamic>> _navigationRouteInfos = [];
+  int _selectedRouteIndex = 0;
+  bool _isAutoFollowVehicle = true;
+
+  Future<void> _searchPlacesOnTheWay(String categoryKey, String queryKeyword) async {
+    if (_activePoiCategory == categoryKey) {
+      setState(() {
+        _activePoiCategory = null;
+        _poiMarkersData = [];
+      });
+      return;
+    }
+
+    setState(() {
+      _activePoiCategory = categoryKey;
+      _isSearchingLocation = true;
+      _poiMarkersData = [];
+    });
+
+    final searchQuery = categoryKey == 'hospital'
+        ? "hospital medical store emergency pharmacy"
+        : categoryKey == 'petrol'
+            ? "petrol pump fuel station"
+            : queryKeyword;
+
+    final double effectiveRadius = _isEmergencySearchMode
+        ? math.max(_searchCorridorRadiusKm, 10.0)
+        : _searchCorridorRadiusKm;
+
+    final results = await _performTomTomSearchAlongRoute(categoryKey, searchQuery, maxRadiusFromRouteKm: effectiveRadius);
+
+    setState(() {
+      _isSearchingLocation = false;
+      _poiMarkersData = results;
+    });
+
+    if (results.isNotEmpty) {
+      _fitMapToAllStopsAndRoute();
+
+      if (mounted) {
+        final label = categoryKey == 'hospital' ? 'Emergency Hospitals & Medical Stores' : categoryKey.toUpperCase();
+        final modeText = _isEmergencySearchMode ? "(Emergency Wide Search)" : "(Along Route Corridor)";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Found ${results.length} $label $modeText"),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("No $categoryKey found along current range (${effectiveRadius.toStringAsFixed(1)} km)"),
+            backgroundColor: const Color(0xFFF59E0B),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  double _distanceToSegmentKm(LatLng p, LatLng a, LatLng b) {
+    final double latP = p.latitude;
+    final double lonP = p.longitude;
+    final double latA = a.latitude;
+    final double lonA = a.longitude;
+    final double latB = b.latitude;
+    final double lonB = b.longitude;
+
+    final double avgLatRad = ((latA + latB) / 2.0) * (math.pi / 180.0);
+    final double cosLat = math.cos(avgLatRad);
+
+    const double ax = 0.0;
+    const double ay = 0.0;
+    final double bx = (lonB - lonA) * 111.0 * cosLat;
+    final double by = (latB - latA) * 111.0;
+    final double px = (lonP - lonA) * 111.0 * cosLat;
+    final double py = (latP - latA) * 111.0;
+
+    final double dx = bx - ax;
+    final double dy = by - ay;
+    final double segmentLenSq = dx * dx + dy * dy;
+
+    if (segmentLenSq == 0.0) {
+      return _calculateDistanceKm(latP, lonP, latA, lonA);
+    }
+
+    double t = ((px - ax) * dx + (py - ay) * dy) / segmentLenSq;
+    t = t.clamp(0.0, 1.0);
+
+    final double closestX = ax + t * dx;
+    final double closestY = ay + t * dy;
+
+    final double distX = px - closestX;
+    final double distY = py - closestY;
+
+    return math.sqrt(distX * distX + distY * distY);
+  }
+
+  double _calculateMinDistanceToPolylineKm(LatLng point, List<LatLng> polyline) {
+    if (polyline.isEmpty) return double.infinity;
+    if (polyline.length == 1) {
+      return _calculateDistanceKm(point.latitude, point.longitude, polyline[0].latitude, polyline[0].longitude);
+    }
+
+    double minDistance = double.infinity;
+    for (int i = 0; i < polyline.length - 1; i++) {
+      final dist = _distanceToSegmentKm(point, polyline[i], polyline[i + 1]);
+      if (dist < minDistance) {
+        minDistance = dist;
+      }
+    }
+    return minDistance;
+  }
+
+  int _getTargetPoiYield(double radiusKm, bool isEmergency) {
+    if (isEmergency || radiusKm >= 20.0) return 75;
+    if (radiusKm >= 10.0) return 50;
+    if (radiusKm >= 5.0) return 35;
+    if (radiusKm >= 2.5) return 20;
+    return 12;
+  }
+
+  Future<List<Map<String, dynamic>>> _performTomTomSearchAlongRoute(
+      String categoryKey, String queryKeyword, {double maxRadiusFromRouteKm = 2.0}) async {
+    final busLoc = _getBusLocation();
+
+    final List<LatLng> routePointsList = [];
+    if (_routePoints.isNotEmpty) {
+      routePointsList.addAll(_routePoints);
+    }
+    if (_navigationRoutePaths.isNotEmpty) {
+      for (final path in _navigationRoutePaths) {
+        routePointsList.addAll(path);
+      }
+    }
+    if (routePointsList.isEmpty && _stops.isNotEmpty) {
+      for (final s in _stops) {
+        final lat = (s['latitude'] as num?)?.toDouble() ?? 0.0;
+        final lon = (s['longitude'] as num?)?.toDouble() ?? 0.0;
+        if (lat != 0.0 && lon != 0.0) {
+          routePointsList.add(LatLng(lat, lon));
+        }
+      }
+    }
+    if (routePointsList.isEmpty) {
+      routePointsList.add(busLoc);
+    }
+
+    final double effectiveRadius = _isEmergencySearchMode
+        ? math.max(maxRadiusFromRouteKm, 10.0)
+        : maxRadiusFromRouteKm;
+
+    // Direct TomTom API Call via FastAPI GIS Microservice & Redis Cache
+    final List<Map<String, dynamic>> allPois = await TomTomService().searchPlacesOnTheWay(
+      categoryKey: categoryKey,
+      queryKeyword: queryKeyword,
+      routePoints: routePointsList,
+      busLocation: busLoc,
+      maxRadiusKm: effectiveRadius,
+      isEmergency: _isEmergencySearchMode,
+    );
+
+    final List<Map<String, dynamic>> verifiedCandidatePois = [];
+
+    for (final item in allPois) {
+      final double lat = (item['lat'] as num).toDouble();
+      final double lon = (item['lon'] as num).toDouble();
+      final LatLng poiPoint = LatLng(lat, lon);
+
+      final double busDist = _calculateDistanceKm(busLoc.latitude, busLoc.longitude, lat, lon);
+      final double polylineDist = _calculateMinDistanceToPolylineKm(poiPoint, routePointsList);
+
+      if (_isEmergencySearchMode) {
+        // Emergency Mode: Show ALL facilities within wide radial area around bus location
+        if (busDist <= effectiveRadius) {
+          item['distance_km'] = busDist;
+          item['corridor_dist_km'] = busDist;
+
+          final bool isDuplicate = verifiedCandidatePois.any((existing) {
+            final double dLat = ((existing['lat'] as num).toDouble() - lat).abs();
+            final double dLon = ((existing['lon'] as num).toDouble() - lon).abs();
+            return dLat < 0.0003 && dLon < 0.0003;
+          });
+
+          if (!isDuplicate) {
+            verifiedCandidatePois.add(item);
+          }
+        }
+      } else {
+        // Normal Mode: Show places ALONG THE ROUTE POLYLINE PATH ONLY (max 2.0 km from polyline)
+        final double maxPolyDist = math.min(effectiveRadius, 2.0);
+        if (polylineDist <= maxPolyDist) {
+          item['distance_km'] = busDist;
+          item['corridor_dist_km'] = polylineDist;
+
+          final bool isDuplicate = verifiedCandidatePois.any((existing) {
+            final double dLat = ((existing['lat'] as num).toDouble() - lat).abs();
+            final double dLon = ((existing['lon'] as num).toDouble() - lon).abs();
+            return dLat < 0.0003 && dLon < 0.0003;
+          });
+
+          if (!isDuplicate) {
+            verifiedCandidatePois.add(item);
+          }
+        }
+      }
+    }
+
+    if (_isEmergencySearchMode) {
+      // Sort Emergency Mode strictly by direct distance to bus
+      verifiedCandidatePois.sort((a, b) {
+        final double distA = (a['distance_km'] as num).toDouble();
+        final double distB = (b['distance_km'] as num).toDouble();
+        return distA.compareTo(distB);
+      });
+      final int targetYield = _getTargetPoiYield(effectiveRadius, _isEmergencySearchMode);
+      return verifiedCandidatePois.take(targetYield).toList();
+    } else {
+      // Sort Normal Mode by proximity to polyline corridor / route progress
+      verifiedCandidatePois.sort((a, b) {
+        final double polyA = (a['corridor_dist_km'] as num).toDouble();
+        final double polyB = (b['corridor_dist_km'] as num).toDouble();
+        return polyA.compareTo(polyB);
+      });
+      // Cap at Top 10 nearest places on the polyline
+      return verifiedCandidatePois.take(10).toList();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _performMultiEngineSearch(String query) async {
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) return [];
+
+    final encodedQuery = Uri.encodeComponent(trimmedQuery);
+    final List<Map<String, dynamic>> combinedResults = [];
+
+    try {
+      final tomTomPois = await TomTomService().fuzzySearch(trimmedQuery, userLocation: _getBusLocation());
+      combinedResults.addAll(tomTomPois);
+
+      final photonUrl = Uri.parse('https://photon.komoot.io/api/?q=$encodedQuery&limit=10');
+      final nominatimUrl = Uri.parse('https://nominatim.openstreetmap.org/search?format=json&q=$encodedQuery&limit=10&addressdetails=1');
+
+      final responses = await Future.wait([
+        http.get(photonUrl, headers: {'User-Agent': 'EduSHAMIIT-DriverApp/1.0'}).timeout(const Duration(seconds: 4)).catchError((_) => http.Response('', 500)),
+        http.get(nominatimUrl, headers: {'User-Agent': 'EduSHAMIIT-DriverApp/1.0'}).timeout(const Duration(seconds: 4)).catchError((_) => http.Response('', 500)),
+      ]);
+
+      final photonRes = responses[0];
+      final nominatimRes = responses[1];
+
+      // 1. Process Photon Elasticsearch Results (Fuzzy & Multi-word query support)
+      if (photonRes.statusCode == 200 && photonRes.body.isNotEmpty) {
+        try {
+          final data = jsonDecode(photonRes.body);
+          final features = data['features'] as List? ?? [];
+          for (final feat in features) {
+            final props = feat['properties'] as Map<String, dynamic>? ?? {};
+            final coords = feat['geometry']?['coordinates'] as List? ?? [];
+            if (coords.length >= 2) {
+              final lon = double.tryParse(coords[0].toString()) ?? 0.0;
+              final lat = double.tryParse(coords[1].toString()) ?? 0.0;
+              final name = (props['name'] ?? '').toString();
+              final street = (props['street'] ?? '').toString();
+              final district = (props['district'] ?? props['suburb'] ?? '').toString();
+              final city = (props['city'] ?? props['town'] ?? props['village'] ?? props['county'] ?? '').toString();
+              final state = (props['state'] ?? '').toString();
+              final country = (props['country'] ?? '').toString();
+
+              final parts = <String>[];
+              if (name.isNotEmpty) parts.add(name);
+              if (street.isNotEmpty) parts.add(street);
+              if (district.isNotEmpty && district != name) parts.add(district);
+              if (city.isNotEmpty && city != name) parts.add(city);
+              if (state.isNotEmpty) parts.add(state);
+              if (country.isNotEmpty) parts.add(country);
+
+              final fullAddress = parts.join(', ');
+              final primaryTitle = name.isNotEmpty ? name : (city.isNotEmpty ? city : (parts.isNotEmpty ? parts.first : trimmedQuery));
+
+              if (lat != 0.0 && lon != 0.0) {
+                combinedResults.add({
+                  'display_name': fullAddress,
+                  'primary_title': primaryTitle,
+                  'name': name.isNotEmpty ? name : primaryTitle,
+                  'lat': lat,
+                  'lon': lon,
+                });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Process Nominatim Results
+      if (nominatimRes.statusCode == 200 && nominatimRes.body.isNotEmpty) {
+        try {
+          final List data = jsonDecode(nominatimRes.body);
+          for (final e in data) {
+            final String rawName = (e['name'] ?? '').toString();
+            final String display = (e['display_name'] ?? '').toString();
+            final String primaryTitle = rawName.isNotEmpty ? rawName : display.split(',').first;
+            final lat = double.tryParse(e['lat'].toString()) ?? 0.0;
+            final lon = double.tryParse(e['lon'].toString()) ?? 0.0;
+
+            if (lat != 0.0 && lon != 0.0) {
+              combinedResults.add({
+                'display_name': display,
+                'primary_title': primaryTitle,
+                'name': rawName.isNotEmpty ? rawName : primaryTitle,
+                'lat': lat,
+                'lon': lon,
+              });
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Deduplicate
+      final List<Map<String, dynamic>> deduped = [];
+      for (final item in combinedResults) {
+        final double lat = item['lat'];
+        final double lon = item['lon'];
+        final bool isDuplicate = deduped.any((existing) {
+          final double dLat = (existing['lat'] - lat).abs();
+          final double dLon = (existing['lon'] - lon).abs();
+          return dLat < 0.001 && dLon < 0.001;
+        });
+        if (!isDuplicate) {
+          deduped.add(item);
+        }
+      }
+
+      return deduped.take(8).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   void _onSearchChanged(String value) {
     if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
     if (value.trim().length < 2) {
@@ -871,34 +1387,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       return;
     }
 
-    _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
-      final query = value.trim();
-      try {
-        final url = Uri.parse(
-            'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=5');
-        final res = await http.get(url, headers: {
-          'User-Agent': 'EduSHAMIIT-DriverApp/1.0',
-        }).timeout(const Duration(seconds: 4));
-
-        if (res.statusCode == 200) {
-          final List<dynamic> data = jsonDecode(res.body);
-          if (mounted) {
-            setState(() {
-              _searchResults = data
-                  .map<Map<String, dynamic>>((e) => {
-                        'display_name': e['display_name'] ?? '',
-                        'lat': double.parse(e['lat'].toString()),
-                        'lon': double.parse(e['lon'].toString()),
-                        'name': e['name'] ??
-                            e['display_name']?.toString().split(',').first ??
-                            '',
-                      })
-                  .toList();
-            });
-          }
-        }
-      } catch (e) {
-        debugPrint("Autocomplete search error: $e");
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      final results = await _performMultiEngineSearch(value);
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+        });
       }
     });
   }
@@ -909,7 +1403,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     final displayName = item['display_name'] as String;
     final targetLoc = LatLng(lat, lon);
 
-    _searchController.text = item['name'] ?? displayName.split(',').first;
+    _searchController.text = item['name'] ?? item['primary_title'] ?? displayName.split(',').first;
 
     setState(() {
       _searchedMarkerLoc = targetLoc;
@@ -930,35 +1424,22 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       _searchResults = [];
     });
 
-    try {
-      final url = Uri.parse(
-          'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=5');
-      final res = await http.get(url, headers: {
-        'User-Agent': 'EduSHAMIIT-DriverApp/1.0',
-      }).timeout(const Duration(seconds: 6));
+    final results = await _performMultiEngineSearch(query);
 
-      if (res.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(res.body);
-        if (data.isNotEmpty) {
-          final first = data.first;
-          final lat = double.parse(first['lat']);
-          final lon = double.parse(first['lon']);
-          final displayName = first['display_name'] ?? query;
+    if (results.isNotEmpty) {
+      final first = results.first;
+      final targetLoc = LatLng(first['lat'], first['lon']);
+      final displayName = first['display_name'];
 
-          final targetLoc = LatLng(lat, lon);
-          setState(() {
-            _searchedMarkerLoc = targetLoc;
-            _searchedLocationName = displayName;
-            _isSearchingLocation = false;
-            _showDestinationCard = true;
-          });
+      setState(() {
+        _searchedMarkerLoc = targetLoc;
+        _searchedLocationName = displayName;
+        _isSearchingLocation = false;
+        _showDestinationCard = true;
+      });
 
-          _mapController.move(targetLoc, 15.0);
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint("Error geocoding location: $e");
+      _mapController.move(targetLoc, 15.0);
+      return;
     }
 
     // Fallback search in stops list
@@ -1002,9 +1483,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
   Future<void> _calculateDirections() async {
     if (_searchedMarkerLoc == null) return;
-
-    // Bus location
-    const busLoc = LatLng(28.6298, 77.3705);
+    final busLoc = _getBusLocation(); // Live vehicle position
 
     setState(() {
       _isCalculatingRoute = true;
@@ -1014,45 +1493,54 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       final url = Uri.parse('https://router.project-osrm.org/route/v1/driving/'
           '${busLoc.longitude},${busLoc.latitude};'
           '${_searchedMarkerLoc!.longitude},${_searchedMarkerLoc!.latitude}'
-          '?overview=full&geometries=geojson');
+          '?overview=full&geometries=geojson&alternatives=true');
 
-      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      final res = await http.get(url).timeout(const Duration(seconds: 5));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data['routes'] != null && (data['routes'] as List).isNotEmpty) {
-          final route = data['routes'][0];
-          final distanceMeters = (route['distance'] as num).toDouble();
-          final durationSecs = (route['duration'] as num).toDouble();
-          final coords = route['geometry']['coordinates'] as List<dynamic>;
+        final routes = data['routes'] as List? ?? [];
+        if (routes.isNotEmpty) {
+          final List<List<LatLng>> routePaths = [];
+          final List<Map<String, dynamic>> routeInfos = [];
 
-          final List<LatLng> polyline = coords.map<LatLng>((c) {
-            final lon = (c[0] as num).toDouble();
-            final lat = (c[1] as num).toDouble();
-            return LatLng(lat, lon);
-          }).toList();
+          for (int i = 0; i < routes.length; i++) {
+            final route = routes[i];
+            final distMeters = (route['distance'] as num).toDouble();
+            final durSecs = (route['duration'] as num).toDouble();
+            final coords = route['geometry']['coordinates'] as List<dynamic>;
+
+            final polyline = coords.map<LatLng>((c) {
+              return LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble());
+            }).toList();
+
+            final distKm = double.parse((distMeters / 1000.0).toStringAsFixed(1));
+            final durMins = (durSecs / 60.0).round();
+
+            routePaths.add(polyline);
+            routeInfos.add({
+              'label': i == 0 ? '⚡ Fastest Route' : (i == 1 ? '🌿 Shortest Path' : '🛣️ Alt Route $i'),
+              'distance_km': distKm,
+              'duration_mins': durMins,
+              'summary': route['legs']?[0]?['summary'] ?? (i == 0 ? 'Via Highway' : 'Via Local Corridor'),
+            });
+          }
 
           setState(() {
-            _navigationPolylinePoints = polyline;
-            _navDistanceKm =
-                double.parse((distanceMeters / 1000.0).toStringAsFixed(1));
-            _navDurationMins = (durationSecs / 60.0).round();
-            _isNavigating = true;
+            _navigationRoutePaths = routePaths;
+            _navigationRouteInfos = routeInfos;
+            _selectedRouteIndex = 0;
+
+            _navigationPolylinePoints = routePaths[0];
+            _navDistanceKm = routeInfos[0]['distance_km'];
+            _navDurationMins = routeInfos[0]['duration_mins'];
+
+            _isNavigating = false; // Pre-navigation route selection mode (Google Maps style)
             _isCalculatingRoute = false;
-            _showDestinationCard = false;
+            _showDestinationCard = true;
           });
 
           _fitMapToBounds(busLoc, _searchedMarkerLoc!);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    "Navigation started: $_navDistanceKm km ($_navDurationMins mins)"),
-                backgroundColor: const Color(0xFF10B981),
-              ),
-            );
-          }
           return;
         }
       }
@@ -1060,16 +1548,36 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       debugPrint("OSRM routing error: $e");
     }
 
-    // Fallback straight-line polyline if OSRM is unreachable
+    // Fallback if OSRM is unreachable: vehicle-to-destination polyline + alternative detour
+    final directDistanceKm = double.parse(_calculateDistanceKm(busLoc.latitude, busLoc.longitude,
+        _searchedMarkerLoc!.latitude, _searchedMarkerLoc!.longitude).toStringAsFixed(1));
+    final directMins = math.max(1, (directDistanceKm * 1.8).round());
+
+    final midLat = (busLoc.latitude + _searchedMarkerLoc!.latitude) / 2.0;
+    final midLon = (busLoc.longitude + _searchedMarkerLoc!.longitude) / 2.0;
+
+    final primaryPath = [busLoc, LatLng(midLat, midLon), _searchedMarkerLoc!];
+    final altPath = [
+      busLoc,
+      LatLng(midLat + 0.005, midLon - 0.005),
+      _searchedMarkerLoc!
+    ];
+
     setState(() {
-      _navigationPolylinePoints = [busLoc, _searchedMarkerLoc!];
-      final distKm = _calculateDistanceKm(busLoc.latitude, busLoc.longitude,
-          _searchedMarkerLoc!.latitude, _searchedMarkerLoc!.longitude);
-      _navDistanceKm = double.parse(distKm.toStringAsFixed(1));
-      _navDurationMins = (_navDistanceKm * 2.5).round();
-      _isNavigating = true;
+      _navigationRoutePaths = [primaryPath, altPath];
+      _navigationRouteInfos = [
+        {'label': '⚡ Direct Route', 'distance_km': directDistanceKm, 'duration_mins': directMins, 'summary': 'Direct Corridor'},
+        {'label': '🌿 Eco Detour', 'distance_km': double.parse((directDistanceKm * 1.12).toStringAsFixed(1)), 'duration_mins': (directMins * 1.25).round(), 'summary': 'Service Road'},
+      ];
+      _selectedRouteIndex = 0;
+
+      _navigationPolylinePoints = primaryPath;
+      _navDistanceKm = directDistanceKm;
+      _navDurationMins = directMins;
+
+      _isNavigating = false; // Pre-navigation route selection mode
       _isCalculatingRoute = false;
-      _showDestinationCard = false;
+      _showDestinationCard = true;
     });
 
     _fitMapToBounds(busLoc, _searchedMarkerLoc!);
@@ -1117,144 +1625,581 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
             const Divider(height: 1, color: Color(0xFFF1F5F9)),
         itemBuilder: (context, index) {
           final item = _searchResults[index];
-          final title = item['name'] as String? ?? 'Location';
-          final address = item['display_name'] as String? ?? '';
-          return ListTile(
-            dense: true,
-            visualDensity: VisualDensity.compact,
-            leading: const Icon(Icons.location_on_outlined,
-                size: 18, color: Color(0xFF4F46E5)),
-            title: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: Color(0xFF1E293B)),
+          final title = (item['primary_title'] ?? item['name'] ?? 'Location').toString();
+          final address = (item['display_name'] ?? '').toString();
+          return Material(
+            color: Colors.transparent,
+            child: ListTile(
+              dense: true,
+              visualDensity: VisualDensity.compact,
+              leading: const Icon(Icons.location_on_outlined,
+                  size: 18, color: Color(0xFF4F46E5)),
+              title: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Color(0xFF1E293B)),
+              ),
+              subtitle: Text(
+                address,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+              ),
+              onTap: () => _selectSearchSuggestion(item),
             ),
-            subtitle: Text(
-              address,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-            ),
-            onTap: () => _selectSearchSuggestion(item),
           );
         },
       ),
     );
   }
 
+  void _showSmartSearchRangeModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, 4))],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _isEmergencySearchMode ? const Color(0xFFFEF2F2) : const Color(0xFFEEF2FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _isEmergencySearchMode ? Icons.emergency : Icons.tune,
+                          color: _isEmergencySearchMode ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Smart Search & Range Filter",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            ),
+                            Text(
+                              _isEmergencySearchMode ? "🚨 Emergency Wide Area Search Active" : "Configure corridor radius along active route",
+                              style: TextStyle(fontSize: 11, color: _isEmergencySearchMode ? const Color(0xFFEF4444) : const Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Search Radius / Corridor Width:",
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [1.0, 2.5, 5.0, 10.0, 20.0].map((r) {
+                      final bool isSel = _searchCorridorRadiusKm == r;
+                      String label = "${r.toStringAsFixed(r == 1.0 || r == 2.5 ? 1 : 0)} km";
+                      if (r == 1.0) label += " (Tight Route)";
+                      if (r == 2.5) label += " (Standard)";
+                      if (r == 5.0) label += " (Wide)";
+                      if (r == 10.0) label += " (Regional)";
+                      if (r == 20.0) label += " (Emergency Max)";
+
+                      return ChoiceChip(
+                        label: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                            color: isSel ? Colors.white : const Color(0xFF334155),
+                          ),
+                        ),
+                        selected: isSel,
+                        selectedColor: const Color(0xFF4F46E5),
+                        backgroundColor: const Color(0xFFF8FAFC),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() => _searchCorridorRadiusKm = r);
+                            setModalState(() {});
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _isEmergencySearchMode ? const Color(0xFFFEF2F2) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _isEmergencySearchMode ? const Color(0xFFFCA5A5) : const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 20),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Emergency Override Mode",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                              ),
+                              Text(
+                                "Ignore strict route corridor & search wide radius for nearest medical/emergency facilities",
+                                style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _isEmergencySearchMode,
+                          activeThumbColor: const Color(0xFFEF4444),
+                          onChanged: (val) {
+                            setState(() {
+                              _isEmergencySearchMode = val;
+                              if (val && _searchCorridorRadiusKm < 10.0) {
+                                _searchCorridorRadiusKm = 10.0;
+                              }
+                            });
+                            setModalState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 42,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isEmergencySearchMode ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.search, size: 18),
+                      label: Text(
+                        _activePoiCategory != null ? "Apply & Re-search ${_activePoiCategory!.toUpperCase()}" : "Apply Search Settings",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        if (_activePoiCategory != null) {
+                          final catKey = _activePoiCategory!;
+                          final query = catKey == 'petrol'
+                              ? 'petrol pump'
+                              : catKey == 'food'
+                                  ? 'restaurant'
+                                  : catKey == 'hospital'
+                                      ? 'hospital'
+                                      : catKey == 'mechanic'
+                                          ? 'car repair mechanic'
+                                          : 'parking';
+                          setState(() {
+                            _activePoiCategory = null;
+                          });
+                          _searchPlacesOnTheWay(catKey, query);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPoiCategoryChips() {
+    final categories = [
+      {'key': 'petrol', 'label': 'Petrol Pump', 'icon': Icons.local_gas_station, 'query': 'petrol pump', 'color': Colors.orange},
+      {'key': 'food', 'label': 'Food / Restaurant', 'icon': Icons.restaurant, 'query': 'restaurant', 'color': Colors.redAccent},
+      {'key': 'hospital', 'label': 'Hospital', 'icon': Icons.local_hospital, 'query': 'hospital', 'color': Colors.pink},
+      {'key': 'mechanic', 'label': 'Mechanic', 'icon': Icons.build, 'query': 'car repair mechanic', 'color': Colors.blue},
+      {'key': 'parking', 'label': 'Parking', 'icon': Icons.local_parking, 'query': 'parking', 'color': Colors.purple},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _showSmartSearchRangeModal,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _isEmergencySearchMode ? const Color(0xFFEF4444) : const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_isEmergencySearchMode ? Icons.emergency : Icons.tune, size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          _isEmergencySearchMode ? "🚨 Emergency Radius" : "Range: ${_searchCorridorRadiusKm.toStringAsFixed(1)} km",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            ...categories.map((cat) {
+              final String key = cat['key'] as String;
+              final String label = cat['label'] as String;
+              final IconData icon = cat['icon'] as IconData;
+              final String query = cat['query'] as String;
+              final Color catColor = cat['color'] as Color;
+              final bool isSelected = _activePoiCategory == key;
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      _searchPlacesOnTheWay(key, query);
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? catColor : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: isSelected ? catColor : const Color(0xFFCBD5E1)),
+                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, size: 14, color: isSelected ? Colors.white : catColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : const Color(0xFF334155),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDestinationInfoCard(LatLng busLoc) {
-    if (_searchedMarkerLoc == null) return const SizedBox();
-    final distKm = _calculateDistanceKm(busLoc.latitude, busLoc.longitude,
+    if (_searchedMarkerLoc == null || !_showDestinationCard) return const SizedBox();
+
+    final directDistKm = _calculateDistanceKm(busLoc.latitude, busLoc.longitude,
             _searchedMarkerLoc!.latitude, _searchedMarkerLoc!.longitude)
         .toStringAsFixed(1);
 
     return Positioned(
-      bottom: 16,
-      left: 16,
-      right: 16,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))
-          ],
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
+      bottom: 24,
+      left: 70,
+      right: 70,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Material(
+            elevation: 12,
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+            child: Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF),
-                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, 6))
+                ],
               ),
-              child: const Icon(Icons.location_on,
-                  color: Color(0xFF4F46E5), size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _searchedLocationName.split(',').first,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Color(0xFF0F172A)),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _searchedLocationName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style:
-                        const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                  ),
-                  const SizedBox(height: 4),
+                  // Top Row: Location Title & Details
                   Row(
                     children: [
-                      const Icon(Icons.straighten,
-                          size: 12, color: Color(0xFF64748B)),
-                      const SizedBox(width: 4),
-                      Text("~$distKm km away",
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF475569))),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.navigation_rounded, color: Color(0xFF2563EB), size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _searchedLocationName.split(',').first,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _searchedLocationName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.near_me, size: 12, color: Color(0xFF2563EB)),
+                            const SizedBox(width: 4),
+                            Text(
+                              "$directDistKm km",
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
+                        onPressed: () {
+                          setState(() {
+                            _showDestinationCard = false;
+                            _searchedMarkerLoc = null;
+                            _isNavigating = false;
+                            _navigationRoutePaths = [];
+                            _navigationRouteInfos = [];
+                          });
+                        },
+                      ),
                     ],
-                  )
+                  ),
+
+                  // Middle Row: Multi-Route Alternative Selection Chips
+                  if (_navigationRouteInfos.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      "Select Route Option:",
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                    ),
+                    const SizedBox(height: 6),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: List.generate(_navigationRouteInfos.length, (idx) {
+                          final info = _navigationRouteInfos[idx];
+                          final bool isSelected = _selectedRouteIndex == idx;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedRouteIndex = idx;
+                                    _navigationPolylinePoints = _navigationRoutePaths[idx];
+                                    _navDistanceKm = info['distance_km'];
+                                    _navDurationMins = info['duration_mins'];
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSelected ? const Color(0xFF1D4ED8) : const Color(0xFFE2E8F0),
+                                      width: isSelected ? 2.0 : 1.0,
+                                    ),
+                                    boxShadow: isSelected
+                                        ? const [BoxShadow(color: Color(0x3D2563EB), blurRadius: 8, offset: Offset(0, 3))]
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                                        size: 14,
+                                        color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            info['label'],
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                                            ),
+                                          ),
+                                          Text(
+                                            "${info['duration_mins']} mins • ${info['distance_km']} km",
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: isSelected ? const Color(0xFFDBEAFE) : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 14),
+
+                  // Bottom Row: Primary Actions (Get Directions / Start Nav)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 3,
+                          ),
+                          onPressed: () {
+                            if (_navigationRoutePaths.isEmpty) {
+                              _calculateDirections();
+                            } else {
+                              setState(() {
+                                _isNavigating = true;
+                              });
+                            }
+                          },
+                          icon: Icon(_isNavigating ? Icons.navigation : Icons.near_me, size: 18),
+                          label: Text(
+                            _isCalculatingRoute
+                                ? "Calculating Routes..."
+                                : (_isNavigating
+                                    ? "🚀 ACTIVE DRIVING NAVIGATION"
+                                    : "🚀 START NAVIGATION ($_navDurationMins MINS)"),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      if (_isNavigating) ...[
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFFEF4444),
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isNavigating = false;
+                              _navigationRoutePaths = [];
+                              _navigationRouteInfos = [];
+                              _navigationPolylinePoints = [];
+                              _showDestinationCard = false;
+                            });
+                          },
+                          icon: const Icon(Icons.stop_circle_outlined, size: 18),
+                          label: const Text("Exit Nav", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            if (_isCalculatingRoute)
-              const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: Color(0xFF4F46E5)),
-              )
-            else
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  elevation: 2,
-                ),
-                onPressed: _calculateDirections,
-                icon: const Icon(Icons.navigation, size: 16),
-                label: const Text("Get Directions",
-                    style:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
-              onPressed: () {
-                setState(() {
-                  _showDestinationCard = false;
-                  _searchedMarkerLoc = null;
-                  _isNavigating = false;
-                  _navigationPolylinePoints = [];
-                });
-              },
-            )
-          ],
+          ),
         ),
       ),
     );
@@ -2039,127 +2984,129 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   }
 
   Widget _buildHeader(String driverName, String? avatarUrl) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+    return LayoutBuilder(builder: (context, constraints) {
+      final bool isMobile = constraints.maxWidth < 800;
+
+      if (isMobile) {
+        return Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+          child: Row(
             children: [
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFEEF2FF),
                   borderRadius: BorderRadius.circular(8.0),
                 ),
-                padding: const EdgeInsets.all(8.0),
-                child: const Icon(Icons.directions_bus,
-                    color: Color(0xFF4F46E5), size: 24),
+                padding: const EdgeInsets.all(5.0),
+                child: const Icon(Icons.directions_bus, color: Color(0xFF4F46E5), size: 18),
               ),
-              const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("EduSHAMIIT ERP",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E293B))),
-                  Text("Driver App",
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.bold)),
-                ],
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildHeaderRouteDropdown(),
               ),
-              const SizedBox(width: 24),
-              _buildHeaderRouteDropdown(),
-            ],
-          ),
-          Row(
-            children: [
-              Container(
-                width: 260,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onSubmitted: _searchLocation,
-                  decoration: InputDecoration(
-                    hintText: _isSearchingLocation
-                        ? "Searching location..."
-                        : "Search location on map...",
-                    hintStyle:
-                        const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    prefixIcon: _isSearchingLocation
-                        ? const Padding(
-                            padding: EdgeInsets.all(10.0),
-                            child: SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Color(0xFF4F46E5)),
-                            ),
-                          )
-                        : const Icon(Icons.search,
-                            size: 18, color: Color(0xFF94A3B8)),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: const Badge(
-                  label: Text("3"),
-                  child: Icon(Icons.notifications_none_outlined,
-                      color: Color(0xFF475569)),
-                ),
-                onPressed: () {},
-              ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 6),
               InkWell(
                 onTap: () => context.go('/admin/my-profile'),
                 borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 4.0, vertical: 4.0),
-                  child: Row(
-                    children: [
-                      _buildUserAvatar(avatarUrl, driverName, radius: 18),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(driverName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: Color(0xFF1E293B))),
-                          Text("Driver • $_busNumber",
-                              style: const TextStyle(
-                                  color: Color(0xFF64748B), fontSize: 10)),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              )
+                child: _buildUserAvatar(avatarUrl, driverName, radius: 14),
+              ),
             ],
-          )
-        ],
-      ),
-    );
+          ),
+        );
+      }
+
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    padding: const EdgeInsets.all(8.0),
+                    child: const Icon(Icons.directions_bus, color: Color(0xFF4F46E5), size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "EduSHAMIIT ERP",
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                        ),
+                        Text(
+                          "Driver App",
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Flexible(child: _buildHeaderRouteDropdown()),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Badge(
+                    label: Text("3"),
+                    child: Icon(Icons.notifications_none_outlined, color: Color(0xFF475569)),
+                  ),
+                  onPressed: () {},
+                ),
+                const SizedBox(width: 12),
+                InkWell(
+                  onTap: () => context.go('/admin/my-profile'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildUserAvatar(avatarUrl, driverName, radius: 18),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(driverName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B))),
+                            Text("Driver • $_busNumber", style: const TextStyle(color: Color(0xFF64748B), fontSize: 10)),
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            )
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildHeaderRouteDropdown() {
     return PopupMenuButton<String>(
-      offset: const Offset(0, 45),
+      offset: const Offset(0, 40),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -2168,14 +3115,18 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              "Route: Noida Route 101 (Morning)",
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B)),
+            Flexible(
+              child: Text(
+                "Route: Noida Route 101 (Morning)",
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B)),
+              ),
             ),
-            SizedBox(width: 8),
+            SizedBox(width: 4),
             Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF64748B)),
           ],
         ),
@@ -2375,74 +3326,70 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
   Widget _buildMapViewCard() {
     final busLoc = _getBusLocation();
-    final markers = <Marker>[];
 
-    for (int i = 0; i < _routePoints.length; i++) {
-      final point = _routePoints[i];
+    final List<Marker> markers = [];
+
+    // Render Stoppage Markers
+    for (int i = 0; i < _stops.length; i++) {
+      final stop = _stops[i];
+      final lat = double.tryParse(stop['latitude']?.toString() ?? '') ?? 0.0;
+      final lon = double.tryParse(stop['longitude']?.toString() ?? '') ?? 0.0;
+
+      if (lat == 0.0 || lon == 0.0) continue;
+
       final isStart = i == 0;
-      final isEnd = i == _routePoints.length - 1;
+      final isEnd = i == _stops.length - 1;
+      final stopName = stop['stop_name'] ?? 'Stop #${i + 1}';
+      final stopOrder = i + 1;
 
       markers.add(
         Marker(
-          point: point,
-          width: 50,
-          height: 50,
+          point: LatLng(lat, lon),
+          width: 140,
+          height: 48,
           child: GestureDetector(
-            onTap: () {
-              _showStopStudentsPopup(_stops[i], i);
-            },
+            onTap: () => _showStopStudentsPopup(stop, i),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (isStart)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(4)),
-                    child: const Text("Start",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold)),
-                  )
-                else if (isEnd)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(4)),
-                    child: const Text("End",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold)),
-                  ),
                 Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: isStart
                         ? Colors.green
                         : isEnd
-                            ? Colors.red
+                            ? Colors.redAccent
+                            : const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                  ),
+                  child: Text(
+                    isStart
+                        ? "Start: $stopName"
+                        : isEnd
+                            ? "End: $stopName"
+                            : "#$stopOrder: $stopName",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: isStart
+                        ? Colors.green
+                        : isEnd
+                            ? Colors.redAccent
                             : const Color(0xFF4F46E5),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 4)
-                    ],
-                  ),
-                  width: 18,
-                  height: 18,
-                  child: Center(
-                    child: Text(
-                      isStart || isEnd ? "" : "$i",
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold),
-                    ),
+                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
                   ),
                 ),
               ],
@@ -2452,29 +3399,158 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
     }
 
+    // Real-Vehicle Marker with Radar Aura
     markers.add(
       Marker(
         point: busLoc,
-        width: 44,
-        height: 44,
-        child: Transform.rotate(
-          angle: _vehicleHeading * math.pi / 180,
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2.5),
-              boxShadow: const [
-                BoxShadow(
-                    color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))
-              ],
+        width: 72,
+        height: 72,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.85, end: 1.25),
+              duration: const Duration(seconds: 1),
+              curve: Curves.easeInOut,
+              builder: (context, scale, child) {
+                return Transform.scale(
+                  scale: scale,
+                  child: Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                      border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.4), width: 1.5),
+                    ),
+                  ),
+                );
+              },
             ),
-            child: const Icon(Icons.directions_bus_rounded,
-                color: Colors.black87, size: 22),
-          ),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x662563EB), blurRadius: 10, spreadRadius: 2),
+                ],
+              ),
+            ),
+            Transform.rotate(
+              angle: _vehicleHeading * math.pi / 180,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                  ),
+                  border: Border.all(color: const Color(0xFFF59E0B), width: 2.5),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 3)),
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned(
+                      top: 3,
+                      child: Container(
+                        width: 12,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF38BDF8),
+                          borderRadius: BorderRadius.circular(2),
+                          boxShadow: const [BoxShadow(color: Color(0xFF38BDF8), blurRadius: 6)],
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.navigation_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+
+    for (final poi in _poiMarkersData) {
+      final lat = (poi['lat'] as num).toDouble();
+      final lon = (poi['lon'] as num).toDouble();
+      final title = (poi['primary_title'] ?? poi['name'] ?? 'Place').toString();
+      final distKm = poi['distance_km'] != null ? "${(poi['distance_km'] as double).toStringAsFixed(1)} km" : "";
+
+      IconData categoryIcon = Icons.place;
+      Color categoryColor = Colors.orange;
+
+      if (_activePoiCategory == 'petrol') {
+        categoryIcon = Icons.local_gas_station;
+        categoryColor = Colors.orange;
+      } else if (_activePoiCategory == 'food') {
+        categoryIcon = Icons.restaurant;
+        categoryColor = Colors.redAccent;
+      } else if (_activePoiCategory == 'hospital') {
+        categoryIcon = Icons.local_hospital;
+        categoryColor = Colors.pink;
+      } else if (_activePoiCategory == 'mechanic') {
+        categoryIcon = Icons.build;
+        categoryColor = Colors.blue;
+      } else if (_activePoiCategory == 'parking') {
+        categoryIcon = Icons.local_parking;
+        categoryColor = Colors.purple;
+      }
+
+      final String detourInfo = (poi['detour_text'] ?? '').toString();
+      final String badgeSubtitle = detourInfo.isNotEmpty ? "$distKm • $detourInfo" : distKm;
+
+      markers.add(
+        Marker(
+          point: LatLng(lat, lon),
+          width: 160,
+          height: 52,
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _searchedMarkerLoc = LatLng(lat, lon);
+                _searchedLocationName = (poi['display_name'] ?? title).toString();
+                _showDestinationCard = true;
+              });
+              _calculateDirections();
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: categoryColor,
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                  ),
+                  child: Text(
+                    badgeSubtitle.isNotEmpty ? "$title ($badgeSubtitle)" : title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Icon(categoryIcon, color: categoryColor, size: 24),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     if (_searchedMarkerLoc != null) {
       markers.add(
@@ -2492,27 +3568,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0F172A),
                     borderRadius: BorderRadius.circular(6),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 4)
-                    ],
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
                   ),
                   child: Text(
                     _searchedLocationName.length > 20
                         ? "${_searchedLocationName.substring(0, 20)}..."
                         : _searchedLocationName,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
-                const Icon(Icons.location_on,
-                    color: Colors.redAccent, size: 28),
+                const Icon(Icons.location_on, color: Colors.redAccent, size: 28),
               ],
             ),
           ),
@@ -2520,207 +3589,496 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       );
     }
 
-    return Container(
-      height: 520,
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [
-            BoxShadow(
-                color: Color(0xFFF1F5F9), blurRadius: 6, offset: Offset(0, 3))
-          ]),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: busLoc,
-              initialZoom: _zoomLevel,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: _getMapTileUrl(),
-                userAgentPackageName: "com.edushamiit.admin",
+    // Render Clickable Route Badges on map canvas
+    if (_navigationRoutePaths.isNotEmpty && _navigationRouteInfos.isNotEmpty) {
+      for (int rIdx = 0; rIdx < _navigationRoutePaths.length; rIdx++) {
+        final path = _navigationRoutePaths[rIdx];
+        if (path.length < 2) continue;
+
+        final midIdx = (path.length / 2).floor().clamp(0, path.length - 1);
+        final midPoint = path[midIdx];
+        final info = rIdx < _navigationRouteInfos.length ? _navigationRouteInfos[rIdx] : {'label': 'Route $rIdx', 'duration_mins': 10, 'distance_km': 5.0};
+        final bool isSelected = _selectedRouteIndex == rIdx;
+
+        markers.add(
+          Marker(
+            point: midPoint,
+            width: 130,
+            height: 36,
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedRouteIndex = rIdx;
+                  _navigationPolylinePoints = path;
+                  _navDistanceKm = (info['distance_km'] as num).toDouble();
+                  _navDurationMins = (info['duration_mins'] as num).toInt();
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                    width: isSelected ? 2.0 : 1.0,
+                  ),
+                  boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isSelected ? Icons.bolt : Icons.alt_route,
+                      size: 12,
+                      color: isSelected ? Colors.amberAccent : Colors.white70,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "${info['duration_mins']} mins (${info['distance_km']} km)",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              if (_routePoints.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _routePoints,
-                      strokeWidth: 4.0,
-                      color: const Color(0xFF4F46E5).withValues(alpha: 0.8),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (_isAutoFollowVehicle) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _isAutoFollowVehicle) {
+          _mapController.move(busLoc, _zoomLevel);
+        }
+      });
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 750;
+        final double mapCanvasHeight = isMobile ? 460.0 : 620.0;
+
+        return Container(
+          height: mapCanvasHeight,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [BoxShadow(color: Color(0xFFF1F5F9), blurRadius: 8, offset: Offset(0, 4))],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: busLoc,
+                  initialZoom: _zoomLevel,
+                  minZoom: 1.0,
+                  maxZoom: 18.5,
+                  onPositionChanged: (position, hasGesture) {
+                    if (hasGesture && _isAutoFollowVehicle) {
+                      setState(() {
+                        _isAutoFollowVehicle = false;
+                      });
+                    }
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: _getMapTileUrl(),
+                    userAgentPackageName: "com.edushamiit.admin",
+                    maxNativeZoom: 18,
+                    maxZoom: 19,
+                  ),
+                  if (_routePoints.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _routePoints,
+                          strokeWidth: 4.0,
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.8),
+                        ),
+                      ],
                     ),
+                  if (_navigationRoutePaths.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        for (int rIdx = 0; rIdx < _navigationRoutePaths.length; rIdx++)
+                          if (rIdx != _selectedRouteIndex)
+                            Polyline(
+                              points: _navigationRoutePaths[rIdx],
+                              strokeWidth: 4.0,
+                              color: const Color(0xFF94A3B8),
+                            ),
+                        Polyline(
+                          points: _navigationRoutePaths[_selectedRouteIndex.clamp(0, _navigationRoutePaths.length - 1)],
+                          strokeWidth: 6.0,
+                          color: const Color(0xFF2563EB),
+                          borderColor: const Color(0xFF1E40AF),
+                          borderStrokeWidth: 2.0,
+                        ),
+                      ],
+                    )
+                  else if (_navigationPolylinePoints.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _navigationPolylinePoints,
+                          strokeWidth: 6.0,
+                          color: const Color(0xFF2563EB),
+                          borderColor: const Color(0xFF1E40AF),
+                          borderStrokeWidth: 2.0,
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: markers,
+                  ),
+                ],
+              ),
+
+              // 1. Top-Left Floating Places Search & POI Filter Toggle
+              Positioned(
+                left: 12,
+                top: 12,
+                right: _showMapTypeMenu ? 140 : 120,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: _onSearchChanged,
+                              onSubmitted: _searchLocation,
+                              decoration: InputDecoration(
+                                hintText: _isSearchingLocation ? "Searching..." : "Search map...",
+                                hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                prefixIcon: _isSearchingLocation
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(9.0),
+                                        child: SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4F46E5)),
+                                        ),
+                                      )
+                                    : const Icon(Icons.search, size: 16, color: Color(0xFF94A3B8)),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _showPoiFilterMenu = !_showPoiFilterMenu;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              height: 36,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: _showPoiFilterMenu
+                                    ? const Color(0xFF2563EB)
+                                    : (_activePoiCategory != null ? const Color(0xFF4F46E5) : Colors.white),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _showPoiFilterMenu || _activePoiCategory != null ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                                ),
+                                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isEmergencySearchMode ? Icons.emergency : Icons.tune_rounded,
+                                    size: 14,
+                                    color: _showPoiFilterMenu || _activePoiCategory != null ? Colors.white : const Color(0xFF2563EB),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _activePoiCategory != null
+                                        ? _activePoiCategory!.toUpperCase()
+                                        : (_isEmergencySearchMode ? "🚨 Emergency" : "Places"),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: _showPoiFilterMenu || _activePoiCategory != null ? Colors.white : const Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Icon(
+                                    _showPoiFilterMenu ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                    size: 14,
+                                    color: _showPoiFilterMenu || _activePoiCategory != null ? Colors.white : const Color(0xFF64748B),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    if (_showPoiFilterMenu) ...[
+                      const SizedBox(height: 6),
+                      _buildPoiCategoryChips(),
+                    ],
+
+                    if (_searchResults.isNotEmpty) _buildAutocompleteDropdown(),
                   ],
                 ),
-              if (_navigationPolylinePoints.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _navigationPolylinePoints,
-                      strokeWidth: 6.0,
-                      color: const Color(0xFF2563EB),
+              ),
+
+              // 2. Top-Right Floating Map Type Layers FAB
+              Positioned(
+                right: 12,
+                top: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _showMapTypeMenu = !_showMapTypeMenu;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _showMapTypeMenu ? const Color(0xFF0F172A) : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.layers_rounded,
+                                size: 16,
+                                color: _showMapTypeMenu ? Colors.white : const Color(0xFF2563EB),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _mapType,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: _showMapTypeMenu ? Colors.white : const Color(0xFF1E293B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
+                    if (_showMapTypeMenu) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        width: 124,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          children: [
+                            _buildMapSidebarControl(
+                              Icons.traffic_rounded,
+                              "Traffic",
+                              _showTraffic,
+                              () => setState(() => _showTraffic = !_showTraffic),
+                            ),
+                            _buildMapSidebarControl(
+                              Icons.layers_outlined,
+                              "Satellite",
+                              _mapType == "Satellite",
+                              () => setState(() {
+                                _mapType = "Satellite";
+                                _showMapTypeMenu = false;
+                              }),
+                            ),
+                            _buildMapSidebarControl(
+                              Icons.terrain_rounded,
+                              "Terrain",
+                              _mapType == "Terrain",
+                              () => setState(() {
+                                _mapType = "Terrain";
+                                _showMapTypeMenu = false;
+                              }),
+                            ),
+                            _buildMapSidebarControl(
+                              Icons.map_rounded,
+                              "Standard",
+                              _mapType == "Standard",
+                              () => setState(() {
+                                _mapType = "Standard";
+                                _showMapTypeMenu = false;
+                              }),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              MarkerLayer(
-                markers: markers,
+              ),
+
+              // 3. Bottom-Left Compact Speedometer Badge
+              Positioned(
+                left: 12,
+                bottom: 12,
+                child: _buildSpeedometerHud(),
+              ),
+
+              if (_isNavigating) _buildActiveNavigationBanner(),
+              if (_showDestinationCard && !_isNavigating)
+                _buildDestinationInfoCard(busLoc),
+
+              // 4. Bottom-Right Floating Controls Column (Re-Center + Micro Zoom + Hide Toggle)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: _hideMapControls
+                    ? InkWell(
+                        onTap: () => setState(() => _hideMapControls = false),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                          ),
+                          child: const Icon(Icons.tune_rounded, size: 14, color: Color(0xFF2563EB)),
+                        ),
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Hide Toggle Button
+                          InkWell(
+                            onTap: () => setState(() => _hideMapControls = true),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              width: 26,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
+                              ),
+                              child: const Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: Color(0xFF64748B)),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Compact Re-Center Button
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _isAutoFollowVehicle = true;
+                                _zoomLevel = 18.0;
+                              });
+                              _mapController.move(busLoc, _zoomLevel);
+                            },
+                            borderRadius: BorderRadius.circular(15),
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: _isAutoFollowVehicle ? const Color(0xFF10B981) : const Color(0xFF2563EB),
+                                shape: BoxShape.circle,
+                                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                              ),
+                              child: Icon(
+                                _isAutoFollowVehicle ? Icons.my_location_rounded : Icons.gps_fixed_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Ultra-Micro Zoom Controls (Total: 24px wide x 41px tall)
+                          Container(
+                            width: 24,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(0, 1))],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: () {
+                                    _zoomLevel = (_zoomLevel + 1.0).clamp(1.0, 18.5);
+                                    _mapController.move(busLoc, _zoomLevel);
+                                  },
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                                  child: const SizedBox(
+                                    width: 24,
+                                    height: 20,
+                                    child: Icon(Icons.add, size: 11, color: Color(0xFF1E293B)),
+                                  ),
+                                ),
+                                Container(height: 1, color: const Color(0xFFE2E8F0), width: 14),
+                                InkWell(
+                                  onTap: () {
+                                    _zoomLevel = (_zoomLevel - 1.0).clamp(1.0, 18.5);
+                                    _mapController.move(busLoc, _zoomLevel);
+                                  },
+                                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(5)),
+                                  child: const SizedBox(
+                                    width: 24,
+                                    height: 20,
+                                    child: Icon(Icons.remove, size: 11, color: Color(0xFF1E293B)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),
-          Positioned(
-            left: 12,
-            top: 12,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 280,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 4)
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: _onSearchChanged,
-                    onSubmitted: _searchLocation,
-                    decoration: InputDecoration(
-                      hintText: _isSearchingLocation
-                          ? "Searching location..."
-                          : "Search location on map...",
-                      hintStyle: const TextStyle(
-                          fontSize: 11, color: Color(0xFF94A3B8)),
-                      prefixIcon: _isSearchingLocation
-                          ? const Padding(
-                              padding: EdgeInsets.all(10.0),
-                              child: SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Color(0xFF4F46E5)),
-                              ),
-                            )
-                          : const Icon(Icons.search,
-                              size: 16, color: Color(0xFF94A3B8)),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-                if (_searchResults.isNotEmpty) _buildAutocompleteDropdown(),
-                const SizedBox(height: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 4)
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    children: [
-                      _buildMapSidebarControl(
-                          Icons.traffic,
-                          "Traffic",
-                          _showTraffic,
-                          () => setState(() => _showTraffic = !_showTraffic)),
-                      _buildMapSidebarControl(
-                          Icons.layers,
-                          "Satellite",
-                          _mapType == "Satellite",
-                          () => setState(() => _mapType = "Satellite")),
-                      _buildMapSidebarControl(
-                          Icons.terrain,
-                          "Terrain",
-                          _mapType == "Terrain",
-                          () => setState(() => _mapType = "Terrain")),
-                      _buildMapSidebarControl(
-                          Icons.map,
-                          "Standard",
-                          _mapType == "Standard",
-                          () => setState(() => _mapType = "Standard")),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
-          Positioned(
-            left: 14,
-            bottom: 64,
-            child: _buildSpeedometerHud(),
-          ),
-          if (_isNavigating) _buildActiveNavigationBanner(),
-          if (_showDestinationCard && !_isNavigating)
-            _buildDestinationInfoCard(busLoc),
-          Positioned(
-            left: 12,
-            bottom: 12,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF334155),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              ),
-              onPressed: () {
-                _mapController.move(busLoc, 14.0);
-              },
-              icon: const Icon(Icons.my_location, size: 14),
-              label: const Text("Re-center",
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-            ),
-          ),
-          Positioned(
-            right: 12,
-            bottom: 50,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 4)
-                ],
-              ),
-              child: Column(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.add, size: 16),
-                    onPressed: () {
-                      _zoomLevel = (_zoomLevel + 1).clamp(10, 18);
-                      _mapController.move(busLoc, _zoomLevel);
-                    },
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    padding: EdgeInsets.zero,
-                  ),
-                  Container(
-                      height: 1, color: const Color(0xFFF1F5F9), width: 20),
-                  IconButton(
-                    icon: const Icon(Icons.remove, size: 16),
-                    onPressed: () {
-                      _zoomLevel = (_zoomLevel - 1).clamp(10, 18);
-                      _mapController.move(busLoc, _zoomLevel);
-                    },
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2918,44 +4276,100 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Route Stops (${_stops.length})",
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B))),
-              Row(
-                children: [
-                  _buildStopFilterTab(
-                      "All (${_stops.length})",
-                      _activeStopTab == 0,
-                      () => setState(() => _activeStopTab = 0)),
-                  _buildStopFilterTab("Upcoming", _activeStopTab == 1,
-                      () => setState(() => _activeStopTab = 1)),
-                  _buildStopFilterTab("Completed", _activeStopTab == 2,
-                      () => setState(() => _activeStopTab = 2)),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEEF2FF),
-                      foregroundColor: const Color(0xFF4F46E5),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final bool isMobile = constraints.maxWidth < 650;
+              if (isMobile) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Route Stops (${_stops.length})",
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B))),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEEF2FF),
+                            foregroundColor: const Color(0xFF4F46E5),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 6),
+                          ),
+                          onPressed: _reorderStops,
+                          icon: const Icon(Icons.reorder, size: 14),
+                          label: const Text("Reorder",
+                              style: TextStyle(
+                                  fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
                     ),
-                    onPressed: _reorderStops,
-                    icon: const Icon(Icons.reorder, size: 14),
-                    label: const Text("Reorder Stops",
-                        style: TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          _buildStopFilterTab(
+                              "All (${_stops.length})",
+                              _activeStopTab == 0,
+                              () => setState(() => _activeStopTab = 0)),
+                          _buildStopFilterTab("Upcoming", _activeStopTab == 1,
+                              () => setState(() => _activeStopTab = 1)),
+                          _buildStopFilterTab("Completed", _activeStopTab == 2,
+                              () => setState(() => _activeStopTab = 2)),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Route Stops (${_stops.length})",
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B))),
+                  Row(
+                    children: [
+                      _buildStopFilterTab(
+                          "All (${_stops.length})",
+                          _activeStopTab == 0,
+                          () => setState(() => _activeStopTab = 0)),
+                      _buildStopFilterTab("Upcoming", _activeStopTab == 1,
+                          () => setState(() => _activeStopTab = 1)),
+                      _buildStopFilterTab("Completed", _activeStopTab == 2,
+                          () => setState(() => _activeStopTab = 2)),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEEF2FF),
+                          foregroundColor: const Color(0xFF4F46E5),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                        ),
+                        onPressed: _reorderStops,
+                        icon: const Icon(Icons.reorder, size: 14),
+                        label: const Text("Reorder Stops",
+                            style: TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.bold)),
+                      )
+                    ],
                   )
                 ],
-              )
-            ],
+              );
+            },
           ),
           const SizedBox(height: 16),
 
@@ -3991,113 +5405,246 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
 
   Widget _buildBottomControlPanel() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+      padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: _hideBottomControls ? 4.0 : 6.0),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, -2))],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isMobile = constraints.maxWidth < 750;
+
+          final statusRow = Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.wifi, color: Colors.green, size: 16),
-              SizedBox(width: 6),
-              Text("Connected",
-                  style: TextStyle(
-                      color: Colors.green,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
-              SizedBox(width: 16),
-              Icon(Icons.gps_fixed, color: Colors.green, size: 16),
-              SizedBox(width: 6),
-              Text("GPS: Signal Strong",
-                  style: TextStyle(
-                      color: Colors.green,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold)),
-            ],
-          ),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      _isTripActive ? Colors.red : const Color(0xFF4F46E5),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  elevation: 2,
-                ),
-                onPressed: _isTripActive ? _endTrip : _startTrip,
-                icon: Icon(_isTripActive
-                    ? Icons.stop_circle_outlined
-                    : Icons.play_arrow_rounded),
-                label: Text(_isTripActive ? "End Route" : "Start Route",
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-              if (_isTripActive) ...[
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _isTripPaused ? const Color(0xFF10B981) : Colors.amber,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.wifi_rounded, color: Color(0xFF059669), size: 10),
+                        SizedBox(width: 3),
+                        Text("Connected", style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 9)),
+                      ],
+                    ),
                   ),
-                  onPressed: _togglePauseTrip,
-                  icon: Icon(_isTripPaused ? Icons.play_arrow : Icons.pause),
-                  label: Text(_isTripPaused ? "Resume" : "Pause Route",
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.gps_fixed_rounded, color: Color(0xFF059669), size: 10),
+                        SizedBox(width: 3),
+                        Text("GPS: Signal Strong", style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 9)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () => setState(() => _hideBottomControls = !_hideBottomControls),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _hideBottomControls ? "Controls" : "Hide",
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        _hideBottomControls ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        size: 14,
+                        color: const Color(0xFF475569),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+
+          if (_hideBottomControls) {
+            return statusRow;
+          }
+
+          if (isMobile) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                statusRow,
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 32,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isTripActive ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            elevation: 1.5,
+                          ),
+                          onPressed: _isTripActive ? _endTrip : _startTrip,
+                          icon: Icon(_isTripActive ? Icons.stop_circle_rounded : Icons.play_arrow_rounded, size: 14),
+                          label: Text(
+                            _isTripActive ? "End Route" : "Start Route",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_isTripActive) ...[
+                      const SizedBox(width: 5),
+                      Expanded(
+                        flex: 1,
+                        child: SizedBox(
+                          height: 32,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isTripPaused ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 1.5,
+                            ),
+                            onPressed: _togglePauseTrip,
+                            icon: Icon(_isTripPaused ? Icons.play_arrow_rounded : Icons.pause_rounded, size: 13),
+                            label: Text(_isTripPaused ? "Resume" : "Pause", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9.5)),
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 5),
+                    Expanded(
+                      flex: 1,
+                      child: SizedBox(
+                        height: 32,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFEF4444),
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.2),
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: _isTripActive ? _triggerEmergency : null,
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.warning_amber_rounded, size: 13, color: Color(0xFFEF4444)),
+                              SizedBox(width: 2),
+                              Text("SOS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9.5, color: Color(0xFFEF4444))),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: BorderSide(
-                      color: _emergencyAlertActive
-                          ? Colors.red
-                          : Colors.red.shade300,
-                      width: 2),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: _isTripActive ? _triggerEmergency : null,
-                icon: const Icon(Icons.warning_amber_rounded, size: 16),
-                label: const Text("Emergency SOS",
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF4F46E5),
-                  side: const BorderSide(color: Color(0xFF4F46E5), width: 2),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: _isTripActive ? _triggerDeviation : null,
-                icon: const Icon(Icons.alt_route, size: 16),
-                label: const Text("Route Deviation",
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              statusRow,
+              Row(
+                children: [
+                  SizedBox(
+                    height: 32,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isTripActive ? const Color(0xFFEF4444) : const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 1.5,
+                      ),
+                      onPressed: _isTripActive ? _endTrip : _startTrip,
+                      icon: Icon(_isTripActive ? Icons.stop_circle_rounded : Icons.play_arrow_rounded, size: 14),
+                      label: Text(_isTripActive ? "End Route" : "Start Route", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10.5)),
+                    ),
+                  ),
+                  if (_isTripActive) ...[
+                    const SizedBox(width: 5),
+                    SizedBox(
+                      height: 32,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isTripPaused ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: _togglePauseTrip,
+                        icon: Icon(_isTripPaused ? Icons.play_arrow_rounded : Icons.pause_rounded, size: 13),
+                        label: Text(_isTripPaused ? "Resume" : "Pause", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 5),
+                  SizedBox(
+                    height: 32,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFEF4444),
+                        side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.2),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _isTripActive ? _triggerEmergency : null,
+                      icon: const Icon(Icons.warning_amber_rounded, size: 13),
+                      label: const Text("Emergency SOS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  SizedBox(
+                    height: 32,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF4F46E5),
+                        side: const BorderSide(color: Color(0xFF4F46E5), width: 1.2),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _isTripActive ? _triggerDeviation : null,
+                      icon: const Icon(Icons.alt_route, size: 13),
+                      label: const Text("Route Deviation", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+                    ),
+                  ),
+                ],
               ),
             ],
-          )
-        ],
+          );
+        },
       ),
     );
   }
 }
+

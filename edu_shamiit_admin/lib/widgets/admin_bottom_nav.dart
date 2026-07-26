@@ -11,7 +11,7 @@ class AdminBottomNav extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      height: 64,
+      height: 54,
       decoration: BoxDecoration(
         color: theme.cardColor,
         border: Border(
@@ -63,23 +63,23 @@ class AdminBottomNav extends StatelessWidget {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 56,
-            height: 32,
+            width: 46,
+            height: 26,
             decoration: BoxDecoration(
               color: isActive
                   ? (isDark ? const Color(0xFF1E2142) : const Color(0xFFEEF2FF))
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(
               icon,
               color: isActive
                   ? const Color(0xFF4F46E5)
                   : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-              size: 22,
+              size: 18,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(

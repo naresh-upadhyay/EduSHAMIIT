@@ -117,7 +117,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     _gpsSearchController.addListener(() {
       setState(() => _gpsSearchQuery = _gpsSearchController.text);
     });
-    _loadAll();
+    _loadAll(showLoading: true);
   }
 
   @override
@@ -139,8 +139,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   }
 
   // ═══════════════════ Data Fetching ═══════════════════
-  Future<void> _loadAll() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadAll({bool showLoading = false}) async {
+    if (showLoading) {
+      setState(() => _isLoading = true);
+    }
     try {
       final results = await Future.wait([
         ApiService().get('/transport/vehicles?page_size=100', useCache: false),
@@ -150,34 +152,74 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         ApiService().get('/transport/gps-devices', useCache: false),
       ]);
 
-      setState(() {
-        _vehicles = (results[0]['data']?['vehicles'] as List<dynamic>?) ?? [];
-        _categories = (results[1]['data'] as List<dynamic>?) ?? [];
-        _documents = (results[2]['data'] as List<dynamic>?) ?? [];
-        _insuranceFitness = (results[3]['data'] as List<dynamic>?) ?? [];
-        _gpsDevices = (results[4]['data'] as List<dynamic>?) ?? [];
+      if (mounted) {
+        setState(() {
+          _vehicles = (results[0]['data']?['vehicles'] as List<dynamic>?) ?? [];
+          _categories = (results[1]['data'] as List<dynamic>?) ?? [];
+          _documents = (results[2]['data'] as List<dynamic>?) ?? [];
+          _insuranceFitness = (results[3]['data'] as List<dynamic>?) ?? [];
+          _gpsDevices = (results[4]['data'] as List<dynamic>?) ?? [];
 
-        // Set default selected items
-        if (_vehicles.isNotEmpty && _selectedVehicle == null) {
-          _selectedVehicle = _vehicles.first;
-        }
-        if (_categories.isNotEmpty && _selectedCategory == null) {
-          _selectedCategory = _categories.first;
-        }
-        if (_documents.isNotEmpty && _selectedDocument == null) {
-          _selectedDocument = _documents.first;
-        }
-        if (_gpsDevices.isNotEmpty && _selectedGpsDevice == null) {
-          _selectedGpsDevice = _gpsDevices.first;
-        }
-        _isLoading = false;
-      });
+          // Preserve currently selected items if still valid
+          if (_vehicles.isNotEmpty) {
+            final match = _vehicles.firstWhere(
+              (v) => v['id'] == _selectedVehicle?['id'],
+              orElse: () => null,
+            );
+            _selectedVehicle = match ?? _vehicles.first;
+          }
+          if (_categories.isNotEmpty) {
+            final match = _categories.firstWhere(
+              (c) => c['id'] == _selectedCategory?['id'],
+              orElse: () => null,
+            );
+            _selectedCategory = match ?? _categories.first;
+          }
+          if (_documents.isNotEmpty) {
+            final match = _documents.firstWhere(
+              (d) => d['id'] == _selectedDocument?['id'],
+              orElse: () => null,
+            );
+            _selectedDocument = match ?? _documents.first;
+          }
+          if (_gpsDevices.isNotEmpty) {
+            final match = _gpsDevices.firstWhere(
+              (dev) => dev['id'] == _selectedGpsDevice?['id'],
+              orElse: () => null,
+            );
+            _selectedGpsDevice = match ?? _gpsDevices.first;
+          }
+          _isLoading = false;
+        });
+      }
     } catch (_) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // ═══════════════════ Filtered Lists ═══════════════════
+  // ═══════════════════ Dynamic Categories & Filtered Lists ═══════════════════
+  List<String> get _dynamicCategoryOptions {
+    final list = <String>[];
+    for (var c in _categories) {
+      if (c is Map) {
+        final vType = c['vehicle_type']?.toString().trim();
+        if (vType != null && vType.isNotEmpty && !list.contains(vType)) {
+          list.add(vType);
+        }
+        final name = c['name']?.toString().trim();
+        if (name != null && name.isNotEmpty && !list.contains(name)) {
+          list.add(name);
+        }
+      }
+    }
+    if (list.isEmpty) {
+      list.addAll(['AC Bus', 'Non AC Bus', 'Non AC', 'Mini Bus', 'Van', 'Tempo Traveller', 'Electric Bus']);
+    }
+    return list;
+  }
+
   List<dynamic> get _filteredVehicles {
     return _vehicles.where((v) {
       final matchesSearch = _searchQuery.isEmpty ||
@@ -1376,7 +1418,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           _buildDropdown('All Status', _statusFilter, ['All', 'On Route', 'Arrived', 'Returning', 'Delayed', 'Offline', 'In Maintenance'], (val) {
             setState(() => _statusFilter = val ?? 'All');
           }, width: 150),
-          _buildDropdown('All Categories', _categoryFilter, ['All', 'AC Bus', 'Non AC', 'Mini Bus', 'Van'], (val) {
+          _buildDropdown('All Categories', _categoryFilter, ['All', ..._dynamicCategoryOptions], (val) {
             setState(() => _categoryFilter = val ?? 'All');
           }, width: 170),
           _buildDropdown('All Fuel Types', _fuelFilter, ['All', 'Diesel', 'Petrol', 'CNG', 'Electric'], (val) {
@@ -1422,11 +1464,15 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         children: [
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowHeight: 46,
-              dataRowMinHeight: 56,
-              dataRowMaxHeight: 64,
-              showCheckboxColumn: false,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 1100),
+              child: DataTable(
+                horizontalMargin: 16,
+                columnSpacing: 24,
+                headingRowHeight: 46,
+                dataRowMinHeight: 56,
+                dataRowMaxHeight: 64,
+                showCheckboxColumn: false,
               columns: const [
                 DataColumn(label: Text('Bus Number')),
                 DataColumn(label: Text('Registration No.')),
@@ -1498,21 +1544,38 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                       children: [
                         IconButton(icon: const Icon(Icons.pin_drop_outlined, size: 16), onPressed: () {}),
                         IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showEditVehicleDialog(v)),
-                        IconButton(
+                        PopupMenuButton<String>(
                           icon: const Icon(Icons.more_vert, size: 16),
-                          onPressed: () {
-                            showMenu(
-                              context: context,
-                              position: const RelativeRect.fromLTRB(100, 100, 0, 0),
-                              items: [
-                                const PopupMenuItem(value: 'delete', child: Text('Delete Vehicle', style: TextStyle(color: _red))),
-                              ],
-                            ).then((val) {
-                              if (val == 'delete') {
-                                _deleteVehicleDialog(v);
-                              }
-                            });
+                          tooltip: 'More actions',
+                          onSelected: (val) {
+                            if (val == 'edit') {
+                              _showEditVehicleDialog(v);
+                            } else if (val == 'delete') {
+                              _deleteVehicleDialog(v);
+                            }
                           },
+                          itemBuilder: (ctx) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_outlined, size: 16, color: _textPrimary),
+                                  SizedBox(width: 8),
+                                  Text('Edit Vehicle'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete_outline, size: 16, color: _red),
+                                  SizedBox(width: 8),
+                                  Text('Delete Vehicle', style: TextStyle(color: _red)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     )),
@@ -1520,6 +1583,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 );
               }).toList(),
             ),
+          ),
           ),
           const Divider(height: 1),
           _buildPaginationBar(total),
@@ -1536,31 +1600,37 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     } else if (fuelPct < 50) {
       c = _orange;
     }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.battery_3_bar, color: c, size: 14),
-        const SizedBox(width: 4),
-        Text('$fuelPct%', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
-      ],
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.battery_3_bar, color: c, size: 14),
+          const SizedBox(width: 4),
+          Text('$fuelPct%', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
+        ],
+      ),
     );
   }
 
   Widget _buildSpeedBadge(int? speed) {
+    Widget badge;
     if (speed == null || speed == 0) {
-      return Container(
+      badge = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(color: _blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
         child: Text('0 km/h', style: GoogleFonts.inter(fontSize: 11, color: _blue, fontWeight: FontWeight.w600)),
       );
+    } else {
+      Color c = _green;
+      if (speed > 50) c = _red;
+      badge = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+        child: Text('$speed km/h', style: GoogleFonts.inter(fontSize: 11, color: c, fontWeight: FontWeight.w600)),
+      );
     }
-    Color c = _green;
-    if (speed > 50) c = _red;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-      child: Text('$speed km/h', style: GoogleFonts.inter(fontSize: 11, color: c, fontWeight: FontWeight.w600)),
-    );
+    return FittedBox(fit: BoxFit.scaleDown, child: badge);
   }
 
   Widget _buildStatusBadge(String status) {
@@ -1585,10 +1655,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       c = _red;
       label = 'Inactive';
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-      child: Text(label, style: GoogleFonts.inter(fontSize: 10, color: c, fontWeight: FontWeight.w600)),
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+        child: Text(label, style: GoogleFonts.inter(fontSize: 10, color: c, fontWeight: FontWeight.w600)),
+      ),
     );
   }
 
@@ -2098,11 +2171,15 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         children: [
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowHeight: 46,
-              dataRowMinHeight: 56,
-              dataRowMaxHeight: 64,
-              showCheckboxColumn: false,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 1100),
+              child: DataTable(
+                horizontalMargin: 16,
+                columnSpacing: 24,
+                headingRowHeight: 46,
+                dataRowMinHeight: 56,
+                dataRowMaxHeight: 64,
+                showCheckboxColumn: false,
               columns: const [
                 DataColumn(label: Text('Category Name')),
                 DataColumn(label: Text('Category Code')),
@@ -2161,21 +2238,38 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showEditCategoryDialog(c)),
-                        IconButton(
+                        PopupMenuButton<String>(
                           icon: const Icon(Icons.more_vert, size: 16),
-                          onPressed: () {
-                            showMenu(
-                              context: context,
-                              position: const RelativeRect.fromLTRB(100, 100, 0, 0),
-                              items: [
-                                const PopupMenuItem(value: 'delete', child: Text('Delete Category', style: TextStyle(color: _red))),
-                              ],
-                            ).then((val) {
-                              if (val == 'delete') {
-                                _deleteCategoryDialog(c);
-                              }
-                            });
+                          tooltip: 'More actions',
+                          onSelected: (val) {
+                            if (val == 'edit') {
+                              _showEditCategoryDialog(c);
+                            } else if (val == 'delete') {
+                              _deleteCategoryDialog(c);
+                            }
                           },
+                          itemBuilder: (ctx) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit_outlined, size: 16, color: _textPrimary),
+                                  SizedBox(width: 8),
+                                  Text('Edit Category'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete_outline, size: 16, color: _red),
+                                  SizedBox(width: 8),
+                                  Text('Delete Category', style: TextStyle(color: _red)),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     )),
@@ -2183,6 +2277,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 );
               }).toList(),
             ),
+          ),
           ),
           const Divider(height: 1),
           _buildCategoryPaginationBar(total),
@@ -3443,13 +3538,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     );
     
     if (confirm == true) {
-      setState(() => _isLoading = true);
       try {
         await ApiService().delete('/transport/documents/$docId');
-        await _loadAll();
-      } catch (_) {
-        setState(() => _isLoading = false);
-      }
+        _loadAll();
+      } catch (_) {}
     }
   }
 
@@ -3676,7 +3768,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       Navigator.pop(ctx);
-                      setState(() => _isLoading = true);
                       try {
                         String? fileUrl;
                         if (pickedFile != null) {
@@ -3707,10 +3798,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           "document_url": fileUrl,
                         };
                         await ApiService().post('/transport/documents', data);
-                        await _loadAll();
-                      } catch (_) {
-                        setState(() => _isLoading = false);
-                      }
+                        _loadAll();
+                      } catch (_) {}
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
@@ -4655,7 +4744,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       Navigator.pop(ctx);
-                      setState(() => _isLoading = true);
                       try {
                         final data = {
                           "school_id": "11111111-1111-1111-1111-111111111111",
@@ -4675,10 +4763,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           "signal_strength_pct": 100,
                         };
                         await ApiService().post('/transport/gps-devices', data);
-                        await _loadAll();
-                      } catch (_) {
-                        setState(() => _isLoading = false);
-                      }
+                        _loadAll();
+                      } catch (_) {}
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
@@ -4818,7 +4904,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       Navigator.pop(ctx);
-                      setState(() => _isLoading = true);
                       try {
                         final data = {
                           "device_id": devIdCtrl.text,
@@ -4835,10 +4920,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           "current_location": locationCtrl.text,
                         };
                         await ApiService().put('/transport/gps-devices/${dev['id']}', data);
-                        await _loadAll();
-                      } catch (_) {
-                        setState(() => _isLoading = false);
-                      }
+                        _loadAll();
+                      } catch (_) {}
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
@@ -4864,13 +4947,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(ctx);
-                setState(() => _isLoading = true);
                 try {
                   await ApiService().delete('/transport/gps-devices/${dev['id']}');
-                  await _loadAll();
-                } catch (_) {
-                  setState(() => _isLoading = false);
-                }
+                  _loadAll();
+                } catch (_) {}
               },
               style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
               child: const Text('Delete'),
@@ -4898,7 +4978,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final pucCtrl = TextEditingController(text: 'UP16PUC123456');
     final permitCtrl = TextEditingController(text: 'UP16TP2023001');
 
-    String vehicleType = 'AC Bus';
+    final vehicleTypeList = List<String>.from(_dynamicCategoryOptions);
+    String vehicleType = vehicleTypeList.isNotEmpty ? vehicleTypeList.first : 'AC Bus';
+    if (!vehicleTypeList.contains(vehicleType)) vehicleTypeList.add(vehicleType);
     String fuelType = 'Diesel';
     String liveStatus = 'offline';
     String status = 'Active';
@@ -4945,8 +5027,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 initialValue: vehicleType,
-                                decoration: const InputDecoration(labelText: 'Vehicle Type'),
-                                items: ['AC Bus', 'Non AC', 'Mini Bus', 'Van'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
+                                items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => vehicleType = val!),
                               ),
                             ),
@@ -4955,7 +5037,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               child: DropdownButtonFormField<String>(
                                 initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
-                                items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                items: ['Diesel', 'Petrol', 'CNG', 'Electric', 'Hybrid'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => fuelType = val!),
                               ),
                             ),
@@ -5009,7 +5091,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               child: DropdownButtonFormField<String>(
                                 initialValue: liveStatus,
                                 decoration: const InputDecoration(labelText: 'Live Status'),
-                                items: ['on_route', 'at_school', 'returning', 'delayed', 'offline', 'idle'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                items: ['on_route', 'at_school', 'returning', 'delayed', 'offline', 'idle', 'Arrived', 'On Route', 'Offline', 'In Maintenance'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => liveStatus = val!),
                               ),
                             ),
@@ -5155,6 +5237,18 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     String liveStatus = v['live_status'] ?? 'offline';
     String status = v['status'] ?? 'Active';
 
+    final vehicleTypeList = List<String>.from(_dynamicCategoryOptions);
+    if (!vehicleTypeList.contains(vehicleType)) vehicleTypeList.add(vehicleType);
+
+    final fuelTypeList = ['Diesel', 'Petrol', 'CNG', 'Electric', 'Hybrid'];
+    if (!fuelTypeList.contains(fuelType)) fuelTypeList.add(fuelType);
+
+    final liveStatusList = ['on_route', 'at_school', 'returning', 'delayed', 'offline', 'idle', 'Arrived', 'On Route', 'Offline', 'In Maintenance'];
+    if (!liveStatusList.contains(liveStatus)) liveStatusList.add(liveStatus);
+
+    final statusList = ['Active', 'Inactive', 'In Maintenance'];
+    if (!statusList.contains(status)) statusList.add(status);
+
     showDialog(
       context: context,
       builder: (ctx) {
@@ -5197,8 +5291,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 initialValue: vehicleType,
-                                decoration: const InputDecoration(labelText: 'Vehicle Type'),
-                                items: ['AC Bus', 'Non AC', 'Mini Bus', 'Van'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
+                                items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => vehicleType = val!),
                               ),
                             ),
@@ -5207,7 +5301,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               child: DropdownButtonFormField<String>(
                                 initialValue: fuelType,
                                 decoration: const InputDecoration(labelText: 'Fuel Type'),
-                                items: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                items: fuelTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => fuelType = val!),
                               ),
                             ),
@@ -5261,7 +5355,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               child: DropdownButtonFormField<String>(
                                 initialValue: liveStatus,
                                 decoration: const InputDecoration(labelText: 'Live Status'),
-                                items: ['on_route', 'at_school', 'returning', 'delayed', 'offline', 'idle'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                items: liveStatusList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => liveStatus = val!),
                               ),
                             ),
@@ -5270,7 +5364,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               child: DropdownButtonFormField<String>(
                                 initialValue: status,
                                 decoration: const InputDecoration(labelText: 'Status'),
-                                items: ['Active', 'Inactive', 'In Maintenance'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                items: statusList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                                 onChanged: (val) => setDialogState(() => status = val!),
                               ),
                             ),
@@ -5369,7 +5463,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         _loadAll();
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     }
                   },
@@ -5741,6 +5835,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   }
 
   Widget _buildDropdown(String hint, String value, List<String> items, Function(String?) onChanged, {double? width}) {
+    final list = List<String>.from(items);
+    if (value != 'All' && !list.contains(value)) {
+      list.add(value);
+    }
     return Container(
       width: width,
       height: 40,
@@ -5752,9 +5850,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           isExpanded: width != null,
-          value: value == 'All' ? null : value,
+          value: (value == 'All' || !list.contains(value)) ? null : value,
           hint: Text(hint, style: GoogleFonts.inter(fontSize: 13, color: _textSecondary), overflow: TextOverflow.ellipsis),
-          items: items.map((i) => DropdownMenuItem<String>(value: i, child: Text(i, style: GoogleFonts.inter(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
+          items: list.map((i) => DropdownMenuItem<String>(value: i, child: Text(i, style: GoogleFonts.inter(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
           onChanged: onChanged,
         ),
       ),

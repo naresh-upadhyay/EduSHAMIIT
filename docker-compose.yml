@@ -497,6 +497,8 @@ services:
       - LIVEKIT_PUBLIC_URL=wss://eduapi.shamiit.com
       - LIVEKIT_API_KEY=devkey
       - LIVEKIT_API_SECRET=secretkey_edushamiit_livekit_2026_secure
+      - TOMTOM_API_KEY=${TOMTOM_API_KEY:-FyoNd3Qxz2ZFFMXpAXN4XyPiIe53TD3v}
+      - TOMTOM_BASE_URL=${TOMTOM_BASE_URL:-https://api.tomtom.com/search/2}
     depends_on:
       db:
         condition: service_healthy
