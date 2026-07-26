@@ -2566,8 +2566,20 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                               DataCell(Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: () => _showRouteFormDialog(r)),
-                                                  IconButton(icon: const Icon(Icons.delete, size: 16, color: _red), onPressed: () => _deleteRoute(r)),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit, size: 16),
+                                                    tooltip: 'Edit Route',
+                                                    onPressed: () {
+                                                      Future.microtask(() => _showRouteFormDialog(r));
+                                                    },
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete, size: 16, color: _red),
+                                                    tooltip: 'Delete Route',
+                                                    onPressed: () {
+                                                      Future.microtask(() => _deleteRoute(r));
+                                                    },
+                                                  ),
                                                 ],
                                               )),
                                             ],
@@ -3073,237 +3085,150 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     String? selectedDriverId = existing?['driver_id']?.toString();
     String status = existing?['status'] ?? 'Active';
 
-    // List of stops in form state
+    // List of stops in form state (pre-populate safely if available)
     List<Map<String, dynamic>> formStops = [];
+    if (isEdit && existing != null) {
+      final initialStops = (existing['bus_stops'] ?? existing['stops']) as List? ?? [];
+      formStops = initialStops.map<Map<String, dynamic>>((s) {
+        return {
+          "id": s["id"]?.toString(),
+          "stop_name": s["stop_name"]?.toString() ?? 'Stop',
+          "latitude": s["latitude"] != null ? (double.tryParse(s["latitude"].toString()) ?? 28.62) : 28.62,
+          "longitude": s["longitude"] != null ? (double.tryParse(s["longitude"].toString()) ?? 77.36) : 77.36,
+          "stop_order": s["stop_order"] != null ? (int.tryParse(s["stop_order"].toString()) ?? 1) : 1,
+          "estimated_arrival": s["estimated_arrival"]?.toString() ?? '06:30:00',
+        };
+      }).toList();
+    }
 
     showDialog(
       context: context,
       builder: (ctx) {
-        // Fetch stops initially if edit
+        bool hasAttemptedFetch = false;
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            // Load stops once
-            if (isEdit && formStops.isEmpty) {
+            // Load stops once asynchronously if edit and formStops is empty
+            if (isEdit && formStops.isEmpty && existing?['id'] != null && !hasAttemptedFetch) {
+              hasAttemptedFetch = true;
               ApiService().get('/transport/routes/${existing['id']}', useCache: false).then((res) {
-                final stops = res['data']?['stops'] as List? ?? [];
-                if (mounted) {
+                final stops = (res['data']?['stops'] ?? res['data']?['bus_stops']) as List? ?? [];
+                if (mounted && stops.isNotEmpty) {
                   setDialogState(() {
-                    formStops = stops.map((s) => {
-                      "stop_name": s["stop_name"],
-                      "latitude": s["latitude"],
-                      "longitude": s["longitude"],
-                      "stop_order": s["stop_order"],
-                      "estimated_arrival": s["estimated_arrival"]
+                    formStops = stops.map<Map<String, dynamic>>((s) {
+                      return {
+                        "id": s["id"]?.toString(),
+                        "stop_name": s["stop_name"]?.toString() ?? 'Stop',
+                        "latitude": s["latitude"] != null ? (double.tryParse(s["latitude"].toString()) ?? 28.62) : 28.62,
+                        "longitude": s["longitude"] != null ? (double.tryParse(s["longitude"].toString()) ?? 77.36) : 77.36,
+                        "stop_order": s["stop_order"] != null ? (int.tryParse(s["stop_order"].toString()) ?? 1) : 1,
+                        "estimated_arrival": s["estimated_arrival"]?.toString() ?? '06:30:00',
+                      };
                     }).toList();
                   });
                 }
+              }).catchError((e) {
+                debugPrint("Route details fetch error: $e");
               });
             }
 
             return AlertDialog(
-              title: Text(isEdit ? 'Edit Route Details' : 'Create New Route', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: SizedBox(
-                width: 750,
-                child: Form(
-                  key: formKey,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left Section: Route Fields
-                      Expanded(
-                        flex: 4,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.only(top: 10, bottom: 4),
-                          clipBehavior: Clip.none,
-                          child: Column(
-                            children: [
-                              TextFormField(
-                                controller: codeController,
-                                decoration: const InputDecoration(labelText: 'Route Code *', border: OutlineInputBorder()),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: nameController,
-                                decoration: const InputDecoration(labelText: 'Route Name *', border: OutlineInputBorder()),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: areaController,
-                                decoration: const InputDecoration(labelText: 'Area / Zone *', border: OutlineInputBorder()),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: distanceController,
-                                decoration: const InputDecoration(labelText: 'Distance (km) *', border: OutlineInputBorder()),
-                                keyboardType: TextInputType.number,
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: startTimeController,
-                                      decoration: const InputDecoration(labelText: 'Start Time (HH:MM:SS) *', border: OutlineInputBorder()),
-                                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: endTimeController,
-                                      decoration: const InputDecoration(labelText: 'End Time (HH:MM:SS) *', border: OutlineInputBorder()),
-                                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String?>(
-                                initialValue: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
-                                decoration: const InputDecoration(labelText: 'Assign Bus / Vehicle', border: OutlineInputBorder()),
-                                items: [
-                                  const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
-                                  ..._vehicles.map((v) => DropdownMenuItem<String?>(value: v['id'].toString(), child: Text('${v['bus_number']} (${v['vehicle_type']})'))),
-                                ],
-                                onChanged: (val) => setDialogState(() => selectedVehicleId = val),
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String?>(
-                                initialValue: (selectedDriverId != null && _drivers.any((d) => d['id'].toString() == selectedDriverId)) ? selectedDriverId : null,
-                                decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder()),
-                                items: [
-                                  const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
-                                  ..._drivers.map((d) => DropdownMenuItem<String?>(value: d['id'].toString(), child: Text(d['name']))),
-                                ],
-                                onChanged: (val) => setDialogState(() => selectedDriverId = val),
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
-                                decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
-                                items: ['Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setDialogState(() => status = val!),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(width: 20),
-                      const VerticalDivider(width: 1),
-                      const SizedBox(width: 20),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(isEdit ? Icons.edit_road_rounded : Icons.add_road_rounded, color: _accent, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isEdit ? 'Edit Route Details' : 'Create New Route',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ],
+              ),
+              content: Builder(
+                builder: (context) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final bool isMobile = screenWidth < 700;
 
-                      // Right Section: Stops list CRUD inside dialog
-                      Expanded(
-                        flex: 5,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  return SizedBox(
+                    width: isMobile ? screenWidth * 0.95 : 820,
+                    height: MediaQuery.of(context).size.height * 0.76,
+                    child: Form(
+                      key: formKey,
+                      child: isMobile
+                          ? SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildRouteFieldsColumn(
+                                    codeController: codeController,
+                                    nameController: nameController,
+                                    areaController: areaController,
+                                    distanceController: distanceController,
+                                    startTimeController: startTimeController,
+                                    endTimeController: endTimeController,
+                                    selectedVehicleId: selectedVehicleId,
+                                    selectedDriverId: selectedDriverId,
+                                    status: status,
+                                    setDialogState: setDialogState,
+                                  ),
+                                  const Divider(height: 32),
+                                  _buildStopsReorderView(
+                                    formStops: formStops,
+                                    setDialogState: setDialogState,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Stops List (${formStops.length})', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      formStops.add({
-                                        "stop_name": 'New Stop',
-                                        "latitude": 28.62,
-                                        "longitude": 77.36,
-                                        "stop_order": formStops.length + 1,
-                                        "estimated_arrival": '06:30:00'
-                                      });
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
-                                  icon: const Icon(Icons.add, size: 14),
-                                  label: const Text('Add Stop', style: TextStyle(fontSize: 11)),
+                                // Left Section: Route Fields
+                                Expanded(
+                                  flex: 5,
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: _buildRouteFieldsColumn(
+                                      codeController: codeController,
+                                      nameController: nameController,
+                                      areaController: areaController,
+                                      distanceController: distanceController,
+                                      startTimeController: startTimeController,
+                                      endTimeController: endTimeController,
+                                      selectedVehicleId: selectedVehicleId,
+                                      selectedDriverId: selectedDriverId,
+                                      status: status,
+                                      setDialogState: setDialogState,
+                                    ),
+                                  ),
+                                ),
+
+                                const VerticalDivider(width: 24, thickness: 1),
+
+                                // Right Section: Stops Sequence & Drag Reordering
+                                Expanded(
+                                  flex: 5,
+                                  child: _buildStopsReorderView(
+                                    formStops: formStops,
+                                    setDialogState: setDialogState,
+                                  ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: formStops.length,
-                                itemBuilder: (context, sIdx) {
-                                  final stop = formStops[sIdx];
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Column(
-                                        children: [
-                                          Row(
-                                            children: [
-                                              CircleAvatar(radius: 10, backgroundColor: _accent, child: Text('${sIdx + 1}', style: const TextStyle(color: Colors.white, fontSize: 10))),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: TextFormField(
-                                                  initialValue: stop['stop_name'],
-                                                  decoration: const InputDecoration(hintText: 'Stop Name', isDense: true, contentPadding: EdgeInsets.all(6)),
-                                                  onChanged: (val) => stop['stop_name'] = val,
-                                                ),
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(Icons.delete, color: _red, size: 18),
-                                                onPressed: () => setDialogState(() {
-                                                  formStops.removeAt(sIdx);
-                                                  // Re-order
-                                                  for (int k = 0; k < formStops.length; k++) {
-                                                    formStops[k]['stop_order'] = k + 1;
-                                                  }
-                                                }),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: TextFormField(
-                                                  initialValue: stop['estimated_arrival'],
-                                                  decoration: const InputDecoration(hintText: 'Arrival', isDense: true, contentPadding: EdgeInsets.all(6)),
-                                                  onChanged: (val) => stop['estimated_arrival'] = val,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: TextFormField(
-                                                  initialValue: stop['latitude'].toString(),
-                                                  decoration: const InputDecoration(hintText: 'Lat', isDense: true, contentPadding: EdgeInsets.all(6)),
-                                                  onChanged: (val) => stop['latitude'] = double.tryParse(val) ?? 28.62,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: TextFormField(
-                                                  initialValue: stop['longitude'].toString(),
-                                                  decoration: const InputDecoration(hintText: 'Lng', isDense: true, contentPadding: EdgeInsets.all(6)),
-                                                  onChanged: (val) => stop['longitude'] = double.tryParse(val) ?? 77.36,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey[700])),
+                ),
                 ElevatedButton(
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
@@ -3332,18 +3257,29 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         if (!mounted) return;
                         _loadData();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(isEdit ? 'Route updated successfully' : 'Route created successfully'), backgroundColor: _green),
+                          SnackBar(
+                            content: Text(isEdit ? 'Route updated successfully' : 'Route created successfully'),
+                            backgroundColor: _green,
+                          ),
                         );
                       } catch (e) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to save route: $e'), backgroundColor: _red),
+                          SnackBar(
+                            content: Text('Failed to save route: $e'),
+                            backgroundColor: _red,
+                          ),
                         );
                       }
                     }
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  child: Text(isEdit ? 'Save Changes' : 'Create Route'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: Text(isEdit ? 'Save Changes' : 'Create Route', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -3353,7 +3289,345 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     );
   }
 
-  
+  Widget _buildRouteFieldsColumn({
+    required TextEditingController codeController,
+    required TextEditingController nameController,
+    required TextEditingController areaController,
+    required TextEditingController distanceController,
+    required TextEditingController startTimeController,
+    required TextEditingController endTimeController,
+    required String? selectedVehicleId,
+    required String? selectedDriverId,
+    required String status,
+    required StateSetter setDialogState,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextFormField(
+          controller: codeController,
+          decoration: const InputDecoration(labelText: 'Route Code *', border: OutlineInputBorder(), isDense: true),
+          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: nameController,
+          decoration: const InputDecoration(labelText: 'Route Name *', border: OutlineInputBorder(), isDense: true),
+          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: areaController,
+          decoration: const InputDecoration(labelText: 'Area / Zone *', border: OutlineInputBorder(), isDense: true),
+          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: distanceController,
+          decoration: const InputDecoration(labelText: 'Distance (km) *', border: OutlineInputBorder(), isDense: true),
+          keyboardType: TextInputType.number,
+          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+        ),
+        const SizedBox(height: 12),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: startTimeController,
+                decoration: const InputDecoration(labelText: 'Start Time *', hintText: 'HH:MM:SS', border: OutlineInputBorder(), isDense: true),
+                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextFormField(
+                controller: endTimeController,
+                decoration: const InputDecoration(labelText: 'End Time *', hintText: 'HH:MM:SS', border: OutlineInputBorder(), isDense: true),
+                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Builder(
+          builder: (context) {
+            final Map<String, String> vehicleOptions = {};
+            for (var v in _vehicles) {
+              if (v['id'] != null) {
+                final idStr = v['id'].toString();
+                final numStr = v['bus_number']?.toString() ?? 'Bus';
+                final typeStr = v['vehicle_type']?.toString() ?? 'Vehicle';
+                vehicleOptions[idStr] = '$numStr ($typeStr)';
+              }
+            }
+            final String? validVehicleId = (selectedVehicleId != null && vehicleOptions.containsKey(selectedVehicleId))
+                ? selectedVehicleId
+                : null;
+
+            return DropdownButtonFormField<String?>(
+              isExpanded: true,
+              initialValue: validVehicleId,
+              decoration: const InputDecoration(labelText: 'Assign Bus / Vehicle', border: OutlineInputBorder(), isDense: true),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
+                ...vehicleOptions.entries.map((e) => DropdownMenuItem<String?>(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
+              ],
+              onChanged: (val) => setDialogState(() => selectedVehicleId = val),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        Builder(
+          builder: (context) {
+            final Map<String, String> driverOptions = {};
+            for (var d in _drivers) {
+              if (d['id'] != null) {
+                final idStr = d['id'].toString();
+                final nameStr = d['name']?.toString() ?? 'Driver';
+                driverOptions[idStr] = nameStr;
+              }
+            }
+            final String? validDriverId = (selectedDriverId != null && driverOptions.containsKey(selectedDriverId))
+                ? selectedDriverId
+                : null;
+
+            return DropdownButtonFormField<String?>(
+              isExpanded: true,
+              initialValue: validDriverId,
+              decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder(), isDense: true),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
+                ...driverOptions.entries.map((e) => DropdownMenuItem<String?>(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
+              ],
+              onChanged: (val) => setDialogState(() => selectedDriverId = val),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          isExpanded: true,
+          initialValue: ['Active', 'Inactive', 'Draft'].contains(status) ? status : 'Active',
+          decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder(), isDense: true),
+          items: ['Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
+          onChanged: (val) => setDialogState(() => status = val!),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStopsReorderView({
+    required List<Map<String, dynamic>> formStops,
+    required StateSetter setDialogState,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Stops Sequence (${formStops.length})',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: const Color(0xFF1E293B)),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.drag_indicator_rounded, size: 14, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Drag handles to set order',
+                    style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF2563EB), fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (formStops.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.pin_drop_outlined, size: 36, color: Color(0xFF94A3B8)),
+                const SizedBox(height: 8),
+                Text(
+                  'No stops assigned to this route yet.',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF475569)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Use the separate "Add / Edit Stop Location" section on the map to add stops to this route.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8)),
+                ),
+              ],
+            ),
+          )
+        else
+          Expanded(
+            child: ReorderableListView.builder(
+              shrinkWrap: true,
+              buildDefaultDragHandles: false,
+              itemCount: formStops.length,
+              onReorder: (int oldIndex, int newIndex) {
+                setDialogState(() {
+                  if (oldIndex < newIndex) {
+                    newIndex -= 1;
+                  }
+                  final item = formStops.removeAt(oldIndex);
+                  formStops.insert(newIndex, item);
+                  for (int k = 0; k < formStops.length; k++) {
+                    formStops[k]['stop_order'] = k + 1;
+                  }
+                });
+              },
+              itemBuilder: (context, sIdx) {
+                final stop = formStops[sIdx];
+                final String stopKey = stop['id'] != null ? stop['id'].toString() : 'stop_${sIdx}_${stop['stop_name']}';
+
+                return Container(
+                  key: ValueKey(stopKey),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x0A0F172A), blurRadius: 6, offset: Offset(0, 2)),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        // Sequence Badge
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${sIdx + 1}',
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Stop Title & Time
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                stop['stop_name'] ?? 'Unnamed Stop',
+                                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: const Color(0xFF1E293B)),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.access_time_rounded, size: 10, color: Color(0xFF64748B)),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          'Arrival: ${stop['estimated_arrival'] ?? 'N/A'}',
+                                          style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF475569), fontWeight: FontWeight.w500),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (stop['latitude'] != null && stop['longitude'] != null) ...[
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Lat: ${stop['latitude']}, Lng: ${stop['longitude']}',
+                                        style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF94A3B8)),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Delete Action
+                        InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () {
+                            setDialogState(() {
+                              formStops.removeAt(sIdx);
+                              for (int k = 0; k < formStops.length; k++) {
+                                formStops[k]['stop_order'] = k + 1;
+                              }
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 16),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Grip Handle Icon
+                        ReorderableDragStartListener(
+                          index: sIdx,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: const Icon(Icons.drag_indicator_rounded, color: Color(0xFF64748B), size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
   // --- TRIPS LOGIC ---
   List<Map<String, dynamic>> _generateMockTrips() {
     return [

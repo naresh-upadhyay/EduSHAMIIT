@@ -70,6 +70,16 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   bool _hideMapControls = false;
   bool _hideBottomControls = false;
 
+  // Custom Map Destination Selection & Locking
+  LatLng? _selectedDestinationLatLng;
+  String _selectedDestinationName = "";
+  double _selectedDestinationDistanceKm = 0.0;
+  int _selectedDestinationDurationMins = 0;
+  bool _isCustomDestinationLocked = false;
+  bool _isGeocodingSelectedPoint = false;
+  bool _enableClickToSetDestination = false; // Toggle to prevent unwanted map clicks
+
+
 
   // Timer for GPS simulation
   Timer? _telemetryTimer;
@@ -1039,6 +1049,164 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   List<Map<String, dynamic>> _navigationRouteInfos = [];
   int _selectedRouteIndex = 0;
   bool _isAutoFollowVehicle = true;
+
+  // ─── CLICK MAP TO SET & LOCK DESTINATION (REAL OSRM ROAD ROUTE) ─────────
+  Future<void> _fetchRoadRouteToDestination(LatLng destination) async {
+    final busLoc = _getBusLocation();
+
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${busLoc.longitude},${busLoc.latitude};'
+        '${destination.longitude},${destination.latitude}'
+        '?overview=full&geometries=geojson&alternatives=true'
+      );
+
+      final res = await http.get(url).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final routes = data['routes'] as List? ?? [];
+        if (routes.isNotEmpty) {
+          final List<List<LatLng>> routePaths = [];
+          final List<Map<String, dynamic>> routeInfos = [];
+
+          for (int i = 0; i < routes.length; i++) {
+            final route = routes[i];
+            final distMeters = (route['distance'] as num).toDouble();
+            final durSecs = (route['duration'] as num).toDouble();
+            final coords = route['geometry']['coordinates'] as List<dynamic>;
+
+            final polyline = coords.map<LatLng>((c) {
+              return LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble());
+            }).toList();
+
+            final distKm = double.parse((distMeters / 1000.0).toStringAsFixed(1));
+            final durMins = (durSecs / 60.0).round();
+
+            routePaths.add(polyline);
+            routeInfos.add({
+              'label': i == 0 ? '⚡ Fastest Route' : (i == 1 ? '🌿 Shortest Path' : '🛣️ Alt Route $i'),
+              'distance_km': distKm,
+              'duration_mins': durMins,
+              'summary': route['legs']?[0]?['summary'] ?? (i == 0 ? 'Via Highway' : 'Via Local Corridor'),
+            });
+          }
+
+          if (mounted) {
+            setState(() {
+              _navigationRoutePaths = routePaths;
+              _navigationRouteInfos = routeInfos;
+              _selectedRouteIndex = 0;
+              _navigationPolylinePoints = routePaths[0];
+              _navDistanceKm = routeInfos[0]['distance_km'];
+              _navDurationMins = routeInfos[0]['duration_mins'];
+              _selectedDestinationDistanceKm = routeInfos[0]['distance_km'];
+              _selectedDestinationDurationMins = routeInfos[0]['duration_mins'];
+            });
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint("OSRM Road routing error: $e");
+    }
+  }
+
+  void _onMapTapped(LatLng point) async {
+    if (!_enableClickToSetDestination) return;
+
+    setState(() {
+      _selectedDestinationLatLng = point;
+      _selectedDestinationName = "Fetching location details...";
+      _isGeocodingSelectedPoint = true;
+      _isCustomDestinationLocked = false;
+    });
+
+    final busLoc = _getBusLocation();
+    final dist = _calculateDistanceKm(busLoc.latitude, busLoc.longitude, point.latitude, point.longitude);
+    final durationMins = (dist / 25.0 * 60).round().clamp(1, 999);
+
+    String placeName = "Selected Location (${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)})";
+    try {
+      final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=${point.latitude}&lon=${point.longitude}');
+      final response = await http.get(url, headers: {'User-Agent': 'EduSHAMIIT-DriverApp/1.0'}).timeout(const Duration(seconds: 3));
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final data = jsonDecode(response.body);
+        final displayName = data['display_name'] ?? data['name'] ?? "";
+        if (displayName.isNotEmpty) {
+          placeName = displayName;
+          final parts = placeName.split(',');
+          if (parts.length >= 2) {
+            placeName = "${parts[0].trim()}, ${parts[1].trim()}";
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _selectedDestinationName = placeName;
+        _selectedDestinationDistanceKm = dist;
+        _selectedDestinationDurationMins = durationMins;
+        _isGeocodingSelectedPoint = false;
+      });
+
+      // Fetch actual OSRM driving road polyline asynchronously
+      _fetchRoadRouteToDestination(point);
+    }
+  }
+
+  void _lockCustomDestination() async {
+    if (_selectedDestinationLatLng == null) return;
+
+    if (_navigationPolylinePoints.isEmpty || _navigationRoutePaths.isEmpty) {
+      await _fetchRoadRouteToDestination(_selectedDestinationLatLng!);
+    }
+
+    setState(() {
+      _isCustomDestinationLocked = true;
+      _isTripActive = true;
+      _isNavigating = true;
+      _selectedRouteIndex = 0;
+      _isAutoFollowVehicle = false;
+    });
+
+    _mapController.move(_selectedDestinationLatLng!, 16.0);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Destination Locked: $_selectedDestinationName! Navigation active.",
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  void _clearCustomDestination() {
+    setState(() {
+      _selectedDestinationLatLng = null;
+      _isCustomDestinationLocked = false;
+      _selectedDestinationName = "";
+      _isNavigating = false;
+      _navigationPolylinePoints = [];
+      _navigationRoutePaths = [];
+    });
+  }
 
   Future<void> _searchPlacesOnTheWay(String categoryKey, String queryKeyword) async {
     if (_activePoiCategory == categoryKey) {
@@ -3653,6 +3821,45 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
       }
     }
 
+    if (_selectedDestinationLatLng != null) {
+      markers.add(
+        Marker(
+          point: _selectedDestinationLatLng!,
+          width: 150,
+          height: 60,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _isCustomDestinationLocked ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isCustomDestinationLocked ? Icons.lock_rounded : Icons.pin_drop_rounded,
+                      size: 11,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isCustomDestinationLocked ? "DESTINATION LOCKED" : "DESTINATION PIN",
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 30),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_isAutoFollowVehicle) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _isAutoFollowVehicle) {
@@ -3684,6 +3891,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   initialZoom: _zoomLevel,
                   minZoom: 1.0,
                   maxZoom: 18.5,
+                  onTap: (tapPosition, point) => _onMapTapped(point),
                   onPositionChanged: (position, hasGesture) {
                     if (hasGesture && _isAutoFollowVehicle) {
                       setState(() {
@@ -3745,6 +3953,57 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
                   ),
                 ],
               ),
+
+              // Click Map Tap Mode Toggle Pill Button
+              if (_selectedDestinationLatLng == null)
+                Positioned(
+                  left: 12,
+                  top: 52,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _enableClickToSetDestination = !_enableClickToSetDestination;
+                        if (!_enableClickToSetDestination && !_isCustomDestinationLocked) {
+                          _selectedDestinationLatLng = null;
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                      decoration: BoxDecoration(
+                        color: _enableClickToSetDestination
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF0F172A).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _enableClickToSetDestination ? const Color(0xFFA7F3D0) : Colors.white24,
+                          width: 1,
+                        ),
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _enableClickToSetDestination ? Icons.touch_app_rounded : Icons.touch_app_outlined,
+                            color: _enableClickToSetDestination ? Colors.white : Colors.amberAccent,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            _enableClickToSetDestination ? "Tap Map Destination: ON" : "Tap Map Destination: OFF",
+                            style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              if (_selectedDestinationLatLng != null)
+                _buildCustomDestinationOverlayCard(),
 
               // 1. Top-Left Floating Places Search & POI Filter Toggle
               Positioned(
@@ -4079,6 +4338,108 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCustomDestinationOverlayCard() {
+    if (_selectedDestinationLatLng == null) return const SizedBox.shrink();
+
+    return Positioned(
+      left: 12,
+      right: 50,
+      bottom: 48,
+      child: Align(
+        alignment: Alignment.bottomLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _isCustomDestinationLocked ? const Color(0xFF10B981) : const Color(0xFF2563EB),
+                  width: 1.5,
+                ),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: _isCustomDestinationLocked ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isCustomDestinationLocked ? Icons.lock_rounded : Icons.pin_drop_rounded,
+                      color: _isCustomDestinationLocked ? const Color(0xFF10B981) : const Color(0xFF2563EB),
+                      size: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isGeocodingSelectedPoint ? "Locating..." : _selectedDestinationName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Color(0xFF1E293B)),
+                        ),
+                        Text(
+                          "${_selectedDestinationDistanceKm.toStringAsFixed(1)} km • ${_selectedDestinationDurationMins} mins away",
+                          style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 28,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isCustomDestinationLocked ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 1,
+                      ),
+                      onPressed: _isCustomDestinationLocked ? _clearCustomDestination : _lockCustomDestination,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_isCustomDestinationLocked ? Icons.lock_open_rounded : Icons.navigation_rounded, size: 12),
+                          const SizedBox(width: 3),
+                          Text(
+                            _isCustomDestinationLocked ? "Reset" : "Lock & Go",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: _clearCustomDestination,
+                    borderRadius: BorderRadius.circular(12),
+                    child: const Padding(
+                      padding: EdgeInsets.all(2.0),
+                      child: Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

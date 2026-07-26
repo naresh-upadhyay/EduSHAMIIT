@@ -1149,7 +1149,11 @@ async def create_route(request: dict, user=Depends(require_student_admin), schoo
 @router.put("/transport/routes/{route_id}")
 async def update_route(route_id: str, request: dict, user=Depends(require_student_admin), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    allowed = {"route_name", "bus_number", "route_number", "driver_name", "driver_phone", "total_capacity", "status"}
+    allowed = {
+        "route_code", "route_name", "bus_number", "route_number", "driver_name", 
+        "driver_phone", "total_capacity", "status", "area_zone", "distance_km", 
+        "start_time", "end_time", "vehicle_id", "driver_id"
+    }
     update_data = {}
     for k, v in request.items():
         if k in allowed:
@@ -1157,10 +1161,36 @@ async def update_route(route_id: str, request: dict, user=Depends(require_studen
                 update_data["bus_number"] = v
             else:
                 update_data[k] = v
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No valid fields provided")
-    await sb.table("bus_routes").update(update_data).eq("id", route_id).eq("school_id", school_id).aexecute()
-    return {"success": True, "message": "Route updated"}
+
+    if update_data:
+        await sb.table("bus_routes").update(update_data).eq("id", route_id).eq("school_id", school_id).aexecute()
+
+    # Handle stops reordering and deletion if provided in request
+    if "stops" in request and isinstance(request["stops"], list):
+        stops_list = request["stops"]
+        # Fetch existing stops for this route
+        existing_res = await sb.table("bus_stops").select("id").eq("route_id", route_id).aexecute()
+        existing_stops = existing_res.data or []
+        existing_ids = {str(s["id"]) for s in existing_stops}
+        
+        current_ids = set()
+        for idx, stop in enumerate(stops_list):
+            s_id = stop.get("id")
+            s_order = stop.get("stop_order", idx + 1)
+            if s_id and str(s_id) in existing_ids:
+                current_ids.add(str(s_id))
+                await sb.table("bus_stops").update({
+                    "stop_order": s_order,
+                    "stop_name": stop.get("stop_name"),
+                    "estimated_arrival": stop.get("estimated_arrival")
+                }).eq("id", s_id).aexecute()
+
+        # Delete stops that were removed from the list
+        to_delete = existing_ids - current_ids
+        for del_id in to_delete:
+            await sb.table("bus_stops").delete().eq("id", del_id).aexecute()
+
+    return {"success": True, "message": "Route and stops updated"}
 
 
 @router.delete("/transport/routes/{route_id}")
