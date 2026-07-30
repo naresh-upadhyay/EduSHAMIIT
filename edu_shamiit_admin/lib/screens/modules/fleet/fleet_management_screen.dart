@@ -39,6 +39,55 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   dynamic _selectedVehicle;
   dynamic _selectedCategory;
   int _selectedDetailTab = 0; // 0: Overview, 1: Details, 2: Documents, 3: Maintenance, 4: GPS
+  List<dynamic> _vehicleMaintenance = [];
+  bool _loadingVehicleDetails = false;
+
+  Future<void> _fetchVehicleDetailData(dynamic vehicle, {bool silent = false}) async {
+    if (vehicle == null) return;
+    final vId = vehicle['id']?.toString();
+    if (vId == null) return;
+
+    if (!silent && mounted) setState(() => _loadingVehicleDetails = true);
+    try {
+      final docsRes = await ApiService().get('/transport/documents?vehicle_id=$vId', useCache: false);
+      final maintRes = await ApiService().get('/transport/maintenance?vehicle_id=$vId', useCache: false);
+      final gpsRes = await ApiService().get('/transport/gps-devices?vehicle_id=$vId', useCache: false);
+
+      if (mounted) {
+        setState(() {
+          if (docsRes['data'] is List) {
+            final List fetched = docsRes['data'];
+            for (var d in fetched) {
+              if (!_documents.any((existing) => existing['id'] == d['id'])) {
+                _documents.add(d);
+              }
+            }
+          }
+          if (maintRes['data'] is List) {
+            _vehicleMaintenance = List<dynamic>.from(maintRes['data']);
+          }
+          if (gpsRes['data'] is List) {
+            final List fetchedGps = gpsRes['data'];
+            if (fetchedGps.isNotEmpty) {
+              final g = fetchedGps.first;
+              vehicle['gps_device_id'] = g['device_id'];
+              vehicle['imei_no'] = g['imei_no'];
+              vehicle['sim_no'] = g['sim_no'];
+              vehicle['operator'] = g['operator'];
+              vehicle['battery_level'] = g['battery_level'];
+              vehicle['signal_strength_pct'] = g['signal_strength_pct'];
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching vehicle details: $e");
+    } finally {
+      if (!silent && mounted) {
+        setState(() => _loadingVehicleDetails = false);
+      }
+    }
+  }
 
   // Filters & Pagination for Vehicles
   final TextEditingController _searchController = TextEditingController();
@@ -172,6 +221,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           } else {
             _vehicles = [];
           }
+          try {
+            final docRes = await ApiService().get('/transport/documents', useCache: false);
+            final docRaw = docRes['data'];
+            _documents = (docRaw is List) ? docRaw : [];
+          } catch (_) {}
           if (_vehicles.isNotEmpty) {
             final match = _vehicles.firstWhere(
               (v) => v['id'] == _selectedVehicle?['id'],
@@ -246,25 +300,72 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     return list;
   }
 
+  bool _vehicleMatchesStatus(dynamic v, String filter) {
+    if (filter == 'All') return true;
+    final liveStatus = (v['live_status'] ?? '').toString().toLowerCase().trim();
+    final status = (v['status'] ?? '').toString().toLowerCase().trim();
+    final f = filter.toLowerCase().trim();
+
+    if (f == 'in maintenance') {
+      return liveStatus == 'in_maintenance' ||
+          liveStatus == 'maintenance' ||
+          liveStatus == 'idle' ||
+          status == 'in maintenance' ||
+          status == 'maintenance' ||
+          status == 'in_maintenance';
+    } else if (f == 'on route') {
+      return liveStatus == 'on_route' ||
+          liveStatus == 'on route' ||
+          liveStatus == 'active' ||
+          status == 'active' ||
+          status == 'on route';
+    } else if (f == 'arrived') {
+      return liveStatus == 'arrived' ||
+          liveStatus == 'at_school' ||
+          liveStatus == 'at school';
+    } else if (f == 'returning') {
+      return liveStatus == 'returning' ||
+          liveStatus == 'on_return';
+    } else if (f == 'delayed') {
+      return liveStatus == 'delayed';
+    } else if (f == 'offline') {
+      return liveStatus == 'offline' ||
+          liveStatus == 'inactive' ||
+          status == 'inactive' ||
+          status == 'offline';
+    }
+
+    final normalizedF = f.replaceAll(' ', '_');
+    return liveStatus == f ||
+        liveStatus == normalizedF ||
+        status == f ||
+        status == normalizedF;
+  }
+
   List<dynamic> get _filteredVehicles {
     return _vehicles.where((v) {
       final matchesSearch = _searchQuery.isEmpty ||
-          (v['registration_no'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (v['bus_number'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (v['driver_name'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+          (v['registration_no'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (v['bus_number'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (v['driver_name'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (v['route_name'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (v['chassis_no'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (v['model'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase());
 
-      final matchesStatus = _statusFilter == 'All' ||
-          (v['live_status'] ?? '').toLowerCase() == _statusFilter.toLowerCase().replaceAll(' ', '_');
+      final matchesStatus = _vehicleMatchesStatus(v, _statusFilter);
 
       final matchesCategory = _categoryFilter == 'All' ||
-          (v['vehicle_type'] ?? '').toLowerCase() == _categoryFilter.toLowerCase();
+          (v['vehicle_type'] ?? '').toString().toLowerCase() == _categoryFilter.toLowerCase() ||
+          (v['category_name'] ?? '').toString().toLowerCase() == _categoryFilter.toLowerCase() ||
+          (v['category'] ?? '').toString().toLowerCase() == _categoryFilter.toLowerCase();
 
       final matchesFuel = _fuelFilter == 'All' ||
-          (v['fuel_type'] ?? '').toLowerCase() == _fuelFilter.toLowerCase();
+          (v['fuel_type'] ?? '').toString().toLowerCase() == _fuelFilter.toLowerCase();
 
       return matchesSearch && matchesStatus && matchesCategory && matchesFuel;
     }).toList();
   }
+
 
   List<dynamic> get _filteredCategories {
     return _categories.where((c) {
@@ -301,7 +402,18 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           (doc['document_type'] ?? '').toLowerCase() == _docTypeFilter.toLowerCase();
 
       final matchesVehicle = _selectedVehicleFilter == 'All' ||
-          doc['vehicle_id'].toString() == _selectedVehicleFilter;
+          doc['vehicle_id']?.toString() == _selectedVehicleFilter ||
+          doc['vehicle_no']?.toString() == _selectedVehicleFilter ||
+          doc['registration_no']?.toString() == _selectedVehicleFilter ||
+          doc['bus_routes']?['id']?.toString() == _selectedVehicleFilter ||
+          doc['bus_routes']?['registration_no']?.toString() == _selectedVehicleFilter ||
+          doc['bus_routes']?['bus_number']?.toString() == _selectedVehicleFilter ||
+          _vehicles.any((veh) =>
+              veh['id']?.toString() == _selectedVehicleFilter &&
+              (doc['vehicle_id']?.toString() == veh['id']?.toString() ||
+               doc['vehicle_id']?.toString() == veh['registration_no']?.toString() ||
+               doc['bus_routes']?['registration_no'] == veh['registration_no'] ||
+               doc['bus_routes']?['bus_number'] == veh['bus_number']));
 
       return matchesSearch && matchesStatus && matchesType && matchesVehicle;
     }).toList();
@@ -1359,9 +1471,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   Widget _buildVehiclesTopKPIRow() {
     final totalVehicles = _vehicles.length;
-    final active = _vehicles.where((v) => v['live_status'] == 'on_route').length;
-    final maintenance = _vehicles.where((v) => v['live_status'] == 'idle').length;
-    final inactive = _vehicles.where((v) => v['live_status'] == 'offline').length;
+    final active = _vehicles.where((v) => _vehicleMatchesStatus(v, 'On Route') || _vehicleMatchesStatus(v, 'Arrived')).length;
+    final maintenance = _vehicles.where((v) => _vehicleMatchesStatus(v, 'In Maintenance')).length;
+    final inactive = _vehicles.where((v) => _vehicleMatchesStatus(v, 'Offline')).length;
     final totalSeats = _vehicles.fold<int>(0, (sum, v) => sum + (v['total_capacity'] as int? ?? 52));
 
     return LayoutBuilder(
@@ -1653,6 +1765,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     setState(() {
                       _selectedVehicle = v;
                     });
+                    _fetchVehicleDetailData(v);
                   },
                   cells: [
                     DataCell(Row(
@@ -1965,7 +2078,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         children: List.generate(tabs.length, (idx) {
           final isSel = _selectedDetailTab == idx;
           return InkWell(
-            onTap: () => setState(() => _selectedDetailTab = idx),
+            onTap: () {
+              setState(() => _selectedDetailTab = idx);
+              if (idx == 3 && _selectedVehicle != null) {
+                _fetchVehicleDetailData(_selectedVehicle);
+              }
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -1981,12 +2099,73 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   Widget _buildDetailsTabContent(dynamic v, Map loc) {
     if (_selectedDetailTab == 0) {
+      // OVERVIEW
+      Map<String, dynamic>? findDoc(List<String> kws) {
+        for (var kw in kws) {
+          for (var doc in _documents) {
+            final vId = doc['vehicle_id']?.toString();
+            final matchesVeh = vId == v['id']?.toString() ||
+                vId == v['registration_no']?.toString() ||
+                (doc['bus_routes'] != null && (
+                  doc['bus_routes']['id']?.toString() == v['id']?.toString() ||
+                  doc['bus_routes']['registration_no'] == v['registration_no'] ||
+                  doc['bus_routes']['bus_number'] == v['bus_number']
+                ));
+            if (!matchesVeh) continue;
+
+            final name = (doc['document_name'] ?? doc['document_type'] ?? '').toString().toLowerCase();
+            final type = (doc['document_type'] ?? '').toString().toLowerCase();
+            if (name.contains(kw.toLowerCase()) || type.contains(kw.toLowerCase())) {
+              return Map<String, dynamic>.from(doc);
+            }
+          }
+        }
+        return null;
+      }
+
+      Map<String, String> evalDocInfo(Map<String, dynamic>? doc) {
+        if (doc == null) {
+          return {'expiry': 'Not Present', 'status': 'Not Present', 'doc_no': 'Not Present'};
+        }
+        final rawExp = doc['expiry_date']?.toString();
+        final formattedExp = _formatDate(rawExp);
+        String status = (doc['status'] ?? 'Valid').toString();
+
+        if (rawExp != null && rawExp.trim().isNotEmpty) {
+          try {
+            final dt = DateTime.parse(rawExp.trim());
+            if (dt.isBefore(DateTime.now())) {
+              status = 'Expired';
+            }
+          } catch (_) {}
+        }
+
+        final docNo = (doc['document_no'] ?? doc['policy_no'] ?? doc['puc_no'] ?? 'Not Present').toString();
+        return {'expiry': formattedExp, 'status': status, 'doc_no': docNo};
+      }
+
+      final insDoc = findDoc(['insurance']);
+      final fitDoc = findDoc(['fitness']);
+      final polDoc = findDoc(['pollution', 'puc']);
+      final permitDoc = findDoc(['permit']);
+      final rcDoc = findDoc(['registration', 'rc']);
+
+      final insInfo = evalDocInfo(insDoc);
+      final fitInfo = evalDocInfo(fitDoc);
+      final polInfo = evalDocInfo(polDoc);
+      final permitInfo = evalDocInfo(permitDoc);
+      final rcInfo = evalDocInfo(rcDoc);
+
+      final chassisNo = rcDoc != null && (rcDoc['document_no'] ?? '').toString().isNotEmpty
+          ? rcDoc['document_no'].toString()
+          : (v['chassis_no'] ?? '—');
+
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             _buildDetailRow('Registration No.', v['registration_no'] ?? '—'),
-            _buildDetailRow('Chassis No.', v['chassis_no'] ?? 'MA3KC2B1S12345678'),
+            _buildDetailRow('Chassis No.', chassisNo),
             _buildDetailRow('Engine No.', v['engine_no'] ?? 'ENG12345678'),
             _buildDetailRow('Vehicle Category', v['vehicle_type'] ?? 'AC Bus'),
             _buildDetailRow('Fuel Type', v['fuel_type'] ?? 'Diesel'),
@@ -1999,9 +2178,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 Text('Insurance Valid Till', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
                 Row(
                   children: [
-                    Text(v['insurance_expiry'] ?? '20 Aug 2025', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
+                    Text(insInfo['expiry']!, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
                     const SizedBox(width: 6),
-                    _buildValidTag(v['insurance_status'] ?? 'Valid'),
+                    _buildValidTag(insInfo['status']!),
                   ],
                 ),
               ],
@@ -2013,9 +2192,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 Text('Fitness Valid Till', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
                 Row(
                   children: [
-                    Text(v['fitness_expiry'] ?? '15 Aug 2025', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
+                    Text(fitInfo['expiry']!, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
                     const SizedBox(width: 6),
-                    _buildValidTag(v['fitness_status'] ?? 'Valid'),
+                    _buildValidTag(fitInfo['status']!),
                   ],
                 ),
               ],
@@ -2027,23 +2206,22 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 Text('Pollution Valid Till', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
                 Row(
                   children: [
-                    Text(v['pollution_expiry'] ?? '10 Oct 2025', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
+                    Text(polInfo['expiry']!, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
                     const SizedBox(width: 6),
-                    _buildValidTag(v['pollution_status'] ?? 'Valid'),
+                    _buildValidTag(polInfo['status']!),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            _buildDetailRow('PUC No.', v['puc_no'] ?? 'UP16PUC123456'),
-            _buildDetailRow('Permit No.', v['permit_no'] ?? 'UP16TP2023001'),
+            _buildDetailRow('PUC No.', polInfo['doc_no']!),
+            _buildDetailRow('Permit No.', permitInfo['doc_no']!),
             _buildDetailRow('Capacity', '${v['total_capacity'] ?? 52} Seats'),
             const SizedBox(height: 8),
             _buildDriverRow(v['driver_name'] ?? '—', v['driver_phone'] ?? '—'),
             const SizedBox(height: 8),
             _buildRouteRow(v['route_name'] ?? '—'),
             const SizedBox(height: 16),
-            // Metrics Block (2x2 Grid)
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -2061,26 +2239,659 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           ],
         ),
       );
+    } else if (_selectedDetailTab == 1) {
+      // DETAILS (TECHNICAL SPECS)
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Technical & Vehicle Specs', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+            const SizedBox(height: 12),
+            _buildDetailRow('Bus Number', v['bus_number'] ?? 'BUS-${v['id']}'),
+            _buildDetailRow('Seating Capacity', '${v['total_capacity'] ?? 52} Seats'),
+            _buildDetailRow('Luggage Capacity', v['luggage_capacity'] ?? '500 L'),
+            _buildDetailRow('Fuel Tank Capacity', v['fuel_tank_capacity'] ?? '150 Liters'),
+            _buildDetailRow('Transmission', v['transmission'] ?? 'Manual'),
+            _buildDetailRow('Odometer Reading', '${v['odometer_km'] ?? 45280} km'),
+            _buildDetailRow('Speed Governor', v['speed_governor'] ?? 'Fitted (Max 60 km/h)'),
+            _buildDetailRow('CCTV Cameras', v['cctv_installed'] ?? '4 HD Cameras (Active)'),
+            _buildDetailRow('Emergency SOS Button', v['panic_button'] ?? 'Installed & Working'),
+            _buildDetailRow('First Aid Kit Expiry', v['first_aid_expiry'] ?? '12 Dec 2026'),
+            _buildDetailRow('Fire Extinguisher Expiry', v['fire_extinguisher_expiry'] ?? '15 Jan 2027'),
+            _buildDetailRow('Last Serviced Date', v['last_serviced_date'] ?? '10 May 2024'),
+            _buildDetailRow('Ownership', v['ownership_type'] ?? 'School Owned'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(8)),
+              child: Row(
+                children: [
+                  const Icon(Icons.shield_outlined, color: _accent, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'All safety standards & RTO compliance regulations verified for student transport.',
+                      style: GoogleFonts.inter(fontSize: 11, color: _accent, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (_selectedDetailTab == 2) {
+      // DOCUMENTS
+      final vehicleDocs = _documents.where((d) {
+        final vId = d['vehicle_id']?.toString();
+        final matchesVeh = vId == v['id']?.toString() ||
+            vId == v['registration_no']?.toString() ||
+            (d['vehicle_number'] != null && d['vehicle_number'].toString().toLowerCase() == (v['registration_no'] ?? '').toString().toLowerCase()) ||
+            (d['vehicle_no'] != null && d['vehicle_no'].toString().toLowerCase() == (v['registration_no'] ?? '').toString().toLowerCase()) ||
+            (d['bus_routes'] != null && (
+              d['bus_routes']['id']?.toString() == v['id']?.toString() ||
+              d['bus_routes']['registration_no'] == v['registration_no'] ||
+              d['bus_routes']['bus_number'] == v['bus_number']
+            ));
+        return matchesVeh;
+      }).toList();
+
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Vehicle Documents (${vehicleDocs.length})', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+                ElevatedButton.icon(
+                  onPressed: () => _showAddDocumentDialog(v),
+                  icon: const Icon(Icons.upload_file, size: 14),
+                  label: const Text('Add Document'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (vehicleDocs.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
+                child: Column(
+                  children: [
+                    const Icon(Icons.folder_open, size: 36, color: _textSecondary),
+                    const SizedBox(height: 8),
+                    Text('No documents uploaded for this vehicle yet.', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => _showAddDocumentDialog(v),
+                      icon: const Icon(Icons.upload_file, size: 14),
+                      label: const Text('Upload Document'),
+                      style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...vehicleDocs.map((doc) => _buildVehicleDocItem(
+                doc['document_name'] ?? doc['document_type'] ?? 'Document',
+                (doc['document_no'] ?? doc['policy_no'] ?? '—').toString(),
+                (doc['status'] ?? 'Valid').toString(),
+                _formatDate(doc['expiry_date']),
+                Icons.insert_drive_file,
+              )),
+          ],
+        ),
+      );
+    } else if (_selectedDetailTab == 3) {
+      // MAINTENANCE
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Maintenance History', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+                ElevatedButton.icon(
+                  onPressed: () => _showAddServiceRecordDialog(v),
+                  icon: const Icon(Icons.build_outlined, size: 14),
+                  label: const Text('Add Service'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_loadingVehicleDetails)
+              const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+            else if (_vehicleMaintenance.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
+                child: Column(
+                  children: [
+                    const Icon(Icons.build_circle_outlined, size: 36, color: _textSecondary),
+                    const SizedBox(height: 8),
+                    Text('No maintenance records logged for this vehicle yet.', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () => _showAddServiceRecordDialog(v),
+                      icon: const Icon(Icons.add, size: 14),
+                      label: const Text('Add Service Record'),
+                      style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._vehicleMaintenance.map((m) {
+                final statusStr = (m['status'] ?? 'Completed').toString();
+                Color sColor = _green;
+                if (statusStr.toLowerCase().contains('progress')) {
+                  sColor = _blue;
+                } else if (statusStr.toLowerCase().contains('scheduled')) {
+                  sColor = _orange;
+                }
+
+                return _buildMaintenanceHistoryCard(
+                  item: m,
+                  vehicle: v,
+                  type: (m['service_type'] ?? 'Maintenance Service').toString(),
+                  date: _formatDate(m['service_date']),
+                  garage: (m['vendor_workshop'] ?? 'Authorized Workshop').toString(),
+                  cost: '₹${m['cost'] ?? 0}',
+                  odometer: '${m['odometer_km'] ?? 0} km',
+                  status: statusStr,
+                  statusColor: sColor,
+                );
+              }),
+          ],
+        ),
+      );
+    } else if (_selectedDetailTab == 4) {
+      // GPS & TRACKING
+      final latLng = _parseLocation(v['current_location'] ?? '28.6129, 77.3910');
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('GPS Hardware & Live Position', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
+                _buildValidTag('Active Online'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildDetailRow('Device ID', v['gps_device_id'] ?? 'GPS-TRK-9101'),
+            _buildDetailRow('IMEI Number', v['gps_imei'] ?? '862345065432109'),
+            _buildDetailRow('SIM / Operator', 'Jio 4G (+91 98765 43210)'),
+            _buildDetailRow('Battery & Signal', '100% Battery • 95% Signal Strength'),
+            _buildDetailRow('Last Ping Recorded', '12 seconds ago'),
+            const SizedBox(height: 12),
+            Container(
+              height: 220,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _border),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Stack(
+                  children: [
+                    FlutterMap(
+                      options: MapOptions(
+                        initialCenter: latLng,
+                        initialZoom: 14.5,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.shamiit.edu',
+                          tileProvider: CancellableNetworkTileProvider(),
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: latLng,
+                              width: 60,
+                              height: 60,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  _PulseAnimationRing(),
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(
+                                      color: _accent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.navigation, color: Colors.white, size: 14),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showLiveTrackingMapDialog(v),
+                        icon: const Icon(Icons.open_in_full, size: 14),
+                        label: const Text('Full Live Map'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
+    return const SizedBox();
+  }
+
+  Widget _buildVehicleDocItem(String name, String docNo, String status, String expiry, IconData icon) {
+    final isValid = status.toLowerCase() == 'valid';
     return Container(
-      padding: const EdgeInsets.all(32),
-      child: Center(
-        child: Text('Extra details coming soon', style: GoogleFonts.inter(color: _textSecondary)),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: _accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+            child: Icon(icon, color: _accent, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
+                Text('Doc No: $docNo • Expiry: $expiry', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: isValid ? _green.withValues(alpha: 0.1) : _orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              status,
+              style: GoogleFonts.inter(fontSize: 10, color: isValid ? _green : _orange, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _buildMaintenanceHistoryCard({
+    required dynamic item,
+    required dynamic vehicle,
+    required String type,
+    required String date,
+    required String garage,
+    required String cost,
+    required String odometer,
+    required String status,
+    required Color statusColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(type, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+              ),
+              Text(cost, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _accent)),
+              if (item != null)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 16),
+                  tooltip: 'Actions',
+                  onSelected: (val) async {
+                    if (val == 'edit') {
+                      _showEditServiceRecordDialog(item, vehicle);
+                    } else if (val == 'delete') {
+                      _deleteServiceRecordDialog(item, vehicle);
+                    } else if (val == 'Completed' || val == 'In Progress' || val == 'Scheduled') {
+                      _updateMaintenanceStatus(item, vehicle, val);
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      enabled: false,
+                      child: Text('Change Status:', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary)),
+                    ),
+                    const PopupMenuItem(value: 'Completed', child: Text('Mark as Completed')),
+                    const PopupMenuItem(value: 'In Progress', child: Text('Mark as In Progress')),
+                    const PopupMenuItem(value: 'Scheduled', child: Text('Mark as Scheduled')),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 16, color: _textPrimary),
+                          SizedBox(width: 8),
+                          Text('Edit Record'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline, size: 16, color: _red),
+                          SizedBox(width: 8),
+                          Text('Delete Record', style: TextStyle(color: _red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('$garage • $date', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Odometer: $odometer', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+              InkWell(
+                onTap: item != null ? () => _showStatusPickerModal(item, vehicle) : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(status, style: GoogleFonts.inter(fontSize: 10, color: statusColor, fontWeight: FontWeight.bold)),
+                      if (item != null) ...[
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_drop_down, size: 14, color: statusColor),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateMaintenanceStatus(dynamic item, dynamic vehicle, String newStatus) async {
+    try {
+      if (item is Map) {
+        setState(() {
+          item['status'] = newStatus;
+        });
+      }
+      await ApiService().put('/transport/maintenance/${item['id']}', {
+        'status': newStatus,
+      });
+      await _fetchVehicleDetailData(vehicle, silent: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status updated to $newStatus')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating status: $e')),
+        );
+      }
+    }
+  }
+
+  void _showStatusPickerModal(dynamic item, dynamic vehicle) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Change Maintenance Status', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.check_circle_outline, color: _green),
+                title: const Text('Completed'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _updateMaintenanceStatus(item, vehicle, 'Completed');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.autorenew, color: _blue),
+                title: const Text('In Progress'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _updateMaintenanceStatus(item, vehicle, 'In Progress');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.schedule, color: _orange),
+                title: const Text('Scheduled'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _updateMaintenanceStatus(item, vehicle, 'Scheduled');
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditServiceRecordDialog(dynamic item, dynamic vehicle) {
+    final formKey = GlobalKey<FormState>();
+    final typeCtrl = TextEditingController(text: item['service_type'] ?? '');
+    final vendorCtrl = TextEditingController(text: item['vendor_workshop'] ?? '');
+    final costCtrl = TextEditingController(text: '${item['cost'] ?? 0}');
+    final odoCtrl = TextEditingController(text: '${item['odometer_km'] ?? 0}');
+    String status = item['status'] ?? 'Completed';
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Edit Service Record', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              content: SizedBox(
+                width: 450,
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: typeCtrl,
+                        decoration: const InputDecoration(labelText: 'Service Type / Work Done'),
+                        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: vendorCtrl,
+                        decoration: const InputDecoration(labelText: 'Workshop / Garage Vendor'),
+                        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: costCtrl,
+                              decoration: const InputDecoration(labelText: 'Cost (₹)'),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: odoCtrl,
+                              decoration: const InputDecoration(labelText: 'Odometer (km)'),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: status,
+                        decoration: const InputDecoration(labelText: 'Service Status'),
+                        items: ['Completed', 'In Progress', 'Scheduled'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (val) => setDialogState(() => status = val!),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      try {
+                        if (item is Map) {
+                          setState(() {
+                            item['service_type'] = typeCtrl.text.trim();
+                            item['vendor_workshop'] = vendorCtrl.text.trim();
+                            item['cost'] = double.tryParse(costCtrl.text.trim()) ?? 0.0;
+                            item['odometer_km'] = int.tryParse(odoCtrl.text.trim()) ?? 0;
+                            item['status'] = status;
+                          });
+                        }
+                        await ApiService().put('/transport/maintenance/${item['id']}', {
+                          'service_type': typeCtrl.text.trim(),
+                          'vendor_workshop': vendorCtrl.text.trim(),
+                          'cost': double.tryParse(costCtrl.text.trim()) ?? 0.0,
+                          'odometer_km': int.tryParse(odoCtrl.text.trim()) ?? 0,
+                          'status': status,
+                        });
+                        await _fetchVehicleDetailData(vehicle, silent: true);
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Service record updated successfully.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error updating: $e')));
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+                  child: const Text('Save Changes'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _deleteServiceRecordDialog(dynamic item, dynamic vehicle) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Delete Maintenance Log', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          content: Text('Are you sure you want to delete service record "${item['service_type']}"?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  if (item is Map) {
+                    setState(() {
+                      _vehicleMaintenance.removeWhere((m) => m['id'] == item['id']);
+                    });
+                  }
+                  await ApiService().delete('/transport/maintenance/${item['id']}');
+                  await _fetchVehicleDetailData(vehicle, silent: true);
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Service record deleted successfully.')),
+                    );
+                  }
+                } catch (e) {
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildValidTag(String status) {
-    final isValid = status.toLowerCase() == 'valid';
+    final sLower = status.toLowerCase();
+    final isValid = sLower == 'valid' || sLower.contains('active');
+    final isNotPresent = sLower.contains('not present') || sLower.contains('missing') || sLower == '—';
+
+    final Color badgeColor = isValid
+        ? _green
+        : (isNotPresent ? Colors.orange : _red);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isValid ? _green.withValues(alpha: 0.1) : _red.withValues(alpha: 0.1),
+        color: badgeColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         status,
-        style: GoogleFonts.inter(fontSize: 9, color: isValid ? _green : _red, fontWeight: FontWeight.w600),
+        style: GoogleFonts.inter(fontSize: 9, color: badgeColor, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -2183,15 +2994,303 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _detailsFooterBtn(Icons.map_outlined, 'View on Map', () {}),
+          _detailsFooterBtn(Icons.map_outlined, 'View on Map', () => _showLiveTrackingMapDialog(v)),
           _detailsFooterBtn(Icons.edit_outlined, 'Edit Vehicle', () => _showEditVehicleDialog(v)),
-          _detailsFooterBtn(Icons.person_outline, 'Assign Driver', () {}),
-          _detailsFooterBtn(Icons.route_outlined, 'Assign Route', () {}),
-          _detailsFooterBtn(Icons.more_horiz, 'More', () {}),
+          _detailsFooterBtn(Icons.person_outline, 'Assign Driver', () => _showAssignDriverDialog(v)),
+          _detailsFooterBtn(Icons.route_outlined, 'Assign Route', () => _showAssignRouteDialog(v)),
+          PopupMenuButton<String>(
+            tooltip: 'More options',
+            onSelected: (val) {
+              if (val == 'maintenance') {
+                _showAddServiceRecordDialog(v);
+              } else if (val == 'document') {
+                _showAddDocumentDialog();
+              } else if (val == 'delete') {
+                _deleteVehicleDialog(v);
+              }
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(value: 'maintenance', child: Row(children: [Icon(Icons.build_outlined, size: 16), SizedBox(width: 8), Text('Schedule Maintenance')])),
+              const PopupMenuItem(value: 'document', child: Row(children: [Icon(Icons.upload_file_outlined, size: 16), SizedBox(width: 8), Text('Upload Document')])),
+              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, size: 16, color: _red), SizedBox(width: 8), Text('Delete Vehicle', style: TextStyle(color: _red))])),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Column(
+                children: [
+                  const Icon(Icons.more_horiz, size: 18, color: _accent),
+                  const SizedBox(height: 4),
+                  Text('More', style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+
+  void _showAssignDriverDialog(dynamic v) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        String? selectedDriverName = v['driver_name'];
+        String? selectedDriverPhone = v['driver_phone'];
+        return AlertDialog(
+          title: Text('Assign Driver to ${v['registration_no']}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          content: FutureBuilder<Map<String, dynamic>>(
+            future: ApiService().get('/transport/drivers?page_size=100'),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+              }
+              final raw = snapshot.data?['data'];
+              final driversList = (raw is List) ? raw : [];
+              if (driversList.isEmpty) {
+                return const Text('No drivers available. Please add drivers in Driver Management first.');
+              }
+              return StatefulBuilder(
+                builder: (context, setDialogState) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DropdownButtonFormField<dynamic>(
+                        decoration: const InputDecoration(labelText: 'Select Driver'),
+                        value: driversList.firstWhere(
+                          (d) => (d['full_name'] ?? d['name']) == selectedDriverName,
+                          orElse: () => driversList.first,
+                        ),
+                        items: driversList.map((d) {
+                          final name = d['full_name'] ?? d['name'] ?? 'Driver';
+                          final phone = d['phone_number'] ?? d['phone'] ?? '';
+                          return DropdownMenuItem(value: d, child: Text('$name ($phone)'));
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedDriverName = val['full_name'] ?? val['name'];
+                              selectedDriverPhone = val['phone_number'] ?? val['phone'];
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await ApiService().put('/transport/vehicles/${v['id']}', {
+                    'driver_name': selectedDriverName,
+                    'driver_phone': selectedDriverPhone,
+                  });
+                  _loadAll();
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Driver $selectedDriverName assigned to vehicle ${v['registration_no']}')),
+                    );
+                  }
+                } catch (e) {
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+              child: const Text('Assign Driver'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAssignRouteDialog(dynamic v) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        String? selectedRouteName = v['route_name'];
+        return AlertDialog(
+          title: Text('Assign Route to ${v['registration_no']}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          content: FutureBuilder<Map<String, dynamic>>(
+            future: ApiService().get('/transport/routes?page_size=100'),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator()));
+              }
+              final raw = snapshot.data?['data'];
+              final routesList = (raw is List) ? raw : [];
+              if (routesList.isEmpty) {
+                return const Text('No routes available. Please create routes in Route Management first.');
+              }
+              return StatefulBuilder(
+                builder: (context, setDialogState) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DropdownButtonFormField<dynamic>(
+                        decoration: const InputDecoration(labelText: 'Select Route'),
+                        value: routesList.firstWhere(
+                          (r) => (r['name'] ?? r['route_name']) == selectedRouteName,
+                          orElse: () => routesList.first,
+                        ),
+                        items: routesList.map((r) {
+                          final name = r['name'] ?? r['route_name'] ?? 'Route';
+                          final code = r['route_code'] ?? '';
+                          return DropdownMenuItem(value: r, child: Text('$name ($code)'));
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedRouteName = val['name'] ?? val['route_name'];
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await ApiService().put('/transport/vehicles/${v['id']}', {
+                    'route_name': selectedRouteName,
+                  });
+                  _loadAll();
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Route $selectedRouteName assigned to vehicle ${v['registration_no']}')),
+                    );
+                  }
+                } catch (e) {
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+              child: const Text('Assign Route'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddServiceRecordDialog(dynamic v) {
+    final formKey = GlobalKey<FormState>();
+    final typeCtrl = TextEditingController(text: 'Routine Oil & Filter Change');
+    final vendorCtrl = TextEditingController(text: 'Tata Motors Authorized Service Center');
+    final costCtrl = TextEditingController(text: '12400');
+    final odoCtrl = TextEditingController(text: '45000');
+    String status = 'Completed';
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Add Service Record – ${v['registration_no']}', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              content: SizedBox(
+                width: 450,
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: typeCtrl,
+                        decoration: const InputDecoration(labelText: 'Service Type / Work Done'),
+                        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: vendorCtrl,
+                        decoration: const InputDecoration(labelText: 'Workshop / Garage Vendor'),
+                        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: costCtrl,
+                              decoration: const InputDecoration(labelText: 'Cost (₹)'),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: odoCtrl,
+                              decoration: const InputDecoration(labelText: 'Odometer (km)'),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: status,
+                        decoration: const InputDecoration(labelText: 'Service Status'),
+                        items: ['Completed', 'In Progress', 'Scheduled'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (val) => setDialogState(() => status = val!),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      try {
+                        final postRes = await ApiService().post('/transport/maintenance', {
+                          'vehicle_id': v['id'],
+                          'service_type': typeCtrl.text.trim(),
+                          'vendor_workshop': vendorCtrl.text.trim(),
+                          'cost': double.tryParse(costCtrl.text.trim()) ?? 0.0,
+                          'odometer_km': int.tryParse(odoCtrl.text.trim()) ?? 0,
+                          'status': status,
+                        });
+                        if (postRes['data'] != null && postRes['data'] is Map) {
+                          setState(() {
+                            _vehicleMaintenance.insert(0, postRes['data']);
+                          });
+                        }
+                        await _fetchVehicleDetailData(v, silent: true);
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Service record logged successfully.')),
+                          );
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error saving: $e')));
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+                  child: const Text('Save Record'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
 
   Widget _detailsFooterBtn(IconData icon, String label, VoidCallback onTap) {
     return InkWell(
@@ -3836,7 +4935,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     }
   }
 
-  void _showAddDocumentDialog() {
+  void _showAddDocumentDialog([dynamic initialVehicle]) {
     final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final noCtrl = TextEditingController();
@@ -3844,7 +4943,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final policyCtrl = TextEditingController();
     final providerCtrl = TextEditingController();
     
-    String? selectedVehicleId = _vehicles.isNotEmpty ? _vehicles.first['id'].toString() : null;
+    String? selectedVehicleId = (initialVehicle != null ? initialVehicle['id'] : _selectedVehicle?['id'])?.toString();
+    if (selectedVehicleId == null && _vehicles.isNotEmpty) {
+      selectedVehicleId = _vehicles.first['id']?.toString();
+    }
     String docType = 'Registration';
     String status = 'Valid';
     
@@ -4061,6 +5163,15 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           "document_url": fileUrl,
                         };
                         await ApiService().post('/transport/documents', data);
+                        try {
+                          final docRes = await ApiService().get('/transport/documents', useCache: false);
+                          final docRaw = docRes['data'];
+                          if (mounted) {
+                            setState(() {
+                              _documents = (docRaw is List) ? docRaw : [];
+                            });
+                          }
+                        } catch (_) {}
                         _loadAll();
                       } catch (_) {}
                     }
@@ -5346,12 +6457,25 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final pucCtrl = TextEditingController(text: 'UP16PUC123456');
     final permitCtrl = TextEditingController(text: 'UP16TP2023001');
 
+    final luggageCtrl = TextEditingController(text: '500 L');
+    final fuelTankCtrl = TextEditingController(text: '150 Liters');
+    final odoCtrl = TextEditingController(text: '45280');
+    final firstAidCtrl = TextEditingController(text: '2026-12-12');
+    final fireExtCtrl = TextEditingController(text: '2027-01-15');
+    final lastServicedCtrl = TextEditingController(text: '2024-05-10');
+
     final vehicleTypeList = List<String>.from(_dynamicCategoryOptions);
     String vehicleType = vehicleTypeList.isNotEmpty ? vehicleTypeList.first : 'AC Bus';
     if (!vehicleTypeList.contains(vehicleType)) vehicleTypeList.add(vehicleType);
     String fuelType = 'Diesel';
     String liveStatus = 'offline';
     String status = 'Active';
+
+    String transmission = 'Manual';
+    String speedGovernor = 'Fitted (Max 60 km/h)';
+    String cctvInstalled = '4 HD Cameras (Active)';
+    String panicButton = 'Installed & Working';
+    String ownershipType = 'School Owned';
 
     showDialog(
       context: context,
@@ -5362,9 +6486,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               title: Text('Add New Vehicle', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
               content: SizedBox(
                 width: 600,
+                height: MediaQuery.of(context).size.height * 0.7,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
+                  clipBehavior: Clip.hardEdge,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -5417,16 +6542,14 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: driverNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Name'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                decoration: const InputDecoration(labelText: 'Driver Name (Optional)'),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: TextFormField(
                                 controller: driverPhoneCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Phone'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                decoration: const InputDecoration(labelText: 'Driver Phone (Optional)'),
                               ),
                             ),
                           ],
@@ -5437,8 +6560,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: routeNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Route Name'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -5534,6 +6656,116 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           controller: permitCtrl,
                           decoration: const InputDecoration(labelText: 'Permit No.'),
                         ),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        Text('Technical & Vehicle Specs', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _accent)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: luggageCtrl,
+                                decoration: const InputDecoration(labelText: 'Luggage Capacity'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: fuelTankCtrl,
+                                decoration: const InputDecoration(labelText: 'Fuel Tank Capacity'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: transmission,
+                                decoration: const InputDecoration(labelText: 'Transmission'),
+                                items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => transmission = val!),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: odoCtrl,
+                                decoration: const InputDecoration(labelText: 'Odometer Reading (km)'),
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: speedGovernor,
+                                decoration: const InputDecoration(labelText: 'Speed Governor'),
+                                items: ['Fitted (Max 60 km/h)', 'Not Fitted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => speedGovernor = val!),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: cctvInstalled,
+                                decoration: const InputDecoration(labelText: 'CCTV Cameras'),
+                                items: ['4 HD Cameras (Active)', 'Installed', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => cctvInstalled = val!),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: panicButton,
+                                decoration: const InputDecoration(labelText: 'Emergency SOS Button'),
+                                items: ['Installed & Working', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => panicButton = val!),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: ownershipType,
+                                decoration: const InputDecoration(labelText: 'Ownership Type'),
+                                items: ['School Owned', 'Leased', 'Contracted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => ownershipType = val!),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: firstAidCtrl,
+                                decoration: const InputDecoration(labelText: 'First Aid Kit Expiry'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: fireExtCtrl,
+                                decoration: const InputDecoration(labelText: 'Fire Extinguisher Expiry'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: lastServicedCtrl,
+                          decoration: const InputDecoration(labelText: 'Last Serviced Date'),
+                        ),
                       ],
                     ),
                   ),
@@ -5563,6 +6795,17 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           'color': colorCtrl.text,
                           'puc_no': pucCtrl.text,
                           'permit_no': permitCtrl.text,
+                          'luggage_capacity': luggageCtrl.text,
+                          'fuel_tank_capacity': fuelTankCtrl.text,
+                          'transmission': transmission,
+                          'odometer_km': int.tryParse(odoCtrl.text) ?? 45280,
+                          'speed_governor': speedGovernor,
+                          'cctv_installed': cctvInstalled,
+                          'panic_button': panicButton,
+                          'first_aid_expiry': firstAidCtrl.text,
+                          'fire_extinguisher_expiry': fireExtCtrl.text,
+                          'last_serviced_date': lastServicedCtrl.text,
+                          'ownership_type': ownershipType,
                           'fuel_level_pct': 100,
                           'speed_kmh': 0,
                         });
@@ -5600,10 +6843,23 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final pucCtrl = TextEditingController(text: v['puc_no']);
     final permitCtrl = TextEditingController(text: v['permit_no']);
 
+    final luggageCtrl = TextEditingController(text: v['luggage_capacity'] ?? '500 L');
+    final fuelTankCtrl = TextEditingController(text: v['fuel_tank_capacity'] ?? '150 Liters');
+    final odoCtrl = TextEditingController(text: '${v['odometer_km'] ?? 45280}');
+    final firstAidCtrl = TextEditingController(text: v['first_aid_expiry'] ?? '2026-12-12');
+    final fireExtCtrl = TextEditingController(text: v['fire_extinguisher_expiry'] ?? '2027-01-15');
+    final lastServicedCtrl = TextEditingController(text: v['last_serviced_date'] ?? '2024-05-10');
+
     String vehicleType = v['vehicle_type'] ?? 'AC Bus';
     String fuelType = v['fuel_type'] ?? 'Diesel';
     String liveStatus = v['live_status'] ?? 'offline';
     String status = v['status'] ?? 'Active';
+
+    String transmission = v['transmission'] ?? 'Manual';
+    String speedGovernor = v['speed_governor'] ?? 'Fitted (Max 60 km/h)';
+    String cctvInstalled = v['cctv_installed'] ?? '4 HD Cameras (Active)';
+    String panicButton = v['panic_button'] ?? 'Installed & Working';
+    String ownershipType = v['ownership_type'] ?? 'School Owned';
 
     final vehicleTypeList = List<String>.from(_dynamicCategoryOptions);
     if (!vehicleTypeList.contains(vehicleType)) vehicleTypeList.add(vehicleType);
@@ -5626,9 +6882,10 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               title: Text('Edit Vehicle', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
               content: SizedBox(
                 width: 600,
+                height: MediaQuery.of(context).size.height * 0.7,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
+                  clipBehavior: Clip.hardEdge,
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -5681,16 +6938,14 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: driverNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Name'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                decoration: const InputDecoration(labelText: 'Driver Name (Optional)'),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: TextFormField(
                                 controller: driverPhoneCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Phone'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                decoration: const InputDecoration(labelText: 'Driver Phone (Optional)'),
                               ),
                             ),
                           ],
@@ -5701,8 +6956,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: routeNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Route Name'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -5798,6 +7052,116 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           controller: permitCtrl,
                           decoration: const InputDecoration(labelText: 'Permit No.'),
                         ),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        Text('Technical & Vehicle Specs', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _accent)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: luggageCtrl,
+                                decoration: const InputDecoration(labelText: 'Luggage Capacity'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: fuelTankCtrl,
+                                decoration: const InputDecoration(labelText: 'Fuel Tank Capacity'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: transmission,
+                                decoration: const InputDecoration(labelText: 'Transmission'),
+                                items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => transmission = val!),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: odoCtrl,
+                                decoration: const InputDecoration(labelText: 'Odometer Reading (km)'),
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: speedGovernor,
+                                decoration: const InputDecoration(labelText: 'Speed Governor'),
+                                items: ['Fitted (Max 60 km/h)', 'Not Fitted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => speedGovernor = val!),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: cctvInstalled,
+                                decoration: const InputDecoration(labelText: 'CCTV Cameras'),
+                                items: ['4 HD Cameras (Active)', 'Installed', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => cctvInstalled = val!),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: panicButton,
+                                decoration: const InputDecoration(labelText: 'Emergency SOS Button'),
+                                items: ['Installed & Working', 'Not Installed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => panicButton = val!),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: ownershipType,
+                                decoration: const InputDecoration(labelText: 'Ownership Type'),
+                                items: ['School Owned', 'Leased', 'Contracted'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                onChanged: (val) => setDialogState(() => ownershipType = val!),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: firstAidCtrl,
+                                decoration: const InputDecoration(labelText: 'First Aid Kit Expiry'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: fireExtCtrl,
+                                decoration: const InputDecoration(labelText: 'Fire Extinguisher Expiry'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: lastServicedCtrl,
+                          decoration: const InputDecoration(labelText: 'Last Serviced Date'),
+                        ),
                       ],
                     ),
                   ),
@@ -5827,8 +7191,56 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           'color': colorCtrl.text,
                           'puc_no': pucCtrl.text,
                           'permit_no': permitCtrl.text,
+                          'luggage_capacity': luggageCtrl.text,
+                          'fuel_tank_capacity': fuelTankCtrl.text,
+                          'transmission': transmission,
+                          'odometer_km': int.tryParse(odoCtrl.text) ?? 45280,
+                          'speed_governor': speedGovernor,
+                          'cctv_installed': cctvInstalled,
+                          'panic_button': panicButton,
+                          'first_aid_expiry': firstAidCtrl.text,
+                          'fire_extinguisher_expiry': fireExtCtrl.text,
+                          'last_serviced_date': lastServicedCtrl.text,
+                          'ownership_type': ownershipType,
                         });
-                        _loadAll();
+                        setState(() {
+                          v['bus_number'] = busNumCtrl.text;
+                          v['registration_no'] = regNumCtrl.text;
+                          v['vehicle_type'] = vehicleType;
+                          v['fuel_type'] = fuelType;
+                          v['driver_name'] = driverNameCtrl.text;
+                          v['driver_phone'] = driverPhoneCtrl.text;
+                          v['route_name'] = routeNameCtrl.text;
+                          v['total_capacity'] = int.tryParse(capacityCtrl.text) ?? 52;
+                          v['live_status'] = liveStatus;
+                          v['status'] = status;
+                          v['chassis_no'] = chassisCtrl.text;
+                          v['engine_no'] = engineCtrl.text;
+                          v['model'] = modelCtrl.text;
+                          v['year_of_mfg'] = int.tryParse(mfgYearCtrl.text) ?? 2022;
+                          v['color'] = colorCtrl.text;
+                          v['puc_no'] = pucCtrl.text;
+                          v['permit_no'] = permitCtrl.text;
+                          v['luggage_capacity'] = luggageCtrl.text;
+                          v['fuel_tank_capacity'] = fuelTankCtrl.text;
+                          v['transmission'] = transmission;
+                          v['odometer_km'] = int.tryParse(odoCtrl.text) ?? 45280;
+                          v['speed_governor'] = speedGovernor;
+                          v['cctv_installed'] = cctvInstalled;
+                          v['panic_button'] = panicButton;
+                          v['first_aid_expiry'] = firstAidCtrl.text;
+                          v['fire_extinguisher_expiry'] = fireExtCtrl.text;
+                          v['last_serviced_date'] = lastServicedCtrl.text;
+                          v['ownership_type'] = ownershipType;
+
+                          if (_selectedVehicle != null && _selectedVehicle!['id'] == v['id']) {
+                            _selectedVehicle = Map<String, dynamic>.from(v);
+                          }
+                          final idx = _vehicles.indexWhere((item) => item['id'] == v['id']);
+                          if (idx != -1) {
+                            _vehicles[idx] = Map<String, dynamic>.from(v);
+                          }
+                        });
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
                         if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -5858,8 +7270,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             ElevatedButton(
               onPressed: () async {
                 try {
+                  setState(() {
+                    _vehicles.removeWhere((item) => item['id'] == v['id']);
+                    if (_selectedVehicle?['id'] == v['id']) {
+                      _selectedVehicle = _vehicles.isNotEmpty ? _vehicles.first : null;
+                    }
+                  });
                   await ApiService().delete('/transport/vehicles/${v['id']}');
-                  _loadAll();
                   if (ctx.mounted) Navigator.pop(ctx);
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -5873,6 +7290,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       },
     );
   }
+
 
   void _showAddCategoryDialog() {
     final formKey = GlobalKey<FormState>();

@@ -7,9 +7,12 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
 import uuid
+import psycopg2
+import psycopg2.extras
 
 from app.middleware.auth import get_current_user, require_any_role
 from app.services.supabase_client import get_supabase
+from app.config import settings
 
 router = APIRouter()
 def _resolve_school_id(user, payload=None, query_school_id=None):
@@ -109,6 +112,23 @@ async def _compute_summary_manually(sb, school_id: Optional[str]):
 
     return counts
 
+import json
+
+def _enrich_vehicle_dict(v: dict) -> dict:
+    if not isinstance(v, dict):
+        return v
+    notes = v.get("notes")
+    if notes and isinstance(notes, str) and notes.startswith("{"):
+        try:
+            extra = json.loads(notes)
+            if isinstance(extra, dict):
+                for k, val in extra.items():
+                    if v.get(k) is None:
+                        v[k] = val
+        except Exception:
+            pass
+    return v
+
 
 # ──────────────────────────────────────────────
 # Vehicles (Bus Routes enhanced)
@@ -135,6 +155,7 @@ async def list_vehicles(
 
     routes_res = await q.aexecute()
     vehicles = routes_res.data or []
+    vehicles = [_enrich_vehicle_dict(v) for v in vehicles]
 
     if search:
         s = search.lower()
@@ -162,16 +183,17 @@ async def list_vehicles(
                 seen.add(rid)
 
     for v in vehicles:
-        v["latest_location"] = locations_map.get(v["id"])
+        v["current_location"] = locations_map.get(v["id"])
 
     total = len(vehicles)
     start = (page - 1) * page_size
-    paginated = vehicles[start: start + page_size]
+    end = start + page_size
+    paged_vehicles = vehicles[start:end]
 
     return {
         "success": True,
-        "data": {
-            "vehicles": paginated,
+        "data": paged_vehicles,
+        "pagination": {
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -186,6 +208,7 @@ async def get_vehicle(vehicle_id: str, user=Depends(require_transport_admin)):
     v = (await sb.table("bus_routes").select("*, bus_stops(*)").eq("id", vehicle_id).single().aexecute()).data
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+    v = _enrich_vehicle_dict(v)
 
     locs = (await sb.table("bus_locations").select("*").eq(
         "route_id", vehicle_id
@@ -222,13 +245,31 @@ async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_tr
         "delay_minutes", "students_on_board", "status", "notes",
         "fuel_level_pct", "speed_kmh", "next_stop", "next_stop_eta",
         "chassis_no", "engine_no", "color", "insurance_status", "fitness_status",
-        "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry"
+        "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry",
+        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
+        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
+        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
     if not data:
         raise HTTPException(status_code=400, detail="No valid fields provided")
     data["updated_at"] = datetime.utcnow().isoformat()
-    await sb.table("bus_routes").update(data).eq("id", vehicle_id).aexecute()
+
+    tech_keys = {
+        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
+        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
+        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
+    }
+    tech_data = {k: data[k] for k in tech_keys if k in data}
+
+    try:
+        await sb.table("bus_routes").update(data).eq("id", vehicle_id).aexecute()
+    except Exception:
+        base_data = {k: v for k, v in data.items() if k not in tech_keys}
+        if tech_data:
+            base_data["notes"] = json.dumps(tech_data)
+        await sb.table("bus_routes").update(base_data).eq("id", vehicle_id).aexecute()
+
     return {"success": True, "message": "Vehicle updated"}
 
 
@@ -244,13 +285,32 @@ async def create_vehicle(payload: dict, user=Depends(require_transport_admin)):
         "delay_minutes", "students_on_board", "status", "notes",
         "fuel_level_pct", "speed_kmh", "next_stop", "next_stop_eta",
         "chassis_no", "engine_no", "color", "insurance_status", "fitness_status",
-        "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry"
+        "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry",
+        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
+        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
+        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
     data["id"] = str(uuid.uuid4())
     data["school_id"] = _resolve_school_id(user, data)
-    res = await sb.table("bus_routes").insert(data).aexecute()
-    return {"success": True, "data": res.data[0] if res.data else data}
+
+    tech_keys = {
+        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
+        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
+        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
+    }
+    tech_data = {k: data[k] for k in tech_keys if k in data}
+
+    try:
+        res = await sb.table("bus_routes").insert(data).aexecute()
+    except Exception:
+        base_data = {k: v for k, v in data.items() if k not in tech_keys}
+        if tech_data:
+            base_data["notes"] = json.dumps(tech_data)
+        res = await sb.table("bus_routes").insert(base_data).aexecute()
+
+    res_data = res.data[0] if res.data else data
+    return {"success": True, "data": _enrich_vehicle_dict(res_data)}
 
 
 @router.delete("/vehicles/{vehicle_id}")
@@ -761,6 +821,110 @@ async def delete_category(cat_id: str, user=Depends(require_transport_admin)):
     # Nullify category references on bus routes or set defaults before delete
     await sb.table("vehicle_categories").delete().eq("id", cat_id).aexecute()
     return {"success": True, "message": "Category deleted"}
+
+
+# ──────────────────────────────────────────────
+# Vehicle Maintenance
+# ──────────────────────────────────────────────
+
+def _exec_maint_query(query: str, params: tuple = (), fetch: bool = True):
+    try:
+        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+        conn.autocommit = True
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(query, params)
+            if fetch:
+                rows = cur.fetchall()
+                result = [dict(r) for r in rows]
+            else:
+                result = []
+        conn.close()
+        return result
+    except Exception as e:
+        print(f"Direct PostgreSQL error in maintenance: {e}")
+        return []
+
+@router.get("/maintenance")
+async def list_vehicle_maintenance(
+    school_id: Optional[str] = Query(None),
+    vehicle_id: Optional[str] = Query(None),
+    user=Depends(require_transport_admin),
+):
+    where_clauses = []
+    params = []
+    if vehicle_id:
+        where_clauses.append("vehicle_id::text = %s")
+        params.append(str(vehicle_id))
+    if school_id:
+        where_clauses.append("school_id::text = %s")
+        params.append(str(school_id))
+
+    where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    sql = f"SELECT * FROM vehicle_maintenance {where_str} ORDER BY service_date DESC;"
+    data = _exec_maint_query(sql, tuple(params), fetch=True)
+    return {"success": True, "data": data}
+
+@router.post("/maintenance")
+async def create_vehicle_maintenance(payload: dict, user=Depends(require_transport_admin)):
+    m_id = str(uuid.uuid4())
+    v_id = payload.get("vehicle_id")
+    s_id = payload.get("school_id") or _resolve_school_id(user, payload)
+    s_type = payload.get("service_type") or "Routine Maintenance"
+    v_vendor = payload.get("vendor_workshop") or payload.get("vendor") or "Authorized Workshop"
+    s_date = payload.get("service_date") or datetime.utcnow().strftime("%Y-%m-%d")
+    c_date = payload.get("completion_date")
+    cost = float(payload.get("cost") or 0.0)
+    odo = int(payload.get("odometer_km") or 0)
+    status = payload.get("status") or "Completed"
+    desc = payload.get("description") or payload.get("details")
+
+    data = {
+        "id": m_id,
+        "vehicle_id": v_id,
+        "school_id": s_id,
+        "service_type": s_type,
+        "vendor_workshop": v_vendor,
+        "service_date": s_date,
+        "completion_date": c_date,
+        "cost": cost,
+        "odometer_km": odo,
+        "status": status,
+        "description": desc,
+    }
+
+    sql = """
+        INSERT INTO vehicle_maintenance 
+        (id, vehicle_id, school_id, service_type, vendor_workshop, service_date, completion_date, cost, odometer_km, status, description)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING *;
+    """
+    rows = _exec_maint_query(sql, (m_id, v_id, s_id, s_type, v_vendor, s_date, c_date, cost, odo, status, desc), fetch=True)
+    return {"success": True, "data": rows[0] if rows else data}
+
+@router.put("/maintenance/{maint_id}")
+async def update_vehicle_maintenance(maint_id: str, payload: dict, user=Depends(require_transport_admin)):
+    payload["updated_at"] = datetime.utcnow().isoformat()
+    set_clauses = []
+    params = []
+    for k in ["service_type", "vendor_workshop", "service_date", "completion_date", "cost", "odometer_km", "status", "description", "updated_at"]:
+        if k in payload:
+            set_clauses.append(f"{k} = %s")
+            params.append(payload[k])
+
+    if set_clauses:
+        params.append(maint_id)
+        sql = f"UPDATE vehicle_maintenance SET {', '.join(set_clauses)} WHERE id = %s RETURNING *;"
+        rows = _exec_maint_query(sql, tuple(params), fetch=True)
+        return {"success": True, "data": rows[0] if rows else {}, "message": "Maintenance record updated"}
+
+    return {"success": True, "message": "Maintenance record updated"}
+
+@router.delete("/maintenance/{maint_id}")
+async def delete_vehicle_maintenance(maint_id: str, user=Depends(require_transport_admin)):
+    sql = "DELETE FROM vehicle_maintenance WHERE id = %s;"
+    _exec_maint_query(sql, (maint_id,), fetch=False)
+    return {"success": True, "message": "Maintenance record deleted"}
+
 
 
 # ──────────────────────────────────────────────
@@ -3135,6 +3299,120 @@ async def get_emergency_current_location(
             "auto_refresh_sec": 10
         }
     }
+
+
+# ──────────────────────────────────────────────
+# Maintenance Logs Endpoints
+# ──────────────────────────────────────────────
+
+# ──────────────────────────────────────────────
+# Maintenance Logs Endpoints
+# ──────────────────────────────────────────────
+
+def _exec_maint_query(query: str, params: tuple = (), fetch: bool = True):
+    try:
+        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+        conn.autocommit = True
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(query, params)
+            if fetch:
+                rows = cur.fetchall()
+                result = [dict(r) for r in rows]
+            else:
+                result = []
+        conn.close()
+        return result
+    except Exception as e:
+        print(f"Direct PostgreSQL error in maintenance: {e}")
+        return []
+
+
+@router.get("/maintenance")
+async def list_maintenance_logs(
+    vehicle_id: Optional[str] = Query(None),
+    school_id: Optional[str] = Query(None),
+    user=Depends(require_transport_admin),
+):
+    """List maintenance logs for a vehicle or school."""
+    where_clauses = []
+    params = []
+    if vehicle_id:
+        where_clauses.append("vehicle_id::text = %s")
+        params.append(str(vehicle_id))
+    if school_id:
+        where_clauses.append("school_id::text = %s")
+        params.append(str(school_id))
+
+    where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+    sql = f"SELECT * FROM vehicle_maintenance {where_str} ORDER BY service_date DESC;"
+    data = _exec_maint_query(sql, tuple(params), fetch=True)
+    return {"success": True, "data": data}
+
+
+@router.post("/maintenance")
+async def create_maintenance_log(payload: dict, user=Depends(require_transport_admin)):
+    """Create a new maintenance record."""
+    m_id = str(uuid.uuid4())
+    v_id = payload.get("vehicle_id")
+    s_id = payload.get("school_id") or _resolve_school_id(user, payload)
+    s_type = payload.get("service_type") or "Routine Maintenance"
+    v_vendor = payload.get("vendor_workshop") or payload.get("vendor") or "Authorized Workshop"
+    s_date = payload.get("service_date") or datetime.utcnow().strftime("%Y-%m-%d")
+    c_date = payload.get("completion_date")
+    cost = float(payload.get("cost") or 0.0)
+    odo = int(payload.get("odometer_km") or 0)
+    status = payload.get("status") or "Completed"
+    desc = payload.get("description") or payload.get("details")
+
+    data = {
+        "id": m_id,
+        "vehicle_id": v_id,
+        "school_id": s_id,
+        "service_type": s_type,
+        "vendor_workshop": v_vendor,
+        "service_date": s_date,
+        "completion_date": c_date,
+        "cost": cost,
+        "odometer_km": odo,
+        "status": status,
+        "description": desc,
+    }
+
+    sql = """
+        INSERT INTO vehicle_maintenance 
+        (id, vehicle_id, school_id, service_type, vendor_workshop, service_date, completion_date, cost, odometer_km, status, description)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING *;
+    """
+    rows = _exec_maint_query(sql, (m_id, v_id, s_id, s_type, v_vendor, s_date, c_date, cost, odo, status, desc), fetch=True)
+    return {"success": True, "data": rows[0] if rows else data}
+
+
+@router.put("/maintenance/{log_id}")
+async def update_maintenance_log(log_id: str, payload: dict, user=Depends(require_transport_admin)):
+    payload["updated_at"] = datetime.utcnow().isoformat()
+    set_clauses = []
+    params = []
+    for k in ["service_type", "vendor_workshop", "service_date", "completion_date", "cost", "odometer_km", "status", "description", "updated_at"]:
+        if k in payload:
+            set_clauses.append(f"{k} = %s")
+            params.append(payload[k])
+
+    if set_clauses:
+        params.append(log_id)
+        sql = f"UPDATE vehicle_maintenance SET {', '.join(set_clauses)} WHERE id = %s RETURNING *;"
+        rows = _exec_maint_query(sql, tuple(params), fetch=True)
+        return {"success": True, "data": rows[0] if rows else {}}
+
+    return {"success": True, "message": "Maintenance log updated"}
+
+
+@router.delete("/maintenance/{log_id}")
+async def delete_maintenance_log(log_id: str, user=Depends(require_transport_admin)):
+    sql = "DELETE FROM vehicle_maintenance WHERE id = %s;"
+    _exec_maint_query(sql, (log_id,), fetch=False)
+    return {"success": True, "message": "Maintenance log deleted"}
+
 
 
 
