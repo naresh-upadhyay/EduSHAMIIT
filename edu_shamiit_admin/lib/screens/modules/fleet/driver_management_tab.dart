@@ -4,6 +4,11 @@ import 'package:intl/intl.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:html' as html;
+import 'dart:convert';
+import 'dart:math' as math;
+import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class DriverManagementTab extends StatefulWidget {
   final String? schoolId;
@@ -19,6 +24,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   late TabController _tabController;
   List<dynamic> _drivers = [];
   List<dynamic> _vehicles = [];
+  List<dynamic> _routes = [];
   List<dynamic> _driverDocuments = [];
   List<dynamic> _driverPerformance = [];
   List<dynamic> _driverAssignments = [];
@@ -95,16 +101,30 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   static const _textPrimary = Color(0xFF0F172A);
   static const _textSecondary = Color(0xFF64748B);
 
+  final Set<int> _loadedTabs = {};
+  final Set<int> _visitedTabs = {};
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this, initialIndex: widget.initialTab);
+    final initIdx = widget.initialTab.clamp(0, 5);
+    _visitedTabs.add(initIdx);
+    _tabController = TabController(length: 6, vsync: this, initialIndex: initIdx);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
+      if (mounted && !_tabController.indexIsChanging) {
+        _loadTabIfNeeded(_tabController.index);
+        if (kIsWeb) {
+          Future.microtask(() {
+            try {
+              html.window.history.replaceState(null, '', '/admin/driver-management?tab=${_tabController.index}');
+              html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+            } catch (_) {}
+          });
+        }
         setState(() {});
       }
     });
-    _loadData();
+    _loadTabIfNeeded(widget.initialTab.clamp(0, 5));
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -142,6 +162,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     super.didUpdateWidget(oldWidget);
     if (widget.initialTab != oldWidget.initialTab) {
       _tabController.animateTo(widget.initialTab);
+      _loadTabIfNeeded(widget.initialTab);
     }
   }
 
@@ -157,55 +178,27 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   }
 
   Future<void> _loadData() async {
+    await _loadTabIfNeeded(_tabController.index, forceReload: true);
+  }
+
+  Future<void> _loadTabIfNeeded(int tabIndex, {bool forceReload = false}) async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    if (!forceReload && _loadedTabs.contains(tabIndex)) return;
+
+    final schoolId = widget.schoolId;
+    if (_loadedTabs.isEmpty) {
+      setState(() => _isLoading = true);
+    }
+
     try {
-      final schoolId = widget.schoolId;
-      final drvEndpoint = schoolId != null
-          ? '/transport/drivers?school_id=$schoolId'
-          : '/transport/drivers';
-      final docsEndpoint = schoolId != null
-          ? '/transport/drivers/documents?school_id=$schoolId'
-          : '/transport/drivers/documents';
-      final perfEndpoint = schoolId != null
-          ? '/transport/drivers/performance?school_id=$schoolId'
-          : '/transport/drivers/performance';
-      final assignEndpoint = schoolId != null
-          ? '/transport/drivers/assignments?school_id=$schoolId'
-          : '/transport/drivers/assignments';
-      final trainEndpoint = schoolId != null
-          ? '/transport/drivers/training?school_id=$schoolId'
-          : '/transport/drivers/training';
-      final violEndpoint = schoolId != null
-          ? '/transport/drivers/violations?school_id=$schoolId'
-          : '/transport/drivers/violations';
-
-      final results = await Future.wait([
-        ApiService().get(drvEndpoint, useCache: false),
-        ApiService().get('/transport/vehicles?page_size=100', useCache: false),
-        ApiService().get(docsEndpoint, useCache: false),
-        ApiService().get(perfEndpoint, useCache: false),
-        ApiService().get(assignEndpoint, useCache: false),
-        ApiService().get(trainEndpoint, useCache: false),
-        ApiService().get(violEndpoint, useCache: false),
-      ]);
-
-      final drvRes = results[0];
-      final vehRes = results[1];
-      final docsRes = results[2];
-      final perfRes = results[3];
-      final assignRes = results[4];
-      final trainRes = results[5];
-      final violRes = results[6];
-
-      if (mounted) {
-        setState(() {
-          // Drivers: data is a direct list
-          final rawDrivers = drvRes['data'];
-          _drivers = (rawDrivers is List) ? rawDrivers : [];
-
-          // Vehicles: data may be {'vehicles': [...]} or a direct list
-          final rawVehicles = vehRes['data'];
+      // Lazy load shared lookups once
+      if (_vehicles.isEmpty || _routes.isEmpty) {
+        try {
+          final lookups = await Future.wait([
+            ApiService().get('/transport/vehicles?page_size=100', useCache: true),
+            ApiService().get('/transport/routes?page_size=100', useCache: true),
+          ]);
+          final rawVehicles = lookups[0]['data'];
           if (rawVehicles is Map && rawVehicles['vehicles'] is List) {
             _vehicles = rawVehicles['vehicles'] as List;
           } else if (rawVehicles is List) {
@@ -214,61 +207,150 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             _vehicles = [];
           }
 
-          // Documents: data is a direct list
-          final rawDocs = docsRes['data'];
-          _driverDocuments = (rawDocs is List) ? rawDocs : [];
+          final rawRoutes = lookups[1]['data'];
+          _routes = (rawRoutes is List) ? rawRoutes : [];
+        } catch (e) {
+          debugPrint('Lookup load error: $e');
+        }
+      }
 
-          // Performance: data is a direct list
-          final rawPerf = perfRes['data'];
-          _driverPerformance = (rawPerf is List) ? rawPerf : [];
-
-          // Assignments: data is a direct list
-          final rawAssign = assignRes['data'];
-          _driverAssignments = (rawAssign is List) ? rawAssign : [];
-
-          // Training: data is a direct list
-          final rawTrain = trainRes['data'];
-          _driverTrainings = (rawTrain is List) ? rawTrain : [];
-
-          // Violations: data is a direct list
-          final rawViol = violRes['data'];
-          _driverViolations = (rawViol is List) ? rawViol : [];
-
-          _isLoading = false;
-          
-          // Pre-select first driver if available
+      switch (tabIndex) {
+        case 0: // Drivers
+          final drvEndpoint = schoolId != null ? '/transport/drivers?school_id=$schoolId' : '/transport/drivers';
+          final drvRes = await ApiService().get(drvEndpoint, useCache: false);
+          final rawDrivers = drvRes['data'];
+          _drivers = (rawDrivers is List) ? rawDrivers : [];
           if (_drivers.isNotEmpty && _selectedDriver == null) {
             _selectedDriver = _drivers[0];
           }
-          // Pre-select first document if available
-          if (_driverDocuments.isNotEmpty && _selectedDocument == null) {
-            _selectedDocument = _driverDocuments[0];
-          }
-          // Pre-select first assignment if available
-          if (_driverAssignments.isNotEmpty && _selectedAssignment == null) {
-            _selectedAssignment = _driverAssignments[0];
-          }
-          // Pre-select first training if available
-          if (_driverTrainings.isNotEmpty && _selectedTraining == null) {
-            _selectedTraining = _driverTrainings[0];
-          }
-          // Pre-select first violation if available
-          if (_driverViolations.isNotEmpty && _selectedViolation == null) {
-            _selectedViolation = _driverViolations[0];
-          }
-        });
+          break;
+        case 1: // Documents
+          final docsEndpoint = schoolId != null ? '/transport/drivers/documents?school_id=$schoolId' : '/transport/drivers/documents';
+          final docsRes = await ApiService().get(docsEndpoint, useCache: false);
+          final rawDocs = docsRes['data'];
+          _driverDocuments = (rawDocs is List) ? rawDocs : [];
+          break;
+        case 2: // Performance
+          final perfEndpoint = schoolId != null ? '/transport/drivers/performance?school_id=$schoolId' : '/transport/drivers/performance';
+          final perfRes = await ApiService().get(perfEndpoint, useCache: false);
+          final rawPerf = perfRes['data'];
+          _driverPerformance = (rawPerf is List) ? rawPerf : [];
+          break;
+        case 3: // Assignments
+          final assignEndpoint = schoolId != null ? '/transport/drivers/assignments?school_id=$schoolId' : '/transport/drivers/assignments';
+          final assignRes = await ApiService().get(assignEndpoint, useCache: false);
+          final rawAssign = assignRes['data'];
+          _driverAssignments = (rawAssign is List) ? rawAssign : [];
+          break;
+        case 4: // Training
+          final trainEndpoint = schoolId != null ? '/transport/drivers/training?school_id=$schoolId' : '/transport/drivers/training';
+          final trainRes = await ApiService().get(trainEndpoint, useCache: false);
+          final rawTrain = trainRes['data'];
+          _driverTrainings = (rawTrain is List) ? rawTrain : [];
+          break;
+        case 5: // Violations
+          final violEndpoint = schoolId != null ? '/transport/drivers/violations?school_id=$schoolId' : '/transport/drivers/violations';
+          final violRes = await ApiService().get(violEndpoint, useCache: false);
+          final rawViol = violRes['data'];
+          _driverViolations = (rawViol is List) ? rawViol : [];
+          break;
       }
+      _loadedTabs.add(tabIndex);
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load drivers: $e'),
-            backgroundColor: _red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      debugPrint('Error loading tab $tabIndex: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ═══════════════════ Document File Download ═══════════════════
+  void _downloadDocumentFile(dynamic doc) {
+    if (doc == null) return;
+    final fileName = (doc['file_name'] ?? '${doc['document_type'] ?? "document"}.pdf').toString();
+    final fileUrl = doc['file_url']?.toString();
+
+    if (fileUrl != null && fileUrl.trim().isNotEmpty && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://') || fileUrl.startsWith('data:'))) {
+      try {
+        final anchor = html.document.createElement('a') as html.AnchorElement
+          ..href = fileUrl
+          ..style.display = 'none'
+          ..target = '_blank'
+          ..download = fileName;
+        html.document.body!.children.add(anchor);
+        anchor.click();
+        html.document.body!.children.remove(anchor);
+      } catch (_) {
+        html.window.open(fileUrl, '_blank');
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Downloading $fileName...'),
+          backgroundColor: _green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Generate and trigger download for PDF document containing document details
+    try {
+      final drv = doc['drivers'] ?? {};
+      final drvName = (drv['name'] ?? 'Driver').toString();
+      final docType = (doc['document_type'] ?? 'Official Document').toString();
+      final docNo = (doc['document_no'] ?? '—').toString();
+      final issueDate = _formatDate(doc['issued_date']);
+      final expiryDate = _formatDate(doc['expiry_date']);
+      final authority = (doc['issuing_authority'] ?? 'Transport Department').toString();
+      final status = (doc['status'] ?? 'Valid').toString();
+      final effectiveFileName = fileName.endsWith('.pdf') ? fileName : '$fileName.pdf';
+
+      final content = '''
+================================================================================
+                        EDUSHAMIIT FLEET MANAGEMENT
+                        OFFICIAL DRIVER DOCUMENT
+================================================================================
+
+Driver Name:          $drvName
+Document Type:        $docType
+Document Number:      $docNo
+Issue Date:           $issueDate
+Expiry Date:          $expiryDate
+Issuing Authority:    $authority
+Verification Status:  $status
+
+--------------------------------------------------------------------------------
+This is an official digital record copy of the driver document.
+Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
+================================================================================
+''';
+
+      final bytes = utf8.encode(content);
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.document.createElement('a') as html.AnchorElement
+        ..href = url
+        ..style.display = 'none'
+        ..download = effectiveFileName;
+      html.document.body!.children.add(anchor);
+      anchor.click();
+      html.document.body!.children.remove(anchor);
+      html.Url.revokeObjectUrl(url);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Downloaded PDF: $effectiveFileName'),
+          backgroundColor: _green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to download document: $e'),
+          backgroundColor: _red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -423,6 +505,102 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   }
 
   // ═══════════════════ build ═══════════════════
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (month >= 1 && month <= 12) return months[month - 1];
+    return '';
+  }
+
+  Widget _buildHeader() {
+    String title = 'Driver List';
+    String desc = 'Manage driver information, profiles, licenses, and performance.';
+
+    switch (_tabController.index) {
+      case 0:
+        title = 'Driver List';
+        desc = 'Manage driver information, profiles, licenses, and performance.';
+        break;
+      case 1:
+        title = 'License & Documents';
+        desc = 'Track driver licenses, badges, medical certificates, and expiry dates.';
+        break;
+      case 2:
+        title = 'Driver Performance';
+        desc = 'Monitor driver behavior, safety ratings, and performance metrics.';
+        break;
+      case 3:
+        title = 'Route Assignments';
+        desc = 'Assign drivers to vehicles and designated transit routes.';
+        break;
+      case 4:
+        title = 'Training & Certifications';
+        desc = 'Manage driver training programs, safety certifications, and retrainings.';
+        break;
+      case 5:
+        title = 'Violations & Incidents';
+        desc = 'Log, review, and track traffic violations and incident reports.';
+        break;
+    }
+
+    final now = DateTime.now();
+    final dateStr = 'Today, ${now.day} ${_getMonthName(now.month)} ${now.year}';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                desc,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: _textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
+              const SizedBox(width: 8),
+              Text(
+                dateStr,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════ build ═══════════════════
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -442,9 +620,19 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Floating custom TabBar
-            _buildTabBar(),
+            // Dynamic Header Row
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              child: _buildHeader(),
+            ),
             const SizedBox(height: 20),
+
+            // Floating custom TabBar Card
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _buildTabBar(),
+            ),
+            const SizedBox(height: 16),
 
             // Tab content switcher
             Expanded(
@@ -469,6 +657,11 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         borderRadius: BorderRadius.circular(8),
         child: TabBar(
           controller: _tabController,
+          onTap: (index) {
+            if (_tabController.index != index) {
+              _tabController.animateTo(index);
+            }
+          },
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           padding: EdgeInsets.zero,
@@ -506,22 +699,20 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   }
 
   Widget _buildTabContent(bool isDesktop, double availableWidth) {
-    switch (_tabController.index) {
-      case 0:
-        return _buildDriverListTab(isDesktop, availableWidth);
-      case 1:
-        return _buildLicenseDocumentsTab(availableWidth);
-      case 2:
-        return _buildPerformanceTab(availableWidth);
-      case 3:
-        return _buildAssignmentsTab(availableWidth);
-      case 4:
-        return _buildTrainingTab(availableWidth);
-      case 5:
-        return _buildViolationsTab(availableWidth);
-      default:
-        return _buildDriverListTab(isDesktop, availableWidth);
-    }
+    final activeIdx = _tabController.index.clamp(0, 5);
+    _visitedTabs.add(activeIdx);
+
+    return IndexedStack(
+      index: activeIdx,
+      children: [
+        _visitedTabs.contains(0) ? _buildDriverListTab(isDesktop, availableWidth) : const SizedBox.shrink(),
+        _visitedTabs.contains(1) ? _buildLicenseDocumentsTab(availableWidth) : const SizedBox.shrink(),
+        _visitedTabs.contains(2) ? _buildPerformanceTab(availableWidth) : const SizedBox.shrink(),
+        _visitedTabs.contains(3) ? _buildAssignmentsTab(availableWidth) : const SizedBox.shrink(),
+        _visitedTabs.contains(4) ? _buildTrainingTab(availableWidth) : const SizedBox.shrink(),
+        _visitedTabs.contains(5) ? _buildViolationsTab(availableWidth) : const SizedBox.shrink(),
+      ],
+    );
   }
 
   // ─────── Tab 0: Driver List split view ───────
@@ -539,6 +730,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     final inactivePct = totalDrivers > 0 ? (inactiveCount / totalDrivers * 100) : 0.0;
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -610,17 +802,24 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
 
   // ═══════════════════ KPI Section Grid ═══════════════════
   Widget _buildKpiSection(List<Widget> cards) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 260,
-        mainAxisExtent: 96,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: cards.length,
-      itemBuilder: (context, index) => cards[index],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        int columns = 5;
+        if (width < 640) {
+          columns = 1;
+        } else if (width < 960) {
+          columns = 2;
+        } else if (width < 1300) {
+          columns = 3;
+        }
+        final cardWidth = (width - ((columns - 1) * 12)) / columns;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: cards.map((card) => SizedBox(width: cardWidth, child: card)).toList(),
+        );
+      },
     );
   }
 
@@ -683,134 +882,240 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
   }
 
-  // ═══════════════════ Filters Row ═══════════════════
-  Widget _buildFiltersSection(double availableWidth) {
-    final bool wrapFilters = availableWidth < 1250;
-    
-    final searchField = SizedBox(
-      height: 40,
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Search by driver name, phone, license no...',
-          prefixIcon: const Icon(Icons.search, size: 18, color: _textSecondary),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        ),
-        style: GoogleFonts.inter(fontSize: 13),
+  // ═══════════════════ Shared Uniform UI Helpers ═══════════════════
+  static const double _kCtrlH = 36;
+  static final BorderRadius _kRadius = BorderRadius.circular(8);
+
+  /// Uniform 36px-tall dropdown — replaces DropdownButtonFormField everywhere
+  Widget _uDropdown({
+    required String value,
+    required List<DropdownMenuItem<String>> items,
+    required ValueChanged<String?> onChanged,
+    IconData? prefixIcon,
+  }) {
+    return Container(
+      height: _kCtrlH,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: _kRadius,
+        border: Border.all(color: _border),
+      ),
+      padding: EdgeInsets.only(left: prefixIcon != null ? 8 : 12, right: 4),
+      child: Row(
+        children: [
+          if (prefixIcon != null) ...[
+            Icon(prefixIcon, size: 14, color: _textSecondary),
+            const SizedBox(width: 6),
+          ],
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                isExpanded: true,
+                isDense: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _textSecondary),
+                style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+                items: items,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
       ),
     );
+  }
 
-    final statusFilter = DropdownButtonFormField<String>(
-      initialValue: _statusFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
-      items: ['All', 'On Duty', 'On Leave', 'Inactive', 'Active'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s))).toList(),
-      onChanged: (val) => setState(() {
-        _statusFilter = val!;
-        _currentPage = 1;
-      }),
-    );
-
-    final categoryFilter = DropdownButtonFormField<String>(
-      initialValue: _licenseTypeFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
-      items: ['All', 'LMV', 'HMV'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Categories' : s))).toList(),
-      onChanged: (val) => setState(() {
-        _licenseTypeFilter = val!;
-        _currentPage = 1;
-      }),
-    );
-
-    final assignmentFilter = DropdownButtonFormField<String>(
-      initialValue: _assignmentFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
-      items: ['All', 'Assigned', 'Unassigned'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Assignments' : s))).toList(),
-      onChanged: (val) => setState(() {
-        _assignmentFilter = val!;
-        _currentPage = 1;
-      }),
-    );
-
-    final actions = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        OutlinedButton.icon(
-          onPressed: () {},
-          icon: const Icon(Icons.filter_list, size: 16),
-          label: const Text('Filters'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: _textPrimary,
-            side: const BorderSide(color: _border),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: () {
-            setState(() {
-              _searchController.clear();
-              _statusFilter = 'All';
-              _licenseTypeFilter = 'All';
-              _assignmentFilter = 'All';
-              _currentPage = 1;
-            });
-          },
-          icon: const Icon(Icons.refresh, size: 18),
-          style: IconButton.styleFrom(
-            side: const BorderSide(color: _border),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.all(10),
-          ),
-        ),
-      ],
-    );
-
-    if (wrapFilters) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            searchField,
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: statusFilter),
-                const SizedBox(width: 12),
-                Expanded(child: categoryFilter),
-              ],
+  /// Uniform 36px-tall search field
+  Widget _uSearch({required TextEditingController controller, String hint = 'Search...'}) {
+    return Container(
+      height: _kCtrlH,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: _kRadius,
+        border: Border.all(color: _border),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, size: 16, color: _textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: GoogleFonts.inter(fontSize: 13, color: _textSecondary),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: assignmentFilter),
-                const SizedBox(width: 12),
-                actions,
-              ],
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Uniform 36px primary button (accent / custom colour)
+  Widget _uBtn({required String label, required IconData icon, required VoidCallback onPressed, Color? color}) {
+    return SizedBox(
+      height: _kCtrlH,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16, color: Colors.white),
+        label: Text(label, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color ?? _accent,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: _kRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          fixedSize: Size.fromHeight(_kCtrlH),
         ),
-      );
-    }
+      ),
+    );
+  }
+
+  /// Uniform 36px reset button (outlined)
+  Widget _uResetBtn(VoidCallback onPressed) {
+    return SizedBox(
+      height: _kCtrlH,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.filter_list_rounded, size: 15),
+        label: Text('Reset', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _textSecondary,
+          side: const BorderSide(color: _border),
+          shape: RoundedRectangleBorder(borderRadius: _kRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          fixedSize: Size.fromHeight(_kCtrlH),
+        ),
+      ),
+    );
+  }
+
+  /// Uniform 36x36 refresh icon button
+  Widget _uRefreshBtn(VoidCallback onPressed, [String tooltip = 'Refresh']) {
+    return SizedBox(
+      width: _kCtrlH,
+      height: _kCtrlH,
+      child: Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: _kRadius, side: const BorderSide(color: _border)),
+        child: InkWell(
+          borderRadius: _kRadius,
+          onTap: onPressed,
+          child: Center(child: Icon(Icons.refresh_rounded, size: 18, color: _textSecondary)),
+        ),
+      ),
+    );
+  }
+
+  /// Uniform DataColumn header
+  DataColumn _dataCol(String label) {
+    return DataColumn(
+      label: Text(
+        label,
+        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12, color: _textSecondary, letterSpacing: 0.2),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+      ),
+    );
+  }
+
+  /// Compact 30x30 action icon button for table rows
+  Widget _actionBtn(IconData icon, Color color, String tooltip, VoidCallback onPressed) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: IconButton(
+        icon: Icon(icon, size: 16, color: color),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        splashRadius: 14,
+        constraints: const BoxConstraints(maxWidth: 30, maxHeight: 30),
+      ),
+    );
+  }
+
+  // ═══════════════════ Tab 0 Filters Row ═══════════════════
+  Widget _buildFiltersSection(double availableWidth) {
+    final searchField = _uSearch(controller: _searchController, hint: 'Search by name, phone, license...');
+
+    final statusFilter = _uDropdown(
+      value: _statusFilter,
+      items: ['All', 'On Duty', 'On Leave', 'Inactive', 'Active'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _statusFilter = val!; _currentPage = 1; }),
+    );
+
+    final categoryFilter = _uDropdown(
+      value: _licenseTypeFilter,
+      items: ['All', 'LMV', 'HMV'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Categories' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _licenseTypeFilter = val!; _currentPage = 1; }),
+    );
+
+    final assignmentFilter = _uDropdown(
+      value: _assignmentFilter,
+      items: ['All', 'Assigned', 'Unassigned'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Assignments' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _assignmentFilter = val!; _currentPage = 1; }),
+    );
+
+    final resetButton = _uResetBtn(() {
+      setState(() {
+        _searchController.clear();
+        _statusFilter = 'All';
+        _licenseTypeFilter = 'All';
+        _assignmentFilter = 'All';
+        _currentPage = 1;
+      });
+    });
+
+    final refreshButton = _uRefreshBtn(_loadData, 'Refresh Drivers Data');
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: searchField),
-          const SizedBox(width: 12),
-          SizedBox(width: 150, child: statusFilter),
-          const SizedBox(width: 12),
-          SizedBox(width: 160, child: categoryFilter),
-          const SizedBox(width: 12),
-          SizedBox(width: 180, child: assignmentFilter),
-          const SizedBox(width: 12),
-          actions,
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          if (w >= 900) {
+            return Row(
+              children: [
+                Expanded(child: searchField),
+                const SizedBox(width: 10),
+                SizedBox(width: 130, child: statusFilter),
+                const SizedBox(width: 8),
+                SizedBox(width: 140, child: categoryFilter),
+                const SizedBox(width: 8),
+                SizedBox(width: 150, child: assignmentFilter),
+                const SizedBox(width: 8),
+                resetButton,
+                const SizedBox(width: 6),
+                refreshButton,
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(width: 130, child: statusFilter),
+                  SizedBox(width: 140, child: categoryFilter),
+                  SizedBox(width: 150, child: assignmentFilter),
+                  resetButton,
+                  refreshButton,
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -828,22 +1133,22 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 1150),
+            constraints: const BoxConstraints(minWidth: 1000),
             child: DataTable(
               showCheckboxColumn: false,
               headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
               horizontalMargin: 16,
-              columnSpacing: 24,
-              dataRowMinHeight: 56,
-              dataRowMaxHeight: 68,
+              columnSpacing: 20,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 56,
               columns: [
-                DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('License Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Contact', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Experience', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Assignment', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _textPrimary))),
+                _dataCol('Driver'),
+                _dataCol('License'),
+                _dataCol('Contact'),
+                _dataCol('Exp.'),
+                _dataCol('Status'),
+                _dataCol('Assignment'),
+                _dataCol('Actions'),
               ],
               rows: paginated.map((dev) {
                 final isSelected = _selectedDriver != null && _selectedDriver['id'] == dev['id'];
@@ -1319,6 +1624,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     final bool isDesktop = availableWidth > 1100;
     
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1389,7 +1695,6 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   }
 
   Widget _buildDocFiltersSection(double availableWidth) {
-    // Unique list of driver names for filter dropdown
     final driverNames = _drivers.map((d) => (d['name'] ?? '').toString()).toSet().toList();
     driverNames.sort();
 
@@ -1398,188 +1703,107 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
       'Medical Certificate', 'Fitness Certificate', 'Pollution Certificate', 'PAN Card'
     ];
 
-    final searchField = SizedBox(
-      height: 38,
-      child: TextField(
-        controller: _docSearchController,
-        style: GoogleFonts.inter(fontSize: 13),
-        decoration: InputDecoration(
-          hintText: 'Search by driver name or document type...',
-          hintStyle: GoogleFonts.inter(color: _textSecondary, fontSize: 13),
-          prefixIcon: const Icon(Icons.search, size: 16, color: _textSecondary),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _accent)),
-          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+    final searchField = _uSearch(controller: _docSearchController, hint: 'Search driver or document...');
+
+    final driverFilter = _uDropdown(
+      value: _docDriverFilter,
+      items: ['All', ...driverNames].map((drv) => DropdownMenuItem(value: drv, child: Text(drv == 'All' ? 'All Drivers' : (drv.length > 16 ? '${drv.substring(0, 14)}…' : drv), overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _docDriverFilter = val!; _docCurrentPage = 1; }),
+    );
+
+    final typeFilter = _uDropdown(
+      value: _docTypeFilter,
+      items: ['All', ...docTypes].map((t) => DropdownMenuItem(value: t, child: Text(t == 'All' ? 'All Types' : t, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _docTypeFilter = val!; _docCurrentPage = 1; }),
+    );
+
+    final statusFilter = _uDropdown(
+      value: _docStatusFilter,
+      items: ['All', 'Valid', 'Expiring Soon', 'Expired', 'Permanent'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _docStatusFilter = val!; _docCurrentPage = 1; }),
+    );
+
+    final resetButton = _uResetBtn(() {
+      setState(() {
+        _docSearchController.clear();
+        _docSearchQuery = '';
+        _docDriverFilter = 'All';
+        _docTypeFilter = 'All';
+        _docStatusFilter = 'All';
+        _docCurrentPage = 1;
+      });
+    });
+
+    final refreshButton = _uRefreshBtn(_loadData, 'Refresh Documents');
+
+    final viewAllBtn = SizedBox(
+      height: _kCtrlH,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          final drvId = _docDriverFilter != 'All' ? _docDriverFilter : null;
+          _showAllDocumentsModal(filterDriverId: drvId);
+        },
+        icon: const Icon(Icons.list_alt, size: 15),
+        label: Text('View All', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: _border),
+          shape: RoundedRectangleBorder(borderRadius: _kRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          fixedSize: Size.fromHeight(_kCtrlH),
         ),
       ),
     );
 
-    final docDriverFilterDropdown = DropdownButtonFormField<String>(
-      initialValue: _docDriverFilter,
-      isExpanded: true,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-      ),
-      style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
-      items: ['All', ...driverNames].map((drv) {
-        return DropdownMenuItem<String>(
-          value: drv,
-          child: Text(drv.length > 18 ? '${drv.substring(0, 16)}...' : drv, overflow: TextOverflow.ellipsis),
-        );
-      }).toList(),
-      onChanged: (val) {
-        setState(() {
-          _docDriverFilter = val!;
-          _docCurrentPage = 1;
-        });
-      },
-    );
-
-    final docTypeFilterDropdown = DropdownButtonFormField<String>(
-      initialValue: _docTypeFilter,
-      isExpanded: true,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-      ),
-      style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
-      items: ['All', ...docTypes].map((type) {
-        return DropdownMenuItem<String>(
-          value: type,
-          child: Text(type),
-        );
-      }).toList(),
-      onChanged: (val) {
-        setState(() {
-          _docTypeFilter = val!;
-          _docCurrentPage = 1;
-        });
-      },
-    );
-
-    final docStatusFilterDropdown = DropdownButtonFormField<String>(
-      initialValue: _docStatusFilter,
-      isExpanded: true,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-      ),
-      style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
-      items: ['All', 'Valid', 'Expiring Soon', 'Expired', 'Permanent'].map((st) {
-        return DropdownMenuItem<String>(
-          value: st,
-          child: Text(st),
-        );
-      }).toList(),
-      onChanged: (val) {
-        setState(() {
-          _docStatusFilter = val!;
-          _docCurrentPage = 1;
-        });
-      },
-    );
-
-    final filtersButton = OutlinedButton.icon(
-      onPressed: () {
-        setState(() {
-          _docSearchController.clear();
-          _docSearchQuery = '';
-          _docDriverFilter = 'All';
-          _docTypeFilter = 'All';
-          _docStatusFilter = 'All';
-          _docCurrentPage = 1;
-        });
-      },
-      icon: const Icon(Icons.filter_list, size: 14),
-      label: Text('Filters', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _textSecondary,
-        side: const BorderSide(color: _border),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-
-    final refreshButton = IconButton(
-      icon: const Icon(Icons.refresh, color: _textSecondary, size: 18),
-      onPressed: () => _loadData(),
-      style: IconButton.styleFrom(
-        side: const BorderSide(color: _border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.all(10),
-      ),
-    );
-
-    // Responsive logic
-    final bool wrapFilters = availableWidth < 1250;
-
-    if (wrapFilters) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            searchField,
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: docDriverFilterDropdown),
-                const SizedBox(width: 12),
-                Expanded(child: docTypeFilterDropdown),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: docStatusFilterDropdown),
-                const SizedBox(width: 12),
-                filtersButton,
-                const SizedBox(width: 12),
-                refreshButton,
-              ],
-            ),
-          ],
-        ),
-      );
-    }
+    final uploadBtn = _uBtn(label: 'Upload', icon: Icons.cloud_upload_outlined, onPressed: () => _showDocumentFormDialog(null));
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(width: 220, child: searchField),
-          SizedBox(width: 140, child: docDriverFilterDropdown),
-          SizedBox(width: 150, child: docTypeFilterDropdown),
-          SizedBox(width: 130, child: docStatusFilterDropdown),
-          filtersButton,
-          refreshButton,
-          OutlinedButton.icon(
-            onPressed: () {
-              final drvId = _docDriverFilter != 'All' ? _docDriverFilter : null;
-              _showAllDocumentsModal(filterDriverId: drvId);
-            },
-            icon: const Icon(Icons.list_alt, size: 16),
-            label: const Text('View All'),
-            style: OutlinedButton.styleFrom(side: const BorderSide(color: _border), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => _showDocumentFormDialog(null),
-            icon: const Icon(Icons.cloud_upload_outlined, size: 16),
-            label: const Text('Upload Document'),
-            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          if (w >= 960) {
+            return Row(
+              children: [
+                SizedBox(width: 200, child: searchField),
+                const SizedBox(width: 8),
+                SizedBox(width: 140, child: driverFilter),
+                const SizedBox(width: 8),
+                SizedBox(width: 155, child: typeFilter),
+                const SizedBox(width: 8),
+                SizedBox(width: 130, child: statusFilter),
+                const SizedBox(width: 8),
+                resetButton,
+                const SizedBox(width: 6),
+                refreshButton,
+                const Spacer(),
+                viewAllBtn,
+                const SizedBox(width: 8),
+                uploadBtn,
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(width: 140, child: driverFilter),
+                  SizedBox(width: 155, child: typeFilter),
+                  SizedBox(width: 130, child: statusFilter),
+                  resetButton,
+                  refreshButton,
+                  viewAllBtn,
+                  uploadBtn,
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1614,23 +1838,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 1150),
+            constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
             child: DataTable(
               showCheckboxColumn: false,
               headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
               dividerThickness: 1.0,
-              columnSpacing: 24,
-              dataRowMinHeight: 64,
-              dataRowMaxHeight: 64,
+              columnSpacing: 20,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 56,
               columns: [
-                DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Document Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Document Number', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Issue Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Expiry Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Days Left', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
+                _dataCol('Driver'),
+                _dataCol('Type'),
+                _dataCol('Doc No.'),
+                _dataCol('Issued'),
+                _dataCol('Expiry'),
+                _dataCol('Status'),
+                _dataCol('Days Left'),
+                _dataCol('Actions'),
               ],
               rows: paginated.map((doc) {
                 final drv = doc['drivers'] ?? {};
@@ -1756,11 +1980,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           ),
                           IconButton(
                             icon: const Icon(Icons.download_outlined, size: 18, color: _accent),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Downloading file ${doc['file_name'] ?? 'document.pdf'}...'), backgroundColor: _accent),
-                              );
-                            },
+                            onPressed: () => _downloadDocumentFile(doc),
+                            tooltip: 'Download Document PDF',
                           ),
                           PopupMenuButton<String>(
                             icon: const Icon(Icons.more_vert, size: 18),
@@ -1963,11 +2184,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                   ),
                   IconButton(
                     icon: const Icon(Icons.download_outlined, color: _accent, size: 18),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Downloading file ${doc['file_name']}...'), backgroundColor: _accent),
-                      );
-                    },
+                    onPressed: () => _downloadDocumentFile(doc),
+                    tooltip: 'Download Document PDF',
                   ),
                 ],
               ),
@@ -2103,6 +2321,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     final bool isDesktop = availableWidth > 1100;
     
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2405,158 +2624,215 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
   }
 
+  // --- Shared dropdown builder for premium uniform height ---
+  Widget _buildPerfDropdown({
+    required String value,
+    required List<DropdownMenuItem<String>> items,
+    required ValueChanged<String?> onChanged,
+    IconData? prefixIcon,
+  }) {
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      padding: EdgeInsets.only(left: prefixIcon != null ? 8 : 12, right: 4),
+      child: Row(
+        children: [
+          if (prefixIcon != null) ...[
+            Icon(prefixIcon, size: 14, color: _textSecondary),
+            const SizedBox(width: 6),
+          ],
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                isExpanded: true,
+                isDense: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _textSecondary),
+                style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+                items: items,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPerfFiltersSection(double availableWidth) {
     final driverNames = _drivers.map((d) => (d['name'] ?? '').toString()).toSet().toList();
     driverNames.sort();
 
-    final perfDriverFilterDropdown = DropdownButtonFormField<String>(
-      initialValue: _perfDriverFilter,
-      isExpanded: true,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-      ),
-      style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+    // Shared button style constants
+    const double kH = 36;
+    final borderRadius = BorderRadius.circular(8);
+
+    // 1. Driver Filter Dropdown
+    final perfDriverFilterDropdown = _buildPerfDropdown(
+      value: _perfDriverFilter,
       items: ['All', ...driverNames].map((drv) {
         return DropdownMenuItem<String>(
           value: drv,
-          child: Text(drv),
+          child: Text(drv == 'All' ? 'All Drivers' : drv, overflow: TextOverflow.ellipsis),
         );
       }).toList(),
-      onChanged: (val) {
-        setState(() {
-          _perfDriverFilter = val!;
-        });
-      },
+      onChanged: (val) => setState(() => _perfDriverFilter = val!),
     );
 
-    final perfVehicleFilterDropdown = DropdownButtonFormField<String>(
-      initialValue: _perfVehicleFilter,
-      isExpanded: true,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-      ),
-      style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+    // 2. Vehicle Filter Dropdown
+    final perfVehicleFilterDropdown = _buildPerfDropdown(
+      value: _perfVehicleFilter,
       items: const [
-        DropdownMenuItem(value: 'All', child: Text('All Vehicles')),
-        DropdownMenuItem(value: 'Assigned', child: Text('Assigned Only')),
-        DropdownMenuItem(value: 'Unassigned', child: Text('Unassigned Only')),
+        DropdownMenuItem(value: 'All', child: Text('All Vehicles', overflow: TextOverflow.ellipsis)),
+        DropdownMenuItem(value: 'Assigned', child: Text('Assigned Only', overflow: TextOverflow.ellipsis)),
+        DropdownMenuItem(value: 'Unassigned', child: Text('Unassigned Only', overflow: TextOverflow.ellipsis)),
       ],
-      onChanged: (val) {
-        setState(() {
-          _perfVehicleFilter = val!;
-        });
-      },
+      onChanged: (val) => setState(() => _perfVehicleFilter = val!),
     );
 
-    final perfTimePeriodDropdown = DropdownButtonFormField<String>(
-      initialValue: _perfTimePeriod,
-      isExpanded: true,
-      decoration: InputDecoration(
-        isDense: true,
-        prefixIcon: const Icon(Icons.calendar_today, size: 14, color: _textSecondary),
-        prefixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 20),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-      ),
-      style: GoogleFonts.inter(fontSize: 13, color: _textPrimary),
+    // 3. Time Period Dropdown
+    final perfTimePeriodDropdown = _buildPerfDropdown(
+      value: _perfTimePeriod,
+      prefixIcon: Icons.calendar_today_outlined,
       items: const [
-        DropdownMenuItem(value: 'This Month', child: Text('This Month (01-31 May)')),
-        DropdownMenuItem(value: 'Last Month', child: Text('Last Month')),
-        DropdownMenuItem(value: 'This Quarter', child: Text('This Quarter')),
+        DropdownMenuItem(value: 'This Month', child: Text('This Month', overflow: TextOverflow.ellipsis)),
+        DropdownMenuItem(value: 'Last Month', child: Text('Last Month', overflow: TextOverflow.ellipsis)),
+        DropdownMenuItem(value: 'This Quarter', child: Text('This Quarter', overflow: TextOverflow.ellipsis)),
       ],
-      onChanged: (val) {
-        setState(() {
-          _perfTimePeriod = val!;
-        });
-      },
+      onChanged: (val) => setState(() => _perfTimePeriod = val!),
     );
 
-    final filtersButton = OutlinedButton.icon(
-      onPressed: () {
-        setState(() {
-          _perfDriverFilter = 'All';
-          _perfVehicleFilter = 'All';
-          _perfTimePeriod = 'This Month';
-        });
-      },
-      icon: const Icon(Icons.filter_list, size: 14),
-      label: Text('Filters', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _textSecondary,
-        side: const BorderSide(color: _border),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-
-    final exportButton = ElevatedButton.icon(
-      onPressed: _exportPerformanceReport,
-      icon: const Icon(Icons.download, size: 14, color: Colors.white),
-      label: Text('Export Report', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _accent,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-
-    // Responsive logic
-    final bool wrapFilters = availableWidth < 900;
-
-    if (wrapFilters) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(child: perfDriverFilterDropdown),
-                const SizedBox(width: 12),
-                Expanded(child: perfVehicleFilterDropdown),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: perfTimePeriodDropdown),
-                const SizedBox(width: 12),
-                filtersButton,
-                const SizedBox(width: 12),
-                exportButton,
-              ],
-            ),
-          ],
+    // 4. Reset Button
+    final resetButton = SizedBox(
+      height: kH,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          setState(() {
+            _perfDriverFilter = 'All';
+            _perfVehicleFilter = 'All';
+            _perfTimePeriod = 'This Month';
+          });
+        },
+        icon: const Icon(Icons.filter_list_rounded, size: 15),
+        label: Text('Reset', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _textSecondary,
+          side: const BorderSide(color: _border),
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          fixedSize: const Size.fromHeight(kH),
         ),
-      );
-    }
+      ),
+    );
+
+    // 5. Refresh Button
+    final refreshButton = SizedBox(
+      width: kH,
+      height: kH,
+      child: Material(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: borderRadius, side: const BorderSide(color: _border)),
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: _loadData,
+          child: const Center(child: Icon(Icons.refresh_rounded, size: 18, color: _textSecondary)),
+        ),
+      ),
+    );
+
+    // 6. Add Record Button
+    final addButton = SizedBox(
+      height: kH,
+      child: ElevatedButton.icon(
+        onPressed: () => _showPerformanceFormDialog(null),
+        icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+        label: Text('Add Record', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accent,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          fixedSize: const Size.fromHeight(kH),
+        ),
+      ),
+    );
+
+    // 7. Export Report Button
+    final exportButton = SizedBox(
+      height: kH,
+      child: ElevatedButton.icon(
+        onPressed: _exportPerformanceReport,
+        icon: const Icon(Icons.download_outlined, size: 16, color: Colors.white),
+        label: Text('Export Report', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF6366F1),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          fixedSize: const Size.fromHeight(kH),
+        ),
+      ),
+    );
 
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(width: 170, child: perfDriverFilterDropdown),
-          SizedBox(width: 170, child: perfVehicleFilterDropdown),
-          SizedBox(width: 200, child: perfTimePeriodDropdown),
-          filtersButton,
-          ElevatedButton.icon(
-            onPressed: () => _showPerformanceFormDialog(null),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Record'),
-            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          ),
-          exportButton,
-        ],
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+
+          if (w >= 860) {
+            // Desktop: single row
+            return Row(
+              children: [
+                SizedBox(width: 150, child: perfDriverFilterDropdown),
+                const SizedBox(width: 8),
+                SizedBox(width: 150, child: perfVehicleFilterDropdown),
+                const SizedBox(width: 8),
+                SizedBox(width: 155, child: perfTimePeriodDropdown),
+                const SizedBox(width: 8),
+                resetButton,
+                const SizedBox(width: 6),
+                refreshButton,
+                const Spacer(),
+                addButton,
+                const SizedBox(width: 8),
+                exportButton,
+              ],
+            );
+          }
+
+          // Narrower screens: wrap
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(width: 145, child: perfDriverFilterDropdown),
+              SizedBox(width: 145, child: perfVehicleFilterDropdown),
+              SizedBox(width: 150, child: perfTimePeriodDropdown),
+              resetButton,
+              refreshButton,
+              addButton,
+              exportButton,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // --- Column header helper for premium table ---
+  DataColumn _perfCol(String label) {
+    return DataColumn(
+      label: Text(
+        label,
+        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12, color: _textSecondary, letterSpacing: 0.2),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
       ),
     );
   }
@@ -2572,7 +2848,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.star_outline_rounded, color: _textSecondary, size: 36),
+              Icon(Icons.star_outline_rounded, color: _textSecondary.withValues(alpha: 0.5), size: 40),
               const SizedBox(height: 12),
               Text('No performance records found', style: GoogleFonts.inter(color: _textSecondary, fontSize: 14)),
             ],
@@ -2588,29 +2864,32 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Divider(height: 1, color: _border.withValues(alpha: 0.5)),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 1300),
+            constraints: BoxConstraints(minWidth: availableWidth > 1200 ? availableWidth : 1200),
             child: DataTable(
               showCheckboxColumn: false,
               headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              dividerThickness: 1.0,
-              columnSpacing: 24,
-              dataRowMinHeight: 64,
-              dataRowMaxHeight: 64,
+              headingRowHeight: 44,
+              dividerThickness: 0.5,
+              columnSpacing: 20,
+              horizontalMargin: 16,
+              dataRowMinHeight: 56,
+              dataRowMaxHeight: 56,
               columns: [
-                DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Vehicle No.', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Total Score (Out of 5)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Attendance (20%)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Safety (30%)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Route Adherence (20%)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Vehicle Care (15%)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Feedback (15%)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Trips Completed', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary))),
+                _perfCol('Driver'),
+                _perfCol('Vehicle'),
+                _perfCol('Score'),
+                _perfCol('Attend.'),
+                _perfCol('Safety'),
+                _perfCol('Route'),
+                _perfCol('Care'),
+                _perfCol('Feedback'),
+                _perfCol('Trips'),
+                _perfCol('Status'),
+                _perfCol('Actions'),
               ],
               rows: paginated.map((perf) {
                 final drv = perf['drivers'] ?? {};
@@ -2633,27 +2912,32 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
 
                 String status = 'Good';
                 Color statusColor = _blue;
-                Color statusBg = _blue.withValues(alpha: 0.1);
+                Color statusBg = _blue.withValues(alpha: 0.08);
                 if (score >= 4.5) {
                   status = 'Excellent';
                   statusColor = _green;
-                  statusBg = _green.withValues(alpha: 0.1);
+                  statusBg = _green.withValues(alpha: 0.08);
                 } else if (score >= 3.5) {
                   status = 'Good';
                   statusColor = _blue;
-                  statusBg = _blue.withValues(alpha: 0.1);
+                  statusBg = _blue.withValues(alpha: 0.08);
                 } else if (score >= 2.5) {
                   status = 'Average';
                   statusColor = _orange;
-                  statusBg = _orange.withValues(alpha: 0.1);
+                  statusBg = _orange.withValues(alpha: 0.08);
                 } else {
                   status = 'Poor';
                   statusColor = _red;
-                  statusBg = _red.withValues(alpha: 0.1);
+                  statusBg = _red.withValues(alpha: 0.08);
                 }
 
                 return DataRow(
                   selected: isSelected,
+                  color: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) return _accent.withValues(alpha: 0.04);
+                    if (states.contains(WidgetState.hovered)) return const Color(0xFFF8FAFC);
+                    return null;
+                  }),
                   onSelectChanged: (val) {
                     setState(() {
                       _selectedDriver = drv;
@@ -2663,13 +2947,14 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     // Driver
                     DataCell(
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           CircleAvatar(
-                            radius: 16,
+                            radius: 15,
                             backgroundColor: _accent.withValues(alpha: 0.1),
                             backgroundImage: drv['photo_url'] != null ? NetworkImage(drv['photo_url']) : null,
                             child: drv['photo_url'] == null 
-                              ? Text(drvName.substring(0, 1).toUpperCase(), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _accent))
+                              ? Text(drvName.substring(0, 1).toUpperCase(), style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: _accent))
                               : null,
                           ),
                           const SizedBox(width: 10),
@@ -2677,7 +2962,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(drvName, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+                              Text(drvName, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary), overflow: TextOverflow.ellipsis),
                               Text(drvCode, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
                             ],
                           ),
@@ -2685,32 +2970,32 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       ),
                     ),
                     // Vehicle No.
-                    DataCell(Text(vehNo, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
+                    DataCell(Text(vehNo, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: _textPrimary))),
                     // Total Score
                     DataCell(
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 14),
-                          const SizedBox(width: 4),
-                          Text(score.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
+                          const Icon(Icons.star_rounded, color: Colors.amber, size: 14),
+                          const SizedBox(width: 3),
+                          Text(score.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: _textPrimary)),
                         ],
                       ),
                     ),
                     // Components
-                    DataCell(Text('$att', style: GoogleFonts.inter(fontSize: 12))),
-                    DataCell(Text('$saf', style: GoogleFonts.inter(fontSize: 12))),
-                    DataCell(Text('$rt', style: GoogleFonts.inter(fontSize: 12))),
-                    DataCell(Text('$vc', style: GoogleFonts.inter(fontSize: 12))),
-                    DataCell(Text('$fb', style: GoogleFonts.inter(fontSize: 12))),
+                    DataCell(Text(att.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 12, color: _textPrimary))),
+                    DataCell(Text(saf.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 12, color: _textPrimary))),
+                    DataCell(Text(rt.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 12, color: _textPrimary))),
+                    DataCell(Text(vc.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 12, color: _textPrimary))),
+                    DataCell(Text(fb.toStringAsFixed(1), style: GoogleFonts.inter(fontSize: 12, color: _textPrimary))),
                     // Trips Completed
-                    DataCell(Text('$trips', style: GoogleFonts.inter(fontSize: 12))),
+                    DataCell(Text('$trips', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: _textPrimary))),
                     // Status
                     DataCell(
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(16)),
-                        child: Text(status, style: GoogleFonts.inter(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(20)),
+                        child: Text(status, style: GoogleFonts.inter(color: statusColor, fontSize: 11, fontWeight: FontWeight.w600)),
                       ),
                     ),
                     // Actions
@@ -2718,22 +3003,11 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.visibility_outlined, size: 18),
-                            onPressed: () {
-                              setState(() => _selectedDriver = drv);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18, color: _accent),
-                            tooltip: 'Edit Score',
-                            onPressed: () => _showPerformanceFormDialog(perf),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18, color: _red),
-                            tooltip: 'Delete Record',
-                            onPressed: () => _deletePerformance(perf),
-                          ),
+                          _miniActionBtn(Icons.visibility_outlined, _textSecondary, 'View', () => setState(() => _selectedDriver = drv)),
+                          const SizedBox(width: 2),
+                          _miniActionBtn(Icons.edit_outlined, _accent, 'Edit', () => _showPerformanceFormDialog(perf)),
+                          const SizedBox(width: 2),
+                          _miniActionBtn(Icons.delete_outline, _red, 'Delete', () => _deletePerformance(perf)),
                         ],
                       ),
                     ),
@@ -2758,6 +3032,21 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           }),
         ),
       ],
+    );
+  }
+
+  Widget _miniActionBtn(IconData icon, Color color, String tooltip, VoidCallback onPressed) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: IconButton(
+        icon: Icon(icon, size: 16, color: color),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        splashRadius: 14,
+        constraints: const BoxConstraints(maxWidth: 30, maxHeight: 30),
+      ),
     );
   }
 
@@ -3020,6 +3309,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     final double expiringPct = totalAssign > 0 ? (expiringSoonCount / totalAssign * 100) : 0.0;
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3088,78 +3378,58 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   }
 
   Widget _buildAssignFiltersSection(double availableWidth) {
-    final searchField = TextFormField(
-      controller: _assignSearchController,
-      decoration: InputDecoration(
-        hintText: 'Search by Driver, Route...',
-        prefixIcon: const Icon(Icons.search, size: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-      ),
+    final searchField = _uSearch(controller: _assignSearchController, hint: 'Search driver, route...');
+    final statusFilter = _uDropdown(
+      value: _assignStatusFilter,
+      items: ['All', 'Active', 'Upcoming', 'Ended', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _assignStatusFilter = val!; _assignCurrentPage = 1; }),
     );
-
-    final statusFilter = DropdownButtonFormField<String>(
-      initialValue: _assignStatusFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-      items: ['All', 'Active', 'Upcoming', 'Ended', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-      onChanged: (val) => setState(() {
-        _assignStatusFilter = val!;
-        _assignCurrentPage = 1;
-      }),
+    final typeFilter = _uDropdown(
+      value: _assignTypeFilter,
+      items: ['All', 'Route', 'Trip'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Types' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _assignTypeFilter = val!; _assignCurrentPage = 1; }),
     );
-
-    final typeFilter = DropdownButtonFormField<String>(
-      initialValue: _assignTypeFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Assignment Type', border: OutlineInputBorder()),
-      items: ['All', 'Route', 'Trip'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-      onChanged: (val) => setState(() {
-        _assignTypeFilter = val!;
-        _assignCurrentPage = 1;
-      }),
-    );
-
-    final actions = ElevatedButton.icon(
-      onPressed: () => _showAssignmentFormDialog(null),
-      icon: const Icon(Icons.add, size: 16),
-      label: const Text('Add Assignment'),
-      style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-    );
-
-    if (availableWidth < 768) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            searchField,
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: statusFilter),
-                const SizedBox(width: 12),
-                Expanded(child: typeFilter),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(width: double.infinity, child: actions),
-          ],
-        ),
-      );
-    }
+    final resetButton = _uResetBtn(() {
+      setState(() { _assignSearchController.clear(); _assignSearchQuery = ''; _assignStatusFilter = 'All'; _assignTypeFilter = 'All'; _assignCurrentPage = 1; });
+    });
+    final refreshButton = _uRefreshBtn(_loadData, 'Refresh Assignments');
+    final addBtn = _uBtn(label: 'Add Assignment', icon: Icons.add_rounded, onPressed: () => _showAssignmentFormDialog(null));
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: searchField),
-          const SizedBox(width: 12),
-          SizedBox(width: 160, child: statusFilter),
-          const SizedBox(width: 12),
-          SizedBox(width: 180, child: typeFilter),
-          const SizedBox(width: 12),
-          actions,
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          if (w >= 860) {
+            return Row(
+              children: [
+                Expanded(child: searchField),
+                const SizedBox(width: 8),
+                SizedBox(width: 140, child: statusFilter),
+                const SizedBox(width: 8),
+                SizedBox(width: 120, child: typeFilter),
+                const SizedBox(width: 8),
+                resetButton,
+                const SizedBox(width: 6),
+                refreshButton,
+                const Spacer(),
+                addBtn,
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [SizedBox(width: 140, child: statusFilter), SizedBox(width: 120, child: typeFilter), resetButton, refreshButton, addBtn],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -3187,23 +3457,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 1150),
+            constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
             child: DataTable(
               showCheckboxColumn: false,
               headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-              columnSpacing: 24,
-              dataRowMinHeight: 64,
-              dataRowMaxHeight: 64,
+              columnSpacing: 20,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 56,
               columns: [
-                DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Vehicle', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Route / Trip', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Assignment Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Start Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('End Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Created By', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
+                _dataCol('Driver'),
+                _dataCol('Vehicle'),
+                _dataCol('Route'),
+                _dataCol('Type'),
+                _dataCol('Start'),
+                _dataCol('End'),
+                _dataCol('Status'),
+                _dataCol('Created By'),
+                _dataCol('Actions'),
               ],
               rows: paginated.map((assign) {
                 final isSelected = _selectedAssignment != null && _selectedAssignment['id'] == assign['id'];
@@ -3325,7 +3595,20 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(_formatDate(assign['end_date']), style: GoogleFonts.inter(fontSize: 12)),
+                          Text(
+                            (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—')
+                                ? 'Ongoing'
+                                : _formatDate(assign['end_date']),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—')
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—')
+                                  ? _green
+                                  : _textPrimary,
+                            ),
+                          ),
                           Text(endTime, style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
                         ],
                       ),
@@ -3529,7 +3812,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
           ),
           
           _buildDetailRow('Start Date & Time', '${_formatDate(assign['start_date'])}, $startTime'),
-          _buildDetailRow('End Date & Time', '${_formatDate(assign['end_date'])}, $endTime'),
+          _buildDetailRow('End Date & Time', (assign['end_date'] == null || assign['end_date'].toString().isEmpty || assign['end_date'].toString() == '—') ? 'Ongoing ($endTime)' : '${_formatDate(assign['end_date'])}, $endTime'),
           _buildDetailRow('Shift', shift),
           
           Padding(
@@ -3632,6 +3915,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     final bool isDesktop = availableWidth > 1100;
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3814,78 +4098,58 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   }
 
   Widget _buildTrainFiltersSection(double availableWidth) {
-    final searchField = TextFormField(
-      controller: _trainSearchController,
-      decoration: InputDecoration(
-        hintText: 'Search by Driver, Program...',
-        prefixIcon: const Icon(Icons.search, size: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-      ),
+    final searchField = _uSearch(controller: _trainSearchController, hint: 'Search driver, program...');
+    final statusFilter = _uDropdown(
+      value: _trainStatusFilter,
+      items: ['All', 'Completed', 'In Progress', 'Upcoming', 'Overdue'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _trainStatusFilter = val!; _trainCurrentPage = 1; }),
     );
-
-    final statusFilter = DropdownButtonFormField<String>(
-      initialValue: _trainStatusFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-      items: ['All', 'Completed', 'In Progress', 'Upcoming', 'Overdue'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-      onChanged: (val) => setState(() {
-        _trainStatusFilter = val!;
-        _trainCurrentPage = 1;
-      }),
+    final typeFilter = _uDropdown(
+      value: _trainTypeFilter,
+      items: ['All', 'Safety', 'Medical', 'Technical', 'Operational'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Types' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _trainTypeFilter = val!; _trainCurrentPage = 1; }),
     );
-
-    final typeFilter = DropdownButtonFormField<String>(
-      initialValue: _trainTypeFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Training Type', border: OutlineInputBorder()),
-      items: ['All', 'Safety', 'Medical', 'Technical', 'Operational'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-      onChanged: (val) => setState(() {
-        _trainTypeFilter = val!;
-        _trainCurrentPage = 1;
-      }),
-    );
-
-    final actions = ElevatedButton.icon(
-      onPressed: () => _showTrainingFormDialog(null),
-      icon: const Icon(Icons.add, size: 16),
-      label: const Text('Add Record'),
-      style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-    );
-
-    if (availableWidth < 768) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            searchField,
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: statusFilter),
-                const SizedBox(width: 12),
-                Expanded(child: typeFilter),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(width: double.infinity, child: actions),
-          ],
-        ),
-      );
-    }
+    final resetButton = _uResetBtn(() {
+      setState(() { _trainSearchController.clear(); _trainSearchQuery = ''; _trainStatusFilter = 'All'; _trainTypeFilter = 'All'; _trainCurrentPage = 1; });
+    });
+    final refreshButton = _uRefreshBtn(_loadData, 'Refresh Training');
+    final addBtn = _uBtn(label: 'Add Record', icon: Icons.add_rounded, onPressed: () => _showTrainingFormDialog(null));
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: searchField),
-          const SizedBox(width: 12),
-          SizedBox(width: 160, child: statusFilter),
-          const SizedBox(width: 12),
-          SizedBox(width: 180, child: typeFilter),
-          const SizedBox(width: 12),
-          actions,
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          if (w >= 860) {
+            return Row(
+              children: [
+                Expanded(child: searchField),
+                const SizedBox(width: 8),
+                SizedBox(width: 140, child: statusFilter),
+                const SizedBox(width: 8),
+                SizedBox(width: 135, child: typeFilter),
+                const SizedBox(width: 8),
+                resetButton,
+                const SizedBox(width: 6),
+                refreshButton,
+                const Spacer(),
+                addBtn,
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [SizedBox(width: 140, child: statusFilter), SizedBox(width: 135, child: typeFilter), resetButton, refreshButton, addBtn],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -3913,21 +4177,24 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: availableWidth > 1100 ? availableWidth * 0.7 - 32 : availableWidth - 32),
+            constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
             child: DataTable(
               showCheckboxColumn: false,
               headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columnSpacing: 18,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 56,
               columns: [
-                DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Training Program', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Training Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Provider', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Start Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('End Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Certificate', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Next Due Date', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
+                _dataCol('Driver'),
+                _dataCol('Program'),
+                _dataCol('Type'),
+                _dataCol('Provider'),
+                _dataCol('Start'),
+                _dataCol('End'),
+                _dataCol('Status'),
+                _dataCol('Cert.'),
+                _dataCol('Next Due'),
+                _dataCol('Actions'),
               ],
               rows: paginated.map((train) {
                 final isSelected = _selectedTraining != null && _selectedTraining['id'] == train['id'];
@@ -4596,6 +4863,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     final kpiCardWidth = (availableWidth - 32 - (kpiColumns - 1) * 12) / kpiColumns;
 
     return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -4664,78 +4932,58 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
   }
 
   Widget _buildViolFiltersSection(double availableWidth) {
-    final searchField = TextFormField(
-      controller: _violSearchController,
-      decoration: InputDecoration(
-        hintText: 'Search by Driver, Violation...',
-        prefixIcon: const Icon(Icons.search, size: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-      ),
+    final searchField = _uSearch(controller: _violSearchController, hint: 'Search driver, violation...');
+    final statusFilter = _uDropdown(
+      value: _violStatusFilter,
+      items: ['All', 'Pending', 'Resolved', 'Cancelled', 'Waived'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _violStatusFilter = val!; _violCurrentPage = 1; }),
     );
-
-    final statusFilter = DropdownButtonFormField<String>(
-      initialValue: _violStatusFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-      items: ['All', 'Pending', 'Resolved', 'Cancelled', 'Waived'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-      onChanged: (val) => setState(() {
-        _violStatusFilter = val!;
-        _violCurrentPage = 1;
-      }),
+    final severityFilter = _uDropdown(
+      value: _violSeverityFilter,
+      items: ['All', 'High', 'Medium', 'Low'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Severity' : s, overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (val) => setState(() { _violSeverityFilter = val!; _violCurrentPage = 1; }),
     );
-
-    final severityFilter = DropdownButtonFormField<String>(
-      initialValue: _violSeverityFilter,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Severity', border: OutlineInputBorder()),
-      items: ['All', 'High', 'Medium', 'Low'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-      onChanged: (val) => setState(() {
-        _violSeverityFilter = val!;
-        _violCurrentPage = 1;
-      }),
-    );
-
-    final actions = ElevatedButton.icon(
-      onPressed: () => _showViolationFormDialog(null),
-      icon: const Icon(Icons.add, size: 16),
-      label: const Text('Log Violation'),
-      style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-    );
-
-    if (availableWidth < 768) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            searchField,
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: statusFilter),
-                const SizedBox(width: 12),
-                Expanded(child: severityFilter),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SizedBox(width: double.infinity, child: actions),
-          ],
-        ),
-      );
-    }
+    final resetButton = _uResetBtn(() {
+      setState(() { _violSearchController.clear(); _violSearchQuery = ''; _violStatusFilter = 'All'; _violSeverityFilter = 'All'; _violCurrentPage = 1; });
+    });
+    final refreshButton = _uRefreshBtn(_loadData, 'Refresh Violations');
+    final addBtn = _uBtn(label: 'Log Violation', icon: Icons.add_rounded, onPressed: () => _showViolationFormDialog(null));
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(flex: 3, child: searchField),
-          const SizedBox(width: 12),
-          SizedBox(width: 160, child: statusFilter),
-          const SizedBox(width: 12),
-          SizedBox(width: 180, child: severityFilter),
-          const SizedBox(width: 12),
-          actions,
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          if (w >= 860) {
+            return Row(
+              children: [
+                Expanded(child: searchField),
+                const SizedBox(width: 8),
+                SizedBox(width: 130, child: statusFilter),
+                const SizedBox(width: 8),
+                SizedBox(width: 130, child: severityFilter),
+                const SizedBox(width: 8),
+                resetButton,
+                const SizedBox(width: 6),
+                refreshButton,
+                const Spacer(),
+                addBtn,
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [SizedBox(width: 130, child: statusFilter), SizedBox(width: 130, child: severityFilter), resetButton, refreshButton, addBtn],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -4763,20 +5011,23 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: availableWidth > 1100 ? availableWidth * 0.7 - 32 : availableWidth - 32),
+            constraints: BoxConstraints(minWidth: math.max(availableWidth, 1000)),
             child: DataTable(
               showCheckboxColumn: false,
               headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columnSpacing: 20,
+              dataRowMinHeight: 52,
+              dataRowMaxHeight: 56,
               columns: [
-                DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Violation Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Date & Time', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Location', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Vehicle', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Severity', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Fine Amount', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold))),
+                _dataCol('Driver'),
+                _dataCol('Violation'),
+                _dataCol('Date'),
+                _dataCol('Location'),
+                _dataCol('Vehicle'),
+                _dataCol('Severity'),
+                _dataCol('Status'),
+                _dataCol('Fine'),
+                _dataCol('Actions'),
               ],
               rows: paginated.map((viol) {
                 final isSelected = _selectedViolation != null && _selectedViolation['id'] == viol['id'];
@@ -4849,6 +5100,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     // Driver
                     DataCell(
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           CircleAvatar(
                             radius: 14,
@@ -4860,11 +5112,12 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           ),
                           const SizedBox(width: 8),
                           Column(
+                            mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(drv['name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12)),
-                              Text(drv['driver_code'] ?? '—', style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
+                              Text(drv['name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Text(drv['driver_code'] ?? '—', style: GoogleFonts.inter(color: _textSecondary, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         ],
@@ -4873,11 +5126,12 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     // Violation Type (Type + Description details below it)
                     DataCell(
                       Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(viol['violation_type'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12)),
-                          Text(viol['description'] ?? '—', style: GoogleFonts.inter(color: _textSecondary, fontSize: 10), overflow: TextOverflow.ellipsis),
+                          Text(viol['violation_type'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(viol['description'] ?? '—', style: GoogleFonts.inter(color: _textSecondary, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
@@ -4886,11 +5140,12 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     // Vehicle (number + type below it)
                     DataCell(
                       Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(vehicleText, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12)),
-                          Text(vehicleType, style: GoogleFonts.inter(color: _textSecondary, fontSize: 10)),
+                          Text(vehicleText, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(vehicleType, style: GoogleFonts.inter(color: _textSecondary, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
@@ -4899,7 +5154,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: sevBg, borderRadius: BorderRadius.circular(8)),
-                        child: Text(severity, style: GoogleFonts.inter(color: sevColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                        child: Text(severity, style: GoogleFonts.inter(color: sevColor, fontSize: 10, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     // Status chip
@@ -4907,7 +5162,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(8)),
-                        child: Text(status, style: GoogleFonts.inter(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                        child: Text(status, style: GoogleFonts.inter(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     // Fine Amount
@@ -4920,11 +5175,15 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                           IconButton(
                             icon: const Icon(Icons.edit_outlined, size: 16),
                             tooltip: 'Edit',
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            padding: EdgeInsets.zero,
                             onPressed: () => _showViolationFormDialog(viol),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline, size: 16, color: _red),
                             tooltip: 'Delete',
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            padding: EdgeInsets.zero,
                             onPressed: () => _deleteViolation(viol),
                           ),
                         ],
@@ -5507,6 +5766,19 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     );
   }
 
+  Future<void> _selectTime(BuildContext context, TextEditingController controller) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null) {
+      final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+      final minute = picked.minute.toString().padLeft(2, '0');
+      final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+      controller.text = '${hour.toString().padLeft(2, '0')}:$minute $period';
+    }
+  }
+
   // ──────── Assignment CRUD Dialogs ────────
   void _showAssignmentFormDialog(dynamic existing) {
     final bool isEdit = existing != null;
@@ -5514,8 +5786,9 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
 
     String? selectedDriverId = existing?['driver_id']?.toString();
     String? selectedVehicleId = existing?['vehicle_id']?.toString();
+    String? selectedRouteId = existing?['route_id']?.toString();
     
-    // Normalize shift string (e.g. 'Morning Shift' -> 'Morning')
+    // Normalize shift string
     String rawShift = (existing?['shift'] ?? 'Morning').toString();
     String shift = 'Morning';
     if (rawShift.toLowerCase().contains('evening')) {
@@ -5524,10 +5797,12 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
       shift = 'Night';
     } else if (rawShift.toLowerCase().contains('both')) {
       shift = 'Both';
+    } else if (rawShift.toLowerCase().contains('general')) {
+      shift = 'General';
     }
 
     String status = existing?['status'] ?? 'Active';
-    final allowedStatuses = ['Active', 'Upcoming', 'Ended', 'Completed'];
+    final allowedStatuses = ['Active', 'Upcoming', 'Ended', 'Completed', 'Suspended', 'Inactive'];
     if (!allowedStatuses.contains(status)) {
       status = 'Active';
     }
@@ -5542,7 +5817,17 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
 
     final startDateController = TextEditingController(text: existing?['start_date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now()));
     final endDateController = TextEditingController(text: existing?['end_date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 365))));
-    final notesController = TextEditingController(text: existing?['notes']);
+    final startTimeController = TextEditingController(text: existing?['start_time'] ?? '06:30 AM');
+    final endTimeController = TextEditingController(text: existing?['end_time'] ?? '09:30 AM');
+    final totalStopsController = TextEditingController(text: (existing?['total_stops'] ?? 10).toString());
+    final distanceController = TextEditingController(text: (existing?['distance'] ?? 15.0).toString());
+    final durationController = TextEditingController(text: existing?['estimated_duration'] ?? '45 mins');
+    final createdByController = TextEditingController(text: existing?['created_by'] ?? 'Transport Manager');
+    final notesController = TextEditingController(text: existing?['notes'] ?? '');
+
+    final allDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final rawDaysStr = existing?['days'] as String? ?? 'Mon,Tue,Wed,Thu,Fri';
+    final Set<String> selectedDays = rawDaysStr.split(',').map((d) => d.trim()).where((d) => d.isNotEmpty).toSet();
 
     showDialog(
       context: context,
@@ -5552,7 +5837,7 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
             return AlertDialog(
               title: Text(isEdit ? 'Edit Assignment' : 'Create New Driver Assignment', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
               content: SizedBox(
-                width: 520,
+                width: 650,
                 child: Form(
                   key: formKey,
                   child: ListView(
@@ -5560,47 +5845,92 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                     clipBehavior: Clip.none,
                     shrinkWrap: true,
                     children: [
+                      // Driver selection
                       DropdownButtonFormField<String>(
+                        isExpanded: true,
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
-                        items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name']} (${d['driver_code']})'))).toList(),
+                        items: _drivers.map((d) => DropdownMenuItem<String>(
+                          value: d['id'].toString(),
+                          child: Text('${d['name']} (${d['driver_code'] ?? 'DRV'})', overflow: TextOverflow.ellipsis),
+                        )).toList(),
                         validator: (val) => val == null ? 'Required' : null,
                         onChanged: (val) => setDialogState(() => selectedDriverId = val),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedVehicleId,
-                        decoration: const InputDecoration(labelText: 'Select Vehicle / Route *', border: OutlineInputBorder()),
-                        items: _vehicles.map((v) {
-                          final label = '${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} - ${v['route_name'] ?? 'Route'}';
-                          return DropdownMenuItem<String>(value: v['id'].toString(), child: Text(label));
-                        }).toList(),
-                        validator: (val) => val == null ? 'Required' : null,
-                        onChanged: (val) => setDialogState(() => selectedVehicleId = val),
-                      ),
-                      const SizedBox(height: 12),
+                      // Vehicle and Route selection row
                       Row(
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
+                              decoration: const InputDecoration(labelText: 'Assign Vehicle *', border: OutlineInputBorder()),
+                              items: _vehicles.map((v) {
+                                final label = '${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} (${v['vehicle_type'] ?? 'Bus'})';
+                                return DropdownMenuItem<String>(
+                                  value: v['id'].toString(),
+                                  child: Text(label, overflow: TextOverflow.ellipsis),
+                                );
+                              }).toList(),
+                              onChanged: (val) => setDialogState(() => selectedVehicleId = val),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
+                              decoration: const InputDecoration(labelText: 'Assign Route / Trip', border: OutlineInputBorder()),
+                              items: _routes.map((r) {
+                                final label = '${r['route_name'] ?? 'Route'} (${r['shift'] ?? 'General'})';
+                                return DropdownMenuItem<String>(
+                                  value: r['id'].toString(),
+                                  child: Text(label, overflow: TextOverflow.ellipsis),
+                                );
+                              }).toList(),
+                              onChanged: (val) => setDialogState(() => selectedRouteId = val),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Assignment Type, Shift, Status
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: ['Route', 'Trip', 'Special', 'Backup'].contains(assignmentType) ? assignmentType : 'Route',
+                              decoration: const InputDecoration(labelText: 'Assignment Type *', border: OutlineInputBorder()),
+                              items: ['Route', 'Trip', 'Special', 'Backup'].map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
+                              onChanged: (val) => setDialogState(() => assignmentType = val!),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
                               initialValue: shift,
                               decoration: const InputDecoration(labelText: 'Shift *', border: OutlineInputBorder()),
-                              items: ['Morning', 'Evening', 'Both', 'Night'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                              items: ['Morning', 'Evening', 'Both', 'Night', 'General'].map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
                               onChanged: (val) => setDialogState(() => shift = val!),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
+                              isExpanded: true,
                               initialValue: status,
                               decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
-                              items: ['Active', 'Upcoming', 'Ended', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                              items: ['Active', 'Upcoming', 'Ended', 'Completed', 'Suspended', 'Inactive'].map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
                               onChanged: (val) => setDialogState(() => status = val!),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
+                      // Dates row
                       Row(
                         children: [
                           Expanded(
@@ -5628,6 +5958,91 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         ],
                       ),
                       const SizedBox(height: 12),
+                      // Times row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: startTimeController,
+                              decoration: InputDecoration(
+                                labelText: 'Start Time *',
+                                border: const OutlineInputBorder(),
+                                suffixIcon: IconButton(icon: const Icon(Icons.access_time, size: 16), onPressed: () => _selectTime(context, startTimeController)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: endTimeController,
+                              decoration: InputDecoration(
+                                labelText: 'End Time *',
+                                border: const OutlineInputBorder(),
+                                suffixIcon: IconButton(icon: const Icon(Icons.access_time, size: 16), onPressed: () => _selectTime(context, endTimeController)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Days selector
+                      Text('Operating Days', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: _textPrimary)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        children: allDays.map((day) {
+                          final isSel = selectedDays.contains(day);
+                          return FilterChip(
+                            label: Text(day, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSel ? Colors.white : _textPrimary)),
+                            selected: isSel,
+                            selectedColor: _accent,
+                            onSelected: (val) {
+                              setDialogState(() {
+                                if (val) {
+                                  selectedDays.add(day);
+                                } else {
+                                  selectedDays.remove(day);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                      // Route Summary info metrics
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: totalStopsController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(labelText: 'Total Stops', border: OutlineInputBorder()),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: distanceController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(labelText: 'Distance (km)', border: OutlineInputBorder()),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: durationController,
+                              decoration: const InputDecoration(labelText: 'Est. Duration', border: OutlineInputBorder(), hintText: '45 mins'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Created By & Notes
+                      TextFormField(
+                        controller: createdByController,
+                        decoration: const InputDecoration(labelText: 'Created By / Manager', border: OutlineInputBorder()),
+                      ),
+                      const SizedBox(height: 12),
                       TextFormField(
                         controller: notesController,
                         maxLines: 2,
@@ -5646,12 +6061,19 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
                         "school_id": widget.schoolId ?? '11111111-1111-1111-1111-111111111111',
                         "driver_id": selectedDriverId,
                         "vehicle_id": selectedVehicleId,
-                        "route_id": selectedVehicleId,
+                        "route_id": selectedRouteId,
                         "shift": shift,
                         "status": status,
                         "assignment_type": assignmentType,
                         "start_date": startDateController.text,
                         "end_date": endDateController.text.isNotEmpty ? endDateController.text : null,
+                        "start_time": startTimeController.text,
+                        "end_time": endTimeController.text,
+                        "days": selectedDays.join(','),
+                        "total_stops": int.tryParse(totalStopsController.text) ?? 10,
+                        "distance": double.tryParse(distanceController.text) ?? 15.0,
+                        "estimated_duration": durationController.text.isNotEmpty ? durationController.text : '45 mins',
+                        "created_by": createdByController.text.isNotEmpty ? createdByController.text : 'Transport Manager',
                         "notes": notesController.text.isNotEmpty ? notesController.text : null,
                       };
                       try {

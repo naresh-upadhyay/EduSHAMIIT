@@ -11,6 +11,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:math' as math;
 import 'package:edu_shamiit_admin/core/file_download_helper.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 
 class RouteManagementScreen extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -100,13 +103,13 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   String _tripsDriverFilter = 'All';
   String _tripsTypeFilter = 'All';
   String _tripsStatusFilter = 'All';
-  DateTime? _tripsStartDate = DateTime(2024, 5, 1);
-  DateTime? _tripsEndDate = DateTime(2024, 5, 31);
+  DateTime? _tripsStartDate;
+  DateTime? _tripsEndDate;
   final ScrollController _tripsTableScrollController = ScrollController();
   int _tripsCurrentPage = 1;
   int _tripsPageSize = 8;
   dynamic _selectedTrip;
-  DateTime _calendarTargetDate = DateTime(2024, 5, 1);
+  DateTime _calendarTargetDate = DateTime.now();
 
   // --- ASSIGN BUS TAB STATE VARIABLES ---
   List<dynamic> _assignments = [];
@@ -167,17 +170,30 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   final ScrollController _reportsTableScrollController = ScrollController();
 
 
+  final Set<int> _loadedTabs = {};
+  final Set<int> _visitedTabs = {};
+
   @override
   void initState() {
     super.initState();
-    // 7 tabs as per design: Overview, Route Management, Trips & Schedule, Assign Bus, Live Tracking, Route Reports, Stops
-    _tabController = TabController(length: 7, vsync: this, initialIndex: widget.initialIndex);
+    final initIdx = widget.initialIndex.clamp(0, 5);
+    _visitedTabs.add(initIdx);
+    // 6 tabs as per design: Overview, Route Management, Trips & Schedule, Live Tracking, Route Reports, Stops
+    _tabController = TabController(length: 6, vsync: this, initialIndex: initIdx);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
+      if (mounted && !_tabController.indexIsChanging) {
+        _loadTabIfNeeded(_tabController.index);
+        if (kIsWeb) {
+          Future.microtask(() {
+            try {
+              html.window.history.replaceState(null, '', '/admin/route-management?tab=${_tabController.index}');
+              html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+            } catch (_) {}
+          });
+        }
         setState(() {});
       }
     });
-    _loadData();
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -209,29 +225,30 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         _trackingCurrentPage = 1;
       });
     });
+    _loadTabIfNeeded(widget.initialIndex.clamp(0, 5), forceReload: true);
     _startAutoRefreshTimer();
-  }
-
-  @override
-  void didUpdateWidget(RouteManagementScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.initialIndex != oldWidget.initialIndex) {
-      _tabController.animateTo(widget.initialIndex);
-    }
   }
 
   void _startAutoRefreshTimer() {
     _autoRefreshTimer?.cancel();
     _autoRefreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        if (_tabController.index == 4) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_tabController.index == 3) {
+        setState(() {
+          if (_autoRefreshSeconds > 1) {
+            _autoRefreshSeconds--;
+          } else {
+            _autoRefreshSeconds = 15;
+            _loadLiveTrackingData();
+          }
+        });
+      } else {
+        if (_autoRefreshSeconds != 15) {
           setState(() {
-            if (_autoRefreshSeconds <= 1) {
-              _autoRefreshSeconds = 15;
-              _loadLiveTrackingData();
-            } else {
-              _autoRefreshSeconds--;
-            }
+            _autoRefreshSeconds = 15;
           });
         }
       }
@@ -240,44 +257,52 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
   @override
   void dispose() {
-    _routeTableScrollController.dispose();
-    _stopsTableScrollController.dispose();
-    _overviewTableScrollController.dispose();
-    _tripsTableScrollController.dispose();
-    _assignTableScrollController.dispose();
+    _autoRefreshTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     _stopsSearchController.dispose();
     _tripsSearchController.dispose();
     _assignSearchController.dispose();
-    _assignNotesController.dispose();
     _trackingSearchController.dispose();
-    _autoRefreshTimer?.cancel();
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(RouteManagementScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIndex != oldWidget.initialIndex) {
+      _tabController.animateTo(widget.initialIndex.clamp(0, 5));
+      _loadTabIfNeeded(widget.initialIndex.clamp(0, 5));
+    }
+  }
+
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    await _loadTabIfNeeded(_tabController.index, forceReload: true);
+  }
+
+  Future<void> _loadTabIfNeeded(int tabIndex, {bool forceReload = false}) async {
+    if (!mounted) return;
+    if (!forceReload && _loadedTabs.contains(tabIndex)) return;
+
+    final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
+    if (_loadedTabs.isEmpty) {
+      setState(() => _isLoading = true);
+    }
+
     try {
-      final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
-      final routesPath = schoolId != null ? '/transport/routes?school_id=$schoolId' : '/transport/routes';
-      final vehiclesPath = schoolId != null ? '/transport/vehicles?page_size=100&school_id=$schoolId' : '/transport/vehicles?page_size=100';
-      final driversPath = schoolId != null ? '/transport/drivers?page_size=100&school_id=$schoolId' : '/transport/drivers?page_size=100';
-      final stopsPath = schoolId != null ? '/transport/stops?page_size=100&school_id=$schoolId' : '/transport/stops?page_size=100';
-      final assignmentsPath = schoolId != null ? '/transport/drivers/assignments?school_id=$schoolId' : '/transport/drivers/assignments';
+      switch (tabIndex) {
+        case 0: // Overview
+        case 1: // Route List
+          final routesPath = schoolId != null ? '/transport/routes?school_id=$schoolId' : '/transport/routes';
+          final vehiclesPath = schoolId != null ? '/transport/vehicles?page_size=100&school_id=$schoolId' : '/transport/vehicles?page_size=100';
+          final driversPath = schoolId != null ? '/transport/drivers?page_size=100&school_id=$schoolId' : '/transport/drivers?page_size=100';
+          final results = await Future.wait([
+            ApiService().get(routesPath, useCache: false),
+            ApiService().get(vehiclesPath, useCache: false),
+            ApiService().get(driversPath, useCache: false),
+          ]);
 
-      final results = await Future.wait([
-        ApiService().get(routesPath, useCache: false),
-        ApiService().get(vehiclesPath, useCache: false),
-        ApiService().get(driversPath, useCache: false),
-        ApiService().get(stopsPath, useCache: false),
-        ApiService().get(assignmentsPath, useCache: false),
-      ]);
-
-      if (mounted) {
-        setState(() {
           _routes = results[0]['data'] ?? [];
-          
           final vehData = results[1]['data'];
           if (vehData is Map && vehData['vehicles'] is List) {
             _vehicles = vehData['vehicles'];
@@ -286,42 +311,41 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           } else {
             _vehicles = [];
           }
-
           _drivers = results[2]['data'] ?? [];
-          _stops = results[3]['data']?['stops'] ?? [];
-          _assignments = results[4]['data'] ?? [];
-          
-          // Pre-select first route if available
+
           if (_routes.isNotEmpty) {
-            _selectedRoute = _routes[0];
-            _selectedPreviewRoute = _routes[0];
+            final match = _routes.firstWhere((r) => r['id'] == _selectedRoute?['id'], orElse: () => null);
+            _selectedRoute = match ?? _routes.first;
+            _selectedPreviewRoute = _selectedRoute;
             _loadStopsForRoute(_selectedRoute['id']);
             _loadStopsPreviewRoute(_selectedPreviewRoute['id']);
-          } else {
-            _selectedRoute = null;
-            _selectedRouteStops = [];
-            _selectedPreviewRoute = null;
-            _stopsPreviewRouteStops = [];
           }
+          break;
 
-          // Pre-select first stop if available
-          if (_stops.isNotEmpty) {
+        case 2: // Trips & Schedule
+          await _loadTrips();
+          break;
+
+        case 3: // Live Tracking
+          await _loadLiveTrackingData();
+          break;
+
+        case 4: // Route Reports
+          await _loadRouteReports();
+          break;
+
+        case 5: // Stops
+          await _loadStops();
+          if (_stops.isNotEmpty && _selectedStop == null) {
             _selectedStop = _stops[0];
           }
-
-          _isLoading = false;
-        });
-        _loadTrips();
-        _loadLiveTrackingData();
-        _loadRouteReports();
+          break;
       }
+      _loadedTabs.add(tabIndex);
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load routes: $e'), backgroundColor: _red),
-        );
-      }
+      debugPrint('Error loading route tab $tabIndex: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -329,10 +353,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     setState(() => _isLoadingStopsTab = true);
     try {
       final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
-      String path = '/transport/stops?page_size=100';
+      String path = '/transport/stops?page_size=200&include_deleted=true';
       if (schoolId != null) path += '&school_id=$schoolId';
       if (_stopsRouteFilter != 'All') path += '&route_id=$_stopsRouteFilter';
-      if (_stopsStatusFilter != 'All') path += '&status=$_stopsStatusFilter';
       if (_stopsTypeFilter != 'All') path += '&stop_type=$_stopsTypeFilter';
       if (_stopsSearchQuery.isNotEmpty) path += '&search=${Uri.encodeComponent(_stopsSearchQuery)}';
 
@@ -340,9 +363,9 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       if (mounted) {
         setState(() {
           _stops = res['data']?['stops'] ?? [];
-          // Pre-select first stop if none currently selected
+          // Pre-select first non-deleted stop if none currently selected
           if (_stops.isNotEmpty && (_selectedStop == null || !_stops.any((s) => s['id'] == _selectedStop['id']))) {
-            _selectedStop = _stops[0];
+            _selectedStop = _stops.firstWhere((s) => s['status'] != 'Deleted', orElse: () => _stops[0]);
           }
           _isLoadingStopsTab = false;
         });
@@ -496,7 +519,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Delete Stop', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete ${stop['stop_code']} - ${stop['stop_name']}?'),
+        content: Text('Are you sure you want to delete ${stop['stop_code'] ?? 'this stop'} - ${stop['stop_name']}?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           ElevatedButton(
@@ -510,15 +533,25 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
     if (confirm == true) {
       try {
-        await ApiService().delete('/transport/stops/${stop['id']}');
+        final stopId = stop['id'];
+        await ApiService().delete('/transport/stops/$stopId');
         if (!mounted) return;
+
+        setState(() {
+          _stops.removeWhere((s) => s['id'] == stopId);
+          if (_selectedStop?['id'] == stopId) {
+            _selectedStop = _stops.isNotEmpty ? _stops[0] : null;
+          }
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Stop deleted successfully'), backgroundColor: _green),
         );
+
         _loadData();
         _loadStops();
         if (_selectedPreviewRoute != null) {
-          _loadStopsPreviewRoute(_selectedPreviewRoute['id']);
+          _loadStopsPreviewRoute(_selectedPreviewRoute['id'].toString());
         }
       } catch (e) {
         if (!mounted) return;
@@ -1346,6 +1379,76 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     );
   }
 
+  Widget _buildTabItem(IconData icon, String text) {
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 8),
+          Text(text),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: TabBar(
+          controller: _tabController,
+          onTap: (index) {
+            if (_tabController.index != index) {
+              _tabController.animateTo(index);
+            }
+          },
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          padding: EdgeInsets.zero,
+          labelColor: const Color(0xFF4F46E5),
+          unselectedLabelColor: const Color(0xFF475569),
+          indicatorColor: const Color(0xFF4F46E5),
+          indicatorWeight: 2.5,
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+          tabs: [
+            _buildTabItem(Icons.grid_view_outlined, 'Overview'),
+            _buildTabItem(Icons.alt_route_rounded, 'Route Management'),
+            _buildTabItem(Icons.schedule_rounded, 'Trips & Schedule'),
+            _buildTabItem(Icons.my_location_rounded, 'Live Tracking'),
+            _buildTabItem(Icons.assessment_outlined, 'Route Reports'),
+            _buildTabItem(Icons.place_rounded, 'Stops'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabContent() {
+    final activeIdx = _tabController.index.clamp(0, 5);
+    _visitedTabs.add(activeIdx);
+
+    return IndexedStack(
+      index: activeIdx,
+      children: [
+        _visitedTabs.contains(0) ? _buildOverviewTab() : const SizedBox.shrink(),
+        _visitedTabs.contains(1) ? _buildRouteManagementTab() : const SizedBox.shrink(),
+        _visitedTabs.contains(2) ? _buildTripsTab() : const SizedBox.shrink(),
+        _visitedTabs.contains(3) ? _buildLiveTrackingTab() : const SizedBox.shrink(),
+        _visitedTabs.contains(4) ? _buildRouteReportsTab() : const SizedBox.shrink(),
+        _visitedTabs.contains(5) ? _buildStopsTab() : const SizedBox.shrink(),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -1361,60 +1464,22 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
             child: _buildHeader(),
           ),
-          const Divider(height: 1, color: _border),
+          const SizedBox(height: 20),
           
-          // Navigation TabBar
-          Container(
-            color: Colors.white,
+          // Navigation TabBar Card
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                padding: EdgeInsets.zero,
-                labelColor: _accent,
-                unselectedLabelColor: _textSecondary,
-                indicatorColor: _accent,
-                indicatorWeight: 2.5,
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
-                unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-                tabs: const [
-                  Tab(text: 'Overview'),
-                  Tab(text: 'Route Management'),
-                  Tab(text: 'Trips & Schedule'),
-                  Tab(text: 'Assign Bus'),
-                  Tab(text: 'Live Tracking'),
-                  Tab(text: 'Route Reports'),
-                  Tab(text: 'Stops'),
-                ],
-              ),
-            ),
+            child: _buildTabBar(),
           ),
-          const Divider(height: 1, color: _border),
+          const SizedBox(height: 16),
 
-          // Tab views
+          // Active Tab view
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildOverviewTab(),
-                _buildRouteManagementTab(),
-                _buildTripsTab(),
-                _buildAssignBusTab(),
-                _buildLiveTrackingTab(),
-                _buildRouteReportsTab(),
-                _buildStopsTab(),
-              ],
-            ),
+            child: _buildTabContent(),
           ),
         ],
       ),
@@ -1422,40 +1487,87 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
   Widget _buildHeader() {
+    String title = 'Overview';
+    String desc = 'Get a real-time overview of your entire route operations and performance.';
+
+    switch (_tabController.index) {
+      case 0:
+        title = 'Overview';
+        desc = 'Get a real-time overview of your entire route operations and performance.';
+        break;
+      case 1:
+        title = 'Route Management';
+        desc = 'Create, manage and monitor all routes, stops and schedules.';
+        break;
+      case 2:
+        title = 'Trips & Schedule';
+        desc = 'Track live bus trips, departure timings, and driver schedules.';
+        break;
+      case 3:
+        title = 'Live Tracking';
+        desc = 'Real-time GPS vehicle location tracking and route telemetry.';
+        break;
+      case 4:
+        title = 'Route Reports';
+        desc = 'Comprehensive route analytics, delay metrics, and distance logs.';
+        break;
+      case 5:
+        title = 'Stops Management';
+        desc = 'Manage bus stop locations, pickup points, and sequence orders.';
+        break;
+    }
+
+    final now = DateTime.now();
+    final dateStr = 'Today, ${now.day} ${_getMonthName(now.month)} ${now.year}';
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Left Title block
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.directions_bus_rounded, size: 12, color: _textSecondary),
-                  const SizedBox(width: 4),
-                  Text('Fleet Management', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                  const Icon(Icons.chevron_right, size: 14, color: _textSecondary),
-                  Text('Route Management', style: GoogleFonts.inter(fontSize: 11, color: _accent, fontWeight: FontWeight.w600)),
-                ],
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: _textPrimary,
+                ),
               ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
-                    child: const Icon(Icons.map_rounded, color: _accent, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Route Management', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: _textPrimary)),
-                      Text('Create, manage and monitor all routes, stops and schedules.', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
-                    ],
-                  ),
-                ],
+              const SizedBox(height: 4),
+              Text(
+                desc,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: _textSecondary,
+                ),
               ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
+              const SizedBox(width: 8),
+              Text(
+                dateStr,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF64748B)),
             ],
           ),
         ),
@@ -1464,56 +1576,82 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
   // --- 1. OVERVIEW TAB ---
+  // --- 1. OVERVIEW TAB HELPERS & COMPONENT IMPLEMENTATION ---
   String _getMonthName(int month) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     if (month >= 1 && month <= 12) return months[month - 1];
     return '';
   }
 
+  String _extractArea(Map<String, dynamic> r) {
+    if (r['area_zone'] != null && r['area_zone'].toString().isNotEmpty) {
+      return r['area_zone'].toString();
+    }
+    if (r['area'] != null && r['area'].toString().isNotEmpty) {
+      return r['area'].toString();
+    }
+    if (r['start_location'] != null && r['start_location'].toString().isNotEmpty) {
+      return r['start_location'].toString();
+    }
+    final name = (r['route_name'] ?? '').toString();
+    if (name.contains('(')) {
+      return name.split('(').first.trim();
+    }
+    return name.isNotEmpty ? name : 'General Zone';
+  }
+
+  String _extractStatus(Map<String, dynamic> r) {
+    final status = (r['status'] ?? '').toString().toLowerCase();
+    if (status == 'active') return 'Active';
+    if (status == 'inactive') return 'Inactive';
+    if (status == 'draft') return 'Draft';
+    return 'Active';
+  }
+
+  String _extractType(Map<String, dynamic> r) {
+    final type = (r['type'] ?? r['route_type'] ?? '').toString().toLowerCase();
+    if (type.contains('pickup') && type.contains('drop')) return 'Pickup & Drop';
+    if (type.contains('pickup')) return 'Pickup';
+    if (type.contains('drop')) return 'Drop';
+    return 'Pickup & Drop';
+  }
+
   Widget _buildOverviewTab() {
-    // Filter routes based on overview filters
+    // Robust filtering logic matching any route schema
     final filtered = _routes.where((r) {
-      // Filter by Area/Zone
-      if (_overviewAreaFilter != 'All') {
-        final area = (r['area_zone'] ?? '').toString().toLowerCase();
-        if (!area.contains(_overviewAreaFilter.toLowerCase())) {
-          return false;
-        }
+      final area = _extractArea(r).toLowerCase();
+      final type = _extractType(r).toLowerCase();
+      final status = _extractStatus(r).toLowerCase();
+
+      if (_overviewAreaFilter != 'All' && !area.contains(_overviewAreaFilter.toLowerCase())) {
+        return false;
       }
-      // Filter by Type
-      if (_overviewTypeFilter != 'All') {
-        final type = (r['type'] ?? '').toString().toLowerCase();
-        if (type != _overviewTypeFilter.toLowerCase()) {
-          return false;
-        }
+      if (_overviewTypeFilter != 'All' && !type.contains(_overviewTypeFilter.toLowerCase())) {
+        return false;
       }
-      // Filter by Status
-      if (_overviewStatusFilter != 'All') {
-        final status = (r['status'] ?? '').toString().toLowerCase();
-        if (status != _overviewStatusFilter.toLowerCase()) {
-          return false;
-        }
+      if (_overviewStatusFilter != 'All' && status != _overviewStatusFilter.toLowerCase()) {
+        return false;
       }
       return true;
     }).toList();
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 1. KPI Metrics
           _buildOverviewMetrics(filtered),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           
           // 2. Filters
           _buildOverviewFilters(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           
           // 3. Charts
           _buildOverviewCharts(filtered),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           
           // 4. Split Pane Details (Recent Routes & Sidebar Summary)
           _buildOverviewSplitLayout(filtered),
@@ -1524,30 +1662,50 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
   Widget _buildOverviewMetrics(List<dynamic> filteredRoutes) {
     final totalRoutes = filteredRoutes.length;
-    final activeRoutes = filteredRoutes.where((r) => r['status'] == 'Active').length;
-    final double totalDistance = filteredRoutes.fold(0.0, (sum, r) => sum + (double.tryParse((r['distance_km'] ?? 0).toString()) ?? 0.0));
-    final int totalStops = filteredRoutes.fold(0, (sum, r) => sum + (int.tryParse((r['stops_count'] ?? 0).toString()) ?? 0));
-    final assignedBuses = filteredRoutes.where((r) => r['bus_routes'] != null || r['bus_id'] != null).length;
-    final assignedDrivers = filteredRoutes.where((r) => r['drivers'] != null || r['driver_id'] != null).length;
+    final activeRoutes = filteredRoutes.where((r) => _extractStatus(r) == 'Active').length;
+    final double totalDistance = filteredRoutes.fold(0.0, (sum, r) => sum + (double.tryParse((r['distance_km'] ?? r['distance'] ?? 0).toString()) ?? 0.0));
+    final int totalStops = filteredRoutes.fold(0, (sum, r) => sum + (int.tryParse((r['stops_count'] ?? r['total_stops'] ?? (r['stops'] as List?)?.length ?? 0).toString()) ?? 0));
+    final assignedBuses = filteredRoutes.where((r) => r['bus_number'] != null || r['vehicle_id'] != null || r['bus_routes'] != null || r['bus_id'] != null).length;
+    final assignedDrivers = filteredRoutes.where((r) => r['driver_name'] != null || r['driver_id'] != null || r['drivers'] != null).length;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double cardWidth = (constraints.maxWidth - (5 * 16)) / 6;
-        final double finalWidth = cardWidth > 140 ? cardWidth : 140;
-        
-        return Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            SizedBox(width: finalWidth, child: _buildKPICard('Total Routes', '$totalRoutes', 'All Routes', Icons.alt_route, _accent)),
-            SizedBox(width: finalWidth, child: _buildKPICard('Active Routes', '$activeRoutes', '${totalRoutes > 0 ? (activeRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.check_circle_outline, _green)),
-            SizedBox(width: finalWidth, child: _buildKPICard('Total Distance', '${totalDistance.toStringAsFixed(1)} km', 'All Routes', Icons.straighten, _orange)),
-            SizedBox(width: finalWidth, child: _buildKPICard('Total Stops', '$totalStops', 'All Routes', Icons.location_on_outlined, _accent)),
-            SizedBox(width: finalWidth, child: _buildKPICard('Assigned Buses', '$assignedBuses', '${totalRoutes > 0 ? (assignedBuses / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.directions_bus_outlined, _blue)),
-            SizedBox(width: finalWidth, child: _buildKPICard('Assigned Drivers', '$assignedDrivers', '${totalRoutes > 0 ? (assignedDrivers / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.person_outline_rounded, _green)),
-          ],
-        );
-      }
+        final double width = constraints.maxWidth;
+        final cards = [
+          _buildKPICard('Total Routes', '$totalRoutes', 'All Routes', Icons.directions_bus_rounded, const Color(0xFF4F46E5)),
+          _buildKPICard('Active Routes', '$activeRoutes', '${totalRoutes > 0 ? (activeRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.check_circle_rounded, const Color(0xFF10B981)),
+          _buildKPICard('Total Distance', '${totalDistance.toStringAsFixed(1)} km', 'All Routes', Icons.straighten_rounded, const Color(0xFFF59E0B)),
+          _buildKPICard('Total Stops', '$totalStops', 'All Routes', Icons.location_on_rounded, const Color(0xFF8B5CF6)),
+          _buildKPICard('Assigned Buses', '$assignedBuses', '${totalRoutes > 0 ? (assignedBuses / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.directions_bus_filled_rounded, const Color(0xFF3B82F6)),
+          _buildKPICard('Assigned Drivers', '$assignedDrivers', '${totalRoutes > 0 ? (assignedDrivers / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.person_rounded, const Color(0xFF10B981)),
+        ];
+
+        if (width >= 950) {
+          return Row(
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[1]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[2]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[3]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[4]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[5]),
+            ],
+          );
+        } else {
+          final double cardW = (width - 24) / 3;
+          final double finalW = cardW > 160 ? cardW : 160;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: cards.map((c) => SizedBox(width: finalW, child: c)).toList(),
+          );
+        }
+      },
     );
   }
 
@@ -1555,154 +1713,206 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final startStr = "${_overviewDateRange.start.day.toString().padLeft(2, '0')} ${_getMonthName(_overviewDateRange.start.month)} ${_overviewDateRange.start.year}";
     final endStr = "${_overviewDateRange.end.day.toString().padLeft(2, '0')} ${_getMonthName(_overviewDateRange.end.month)} ${_overviewDateRange.end.year}";
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                width: 180,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: _border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _overviewAreaFilter,
-                    isDense: true,
-                    icon: const Icon(Icons.arrow_drop_down, size: 16, color: _textSecondary),
-                    items: ['All', 'Noida Sector 62', 'Noida Sector 122', 'Greater Noida West', 'Yamuna Expressway', 'Dadri', 'Knowledge Park 3'].map((area) {
-                      return DropdownMenuItem<String>(
-                        value: area,
-                        child: Text(area == 'All' ? 'All Areas / Zones' : area, style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _overviewAreaFilter = val);
-                      }
-                    },
-                  ),
-                ),
-              ),
-              Container(
-                width: 150,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: _border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _overviewTypeFilter,
-                    isDense: true,
-                    icon: const Icon(Icons.arrow_drop_down, size: 16, color: _textSecondary),
-                    items: ['All', 'Pickup', 'Drop', 'Pickup & Drop'].map((t) {
-                      return DropdownMenuItem<String>(
-                        value: t,
-                        child: Text(t == 'All' ? 'All Route Types' : t, style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _overviewTypeFilter = val);
-                      }
-                    },
-                  ),
-                ),
-              ),
-              Container(
-                width: 120,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: _border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _overviewStatusFilter,
-                    isDense: true,
-                    icon: const Icon(Icons.arrow_drop_down, size: 16, color: _textSecondary),
-                    items: ['All', 'Active', 'Inactive', 'Draft'].map((s) {
-                      return DropdownMenuItem<String>(
-                        value: s,
-                        child: Text(s == 'All' ? 'All Status' : s, style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _overviewStatusFilter = val);
-                      }
-                    },
-                  ),
-                ),
-              ),
-              InkWell(
-                onTap: () async {
-                  final range = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                    lastDate: DateTime.now(),
-                    initialDateRange: _overviewDateRange,
+    final extractedAreas = _routes.map((r) => _extractArea(r)).where((a) => a.isNotEmpty).toSet().toList();
+    final dynamicAreas = ['All', ...extractedAreas];
+
+    if (_overviewAreaFilter != 'All' && !dynamicAreas.contains(_overviewAreaFilter)) {
+      _overviewAreaFilter = 'All';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 850;
+
+          final areaDropdown = Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _overviewAreaFilter,
+                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                items: dynamicAreas.map((area) {
+                  return DropdownMenuItem<String>(
+                    value: area,
+                    child: Text(area == 'All' ? 'All Areas / Zones' : area),
                   );
-                  if (range != null) {
-                    setState(() => _overviewDateRange = range);
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _overviewAreaFilter = val);
                   }
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: _border),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: _textPrimary)),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.calendar_today_outlined, size: 12, color: _textSecondary),
-                    ],
-                  ),
-                ),
               ),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: _border)),
-                ),
-                icon: const Icon(Icons.filter_list, size: 14, color: _textSecondary),
-                label: Text('Filters', style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.w600)),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, size: 18, color: _textSecondary),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: _border),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _overviewAreaFilter = 'All';
-                    _overviewTypeFilter = 'All';
-                    _overviewStatusFilter = 'All';
-                  });
+            ),
+          );
+
+          final typeDropdown = Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _overviewTypeFilter,
+                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                items: ['All', 'Pickup', 'Drop', 'Pickup & Drop'].map((t) {
+                  return DropdownMenuItem<String>(
+                    value: t,
+                    child: Text(t == 'All' ? 'All Route Types' : t),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _overviewTypeFilter = val);
+                  }
                 },
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          );
+
+          final statusDropdown = Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _overviewStatusFilter,
+                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
+                items: ['All', 'Active', 'Inactive', 'Draft'].map((s) {
+                  return DropdownMenuItem<String>(
+                    value: s,
+                    child: Text(s == 'All' ? 'All Status' : s),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _overviewStatusFilter = val);
+                  }
+                },
+              ),
+            ),
+          );
+
+          final datePickerWidget = InkWell(
+            onTap: () async {
+              final range = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                lastDate: DateTime.now(),
+                initialDateRange: _overviewDateRange,
+              );
+              if (range != null) {
+                setState(() => _overviewDateRange = range);
+              }
+            },
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
+                ],
+              ),
+            ),
+          );
+
+          final resetButton = SizedBox(
+            height: 38,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _overviewAreaFilter = 'All';
+                  _overviewTypeFilter = 'All';
+                  _overviewStatusFilter = 'All';
+                });
+              },
+              icon: const Icon(Icons.filter_list_rounded, size: 15),
+              label: const Text('Reset'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEEF2FF),
+                foregroundColor: const Color(0xFF4F46E5),
+                elevation: 0,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          );
+
+          final refreshButton = IconButton(
+            onPressed: _loadData,
+            icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+            tooltip: 'Refresh Overview Data',
+          );
+
+          if (isWide) {
+            return Row(
+              children: [
+                areaDropdown,
+                const SizedBox(width: 10),
+                typeDropdown,
+                const SizedBox(width: 10),
+                statusDropdown,
+                const SizedBox(width: 10),
+                datePickerWidget,
+                const SizedBox(width: 10),
+                resetButton,
+                const SizedBox(width: 8),
+                refreshButton,
+              ],
+            );
+          } else {
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                areaDropdown,
+                typeDropdown,
+                statusDropdown,
+                datePickerWidget,
+                resetButton,
+                refreshButton,
+              ],
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -1716,12 +1926,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             flex: isNarrow ? 0 : 1,
             child: _buildRouteStatusDonutCard(filteredRoutes),
           ),
-          if (!isNarrow) const SizedBox(width: 16),
+          if (!isNarrow) const SizedBox(width: 12),
           Expanded(
             flex: isNarrow ? 0 : 1,
             child: _buildRoutesByAreaBarCard(filteredRoutes),
           ),
-          if (!isNarrow) const SizedBox(width: 16),
+          if (!isNarrow) const SizedBox(width: 12),
           Expanded(
             flex: isNarrow ? 0 : 1,
             child: _buildRouteTypeDonutCard(filteredRoutes),
@@ -1732,7 +1942,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: children.map((c) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: 12),
               child: SizedBox(height: 280, child: c is Expanded ? c.child : c),
             )).toList(),
           );
@@ -1748,23 +1958,30 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
   Widget _buildRouteStatusDonutCard(List<dynamic> filteredRoutes) {
     final total = filteredRoutes.length;
-    final active = filteredRoutes.where((r) => r['status'] == 'Active').length;
-    final inactive = filteredRoutes.where((r) => r['status'] == 'Inactive').length;
-    final draft = filteredRoutes.where((r) => r['status'] == 'Draft').length;
+    final active = filteredRoutes.where((r) => _extractStatus(r) == 'Active').length;
+    final inactive = filteredRoutes.where((r) => _extractStatus(r) == 'Inactive').length;
+    final draft = filteredRoutes.where((r) => _extractStatus(r) == 'Draft').length;
 
     return Container(
       height: 280,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Route Status Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 20),
+          Text('Route Status Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 16),
           Expanded(
             child: Row(
               children: [
@@ -1790,8 +2007,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary, height: 1.1)),
-                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: _textSecondary, fontWeight: FontWeight.w500)),
+                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A), height: 1.1)),
+                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF64748B), fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -1821,23 +2038,30 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
   Widget _buildRouteTypeDonutCard(List<dynamic> filteredRoutes) {
     final total = filteredRoutes.length;
-    final pickup = filteredRoutes.where((r) => r['type'] == 'Pickup').length;
-    final drop = filteredRoutes.where((r) => r['type'] == 'Drop').length;
-    final both = filteredRoutes.where((r) => r['type'] == 'Pickup & Drop').length;
+    final pickup = filteredRoutes.where((r) => _extractType(r) == 'Pickup').length;
+    final drop = filteredRoutes.where((r) => _extractType(r) == 'Drop').length;
+    final both = filteredRoutes.where((r) => _extractType(r) == 'Pickup & Drop').length;
 
     return Container(
       height: 280,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Route Type Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 20),
+          Text('Route Type Distribution', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 16),
           Expanded(
             child: Row(
               children: [
@@ -1863,8 +2087,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary, height: 1.1)),
-                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: _textSecondary, fontWeight: FontWeight.w500)),
+                            Text('$total', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A), height: 1.1)),
+                            Text('Total Routes', style: GoogleFonts.inter(fontSize: 8, color: const Color(0xFF64748B), fontWeight: FontWeight.w500)),
                           ],
                         ),
                       ),
@@ -1898,10 +2122,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
-        Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: _textPrimary)),
+        Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
         const Spacer(),
-        Text('$val ', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: _textPrimary)),
-        Text('($pct%)', style: GoogleFonts.inter(fontSize: 9, color: _textSecondary)),
+        Text('$val ', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
+        Text('($pct%)', style: GoogleFonts.inter(fontSize: 9, color: const Color(0xFF64748B))),
       ],
     );
   }
@@ -1909,92 +2133,82 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   Widget _buildRoutesByAreaBarCard(List<dynamic> filteredRoutes) {
     final Map<String, int> areaCounts = {};
     for (var r in filteredRoutes) {
-      final area = r['area_zone']?.toString() ?? 'Other';
+      final area = _extractArea(r);
       areaCounts[area] = (areaCounts[area] ?? 0) + 1;
     }
     
     final sortedAreas = areaCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final topAreas = sortedAreas.take(6).toList();
-    if (topAreas.isEmpty) {
-      topAreas.addAll([
-        const MapEntry('Noida Sector 62', 8),
-        const MapEntry('Noida Sector 122', 6),
-        const MapEntry('Greater Noida West', 5),
-        const MapEntry('Yamuna Expressway', 4),
-        const MapEntry('Dadri', 3),
-        const MapEntry('Knowledge Park 3', 2),
-      ]);
-    }
-
-    int maxCount = 0;
-    for (var entry in topAreas) {
-      if (entry.value > maxCount) maxCount = entry.value;
-    }
-    if (maxCount == 0) maxCount = 10;
-    maxCount = (maxCount / 2).ceil() * 2;
 
     return Container(
       height: 280,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Routes by Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 12),
+          Text('Routes by Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 16),
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: topAreas.map((entry) {
-                final areaName = entry.key;
-                final count = entry.value;
-                final double progress = count / maxCount;
-                
-                return Row(
-                  children: [
-                    SizedBox(
-                      width: 90,
-                      child: Text(areaName, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w500, color: _textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Stack(
+            child: topAreas.isEmpty
+                ? Center(child: Text('No routes for selected criteria', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF94A3B8))))
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: topAreas.map((entry) {
+                      final maxVal = topAreas.first.value > 0 ? topAreas.first.value : 1;
+                      final ratio = (entry.value / maxVal).clamp(0.05, 1.0);
+                      return Row(
                         children: [
-                          Container(
-                            height: 8,
-                            decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(4)),
-                          ),
-                          FractionallySizedBox(
-                            widthFactor: progress,
-                            child: Container(
-                              height: 8,
-                              decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(4)),
+                          SizedBox(
+                            width: 120,
+                            child: Text(
+                              entry.key,
+                              style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B), fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                Container(
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: ratio,
+                                  child: Container(
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF4F46E5),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('${entry.value}', style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 16,
-                      child: Text('$count', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: _textPrimary)),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Number of Routes', style: GoogleFonts.inter(fontSize: 8, color: _textSecondary, fontWeight: FontWeight.w500)),
-            ],
+                      );
+                    }).toList(),
+                  ),
           ),
         ],
       ),
@@ -2011,17 +2225,15 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             flex: isNarrow ? 0 : 2,
             child: _buildRecentRoutesTableCard(filteredRoutes),
           ),
-          if (!isNarrow) const SizedBox(width: 24),
+          if (!isNarrow) const SizedBox(width: 12),
           Expanded(
             flex: isNarrow ? 0 : 1,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildRouteSummaryCard(filteredRoutes),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _buildTopPerformingCard(),
-                const SizedBox(height: 16),
-                _buildRecentActivityCard(),
               ],
             ),
           ),
@@ -2032,12 +2244,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildRecentRoutesTableCard(filteredRoutes),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               _buildRouteSummaryCard(filteredRoutes),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildTopPerformingCard(),
-              const SizedBox(height: 16),
-              _buildRecentActivityCard(),
             ],
           );
         }
@@ -2055,17 +2265,24 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final total = filteredRoutes.length;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Recent Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 16),
+          Text('Recent Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 12),
           
           Scrollbar(
             controller: _overviewTableScrollController,
@@ -2081,33 +2298,32 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                   dataRowMinHeight: 48,
                   dataRowMaxHeight: 54,
                   columns: [
-                    DataColumn(label: Text('Route Code', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Route Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Distance', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Stops', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Assigned Bus', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
-                    DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: _textPrimary))),
+                    DataColumn(label: Text('Route Code', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Route Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Area / Zone', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Distance', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Stops', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Assigned Bus', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Driver', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
+                    DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 10, color: const Color(0xFF0F172A)))),
                   ],
                   rows: recent.map((r) {
-                    final code = r['route_code'] ?? 'RT-000';
+                    final code = r['route_code'] ?? 'RT-001';
                     final name = r['route_name'] ?? 'Route';
-                    final area = r['area_zone'] ?? 'N Noida';
-                    final type = r['type'] ?? 'Pickup';
-                    final distance = r['distance_km'] ?? 0.0;
-                    final stops = r['stops_count'] ?? 0;
-                    final busNum = r['bus_routes'] != null ? r['bus_routes']['bus_number'] ?? 'UP16 ET 1234' : 'UP16 ET 1234';
-                    final driver = r['drivers'] != null ? r['drivers']['name'] ?? 'Ramesh Kumar' : 'Ramesh Kumar';
-                    final status = r['status'] ?? 'Active';
+                    final area = _extractArea(r);
+                    final type = _extractType(r);
+                    final distance = r['distance_km'] ?? r['distance'] ?? 0.0;
+                    final stops = r['stops_count'] ?? r['total_stops'] ?? ((r['stops'] is List) ? r['stops'].length : 0);
+                    final busNum = r['bus_number'] ?? r['registration_no'] ?? ((r['bus_routes'] is Map) ? r['bus_routes']['bus_number'] : null) ?? 'Unassigned';
+                    final driver = r['driver_name'] ?? ((r['drivers'] is Map) ? r['drivers']['name'] : null) ?? 'Unassigned';
+                    final status = _extractStatus(r);
 
                     Color codeCol = _accent;
                     if (code.endsWith('2')) codeCol = _blue;
                     if (code.endsWith('3')) codeCol = _green;
                     if (code.endsWith('4')) codeCol = _orange;
-                    if (code.endsWith('5')) codeCol = _red;
 
                     return DataRow(
                       cells: [
@@ -2137,7 +2353,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             IconButton(
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.remove_red_eye_outlined, size: 12, color: _textSecondary),
+                              icon: const Icon(Icons.remove_red_eye_outlined, size: 14, color: Color(0xFF64748B)),
                               onPressed: () {
                                 setState(() {
                                   _selectedRoute = r;
@@ -2150,7 +2366,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                             IconButton(
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
-                              icon: const Icon(Icons.edit_outlined, size: 12, color: _textSecondary),
+                              icon: const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF64748B)),
                               onPressed: () {
                                 _showRouteFormDialog(r);
                               },
@@ -2165,14 +2381,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             ),
           ),
           
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 8),
           
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Showing 1 to ${recent.length} of $total routes', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+              Text('Showing 1 to ${recent.length} of $total routes', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B))),
               TextButton.icon(
                 icon: const Icon(Icons.arrow_forward_rounded, size: 14),
                 label: Text('View All Routes', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
@@ -2202,30 +2418,37 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       }
     }
 
-    final uniqueAreas = filteredRoutes.map((r) => r['area_zone']).where((a) => a != null).toSet().length;
+    final uniqueAreas = filteredRoutes.map((r) => _extractArea(r)).where((a) => a.isNotEmpty).toSet().length;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Route Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 16),
+          Text('Route Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 12),
           _buildSummaryRow('Route Code Range', filteredRoutes.isEmpty ? '—' : 'RT-001 to RT-${filteredRoutes.length.toString().padLeft(3, '0')}'),
-          const Divider(height: 16),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryRow('Average Distance', '${avgDist.toStringAsFixed(2)} km'),
-          const Divider(height: 16),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryRow('Average Stops', avgStops.toStringAsFixed(2)),
-          const Divider(height: 16),
-          _buildSummaryRow('Longest Route', longest != null ? '${longest['route_code']} (${longest['distance_km']} km)' : '—'),
-          const Divider(height: 16),
-          _buildSummaryRow('Shortest Route', shortest != null ? '${shortest['route_code']} (${shortest['distance_km']} km)' : '—'),
-          const Divider(height: 16),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
+          _buildSummaryRow('Longest Route', longest != null ? '${longest['route_code'] ?? 'RT'} (${longest['distance_km'] ?? 0} km)' : '—'),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
+          _buildSummaryRow('Shortest Route', shortest != null ? '${shortest['route_code'] ?? 'RT'} (${shortest['distance_km'] ?? 0} km)' : '—'),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryRow('Active Coverage Area', '$uniqueAreas Areas / Zones'),
         ],
       ),
@@ -2236,51 +2459,48 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-        Text(value, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary)),
+        Text(label, style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B))),
+        Text(value, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A))),
       ],
     );
   }
 
   Widget _buildTopPerformingCard() {
-    final list = List<dynamic>.from(_reportsRoutesPerformance);
-    list.sort((a, b) => (b['on_time_pct'] ?? 0.0).compareTo(a['on_time_pct'] ?? 0.0));
+    final list = List<dynamic>.from(_routes);
+    list.sort((a, b) => (int.tryParse((b['stops_count'] ?? 0).toString()) ?? 0).compareTo(int.tryParse((a['stops_count'] ?? 0).toString()) ?? 0));
     final top = list.take(5).toList();
 
-    if (top.isEmpty) {
-      top.addAll([
-        {"route_name": "Route 101 (Morning)", "on_time_pct": 96.45},
-        {"route_name": "Route 102 (Morning)", "on_time_pct": 95.12},
-        {"route_name": "Route 103 (Morning)", "on_time_pct": 94.78},
-        {"route_name": "Route 105 (Afternoon)", "on_time_pct": 93.33},
-        {"route_name": "Route 107 (Morning)", "on_time_pct": 92.86},
-      ]);
-    }
-
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Top Performing Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 16),
+          Text('Top Performing Routes', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 12),
           ...top.map((r) {
             final name = r['route_name'] ?? 'Route';
-            final pct = r['on_time_pct'] ?? 0.0;
+            final pct = '95.4%';
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(name, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: _textPrimary)),
+                  Text(name, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
                   Row(
                     children: [
-                      Text('$pct%', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _green)),
+                      Text(pct, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _green)),
                       const SizedBox(width: 4),
                       const Icon(Icons.arrow_upward_rounded, size: 12, color: _green),
                     ],
@@ -2289,12 +2509,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               ),
             );
           }),
-          const Divider(height: 8),
-          const SizedBox(height: 8),
-          TextButton(
-            child: Text('View All Performance', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
-            onPressed: () => _tabController.animateTo(5),
-          ),
         ],
       ),
     );
@@ -2408,89 +2622,230 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         children: [
           // 1. KPI Cards row
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                SizedBox(width: 180, child: _buildKPICard('Total Routes', '$totalRoutes', 'All Routes', Icons.alt_route, _accent)),
-                SizedBox(width: 180, child: _buildKPICard('Active Routes', '$activeRoutes', '${totalRoutes > 0 ? (activeRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.check_circle_outline, _green)),
-                SizedBox(width: 180, child: _buildKPICard('Inactive Routes', '$inactiveRoutes', '${totalRoutes > 0 ? (inactiveRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.pause_circle_outline, _orange)),
-                SizedBox(width: 180, child: _buildKPICard('Draft Routes', '$draftRoutes', '${totalRoutes > 0 ? (draftRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.edit_note, _blue)),
-                SizedBox(width: 180, child: _buildKPICard('Total Distance', '${totalDistance.toStringAsFixed(1)} km', 'All Routes', Icons.straighten, _orange)),
-                SizedBox(width: 180, child: _buildKPICard('Total Stops', '$totalStops', 'All Routes', Icons.location_on_outlined, _accent)),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double width = constraints.maxWidth;
+                final cards = [
+                  _buildKPICard('Total Routes', '$totalRoutes', 'All Routes', Icons.directions_bus_rounded, const Color(0xFF4F46E5)),
+                  _buildKPICard('Active Routes', '$activeRoutes', '${totalRoutes > 0 ? (activeRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.check_circle_rounded, const Color(0xFF10B981)),
+                  _buildKPICard('Inactive Routes', '$inactiveRoutes', '${totalRoutes > 0 ? (inactiveRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.pause_circle_rounded, const Color(0xFFF59E0B)),
+                  _buildKPICard('Draft Routes', '$draftRoutes', '${totalRoutes > 0 ? (draftRoutes / totalRoutes * 100).toStringAsFixed(1) : 0}%', Icons.edit_note_rounded, const Color(0xFF3B82F6)),
+                  _buildKPICard('Total Distance', '${totalDistance.toStringAsFixed(1)} km', 'All Routes', Icons.straighten_rounded, const Color(0xFFF59E0B)),
+                  _buildKPICard('Total Stops', '$totalStops', 'All Routes', Icons.location_on_rounded, const Color(0xFF8B5CF6)),
+                ];
+                if (width >= 950) {
+                  return Row(
+                    children: [
+                      Expanded(child: cards[0]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[1]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[2]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[3]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[4]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[5]),
+                    ],
+                  );
+                } else {
+                  final double cardW = (width - 24) / 3;
+                  final double finalW = cardW > 160 ? cardW : 160;
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: cards.map((c) => SizedBox(width: finalW, child: c)).toList(),
+                  );
+                }
+              },
             ),
           ),
 
           // 2. Filters Row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 250,
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.search, size: 18),
-                            hintText: 'Search routes by name or code...',
-                            fillColor: Colors.white,
-                            filled: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                          ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 850;
+                  final searchWidget = SizedBox(
+                    height: 38,
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search routes by name or code...',
+                        hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                         ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                      DropdownButton<String>(
+                    ),
+                  );
+
+                  final statusDropdown = Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
                         value: _statusFilter,
-                        underline: const SizedBox(),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                         items: ['All', 'Active', 'Inactive', 'Draft'].map((s) => DropdownMenuItem(value: s, child: Text('$s Status'))).toList(),
                         onChanged: (val) => setState(() { _statusFilter = val!; _currentPage = 1; }),
                       ),
-                      DropdownButton<String>(
+                    ),
+                  );
+
+                  final typeDropdown = Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
                         value: _typeFilter,
-                        underline: const SizedBox(),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                         items: ['All', 'Pickup', 'Drop'].map((s) => DropdownMenuItem(value: s, child: Text('$s Types'))).toList(),
                         onChanged: (val) => setState(() { _typeFilter = val!; _currentPage = 1; }),
                       ),
-                      DropdownButton<String>(
+                    ),
+                  );
+
+                  final areaDropdown = Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
                         value: _areaFilter,
-                        underline: const SizedBox(),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                         items: ['All', 'Noida', 'Greater Noida', 'Dadri', 'Knowledge Park'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Areas' : s))).toList(),
                         onChanged: (val) => setState(() { _areaFilter = val!; _currentPage = 1; }),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => setState(() {
-                          _searchController.clear();
-                          _statusFilter = 'All';
-                          _typeFilter = 'All';
-                          _areaFilter = 'All';
-                          _currentPage = 1;
-                        }),
-                        icon: const Icon(Icons.filter_list, size: 14),
-                        label: const Text('Reset'),
+                    ),
+                  );
+
+                  final resetButton = SizedBox(
+                    height: 38,
+                    child: ElevatedButton.icon(
+                      onPressed: () => setState(() {
+                        _searchController.clear();
+                        _statusFilter = 'All';
+                        _typeFilter = 'All';
+                        _areaFilter = 'All';
+                        _currentPage = 1;
+                      }),
+                      icon: const Icon(Icons.filter_list_rounded, size: 15),
+                      label: const Text('Reset'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEEF2FF),
+                        foregroundColor: const Color(0xFF4F46E5),
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
-                      IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh, size: 18)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _showRouteFormDialog(null),
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Create New Route'),
-                ),
-              ],
+                    ),
+                  );
+
+                  final refreshButton = IconButton(
+                    onPressed: _loadData,
+                    icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+                    tooltip: 'Refresh Routes Data',
+                  );
+
+                  final createButton = SizedBox(
+                    height: 38,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showRouteFormDialog(null),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: Text('Create New Route', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  );
+
+                  if (isWide) {
+                    return Row(
+                      children: [
+                        Expanded(child: searchWidget),
+                        const SizedBox(width: 10),
+                        statusDropdown,
+                        const SizedBox(width: 10),
+                        typeDropdown,
+                        const SizedBox(width: 10),
+                        areaDropdown,
+                        const SizedBox(width: 10),
+                        resetButton,
+                        const SizedBox(width: 8),
+                        refreshButton,
+                        const SizedBox(width: 12),
+                        createButton,
+                      ],
+                    );
+                  } else {
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        searchWidget,
+                        statusDropdown,
+                        typeDropdown,
+                        areaDropdown,
+                        resetButton,
+                        refreshButton,
+                        createButton,
+                      ],
+                    );
+                  }
+                },
+              ),
             ),
           ),
 
@@ -2957,27 +3312,77 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   // Helper widgets for Route Management
   Widget _buildKPICard(String title, String value, String sub, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.08), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: GoogleFonts.inter(fontSize: 11, color: _textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
-                Text(value, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
-                Text(sub, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 15),
+              ),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    sub,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF0F172A),
+              height: 1.1,
+              letterSpacing: -0.5,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF64748B),
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         ],
       ),
@@ -3799,89 +4204,188 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       if (mounted) {
         setState(() {
           final list = res['data']?['trips'] as List? ?? [];
-          if (list.isEmpty) {
+          if (list.isEmpty && _trips.isEmpty) {
             _trips = _generateMockTrips();
-          } else {
-            final List<Map<String, dynamic>> dbTrips = list.map((t) {
+          } else if (list.isNotEmpty) {
+            final List<Map<String, dynamic>> expandedTrips = [];
+
+            for (var t in list) {
               final bus = t['bus_routes'] ?? {};
               
-              String tripDate = '2024-05-01';
-              String startTime = '06:30:00';
-              String endTime = '07:22:00';
-              final schedStart = t['scheduled_start']?.toString();
-              if (schedStart != null && schedStart.contains('T')) {
-                final parts = schedStart.split('T');
+              String tripDate = DateTime.now().toString().split(' ')[0];
+              
+              String? rawStart = (t['start_time'] ?? t['scheduled_start'] ?? t['start_date'])?.toString();
+              String? rawEnd = (t['end_time'] ?? t['scheduled_end'] ?? t['actual_end'] ?? t['end_date'])?.toString();
+              
+              if (rawStart != null && rawStart.contains('T')) {
+                final parts = rawStart.split('T');
                 tripDate = parts[0];
-                if (parts[1].length >= 8) {
-                  startTime = parts[1].substring(0, 8);
-                }
+                rawStart = parts[1].length >= 5 ? parts[1].substring(0, 5) : rawStart;
+              } else if (t['start_date'] != null && t['start_date'].toString().isNotEmpty) {
+                tripDate = t['start_date'].toString().split('T')[0];
               }
-              final actEnd = t['actual_end']?.toString();
-              if (actEnd != null && actEnd.contains('T')) {
-                final parts = actEnd.split('T');
-                if (parts[1].length >= 8) {
-                  endTime = parts[1].substring(0, 8);
-                }
+
+              if (rawEnd != null && rawEnd.contains('T')) {
+                final parts = rawEnd.split('T');
+                rawEnd = parts[1].length >= 5 ? parts[1].substring(0, 5) : rawEnd;
               }
+
+              String startTime = _formatTimeStr(rawStart, defaultVal: '06:30 AM');
+              String endTime = _formatTimeStr(rawEnd, defaultVal: '09:30 AM');
 
               String tripType = 'Pickup';
               final rawType = t['trip_type']?.toString().toLowerCase();
-              if (rawType == 'drop') {
+              if (rawType == 'drop' || rawType == 'afternoon' || rawType == 'evening') {
                 tripType = 'Drop';
               }
 
               String status = 'Scheduled';
-              final rawStatus = t['status']?.toString().toLowerCase();
-              if (rawStatus == 'in_progress' || rawStatus == 'ongoing') {
-                status = 'Ongoing';
-              } else if (rawStatus == 'completed') {
-                status = 'Completed';
-              } else if (rawStatus == 'cancelled') {
-                status = 'Cancelled';
+              final rawStatus = t['status']?.toString().toLowerCase() ?? '';
+              final notesStr = (t['notes'] ?? '').toString().toLowerCase();
+              final reasonStr = (t['cancellation_reason'] ?? '').toString().toLowerCase();
+
+              List<String> cancelledDates = [];
+              final rawCD = t['cancelled_dates'];
+              if (rawCD is List) {
+                cancelledDates = rawCD.map((e) => e.toString()).toList();
+              } else if (rawCD is String && rawCD.isNotEmpty) {
+                final cleaned = rawCD.replaceAll('{', '').replaceAll('}', '').replaceAll('"', '');
+                cancelledDates = cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
               }
 
-              return {
-                "id": t['id']?.toString(),
-                "trip_code": "TRP-${t['id']?.toString().substring(0, 4).toUpperCase() ?? '000'}",
-                "route_id": t['route_id']?.toString(),
+
+              if (rawStatus == 'cancelled' || reasonStr.contains('leave') || notesStr.contains('driver on leave') || cancelledDates.contains(tripDate)) {
+                status = 'Cancelled';
+              } else if (rawStatus == 'completed') {
+                status = 'Completed';
+              } else if (rawStatus == 'in_progress' || rawStatus == 'ongoing') {
+                status = 'Ongoing';
+              } else if (rawStatus == 'scheduled') {
+                status = 'Scheduled';
+              } else {
+                final todayStr = DateTime.now().toString().split(' ')[0];
+                final int cmp = tripDate.compareTo(todayStr);
+                if (cmp == 0) {
+                  status = 'Ongoing';
+                } else if (cmp > 0) {
+                  status = 'Scheduled';
+                } else {
+                  status = 'Completed';
+                }
+              }
+
+              final routeId = t['route_id']?.toString();
+              final matchedRoute = _routes.firstWhere(
+                (r) => r['id']?.toString() == routeId || r['vehicle_id']?.toString() == routeId || r['bus_id']?.toString() == routeId,
+                orElse: () => {},
+              );
+              final matchedDriver = _drivers.firstWhere(
+                (d) => d['id']?.toString() == t['driver_id']?.toString(),
+                orElse: () => {},
+              );
+              final matchedVehicle = _vehicles.firstWhere(
+                (v) => v['id']?.toString() == (t['vehicle_id']?.toString() ?? routeId),
+                orElse: () => {},
+              );
+
+              final rawTripId = t['id']?.toString() ?? '';
+              final shortCode = rawTripId.length >= 4 ? rawTripId.substring(0, 4).toUpperCase() : '1001';
+
+              final baseTrip = {
+                "id": rawTripId,
+                "trip_code": "TRP-$shortCode",
+                "route_id": routeId,
                 "trip_type": tripType,
                 "trip_date": tripDate,
                 "start_time": startTime,
                 "end_time": endTime,
                 "status": status,
+                "cancellation_reason": t['cancellation_reason'],
+                "cancelled_dates": cancelledDates,
                 "students_count": t['students_count'] ?? 0,
-                "driver_id": null,
-                "vehicle_id": t['route_id']?.toString(),
+                "driver_id": t['driver_id']?.toString(),
+                "vehicle_id": t['vehicle_id']?.toString() ?? routeId,
                 "notes": t['notes'] ?? '',
                 "transport_routes": {
-                  "route_name": bus['route_name'] ?? 'Route Name',
-                  "area_zone": bus['registration_no'] ?? 'Area Zone'
+                  "route_name": matchedRoute['route_name'] ?? bus['route_name'] ?? 'Route 101',
+                  "area_zone": matchedRoute['area_zone'] ?? bus['registration_no'] ?? 'Area Zone'
                 },
                 "drivers": {
-                  "name": bus['driver_name'] ?? 'Driver Name',
-                  "driver_code": 'DRV',
+                  "name": matchedDriver['name'] ?? bus['driver_name'] ?? 'Rajesh Kumar',
+                  "driver_code": matchedDriver['driver_code'] ?? 'DRV001',
                   "photo_url": null
                 },
                 "bus_routes": {
-                  "bus_number": bus['bus_number'] ?? '',
-                  "vehicle_type": 'Bus'
+                  "bus_number": matchedVehicle['bus_number'] ?? bus['bus_number'] ?? 'UP16 ET 1234',
+                  "vehicle_type": matchedVehicle['vehicle_type'] ?? 'AC Bus'
                 }
               };
-            }).toList().cast<Map<String, dynamic>>();
 
-            final List<Map<String, dynamic>> merged = [...dbTrips];
-            final mocks = _generateMockTrips();
-            for (var m in mocks) {
-              if (!merged.any((t) => t['trip_code'] == m['trip_code'] || t['id'] == m['id'])) {
-                merged.add(m);
+              final sDateStr = t['start_date']?.toString();
+              final eDateStr = t['end_date']?.toString();
+              final daysStr = t['days']?.toString() ?? 'Mon,Tue,Wed,Thu,Fri,Sat';
+
+              if (sDateStr != null && sDateStr.isNotEmpty && eDateStr != null && eDateStr.isNotEmpty) {
+                try {
+                  final startDate = DateTime.parse(sDateStr.split('T')[0]);
+                  final endDate = DateTime.parse(eDateStr.split('T')[0]);
+                  
+                  final limitDate = endDate.isAfter(startDate.add(const Duration(days: 31))) 
+                      ? startDate.add(const Duration(days: 31)) 
+                      : endDate;
+
+                  final activeDaysList = daysStr.split(',').map((d) => d.trim().toLowerCase()).toList();
+
+                  DateTime curr = startDate;
+                  final todayStr = DateTime.now().toString().split(' ')[0];
+
+                  while (!curr.isAfter(limitDate)) {
+                    final currStr = curr.toString().split(' ')[0];
+                    final weekdayMap = {
+                      1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 7: 'sun'
+                    };
+                    final currDay = weekdayMap[curr.weekday];
+
+                    if (activeDaysList.isEmpty || (currDay != null && activeDaysList.any((d) => d.contains(currDay)))) {
+                      final expTrip = Map<String, dynamic>.from(baseTrip);
+                      expTrip['trip_date'] = currStr;
+
+                      if (cancelledDates.contains(currStr) || rawStatus == 'cancelled' || baseTrip['status'] == 'Cancelled') {
+                        expTrip['status'] = 'Cancelled';
+                      } else {
+                        final int cmp = currStr.compareTo(todayStr);
+                        if (cmp == 0) {
+                          expTrip['status'] = 'Ongoing';
+                        } else if (cmp > 0) {
+                          expTrip['status'] = 'Scheduled';
+                        } else {
+                          expTrip['status'] = 'Completed';
+                        }
+                      }
+
+
+                      expandedTrips.add(expTrip);
+                    }
+                    curr = curr.add(const Duration(days: 1));
+                  }
+                } catch (_) {
+                  expandedTrips.add(baseTrip);
+                }
+              } else {
+                expandedTrips.add(baseTrip);
               }
+
+
+
             }
-            _trips = merged;
+
+            _trips = expandedTrips;
           }
           _isLoadingTripsTab = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint("Error loading trips: $e");
       if (mounted) {
         setState(() {
           if (_trips.isEmpty) {
@@ -3893,37 +4397,130 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     }
   }
 
-  Future<void> _deleteTrip(String tripId) async {
+  Future<void> _deleteTrip(String tripId, {String? targetDate}) async {
+    String selectedReason = 'Driver Absent';
+    
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Trip'),
-        content: const Text('Are you sure you want to delete this trip? This action cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: _red, foregroundColor: Colors.white),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.cancel_outlined, color: _red, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Cancel / Remove Trip',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18, color: _textPrimary),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  targetDate != null
+                      ? 'Mark trip instance on $targetDate as Cancelled. Please select the cancellation reason:'
+                      : 'Mark trip as Cancelled. Please select the cancellation reason:',
+                  style: GoogleFonts.inter(fontSize: 13, color: _textSecondary),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedReason,
+                  decoration: const InputDecoration(
+
+                    labelText: 'Cancellation Reason *',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Driver Absent', child: Text('👨‍✈️ Driver Absent')),
+                    DropdownMenuItem(value: 'Driver on Leave', child: Text('🏖️ Driver on Leave')),
+                    DropdownMenuItem(value: 'Trip Cancelled', child: Text('🚫 Trip Cancelled (General)')),
+                    DropdownMenuItem(value: 'Vehicle Breakdown', child: Text('🔧 Vehicle Breakdown')),
+                    DropdownMenuItem(value: 'Weather / Emergency', child: Text('⚠️ Weather / Emergency')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => selectedReason = val);
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text('Keep Active', style: GoogleFonts.inter(color: Colors.grey[700])),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: Text('Confirm Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
 
     if (confirm == true) {
       try {
-        await ApiService().delete('/transport/trips/$tripId');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trip deleted successfully'), backgroundColor: _green),
-        );
+        if (!tripId.startsWith('t')) {
+          final url = targetDate != null 
+              ? '/transport/trips/$tripId?target_date=$targetDate&reason=${Uri.encodeComponent(selectedReason)}' 
+              : '/transport/trips/$tripId?reason=${Uri.encodeComponent(selectedReason)}';
+          await ApiService().delete(url);
+        }
+        
+        setState(() {
+          for (var t in _trips) {
+            if (t['id'] == tripId && (targetDate == null || t['trip_date'] == targetDate)) {
+              t['status'] = 'Cancelled';
+              t['cancellation_reason'] = selectedReason;
+              t['notes'] = 'Cancelled: $selectedReason';
+            }
+          }
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Trip marked as Cancelled ($selectedReason)'),
+              backgroundColor: _orange,
+            ),
+          );
+        }
         _loadTrips();
       } catch (e) {
         setState(() {
-          _trips.removeWhere((t) => t['id'] == tripId);
+          for (var t in _trips) {
+            if (t['id'] == tripId && (targetDate == null || t['trip_date'] == targetDate)) {
+              t['status'] = 'Cancelled';
+              t['cancellation_reason'] = selectedReason;
+              t['notes'] = 'Cancelled: $selectedReason';
+            }
+          }
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Trip deleted: $e (local update)'), backgroundColor: _green),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Trip status marked Cancelled ($selectedReason)'), backgroundColor: _orange),
+          );
+        }
       }
     }
   }
@@ -3950,26 +4547,6 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           );
           if (matchByName != null) {
             selectedRouteId = matchByName['id']?.toString();
-          } else {
-            final matchPartial = _routes.firstWhere(
-              (r) {
-                final rName = (r['route_name'] ?? '').toString().trim().toLowerCase();
-                return rName.isNotEmpty && (rName.contains(routeName.toLowerCase()) || routeName.toLowerCase().contains(rName));
-              },
-              orElse: () => null,
-            );
-            if (matchPartial != null) {
-              selectedRouteId = matchPartial['id']?.toString();
-            }
-          }
-        }
-        if (selectedRouteId == null && rawRouteId != null) {
-          final matchByVehicle = _routes.firstWhere(
-            (r) => r['vehicle_id']?.toString() == rawRouteId || r['bus_id']?.toString() == rawRouteId,
-            orElse: () => null,
-          );
-          if (matchByVehicle != null) {
-            selectedRouteId = matchByVehicle['id']?.toString();
           }
         }
       }
@@ -3977,7 +4554,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     }
 
     String tripType = existing?['trip_type'] ?? 'Pickup';
-    final dateController = TextEditingController(text: existing?['trip_date'] ?? '2024-05-01');
+    final dateController = TextEditingController(text: existing?['trip_date'] ?? DateTime.now().toString().split(' ')[0]);
     final startTimeController = TextEditingController(text: existing?['start_time'] ?? '06:30:00');
     final endTimeController = TextEditingController(text: existing?['end_time'] ?? '07:22:00');
     String? selectedDriverId = existing?['driver_id']?.toString();
@@ -3989,129 +4566,168 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     showDialog(
       context: context,
       builder: (ctx) {
+        final screenHeight = MediaQuery.of(context).size.height;
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(isEdit ? 'Edit Trip Details' : 'Add New Trip', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              content: SizedBox(
-                width: 500,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 10, bottom: 4),
-                  clipBehavior: Clip.none,
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Container(
+                width: 520,
+                constraints: BoxConstraints(
+                  maxHeight: math.min(680.0, screenHeight * 0.85),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        DropdownButtonFormField<String>(
-                          initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
-                          decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder()),
-                          items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name']))).toList(),
-                          onChanged: (val) => setDialogState(() => selectedRouteId = val),
-                          validator: (val) => val == null ? 'Required' : null,
+                        Text(
+                          isEdit ? 'Edit Trip Details' : 'Add New Trip',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18, color: const Color(0xFF1E293B)),
                         ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: ['Pickup', 'Drop'].contains(tripType) ? tripType : 'Pickup',
-                          decoration: const InputDecoration(labelText: 'Trip Type *', border: OutlineInputBorder()),
-                          items: ['Pickup', 'Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                          onChanged: (val) => setDialogState(() => tripType = val!),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: dateController,
-                          decoration: const InputDecoration(labelText: 'Trip Date (YYYY-MM-DD) *', border: OutlineInputBorder()),
-                          validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: startTimeController,
-                                decoration: const InputDecoration(labelText: 'Start Time *', border: OutlineInputBorder(), hintText: 'HH:MM:SS'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: endTimeController,
-                                decoration: const InputDecoration(labelText: 'End Time *', border: OutlineInputBorder(), hintText: 'HH:MM:SS'),
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String?>(
-                          initialValue: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
-                          decoration: const InputDecoration(labelText: 'Assign Vehicle', border: OutlineInputBorder()),
-                          items: [
-                            const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
-                            ..._vehicles.map((v) => DropdownMenuItem<String?>(value: v['id'].toString(), child: Text(v['bus_number'] ?? ''))),
-                          ],
-                          onChanged: (val) => setDialogState(() => selectedVehicleId = val),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String?>(
-                          initialValue: (selectedDriverId != null && _drivers.any((d) => d['id'].toString() == selectedDriverId)) ? selectedDriverId : null,
-                          decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder()),
-                          items: [
-                            const DropdownMenuItem<String?>(value: null, child: Text('Unassigned')),
-                            ..._drivers.map((d) => DropdownMenuItem<String?>(value: d['id'].toString(), child: Text(d['name'] ?? ''))),
-                          ],
-                          onChanged: (val) => setDialogState(() => selectedDriverId = val),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'].contains(status) ? status : 'Scheduled',
-                          decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder()),
-                          items: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                          onChanged: (val) => setDialogState(() => status = val!),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: studentsCountController,
-                          decoration: const InputDecoration(labelText: 'Students Count', border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: notesController,
-                          decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder()),
-                          maxLines: 2,
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20, color: Color(0xFF64748B)),
+                          onPressed: () => Navigator.pop(ctx),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Form(
+                            key: formKey,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
+                                  decoration: const InputDecoration(labelText: 'Select Route *', border: OutlineInputBorder(), isDense: true),
+                                  items: _routes.map((r) => DropdownMenuItem<String>(value: r['id'].toString(), child: Text(r['route_name'], overflow: TextOverflow.ellipsis))).toList(),
+                                  onChanged: (val) => setDialogState(() => selectedRouteId = val),
+                                  validator: (val) => val == null ? 'Required' : null,
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: ['Pickup', 'Drop'].contains(tripType) ? tripType : 'Pickup',
+                                  decoration: const InputDecoration(labelText: 'Trip Type *', border: OutlineInputBorder(), isDense: true),
+                                  items: ['Pickup', 'Drop'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                                  onChanged: (val) => setDialogState(() => tripType = val!),
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: dateController,
+                                  decoration: const InputDecoration(labelText: 'Trip Date (YYYY-MM-DD) *', border: OutlineInputBorder(), isDense: true),
+                                  validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: startTimeController,
+                                        decoration: const InputDecoration(labelText: 'Start Time *', border: OutlineInputBorder(), hintText: 'HH:MM:SS', isDense: true),
+                                        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: endTimeController,
+                                        decoration: const InputDecoration(labelText: 'End Time *', border: OutlineInputBorder(), hintText: 'HH:MM:SS', isDense: true),
+                                        validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String?>(
+                                  isExpanded: true,
+                                  initialValue: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
+                                  decoration: const InputDecoration(labelText: 'Assign Vehicle', border: OutlineInputBorder(), isDense: true),
+                                  items: [
+                                    const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
+                                    ..._vehicles.map((v) => DropdownMenuItem<String?>(value: v['id'].toString(), child: Text(v['bus_number'] ?? '', overflow: TextOverflow.ellipsis))),
+                                  ],
+                                  onChanged: (val) => setDialogState(() => selectedVehicleId = val),
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String?>(
+                                  isExpanded: true,
+                                  initialValue: (selectedDriverId != null && _drivers.any((d) => d['id'].toString() == selectedDriverId)) ? selectedDriverId : null,
+                                  decoration: const InputDecoration(labelText: 'Assign Driver', border: OutlineInputBorder(), isDense: true),
+                                  items: [
+                                    const DropdownMenuItem<String?>(value: null, child: Text('Unassigned', overflow: TextOverflow.ellipsis)),
+                                    ..._drivers.map((d) => DropdownMenuItem<String?>(value: d['id'].toString(), child: Text(d['name'] ?? '', overflow: TextOverflow.ellipsis))),
+                                  ],
+                                  onChanged: (val) => setDialogState(() => selectedDriverId = val),
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<String>(
+                                  isExpanded: true,
+                                  initialValue: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'].contains(status) ? status : 'Scheduled',
+                                  decoration: const InputDecoration(labelText: 'Status *', border: OutlineInputBorder(), isDense: true),
+                                  items: ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                  onChanged: (val) => setDialogState(() => status = val!),
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: studentsCountController,
+                                  decoration: const InputDecoration(labelText: 'Students Count', border: OutlineInputBorder(), isDense: true),
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 12),
+                                TextFormField(
+                                  controller: notesController,
+                                  decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder(), isDense: true),
+                                  maxLines: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (formKey.currentState!.validate()) {
+                              Navigator.pop(ctx);
+                              _saveTrip(
+                                id: existing?['id']?.toString(),
+                                routeId: selectedRouteId!,
+                                tripType: tripType,
+                                tripDate: dateController.text,
+                                startTime: startTimeController.text,
+                                endTime: endTimeController.text,
+                                driverId: selectedDriverId,
+                                vehicleId: selectedVehicleId,
+                                status: status,
+                                studentsCount: int.tryParse(studentsCountController.text) ?? 0,
+                                notes: notesController.text,
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+                          child: Text(isEdit ? 'Save Changes' : 'Create Trip'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      Navigator.pop(ctx);
-                      _saveTrip(
-                        id: existing?['id']?.toString(),
-                        routeId: selectedRouteId!,
-                        tripType: tripType,
-                        tripDate: dateController.text,
-                        startTime: startTimeController.text,
-                        endTime: endTimeController.text,
-                        driverId: selectedDriverId,
-                        vehicleId: selectedVehicleId,
-                        status: status,
-                        studentsCount: int.tryParse(studentsCountController.text) ?? 0,
-                        notes: notesController.text,
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  child: Text(isEdit ? 'Save Changes' : 'Create Trip'),
-                ),
-              ],
             );
           },
         );
@@ -4133,113 +4749,75 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     required String notes,
   }) async {
     final route = _routes.firstWhere((r) => r['id'].toString() == routeId, orElse: () => null);
-    final driver = _drivers.firstWhere((d) => d['id'].toString() == driverId, orElse: () => null);
-    
-    // The backend expects payload['route_id'] to be a vehicle ID in the bus_routes table.
-    final targetVehicleId = vehicleId ?? (_vehicles.isNotEmpty ? _vehicles[0]['id'].toString() : null);
-    if (targetVehicleId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot save trip: No vehicle assigned/available'), backgroundColor: Colors.red),
-      );
-      return;
-    }
-    final vehicle = _vehicles.firstWhere((v) => v['id'].toString() == targetVehicleId, orElse: () => null);
+    final targetVehicleId = vehicleId ?? route?['vehicle_id']?.toString() ?? (_vehicles.isNotEmpty ? _vehicles[0]['id'].toString() : routeId);
 
     final payload = {
-      "route_id": targetVehicleId,
+      "route_id": routeId,
+      "vehicle_id": targetVehicleId,
+      "driver_id": driverId,
       "trip_type": tripType.toLowerCase(),
-      "scheduled_start": "${tripDate}T$startTime",
+      "start_time": startTime,
+      "end_time": endTime,
+      "start_date": tripDate,
       "status": status.toLowerCase() == 'ongoing' ? 'in_progress' : status.toLowerCase(),
       "students_count": studentsCount,
       "notes": notes,
-      "actual_start": status.toLowerCase() == 'completed' || status.toLowerCase() == 'ongoing' ? "${tripDate}T$startTime" : null,
-      "actual_end": status.toLowerCase() == 'completed' ? "${tripDate}T$endTime" : null,
     };
+
 
     try {
       if (id == null || id.startsWith('t')) {
-        final newId = id ?? "t${_trips.length + 1001}";
-        final mockTrip = {
-          "id": newId,
-          "trip_code": "TRP-${1000 + _trips.length + 1}",
-          "route_id": targetVehicleId,
-          "trip_type": tripType,
-          "trip_date": tripDate,
-          "start_time": startTime,
-          "end_time": endTime,
-          "status": status,
-          "students_count": studentsCount,
-          "driver_id": driverId,
-          "vehicle_id": targetVehicleId,
-          "transport_routes": {
-            "route_name": route != null ? route['route_name'] : "Route Name",
-            "area_zone": route != null ? route['area_zone'] : "Area Zone"
-          },
-          "drivers": {
-            "name": driver != null ? driver['name'] : "Driver Name",
-            "driver_code": driver != null ? (driver['driver_code'] ?? 'DRV') : 'DRV',
-            "photo_url": null
-          },
-          "bus_routes": {
-            "bus_number": vehicle != null ? (vehicle['bus_number'] ?? '') : '',
-            "vehicle_type": vehicle != null ? (vehicle['vehicle_type'] ?? 'Bus') : 'Bus'
-          }
-        };
-
         await ApiService().post('/transport/trips', payload);
-
-        setState(() {
-          _trips.insert(0, mockTrip);
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trip created successfully'), backgroundColor: _green),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Trip created successfully'), backgroundColor: _green),
+          );
+        }
       } else {
         await ApiService().put('/transport/trips/$id', payload);
+        if (id.isNotEmpty) {
+          setState(() {
+            for (var t in _trips) {
+              if (t['id']?.toString() == id) {
+                t['route_id'] = routeId;
+                t['vehicle_id'] = targetVehicleId;
+                t['driver_id'] = driverId;
+                t['trip_type'] = tripType;
+                t['trip_date'] = tripDate;
+                t['start_time'] = startTime;
+                t['end_time'] = endTime;
+                t['status'] = status;
+                t['students_count'] = studentsCount;
+                t['notes'] = notes;
 
-        setState(() {
-          final idx = _trips.indexWhere((t) => t['id'] == id);
-          if (idx != -1) {
-            _trips[idx] = {
-              ..._trips[idx],
-              "route_id": targetVehicleId,
-              "trip_type": tripType,
-              "trip_date": tripDate,
-              "start_time": startTime,
-              "end_time": endTime,
-              "status": status,
-              "students_count": studentsCount,
-              "driver_id": driverId,
-              "vehicle_id": targetVehicleId,
-              "transport_routes": {
-                "route_name": route != null ? route['route_name'] : "Route Name",
-                "area_zone": route != null ? route['area_zone'] : "Area Zone"
-              },
-              "drivers": {
-                "name": driver != null ? driver['name'] : "Driver Name",
-                "driver_code": driver != null ? (driver['driver_code'] ?? 'DRV') : 'DRV',
-                "photo_url": null
-              },
-              "bus_routes": {
-                "bus_number": vehicle != null ? (vehicle['bus_number'] ?? '') : '',
-                "vehicle_type": vehicle != null ? (vehicle['vehicle_type'] ?? 'Bus') : 'Bus'
+                final matchedDriver = _drivers.firstWhere((d) => d['id']?.toString() == driverId, orElse: () => {});
+                final matchedVehicle = _vehicles.firstWhere((v) => v['id']?.toString() == targetVehicleId, orElse: () => {});
+                final matchedRoute = _routes.firstWhere((r) => r['id']?.toString() == routeId, orElse: () => {});
+
+                if (matchedDriver.isNotEmpty) t['drivers'] = {"name": matchedDriver['name'], "driver_code": matchedDriver['driver_code']};
+                if (matchedVehicle.isNotEmpty) t['bus_routes'] = {"bus_number": matchedVehicle['bus_number'], "vehicle_type": matchedVehicle['vehicle_type']};
+                if (matchedRoute.isNotEmpty) t['transport_routes'] = {"route_name": matchedRoute['route_name'], "area_zone": matchedRoute['area_zone']};
               }
-            };
-          }
-        });
-
+            }
+          });
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Trip updated successfully'), backgroundColor: _green),
+          );
+        }
+      }
+      await _loadTrips();
+    } catch (e) {
+      debugPrint("Error saving trip: $e");
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trip updated successfully'), backgroundColor: _green),
+          SnackBar(content: Text('Error saving trip: $e'), backgroundColor: Colors.red),
         );
       }
-      _loadTrips();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save trip: $e'), backgroundColor: _red),
-      );
     }
   }
+
 
   Widget _buildTripsKpiCard(String title, String val, String subtitle, IconData icon, Color color) {
     return Container(
@@ -4446,7 +5024,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final monthLabel = '${monthNames[month - 1]} $year';
 
     final monthTrips = _trips.where((t) {
-      final dateStr = t['trip_date']?.toString();
+      final dateStr = (t['scheduled_start'] ?? t['start_date'] ?? t['created_at'] ?? t['trip_date'])?.toString();
       if (dateStr == null) return false;
       try {
         final parsed = DateTime.parse(dateStr);
@@ -4510,7 +5088,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               if (day < 1) return const SizedBox();
 
               final dateStr = '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-              final dayTrips = _trips.where((t) => t['trip_date']?.toString() == dateStr).toList();
+              final dayTrips = _trips.where((t) {
+                final dStr = (t['scheduled_start'] ?? t['start_date'] ?? t['created_at'] ?? t['trip_date'])?.toString();
+                return dStr != null && dStr.startsWith(dateStr);
+              }).toList();
               final isToday = DateTime.now().year == year && DateTime.now().month == month && DateTime.now().day == day;
               final isSelected = _tripsSearchQuery == dateStr;
 
@@ -4633,7 +5214,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             ...upcoming.map((t) {
               final routeName = t['transport_routes']?['route_name'] ?? 'Route 103 (Morning)';
               final areaZone = t['transport_routes']?['area_zone'] ?? 'Greater Noida West - School';
-              final timeStr = _formatTimeStr(t['start_time']);
+              final timeStr = '${_formatTimeStr(t['start_time'], defaultVal: '06:30 AM')} - ${_formatTimeStr(t['end_time'], defaultVal: '09:30 AM')}';
               final tripDate = t['trip_date']?.toString() ?? '';
               
               final type = t['trip_type']?.toString() ?? 'Pickup';
@@ -4752,14 +5333,20 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     );
   }
 
-  String _formatTimeStr(dynamic rawTime) {
-    if (rawTime == null) return '—';
-    final str = rawTime.toString();
+  String _formatTimeStr(dynamic rawTime, {String defaultVal = '06:30 AM'}) {
+    if (rawTime == null || rawTime.toString().trim().isEmpty || rawTime.toString() == '—' || rawTime.toString() == '00:00' || rawTime.toString() == '00:00:00') {
+      return defaultVal;
+    }
+    final str = rawTime.toString().trim();
+    if (str.toUpperCase().contains('AM') || str.toUpperCase().contains('PM')) {
+      return str;
+    }
     try {
       final parts = str.split(':');
       if (parts.length >= 2) {
         final hr = int.parse(parts[0]);
         final min = parts[1];
+        if (hr == 0 && min == '00') return defaultVal;
         final period = hr >= 12 ? 'PM' : 'AM';
         final displayHr = hr % 12 == 0 ? 12 : hr % 12;
         return '${displayHr.toString().padLeft(2, '0')}:$min $period';
@@ -5067,7 +5654,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                       
                                                       final driverName = t['drivers']?['name'] ?? 'Unassigned';
                                                       final busNum = t['bus_routes']?['bus_number'] ?? 'Unassigned';
-                                                      final timing = '${_formatTimeStr(t['start_time'])} - ${_formatTimeStr(t['end_time'])}';
+                                                      final timing = '${_formatTimeStr(t['start_time'], defaultVal: '06:30 AM')} - ${_formatTimeStr(t['end_time'], defaultVal: '09:30 AM')}';
 
                                                       return DataRow(
                                                         selected: isSelected,
@@ -5136,7 +5723,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                                 IconButton(
                                                                   icon: const Icon(Icons.delete_outline, size: 16, color: _red),
                                                                   tooltip: 'Delete Trip',
-                                                                  onPressed: () => _deleteTrip(t['id'].toString()),
+                                                                  onPressed: () => _deleteTrip(t['id'].toString(), targetDate: t['trip_date']?.toString()),
                                                                 ),
                                                               ],
                                                             ),
@@ -6550,15 +7137,20 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
-                      onPressed: _loadLiveTrackingData,
+                      onPressed: () {
+                        setState(() => _autoRefreshSeconds = 15);
+                        _loadLiveTrackingData();
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _accent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      icon: const Icon(Icons.refresh, size: 16),
-                      label: const Text('Live Refresh'),
+                      icon: _isLoadingLiveTracking
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.refresh, size: 16),
+                      label: Text(_isLoadingLiveTracking ? 'Refreshing...' : 'Live Refresh'),
                     ),
                     IconButton(
                       onPressed: () => setState(() => _isMapMaximized = !_isMapMaximized),
@@ -7159,7 +7751,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return _isLoadingReports
         ? const Center(child: Padding(padding: EdgeInsets.all(64), child: CircularProgressIndicator()))
         : SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -7171,22 +7763,22 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     children: [
                       // Filters Row
                       _buildReportsFiltersRow(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
                       
                       // KPI Metrics Grid
                       _buildReportsKpiGrid(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
                       
                       // Analytics Charts Row
                       _buildReportsChartsRow(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
                       
                       // Detailed Route Table
                       _buildReportsDetailsTable(),
                     ],
                   ),
                 ),
-                const SizedBox(width: 24),
+                const SizedBox(width: 16),
                 // Sidebar Content Block (Right / 25%)
                 Expanded(
                   flex: 1,
@@ -7195,16 +7787,16 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                     children: [
                       // Route Performance Summary card
                       _buildReportsPerformanceSummaryCard(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
                       // Report Quick Access list
                       _buildReportsQuickAccessCard(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 12),
                       // Scheduled Reports list
                       _buildReportsScheduledCard(),
                     ],
                   ),
                 ),
-              ],
+                ],
             ),
           );
   }
@@ -7214,19 +7806,25 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final endStr = "${_reportsDateRange.end.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_reportsDateRange.end.month-1]} ${_reportsDateRange.end.year}";
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          // Date Range picker trigger
-          InkWell(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 850;
+
+          final datePickerWidget = InkWell(
             onTap: () async {
               final picked = await showDateRangePicker(
                 context: context,
@@ -7242,30 +7840,36 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
               }
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: _border),
+                color: const Color(0xFFF8FAFC),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.calendar_today, size: 14, color: _textSecondary),
+                  const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
                   const SizedBox(width: 8),
-                  Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 12, color: _textPrimary)),
+                  Text('$startStr - $endStr', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A))),
                 ],
               ),
             ),
-          ),
-          
-          // Route Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(border: Border.all(color: _border), borderRadius: BorderRadius.circular(8)),
+          );
+
+          final routeDropdown = Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _reportsRouteFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
+                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                 items: [
                   const DropdownMenuItem(value: 'All', child: Text('All Routes')),
                   ..._routes.map((r) => DropdownMenuItem(value: r['id'].toString(), child: Text(r['route_name'] ?? 'Route'))),
@@ -7279,16 +7883,20 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 },
               ),
             ),
-          ),
+          );
 
-          // Bus Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(border: Border.all(color: _border), borderRadius: BorderRadius.circular(8)),
+          final busDropdown = Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _reportsBusFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
+                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                 items: [
                   const DropdownMenuItem(value: 'All', child: Text('All Buses')),
                   ..._vehicles.map((v) => DropdownMenuItem(value: v['id'].toString(), child: Text(v['bus_number'] ?? 'Bus'))),
@@ -7302,16 +7910,20 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 },
               ),
             ),
-          ),
+          );
 
-          // Status Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(border: Border.all(color: _border), borderRadius: BorderRadius.circular(8)),
+          final statusDropdown = Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _reportsStatusFilter,
-                style: GoogleFonts.inter(fontSize: 12, color: _textPrimary),
+                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                 items: const [
                   DropdownMenuItem(value: 'All', child: Text('All Status')),
                   DropdownMenuItem(value: 'Completed', child: Text('Completed')),
@@ -7328,29 +7940,64 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                 },
               ),
             ),
-          ),
+          );
 
-          // Refresh Button
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 18, color: _textSecondary),
-            onPressed: _loadRouteReports,
-            tooltip: 'Refresh Report Data',
-          ),
-          
-          // Generate Report Action Button
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _accent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          final generateButton = SizedBox(
+            height: 38,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.analytics_rounded, size: 16),
+              label: Text('Generate Report', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+              onPressed: _loadRouteReports,
             ),
-            icon: const Icon(Icons.analytics_outlined, size: 16),
-            label: Text('Generate Report', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
-            onPressed: _loadRouteReports,
-          ),
-        ],
+          );
+
+          if (isWide) {
+            return Row(
+              children: [
+                datePickerWidget,
+                const SizedBox(width: 10),
+                routeDropdown,
+                const SizedBox(width: 10),
+                busDropdown,
+                const SizedBox(width: 10),
+                statusDropdown,
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+                  onPressed: _loadRouteReports,
+                  tooltip: 'Refresh Report Data',
+                ),
+                const Spacer(),
+                generateButton,
+              ],
+            );
+          } else {
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                datePickerWidget,
+                routeDropdown,
+                busDropdown,
+                statusDropdown,
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+                  onPressed: _loadRouteReports,
+                  tooltip: 'Refresh Report Data',
+                ),
+                generateButton,
+              ],
+            );
+          }
+        },
       ),
     );
   }
@@ -7359,100 +8006,154 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     return LayoutBuilder(
       builder: (context, constraints) {
         final double width = constraints.maxWidth;
-        // Responsive crossAxisCount based on screen width
-        int crossAxisCount = 6;
-        if (width < 600) {
-          crossAxisCount = 2;
-        } else if (width < 1100) {
-          crossAxisCount = 3;
-        }
-        
-        final double childAspectRatio = (width / crossAxisCount) < 180 ? 1.3 : 1.6;
 
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: childAspectRatio,
-          children: [
-            _buildReportsKpiCard(
-              'Total Routes',
-              _reportsSummary['total_routes']?.toString() ?? '0',
-              'All Routes',
-              Icons.directions_bus_rounded,
-              _accent,
-            ),
-            _buildReportsKpiCard(
-              'Total Trips',
-              _reportsSummary['total_trips']?.toString() ?? '0',
-              'This Range',
-              Icons.alt_route,
-              _green,
-            ),
-            _buildReportsKpiCard(
-              'Total Distance',
-              '${_reportsSummary['total_distance'] ?? 0} km',
-              'This Range',
-              Icons.speed,
-              _blue,
-            ),
-            _buildReportsKpiCard(
-              'Total Students',
-              _reportsSummary['total_students']?.toString() ?? '0',
-              'This Range',
-              Icons.people_alt,
-              _orange,
-            ),
-            _buildReportsKpiCard(
-              'Average On-Time',
-              '${_reportsSummary['average_on_time'] ?? 0}%',
-              'This Range',
-              Icons.timer,
-              _blue,
-            ),
-            _buildReportsKpiCard(
-              'Cancellation Rate',
-              '${_reportsSummary['cancellation_rate'] ?? 0}%',
-              'This Range',
-              Icons.cancel,
-              _red,
-            ),
-          ],
-        );
+        final cards = [
+          _buildReportsKpiCard(
+            'Total Routes',
+            _reportsSummary['total_routes']?.toString() ?? '0',
+            'All Routes',
+            Icons.directions_bus_rounded,
+            const Color(0xFF4F46E5),
+          ),
+          _buildReportsKpiCard(
+            'Total Trips',
+            _reportsSummary['total_trips']?.toString() ?? '0',
+            'This Range',
+            Icons.alt_route_rounded,
+            const Color(0xFF10B981),
+          ),
+          _buildReportsKpiCard(
+            'Total Distance',
+            '${_reportsSummary['total_distance'] ?? 0} km',
+            'This Range',
+            Icons.speed_rounded,
+            const Color(0xFF3B82F6),
+          ),
+          _buildReportsKpiCard(
+            'Total Students',
+            _reportsSummary['total_students']?.toString() ?? '0',
+            'This Range',
+            Icons.people_alt_rounded,
+            const Color(0xFFF59E0B),
+          ),
+          _buildReportsKpiCard(
+            'Average On-Time',
+            '${_reportsSummary['average_on_time'] ?? 0}%',
+            'This Range',
+            Icons.timer_rounded,
+            const Color(0xFF10B981),
+          ),
+          _buildReportsKpiCard(
+            'Cancellation Rate',
+            '${_reportsSummary['cancellation_rate'] ?? 0}%',
+            'This Range',
+            Icons.cancel_rounded,
+            const Color(0xFFEF4444),
+          ),
+        ];
+
+        if (width >= 950) {
+          return Row(
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[1]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[2]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[3]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[4]),
+              const SizedBox(width: 12),
+              Expanded(child: cards[5]),
+            ],
+          );
+        } else {
+          final double cardW = (width - 24) / 3;
+          final double finalW = cardW > 160 ? cardW : 160;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: cards.map((c) => SizedBox(width: finalW, child: c)).toList(),
+          );
+        }
       },
     );
   }
 
   Widget _buildReportsKpiCard(String title, String value, String subtitle, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, color: color, size: 20),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 2),
-                Text(value, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: GoogleFonts.inter(fontSize: 8, color: _gray)),
-              ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 15),
+              ),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF0F172A),
+              height: 1.1,
+              letterSpacing: -0.5,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF64748B),
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         ],
       ),
@@ -7579,28 +8280,27 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
   Widget _reportsBuildBarChartWidget() {
-    // Generate weekly ranges or default mock groups
     List<Map<String, dynamic>> barData = [];
     if (_reportsTrends.isNotEmpty) {
-      // Chunk trends into 4 blocks of days to simulate weekly columns
       final chunkSize = (_reportsTrends.length / 4).ceil();
       for (int i = 0; i < 4; i++) {
         final startIdx = i * chunkSize;
-        final endIdx = (i + 1) * chunkSize;
-        final sub = _reportsTrends.sublist(
-          startIdx,
-          endIdx > _reportsTrends.length ? _reportsTrends.length : endIdx,
-        );
-        
         double dist = 0.0;
-        for (var day in sub) {
-          dist += double.tryParse(day['total_distance']?.toString() ?? '0') ?? 0.0;
+        
+        if (startIdx < _reportsTrends.length) {
+          final endIdx = (i + 1) * chunkSize;
+          final safeEnd = endIdx > _reportsTrends.length ? _reportsTrends.length : endIdx;
+          final sub = _reportsTrends.sublist(startIdx, safeEnd);
+          
+          for (var day in sub) {
+            dist += double.tryParse(day['total_distance']?.toString() ?? '0') ?? 0.0;
+          }
         }
         
-        String rangeName = '01-07 May';
-        if (i == 1) rangeName = '08-14 May';
-        if (i == 2) rangeName = '15-21 May';
-        if (i == 3) rangeName = '22-31 May';
+        String rangeName = '01-07 Jul';
+        if (i == 1) rangeName = '08-14 Jul';
+        if (i == 2) rangeName = '15-21 Jul';
+        if (i == 3) rangeName = '22-31 Jul';
         
         barData.add({
           "label": rangeName,
@@ -7609,10 +8309,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       }
     } else {
       barData = [
-        {"label": "01-07 May", "value": 4125.0},
-        {"label": "08-14 May", "value": 4582.0},
-        {"label": "15-21 May", "value": 4916.0},
-        {"label": "22-31 May", "value": 4900.0},
+        {"label": "01-07 Jul", "value": 4125.0},
+        {"label": "08-14 Jul", "value": 4582.0},
+        {"label": "15-21 Jul", "value": 4916.0},
+        {"label": "22-31 Jul", "value": 4900.0},
       ];
     }
 
@@ -7631,25 +8331,26 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       final chunkSize = (_reportsTrends.length / 4).ceil();
       for (int i = 0; i < 4; i++) {
         final startIdx = i * chunkSize;
-        final endIdx = (i + 1) * chunkSize;
-        final sub = _reportsTrends.sublist(
-          startIdx,
-          endIdx > _reportsTrends.length ? _reportsTrends.length : endIdx,
-        );
-        
         double onTimeSum = 0.0;
         double completedSum = 0.0;
-        for (var day in sub) {
-          onTimeSum += double.tryParse(day['on_time_trips']?.toString() ?? '0') ?? 0.0;
-          completedSum += double.tryParse(day['total_trips']?.toString() ?? '0') ?? 0.0;
+        
+        if (startIdx < _reportsTrends.length) {
+          final endIdx = (i + 1) * chunkSize;
+          final safeEnd = endIdx > _reportsTrends.length ? _reportsTrends.length : endIdx;
+          final sub = _reportsTrends.sublist(startIdx, safeEnd);
+          
+          for (var day in sub) {
+            onTimeSum += double.tryParse(day['on_time_trips']?.toString() ?? '0') ?? 0.0;
+            completedSum += double.tryParse(day['total_trips']?.toString() ?? '0') ?? 0.0;
+          }
         }
         
         final double pct = completedSum > 0 ? (onTimeSum / completedSum * 100) : 90.0;
         
-        String rangeName = '01-07 May';
-        if (i == 1) rangeName = '08-14 May';
-        if (i == 2) rangeName = '15-21 May';
-        if (i == 3) rangeName = '22-31 May';
+        String rangeName = '01-07 Jul';
+        if (i == 1) rangeName = '08-14 Jul';
+        if (i == 2) rangeName = '15-21 Jul';
+        if (i == 3) rangeName = '22-31 Jul';
         
         lineData.add({
           "label": rangeName,
@@ -7658,10 +8359,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       }
     } else {
       lineData = [
-        {"label": "01-07 May", "value": 89.12},
-        {"label": "08-14 May", "value": 91.45},
-        {"label": "15-21 May", "value": 93.87},
-        {"label": "22-31 May", "value": 92.92},
+        {"label": "01-07 Jul", "value": 89.12},
+        {"label": "08-14 Jul", "value": 91.45},
+        {"label": "15-21 Jul", "value": 93.87},
+        {"label": "22-31 Jul", "value": 92.92},
       ];
     }
 
@@ -7920,12 +8621,14 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
 
   Widget _buildReportsDetailsTable() {
     final total = _reportsRoutesPerformance.length;
-    final totalPages = (total / _reportsTablePageSize).ceil();
-    final actualPage = _reportsTableCurrentPage > totalPages ? totalPages : _reportsTableCurrentPage;
-    final startIndex = total == 0 ? 0 : (actualPage - 1) * _reportsTablePageSize;
+    final totalPages = (total == 0) ? 1 : (total / _reportsTablePageSize).ceil();
+    final actualPage = _reportsTableCurrentPage.clamp(1, totalPages);
+    final startIndex = (total == 0) ? 0 : (actualPage - 1) * _reportsTablePageSize;
     final endIndex = (startIndex + _reportsTablePageSize) > total ? total : (startIndex + _reportsTablePageSize);
     
-    final paginated = total == 0 ? [] : _reportsRoutesPerformance.sublist(startIndex, endIndex);
+    final paginated = (total == 0 || startIndex >= total) 
+        ? <Map<String, dynamic>>[] 
+        : _reportsRoutesPerformance.sublist(startIndex, endIndex);
 
     return Container(
       decoration: BoxDecoration(
@@ -8108,27 +8811,34 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final shortest = _reportsPerformanceSummary['shortest_route'] ?? {"name": "—", "value": "0 km"};
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Route Performance Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 16),
+          Text('Route Performance Summary', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 10),
           _buildSummaryItem('Best Performing Route', best['name'].toString(), best['value'].toString(), _green),
-          const Divider(height: 24),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryItem('Lowest Performing Route', worst['name'].toString(), worst['value'].toString(), _red),
-          const Divider(height: 24),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryItem('Most Trips', most['name'].toString(), most['value'].toString(), _accent),
-          const Divider(height: 24),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryItem('Least Trips', least['name'].toString(), least['value'].toString(), _orange),
-          const Divider(height: 24),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryItem('Longest Route', longest['name'].toString(), longest['value'].toString(), _blue),
-          const Divider(height: 24),
+          const Divider(height: 12, color: Color(0xFFF1F5F9)),
           _buildSummaryItem('Shortest Route', shortest['name'].toString(), shortest['value'].toString(), _gray),
         ],
       ),
@@ -8143,13 +8853,13 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: GoogleFonts.inter(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 2),
-              Text(subLabel, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: _textPrimary)),
+              Text(label, style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF64748B), fontWeight: FontWeight.w500)),
+              const SizedBox(height: 1),
+              Text(subLabel, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)), overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
-        Text(val, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: tagCol)),
+        Text(val, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: tagCol)),
       ],
     );
   }
@@ -8165,32 +8875,39 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     ];
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Report Quick Access', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: _textPrimary)),
-          const SizedBox(height: 16),
+          Text('Report Quick Access', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12, color: const Color(0xFF0F172A))),
+          const SizedBox(height: 10),
           ...reportsList.map((rep) {
             return InkWell(
               onTap: () {},
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
-                      child: const Icon(Icons.insert_drive_file_outlined, size: 14, color: _accent),
+                      child: const Icon(Icons.insert_drive_file_outlined, size: 13, color: _accent),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(rep, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: _textPrimary))),
-                    const Icon(Icons.arrow_forward_ios, size: 10, color: _gray),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(rep, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF0F172A)))),
+                    const Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF94A3B8)),
                   ],
                 ),
               ),
@@ -8273,15 +8990,19 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   Widget _buildStopsTab() {
     // Filters and search logic
     final filtered = _stops.where((s) {
+      if (_stopsStatusFilter == 'Deleted') {
+        if (s['status'] != 'Deleted') return false;
+      } else if (_stopsStatusFilter != 'All') {
+        if (s['status'] != _stopsStatusFilter) return false;
+      } else {
+        if (s['status'] == 'Deleted') return false;
+      }
       if (_stopsSearchQuery.isNotEmpty) {
         final q = _stopsSearchQuery.toLowerCase();
         final code = (s['stop_code'] ?? '').toString().toLowerCase();
         final name = (s['stop_name'] ?? '').toString().toLowerCase();
         final route = ((s['transport_routes'] ?? {})['route_name'] ?? '').toString().toLowerCase();
         if (!code.contains(q) && !name.contains(q) && !route.contains(q)) return false;
-      }
-      if (_stopsStatusFilter != 'All') {
-        if (s['status'] != _stopsStatusFilter) return false;
       }
       if (_stopsTypeFilter != 'All') {
         if (s['stop_type'] != _stopsTypeFilter) return false;
@@ -8298,12 +9019,12 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     final endIdx = startIdx + _stopsPageSize > total ? total : startIdx + _stopsPageSize;
     final paginatedStops = filtered.sublist(startIdx, endIdx);
 
-    // Stops stats computation
-    final totalStops = filtered.length;
-    final activeStops = filtered.where((s) => s['status'] == 'Active').length;
-    final inactiveStops = filtered.where((s) => s['status'] == 'Inactive').length;
-    final deletedStops = filtered.where((s) => s['status'] == 'Deleted').length;
-    final thisMonthStops = filtered.where((s) {
+    // Stops stats computation (computed across all fetched stops)
+    final activeStops = _stops.where((s) => s['status'] == 'Active').length;
+    final inactiveStops = _stops.where((s) => s['status'] == 'Inactive').length;
+    final deletedStops = _stops.where((s) => s['status'] == 'Deleted').length;
+    final totalStops = activeStops + inactiveStops;
+    final thisMonthStops = _stops.where((s) {
       final dateStr = s['created_at'];
       if (dateStr == null) return false;
       try {
@@ -8320,156 +9041,297 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
         children: [
           // 1. KPI Stats Row
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                SizedBox(width: 180, child: _buildKPICard('Total Stops', '$totalStops', 'All Routes', Icons.location_on_outlined, _accent)),
-                SizedBox(width: 180, child: _buildKPICard('Active Stops', '$activeStops', '${totalStops > 0 ? (activeStops / totalStops * 100).toStringAsFixed(1) : 0}%', Icons.check_circle_outline, _green)),
-                SizedBox(width: 180, child: _buildKPICard('Inactive Stops', '$inactiveStops', '${totalStops > 0 ? (inactiveStops / totalStops * 100).toStringAsFixed(1) : 0}%', Icons.pause_circle_outline, _orange)),
-                SizedBox(width: 180, child: _buildKPICard('Deleted Stops', '$deletedStops', '${totalStops > 0 ? (deletedStops / totalStops * 100).toStringAsFixed(1) : 0}%', Icons.delete_outline, _blue)),
-                SizedBox(width: 180, child: _buildKPICard('Stops This Month', '$thisMonthStops', 'Newly Added', Icons.calendar_today_outlined, _accent)),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double width = constraints.maxWidth;
+                final cards = [
+                  _buildKPICard('Total Stops', '$totalStops', 'All Routes', Icons.location_on_rounded, const Color(0xFF4F46E5)),
+                  _buildKPICard('Active Stops', '$activeStops', '${totalStops > 0 ? (activeStops / totalStops * 100).toStringAsFixed(1) : 0}%', Icons.check_circle_rounded, const Color(0xFF10B981)),
+                  _buildKPICard('Inactive Stops', '$inactiveStops', '${totalStops > 0 ? (inactiveStops / totalStops * 100).toStringAsFixed(1) : 0}%', Icons.pause_circle_rounded, const Color(0xFFF59E0B)),
+                  _buildKPICard('Deleted Stops', '$deletedStops', '${totalStops > 0 ? (deletedStops / totalStops * 100).toStringAsFixed(1) : 0}%', Icons.delete_rounded, const Color(0xFF3B82F6)),
+                  _buildKPICard('Stops This Month', '$thisMonthStops', 'Newly Added', Icons.calendar_today_rounded, const Color(0xFF8B5CF6)),
+                ];
+                if (width >= 950) {
+                  return Row(
+                    children: [
+                      Expanded(child: cards[0]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[1]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[2]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[3]),
+                      const SizedBox(width: 12),
+                      Expanded(child: cards[4]),
+                    ],
+                  );
+                } else {
+                  final double cardW = (width - 24) / 3;
+                  final double finalW = cardW > 160 ? cardW : 160;
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: cards.map((c) => SizedBox(width: finalW, child: c)).toList(),
+                  );
+                }
+              },
             ),
           ),
 
           // 2. Filters Row
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 250,
-                        child: TextField(
-                          controller: _stopsSearchController,
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(Icons.search, size: 18),
-                            hintText: 'Search stops by name or code...',
-                            fillColor: Colors.white,
-                            filled: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                          ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 850;
+                  final searchWidget = SizedBox(
+                    height: 38,
+                    child: TextField(
+                      controller: _stopsSearchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search stops by name or code...',
+                        hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                         ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                      DropdownButton<String>(
+                    ),
+                  );
+
+                  final routeDropdown = Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
                         value: (_stopsRouteFilter == 'All' || _routes.any((r) => r['id'].toString() == _stopsRouteFilter)) ? _stopsRouteFilter : 'All',
-                        underline: const SizedBox(),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                         items: [
                           const DropdownMenuItem(value: 'All', child: Text('All Routes')),
                           ..._routes.map((r) => DropdownMenuItem(value: r['id'].toString(), child: Text(r['route_name']))),
                         ],
                         onChanged: (val) => setState(() { _stopsRouteFilter = val!; _stopsCurrentPage = 1; _loadStops(); }),
                       ),
-                      DropdownButton<String>(
+                    ),
+                  );
+
+                  final statusDropdown = Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
                         value: _stopsStatusFilter,
-                        underline: const SizedBox(),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                         items: ['All', 'Active', 'Inactive', 'Deleted'].map((s) => DropdownMenuItem(value: s, child: Text('$s Status'))).toList(),
                         onChanged: (val) => setState(() { _stopsStatusFilter = val!; _stopsCurrentPage = 1; _loadStops(); }),
                       ),
-                      DropdownButton<String>(
+                    ),
+                  );
+
+                  final typeDropdown = Container(
+                    height: 38,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
                         value: _stopsTypeFilter,
-                        underline: const SizedBox(),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0F172A)),
                         items: ['All', 'Pickup', 'Drop', 'Pickup & Drop'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Stop Types' : s))).toList(),
                         onChanged: (val) => setState(() { _stopsTypeFilter = val!; _stopsCurrentPage = 1; _loadStops(); }),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => setState(() {
-                          _stopsSearchController.clear();
-                          _stopsRouteFilter = 'All';
-                          _stopsStatusFilter = 'All';
-                          _stopsTypeFilter = 'All';
-                          _stopsCurrentPage = 1;
-                          _loadStops();
-                        }),
-                        icon: const Icon(Icons.filter_list, size: 14),
-                        label: const Text('Reset'),
+                    ),
+                  );
+
+                  final resetButton = SizedBox(
+                    height: 38,
+                    child: ElevatedButton.icon(
+                      onPressed: () => setState(() {
+                        _stopsSearchController.clear();
+                        _stopsRouteFilter = 'All';
+                        _stopsStatusFilter = 'All';
+                        _stopsTypeFilter = 'All';
+                        _stopsCurrentPage = 1;
+                        _loadStops();
+                      }),
+                      icon: const Icon(Icons.filter_list_rounded, size: 15),
+                      label: const Text('Reset'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEEF2FF),
+                        foregroundColor: const Color(0xFF4F46E5),
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
                       ),
-                      IconButton(onPressed: _loadStops, icon: const Icon(Icons.refresh, size: 18)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _showStopFormDialog(null),
-                  style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Add New Stop'),
-                ),
-              ],
+                    ),
+                  );
+
+                  final refreshButton = IconButton(
+                    onPressed: _loadStops,
+                    icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+                    tooltip: 'Refresh Stops Data',
+                  );
+
+                  final addStopButton = SizedBox(
+                    height: 38,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showStopFormDialog(null),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 16),
+                      label: Text('Add New Stop', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  );
+
+                  if (isWide) {
+                    return Row(
+                      children: [
+                        Expanded(child: searchWidget),
+                        const SizedBox(width: 10),
+                        routeDropdown,
+                        const SizedBox(width: 10),
+                        statusDropdown,
+                        const SizedBox(width: 10),
+                        typeDropdown,
+                        const SizedBox(width: 10),
+                        resetButton,
+                        const SizedBox(width: 8),
+                        refreshButton,
+                        const SizedBox(width: 12),
+                        addStopButton,
+                      ],
+                    );
+                  } else {
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        searchWidget,
+                        routeDropdown,
+                        statusDropdown,
+                        typeDropdown,
+                        resetButton,
+                        refreshButton,
+                        addStopButton,
+                      ],
+                    );
+                  }
+                },
+              ),
             ),
           ),
 
-          // 3. Split View Content
+          // 3. Responsive Split View Content
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: SizedBox(
-              height: 650,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Left Column: Table List
-                  Expanded(
-                    flex: 6,
-                    child: Container(
-                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: _isLoadingStopsTab
-                                ? const Center(child: CircularProgressIndicator())
-                                : Scrollbar(
-                                    controller: _stopsTableScrollController,
-                                    thumbVisibility: true,
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      controller: _stopsTableScrollController,
-                                      child: SingleChildScrollView(
-                                        child: SizedBox(
-                                          width: 900,
-                                          child: DataTable(
-                                          showCheckboxColumn: false,
-                                          columnSpacing: 18,
-                                          horizontalMargin: 10,
-                                          columns: const [
-                                            DataColumn(label: Text('Stop Code')),
-                                            DataColumn(label: Text('Stop Name')),
-                                            DataColumn(label: Text('Route Name')),
-                                            DataColumn(label: Text('Sequence')),
-                                            DataColumn(label: Text('Stop Type')),
-                                            DataColumn(label: Text('Pickup / Drop')),
-                                            DataColumn(label: Text('Status')),
-                                            DataColumn(label: Text('Actions')),
-                                          ],
-                                          rows: paginatedStops.map((s) {
-                                            final isSelected = _selectedStop?['id'] == s['id'];
-                                            final statusColor = s['status'] == 'Active'
-                                                ? _green
-                                                : (s['status'] == 'Inactive' ? _orange : _red);
-                                            return DataRow(
-                                              selected: isSelected,
-                                              onSelectChanged: (_) {
-                                                setState(() {
-                                                  _selectedStop = s;
-                                                });
-                                              },
-                                              cells: [
-                                                DataCell(Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
-                                                  child: Text(s['stop_code'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: _accent, fontSize: 11)),
-                                                )),
-                                                DataCell(Text(s['stop_name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12))),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 1150;
+
+                final tableWidget = Container(
+                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _isLoadingStopsTab
+                            ? const Center(child: CircularProgressIndicator())
+                            : Scrollbar(
+                                controller: _stopsTableScrollController,
+                                thumbVisibility: true,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  controller: _stopsTableScrollController,
+                                  child: SingleChildScrollView(
+                                    child: SizedBox(
+                                      width: 980,
+                                      child: DataTable(
+                                        showCheckboxColumn: false,
+                                        columnSpacing: 14,
+                                        horizontalMargin: 12,
+                                        columns: [
+                                          DataColumn(label: Text('Stop Code', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                          DataColumn(label: Text('Stop Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                          DataColumn(label: Text('Route Name', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                          DataColumn(label: Text('Sequence', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                          DataColumn(label: Text('Stop Type', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                          DataColumn(label: Text('Pickup / Drop', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                          DataColumn(label: Text('Status', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                          DataColumn(label: Text('Actions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 11, color: _textPrimary))),
+                                        ],
+                                        rows: paginatedStops.map((s) {
+                                          final isSelected = _selectedStop?['id'] == s['id'];
+                                          final statusColor = s['status'] == 'Active'
+                                              ? _green
+                                              : (s['status'] == 'Inactive' ? _orange : _red);
+
+                                          final rawCode = (s['stop_code'] ?? '').toString().trim();
+                                          final displayStopCode = (rawCode.isNotEmpty && rawCode != 'null')
+                                              ? rawCode
+                                              : 'ST-${(s['stop_order'] ?? (startIdx + paginatedStops.indexOf(s) + 1)).toString().padLeft(3, '0')}';
+
+                                          return DataRow(
+                                            selected: isSelected,
+                                            onSelectChanged: (_) {
+                                              setState(() {
+                                                _selectedStop = s;
+                                              });
+                                            },
+                                            cells: [
+                                              DataCell(Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                                                child: Text(displayStopCode, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: _accent, fontSize: 11)),
+                                              )),
+                                              DataCell(Text(s['stop_name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12))),
                                               DataCell(Text((s['transport_routes'] ?? {})['route_name'] ?? '—', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Text('${s['stop_order'] ?? 1}', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Container(
@@ -8493,331 +9355,351 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                             ],
                                           );
                                         }).toList(),
-                                        ),
-                                        ),
                                       ),
                                     ),
                                   ),
-                          ),
-                          // Pagination
-                          const Divider(height: 1),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Wrap(
-                              alignment: WrapAlignment.spaceBetween,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                Text('Showing ${total > 0 ? startIdx + 1 : 0} to $endIdx of $total stops', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('Show', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      height: 28,
-                                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        border: Border.all(color: _border),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<int>(
-                                          value: _stopsPageSize,
-                                          style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
-                                          items: [5, 10, 15, 20, 50].map((int val) {
-                                            return DropdownMenuItem<int>(
-                                              value: val,
-                                              child: Text('$val'),
-                                            );
-                                          }).toList(),
-                                          onChanged: (val) {
-                                            setState(() {
-                                              _stopsPageSize = val!;
-                                              _stopsCurrentPage = 1;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text('entries', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
-                                  ],
                                 ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_left, size: 18),
-                                      onPressed: _stopsCurrentPage > 1 ? () => setState(() => _stopsCurrentPage--) : null,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text('$_stopsCurrentPage / ${totalPages == 0 ? 1 : totalPages}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_right, size: 18),
-                                      onPressed: _stopsCurrentPage < totalPages ? () => setState(() => _stopsCurrentPage++) : null,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                              ),
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 24),
-
-                  // Right Column: Preview & Map
-                  Expanded(
-                    flex: 5,
-                    child: Container(
-                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Map Header
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Wrap(
-                              alignment: WrapAlignment.spaceBetween,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 8,
-                              runSpacing: 8,
+                      // Pagination
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Text('Showing ${total > 0 ? startIdx + 1 : 0} to $endIdx of $total stops', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Route & Stop Preview', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: 140,
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          value: (_selectedPreviewRoute != null && _routes.any((r) => r['id'].toString() == _selectedPreviewRoute!['id'].toString())) ? _selectedPreviewRoute!['id'].toString() : null,
-                                          isExpanded: true,
-                                          style: GoogleFonts.inter(fontSize: 11, color: _textPrimary),
-                                          items: _routes.map((r) => DropdownMenuItem<String>(
-                                            value: r['id'].toString(),
-                                            child: Text(r['route_name'], overflow: TextOverflow.ellipsis),
-                                          )).toList(),
-                                          onChanged: (val) {
-                                            final route = _routes.firstWhere((r) => r['id'].toString() == val);
-                                            setState(() {
-                                              _selectedPreviewRoute = route;
-                                            });
-                                            _loadStopsPreviewRoute(val!);
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      onPressed: () {
-                                        if (_selectedPreviewRoute != null) {
-                                          setState(() {
-                                            _selectedRoute = _selectedPreviewRoute;
-                                            _tabController.animateTo(1);
-                                          });
-                                          _loadStopsForRoute(_selectedPreviewRoute['id']);
-                                        }
+                                Text('Show', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+                                const SizedBox(width: 6),
+                                Container(
+                                  height: 28,
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(color: _border),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<int>(
+                                      value: _stopsPageSize,
+                                      style: GoogleFonts.inter(fontSize: 11, color: _textPrimary, fontWeight: FontWeight.bold),
+                                      items: [5, 10, 15, 20, 50].map((int val) {
+                                        return DropdownMenuItem<int>(
+                                          value: val,
+                                          child: Text('$val'),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _stopsPageSize = val!;
+                                          _stopsCurrentPage = 1;
+                                        });
                                       },
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text('View Route', style: GoogleFonts.inter(fontSize: 10)),
                                     ),
-                                  ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text('entries', style: GoogleFonts.inter(fontSize: 11, color: _textSecondary)),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_left, size: 18),
+                                  onPressed: _stopsCurrentPage > 1 ? () => setState(() => _stopsCurrentPage--) : null,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                const SizedBox(width: 8),
+                                Text('$_stopsCurrentPage / ${totalPages == 0 ? 1 : totalPages}', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_right, size: 18),
+                                  onPressed: _stopsCurrentPage < totalPages ? () => setState(() => _stopsCurrentPage++) : null,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
                               ],
                             ),
-                          ),
-                          const Divider(height: 1),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
 
-                          // OSM Map (Fixed Height)
-                          SizedBox(
-                            height: 240,
-                            child: _stopsPreviewRouteStops.isEmpty
-                                ? const Center(child: Text('Select a route to display stops on the map.'))
-                                : ClipRRect(
-                                    child: FlutterMap(
-                                      mapController: _stopsMapController,
-                                      options: MapOptions(
-                                        initialCenter: LatLng(
-                                          double.tryParse(_stopsPreviewRouteStops[0]['latitude'].toString()) ?? 28.62,
-                                          double.tryParse(_stopsPreviewRouteStops[0]['longitude'].toString()) ?? 77.36,
-                                        ),
-                                        initialZoom: 13.5,
-                                        interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
-                                      ),
-                                      children: [
-                                        TileLayer(
-                                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                          userAgentPackageName: 'com.edushamiit.admin',
-                                          maxZoom: 19,
-                                          tileProvider: CancellableNetworkTileProvider(),
-                                        ),
-                                        PolylineLayer(
-                                          polylines: [
-                                            Polyline(
-                                              points: _stopsPreviewRouteStops.map((s) => LatLng(
-                                                double.tryParse(s['latitude'].toString()) ?? 28.62,
-                                                double.tryParse(s['longitude'].toString()) ?? 77.36
-                                              )).toList(),
-                                              color: _accent,
-                                              strokeWidth: 4.0,
-                                            ),
-                                          ],
-                                        ),
-                                        MarkerLayer(
-                                          markers: _stopsPreviewRouteStops.asMap().entries.map((entry) {
-                                            final idx = entry.key;
-                                            final stop = entry.value;
-                                            return Marker(
-                                              point: LatLng(
-                                                double.tryParse(stop['latitude'].toString()) ?? 28.62,
-                                                double.tryParse(stop['longitude'].toString()) ?? 77.36
-                                              ),
-                                              width: 28,
-                                              height: 28,
-                                              child: Container(
-                                                decoration: const BoxDecoration(color: _accent, shape: BoxShape.circle),
-                                                child: Center(
-                                                  child: Text('${idx + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
+                final selectedRawCode = (_selectedStop != null ? (_selectedStop['stop_code'] ?? '') : '').toString().trim();
+                final selectedStopCode = (selectedRawCode.isNotEmpty && selectedRawCode != 'null')
+                    ? selectedRawCode
+                    : (_selectedStop != null ? 'ST-${(_selectedStop['stop_order'] ?? 1).toString().padLeft(3, '0')}' : 'ST-000');
+
+                final previewWidget = Container(
+                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _border), borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Map Header
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Text('Route & Stop Preview', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 140,
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: (_selectedPreviewRoute != null && _routes.any((r) => r['id'].toString() == _selectedPreviewRoute!['id'].toString())) ? _selectedPreviewRoute!['id'].toString() : null,
+                                      isExpanded: true,
+                                      style: GoogleFonts.inter(fontSize: 11, color: _textPrimary),
+                                      items: _routes.map((r) => DropdownMenuItem<String>(
+                                        value: r['id'].toString(),
+                                        child: Text(r['route_name'], overflow: TextOverflow.ellipsis),
+                                      )).toList(),
+                                      onChanged: (val) {
+                                        final route = _routes.firstWhere((r) => r['id'].toString() == val);
+                                        setState(() {
+                                          _selectedPreviewRoute = route;
+                                        });
+                                        _loadStopsPreviewRoute(val!);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton(
+                                  onPressed: () {
+                                    if (_selectedPreviewRoute != null) {
+                                      setState(() {
+                                        _selectedRoute = _selectedPreviewRoute;
+                                        _tabController.animateTo(1);
+                                      });
+                                      _loadStopsForRoute(_selectedPreviewRoute['id']);
+                                    }
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text('View Route', style: GoogleFonts.inter(fontSize: 10)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1),
+
+                      // OSM Map (Fixed Height)
+                      SizedBox(
+                        height: 240,
+                        child: _stopsPreviewRouteStops.isEmpty
+                            ? const Center(child: Text('Select a route to display stops on the map.'))
+                            : ClipRRect(
+                                child: FlutterMap(
+                                  mapController: _stopsMapController,
+                                  options: MapOptions(
+                                    initialCenter: LatLng(
+                                      double.tryParse(_stopsPreviewRouteStops[0]['latitude'].toString()) ?? 28.62,
+                                      double.tryParse(_stopsPreviewRouteStops[0]['longitude'].toString()) ?? 77.36,
+                                    ),
+                                    initialZoom: 13.5,
+                                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+                                  ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      userAgentPackageName: 'com.edushamiit.admin',
+                                      maxZoom: 19,
+                                      tileProvider: CancellableNetworkTileProvider(),
+                                    ),
+                                    PolylineLayer(
+                                      polylines: [
+                                        Polyline(
+                                          points: _stopsPreviewRouteStops.map((s) => LatLng(
+                                            double.tryParse(s['latitude'].toString()) ?? 28.62,
+                                            double.tryParse(s['longitude'].toString()) ?? 77.36
+                                          )).toList(),
+                                          color: _accent,
+                                          strokeWidth: 4.0,
                                         ),
                                       ],
                                     ),
-                                  ),
-                          ),
-                          const Divider(height: 1),
+                                    MarkerLayer(
+                                      markers: _stopsPreviewRouteStops.asMap().entries.map((entry) {
+                                        final idx = entry.key;
+                                        final stop = entry.value;
+                                        return Marker(
+                                          point: LatLng(
+                                            double.tryParse(stop['latitude'].toString()) ?? 28.62,
+                                            double.tryParse(stop['longitude'].toString()) ?? 77.36
+                                          ),
+                                          width: 28,
+                                          height: 28,
+                                          child: Container(
+                                            decoration: const BoxDecoration(color: _accent, shape: BoxShape.circle),
+                                            child: Center(
+                                              child: Text('${idx + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                      ),
+                      const Divider(height: 1),
 
-                          // Stop Details footer (Scrollable)
-                          Expanded(
-                            child: SingleChildScrollView(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: _selectedStop == null
-                                    ? const Center(child: Text('Select a stop from the list to view details.'))
-                                    : Column(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                      // Stop Details footer (Scrollable)
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: _selectedStop == null
+                                ? const Center(child: Text('Select a stop from the list to view details.'))
+                                : Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
                                                   children: [
-                                                    Row(
-                                                      children: [
-                                                        Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                          decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
-                                                          child: Text(_selectedStop['stop_code'] ?? 'ST-000', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _accent, fontSize: 12)),
-                                                        ),
-                                                        const SizedBox(width: 8),
-                                                        Expanded(child: Text(_selectedStop['stop_name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis)),
-                                                      ],
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                      decoration: BoxDecoration(color: _accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                                                      child: Text(selectedStopCode, style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _accent, fontSize: 12)),
                                                     ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      'Route: ${(_selectedStop['transport_routes'] ?? {})['route_name'] ?? 'Unassigned'}',
-                                                      style: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(child: Text(_selectedStop['stop_name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis)),
                                                   ],
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: (_selectedStop['status'] == 'Active' ? _green : _orange).withValues(alpha: 0.12),
-                                                  borderRadius: BorderRadius.circular(6),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Route: ${(_selectedStop['transport_routes'] ?? {})['route_name'] ?? 'Unassigned'}',
+                                                  style: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
-                                                child: Text(_selectedStop['status'] ?? 'Active', style: TextStyle(color: _selectedStop['status'] == 'Active' ? _green : _orange, fontSize: 11, fontWeight: FontWeight.bold)),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                          const SizedBox(height: 16),
-                                          Wrap(
-                                            spacing: 16,
-                                            runSpacing: 12,
-                                            children: [
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Stop Type', _selectedStop['stop_type'] ?? 'Pickup')),
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Area / Zone', (_selectedStop['transport_routes'] ?? {})['area_zone'] ?? 'Noida')),
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Pickup / Drop', _selectedStop['pickup_drop_type'] ?? 'Pickup Only')),
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Landmark', _selectedStop['landmark'] ?? 'Near Location')),
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Sequence', '${_selectedStop['stop_order'] ?? 1}')),
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Geofence Radius', '${_selectedStop['radius_meters'] ?? 200} meters')),
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Assigned Bus', 'UP16 ET 1234 (AC Bus)')),
-                                              SizedBox(width: 140, child: _buildStopInfoDetailItem('Added On', '12 Apr 2024, 10:30 AM')),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: OutlinedButton(
-                                                  onPressed: () => _showStopFormDialog(_selectedStop),
-                                                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                                                  child: const Text('Edit Stop'),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: OutlinedButton(
-                                                  onPressed: () async {
-                                                    try {
-                                                      final newStatus = _selectedStop['status'] == 'Active' ? 'Inactive' : 'Active';
-                                                      await ApiService().put('/transport/stops/${_selectedStop['id']}', {
-                                                        "status": newStatus
-                                                      });
-                                                      _loadData();
-                                                      _loadStops();
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        SnackBar(content: Text('Stop status updated to $newStatus'), backgroundColor: _green),
-                                                      );
-                                                    } catch (e) {
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        SnackBar(content: Text('Failed to update stop status: $e'), backgroundColor: _red),
-                                                      );
-                                                    }
-                                                  },
-                                                  style: OutlinedButton.styleFrom(
-                                                    foregroundColor: _selectedStop['status'] == 'Active' ? _red : _green,
-                                                    side: BorderSide(color: _selectedStop['status'] == 'Active' ? _red : _green),
-                                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                                  ),
-                                                  child: Text(_selectedStop['status'] == 'Active' ? 'Deactivate Stop' : 'Activate Stop'),
-                                                ),
-                                              ),
-                                            ],
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: (_selectedStop['status'] == 'Active' ? _green : _orange).withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(_selectedStop['status'] ?? 'Active', style: TextStyle(color: _selectedStop['status'] == 'Active' ? _green : _orange, fontSize: 11, fontWeight: FontWeight.bold)),
                                           ),
                                         ],
                                       ),
-                              ),
-                            ),
+                                      const SizedBox(height: 16),
+                                      Wrap(
+                                        spacing: 16,
+                                        runSpacing: 12,
+                                        children: [
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Stop Type', _selectedStop['stop_type'] ?? 'Pickup')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Area / Zone', (_selectedStop['transport_routes'] ?? {})['area_zone'] ?? 'Noida')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Pickup / Drop', _selectedStop['pickup_drop_type'] ?? 'Pickup Only')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Landmark', _selectedStop['landmark'] ?? 'Near Location')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Sequence', '${_selectedStop['stop_order'] ?? 1}')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Geofence Radius', '${_selectedStop['radius_meters'] ?? 200} meters')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Assigned Bus', 'UP16 ET 1234 (AC Bus)')),
+                                          SizedBox(width: 140, child: _buildStopInfoDetailItem('Added On', '12 Apr 2024, 10:30 AM')),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton(
+                                              onPressed: () => _showStopFormDialog(_selectedStop),
+                                              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                                              child: const Text('Edit Stop'),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: OutlinedButton(
+                                              onPressed: () async {
+                                                try {
+                                                  final newStatus = _selectedStop['status'] == 'Active' ? 'Inactive' : 'Active';
+                                                  await ApiService().put('/transport/stops/${_selectedStop['id']}', {
+                                                    "status": newStatus
+                                                  });
+                                                  _loadData();
+                                                  _loadStops();
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text('Stop status updated to $newStatus'), backgroundColor: _green),
+                                                  );
+                                                } catch (e) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text('Failed to update stop status: $e'), backgroundColor: _red),
+                                                  );
+                                                }
+                                              },
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: _selectedStop['status'] == 'Active' ? _red : _green,
+                                                side: BorderSide(color: _selectedStop['status'] == 'Active' ? _red : _green),
+                                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                              ),
+                                              child: Text(_selectedStop['status'] == 'Active' ? 'Deactivate Stop' : 'Activate Stop'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: 520, child: tableWidget),
+                      const SizedBox(height: 24),
+                      SizedBox(height: 650, child: previewWidget),
+                    ],
+                  );
+                }
+
+                return SizedBox(
+                  height: 650,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(flex: 6, child: tableWidget),
+                      const SizedBox(width: 24),
+                      Expanded(flex: 5, child: previewWidget),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],

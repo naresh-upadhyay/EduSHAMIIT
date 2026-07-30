@@ -1592,12 +1592,14 @@ async def update_user(
         from datetime import datetime, timedelta
         sb = get_supabase()
         
-        # Check if profile exists
-        profile_res = await sb.table("profiles").select("*").eq("id", user_id).maybe_single().aexecute()
+        # Check if profile exists (by id or user_id)
+        profile_res = await sb.table("profiles").select("*").or_(f"id.eq.{user_id},user_id.eq.{user_id}").maybe_single().aexecute()
         if not profile_res.data:
             raise HTTPException(status_code=404, detail="User profile not found")
             
         current_profile = profile_res.data
+        real_profile_id = current_profile["id"]
+        current_email = current_profile.get("email")
         
         # Permission check
         caller_role = user.get("role", "").lower()
@@ -1646,8 +1648,8 @@ async def update_user(
                 
         # Check if email is changing
         email_changed = False
-        if request.email and request.email.lower() != current_profile.get("email", "").lower():
-            existing = await sb.table("profiles").select("id").eq("email", request.email).neq("id", user_id).maybe_single().aexecute()
+        if request.email and request.email.lower() != (current_email or "").lower():
+            existing = await sb.table("profiles").select("id").eq("email", request.email).neq("id", real_profile_id).maybe_single().aexecute()
             if existing.data:
                 raise HTTPException(status_code=400, detail="Email already exists in another profile")
             update_data["email"] = request.email
@@ -1657,7 +1659,7 @@ async def update_user(
         if role_changed or email_changed or request.password:
             try:
                 client = await sb.get_async_client()
-                admin_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{user_id}"
+                admin_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{real_profile_id}"
                 headers = {
                     "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
                     "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
@@ -1674,7 +1676,49 @@ async def update_user(
                     }
                     
                 auth_res = await client.put(admin_url, headers=headers, json=json_payload, timeout=10.0)
-                if auth_res.status_code != 200:
+                
+                if auth_res.status_code == 404:
+                    # User profile exists in DB but GoTrue auth user record is missing (e.g. seeded user).
+                    # Create the missing auth user record in GoTrue so password/credentials update succeeds.
+                    target_email = request.email if email_changed else current_email
+                    target_role = request.role if role_changed else current_profile.get("role", "student")
+                    create_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users"
+                    create_payload = {
+                        "id": real_profile_id,
+                        "email": target_email,
+                        "password": request.password or "Password123!",
+                        "email_confirm": True,
+                        "app_metadata": {
+                            "role": target_role
+                        },
+                        "user_metadata": {
+                            "full_name": request.full_name or current_profile.get("full_name")
+                        }
+                    }
+                    create_res = await client.post(create_url, headers=headers, json=create_payload, timeout=10.0)
+                    if create_res.status_code not in [200, 201]:
+                        # If creating with explicit ID failed (e.g. email exists under different auth ID), search by email
+                        search_res = await client.get(create_url, headers=headers, timeout=10.0)
+                        auth_user_id = None
+                        if search_res.status_code == 200:
+                            user_list = search_res.json().get("users", [])
+                            for u in user_list:
+                                if (u.get("email") or "").lower() == (target_email or "").lower():
+                                    auth_user_id = u.get("id")
+                                    break
+                        if auth_user_id:
+                            alt_url = f"{settings.SUPABASE_URL}/auth/v1/admin/users/{auth_user_id}"
+                            alt_res = await client.put(alt_url, headers=headers, json=json_payload, timeout=10.0)
+                            if alt_res.status_code != 200:
+                                err_detail = alt_res.text
+                                raise Exception(f"Auth update failed for auth user {auth_user_id}: {err_detail}")
+                        else:
+                            try:
+                                err_detail = create_res.json().get("message", create_res.text)
+                            except Exception:
+                                err_detail = create_res.text
+                            raise Exception(f"Auth user creation failed: {err_detail}")
+                elif auth_res.status_code != 200:
                     try:
                         err_detail = auth_res.json().get("message", auth_res.text)
                     except Exception:
@@ -1686,7 +1730,7 @@ async def update_user(
         # Save profile update in database
         if update_data:
             update_data["updated_at"] = datetime.utcnow().isoformat()
-            await sb.table("profiles").update(update_data).eq("id", user_id).aexecute()
+            await sb.table("profiles").update(update_data).eq("id", real_profile_id).aexecute()
             
         return {"success": True, "message": "User updated successfully"}
     except HTTPException:

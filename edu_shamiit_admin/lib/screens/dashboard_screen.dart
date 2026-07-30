@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:edu_shamiit_admin/widgets/admin_bottom_nav.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
 import 'package:edu_shamiit_admin/providers/system_config_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
+import 'dart:async';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   final Widget child;
@@ -15,6 +18,14 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
+  StreamSubscription? _tabChangeSubscription;
+
+  @override
+  void dispose() {
+    _tabChangeSubscription?.cancel();
+    super.dispose();
+  }
+
   static const Map<String, String> _roleLabels = {
     'super_admin': 'Super Admin',
     'admin': 'School Admin',
@@ -210,6 +221,11 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   void initState() {
     super.initState();
     _fetchModules();
+    if (kIsWeb) {
+      _tabChangeSubscription = html.window.on['tab_changed'].listen((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   Future<void> _fetchModules() async {
@@ -907,8 +923,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   bool _isRouteExpanded = true;
 
   Widget _buildExpandableFleetTile(bool isDark, bool showLabels, String location) {
-    final isFleetRoute = location.startsWith('/admin/fleet');
-    final activeTab = int.tryParse(Uri.parse(location).queryParameters['tab'] ?? '0') ?? 0;
+    final currentUrl = kIsWeb ? html.window.location.href : location;
+    final isFleetRoute = location.startsWith('/admin/fleet') || currentUrl.contains('/admin/fleet');
+    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,8 +967,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildExpandableDriverTile(bool isDark, bool showLabels, String location) {
-    final isDriverRoute = location.startsWith('/admin/driver-management');
-    final activeTab = int.tryParse(Uri.parse(location).queryParameters['tab'] ?? '0') ?? 0;
+    final currentUrl = kIsWeb ? html.window.location.href : location;
+    final isDriverRoute = location.startsWith('/admin/driver-management') || currentUrl.contains('/admin/driver-management');
+    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -994,8 +1012,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Widget _buildExpandableRouteTile(bool isDark, bool showLabels, String location) {
-    final isRouteRoute = location.startsWith('/admin/route-management');
-    final activeTab = int.tryParse(Uri.parse(location).queryParameters['tab'] ?? '0') ?? 0;
+    final currentUrl = kIsWeb ? html.window.location.href : location;
+    final isRouteRoute = location.startsWith('/admin/route-management') || currentUrl.contains('/admin/route-management');
+    final activeTab = int.tryParse(Uri.parse(currentUrl).queryParameters['tab'] ?? '0') ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1029,10 +1048,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           _buildSubTile('Overview', '/admin/route-management', 0, isRouteRoute && activeTab == 0, isDark),
           _buildSubTile('Route List', '/admin/route-management', 1, isRouteRoute && activeTab == 1, isDark),
           _buildSubTile('Trips & Schedule', '/admin/route-management', 2, isRouteRoute && activeTab == 2, isDark),
-          _buildSubTile('Assign Bus', '/admin/route-management', 3, isRouteRoute && activeTab == 3, isDark),
-          _buildSubTile('Live Tracking', '/admin/route-management', 4, isRouteRoute && activeTab == 4, isDark),
-          _buildSubTile('Route Reports', '/admin/route-management', 5, isRouteRoute && activeTab == 5, isDark),
-          _buildSubTile('Stops', '/admin/route-management', 6, isRouteRoute && activeTab == 6, isDark),
+          _buildSubTile('Live Tracking', '/admin/route-management', 3, isRouteRoute && activeTab == 3, isDark),
+          _buildSubTile('Route Reports', '/admin/route-management', 4, isRouteRoute && activeTab == 4, isDark),
+          _buildSubTile('Stops', '/admin/route-management', 5, isRouteRoute && activeTab == 5, isDark),
         ],
       ],
     );
@@ -1044,7 +1062,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.go('$baseRoute?tab=$tabIndex'),
+          onTap: () {
+            context.go('$baseRoute?tab=$tabIndex');
+            if (kIsWeb) {
+              Future.microtask(() {
+                try {
+                  html.window.history.replaceState(null, '', '$baseRoute?tab=$tabIndex');
+                  html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+                } catch (_) {}
+              });
+            }
+            setState(() {});
+          },
           borderRadius: BorderRadius.circular(8),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),

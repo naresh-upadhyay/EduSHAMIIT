@@ -10,6 +10,9 @@ import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_ti
 import 'package:latlong2/latlong.dart' hide Path;
 import 'driver_management_tab.dart';
 import 'package:edu_shamiit_core/edu_shamiit_core.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 
 class FleetManagementScreen extends StatefulWidget {
   final int initialTab;
@@ -89,6 +92,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   static const _textSecondary = Color(0xFF64748B);
 
   @override
+  final Set<int> _loadedTabs = {};
+
+  @override
   void initState() {
     super.initState();
     // 5 Tabs matching mockup (no Insurance & Fitness)
@@ -98,12 +104,16 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       initialIndex: widget.initialTab.clamp(0, 4),
     );
     _tabController.addListener(() {
-      setState(() {
-        _currentPage = 1;
-        _categoryCurrentPage = 1;
-        _docCurrentPage = 1;
-        _gpsCurrentPage = 1;
-      });
+      if (mounted) {
+        _loadTabIfNeeded(_tabController.index);
+        if (kIsWeb && !_tabController.indexIsChanging) {
+          try {
+            html.window.history.replaceState(null, '', '/admin/fleet?tab=${_tabController.index}');
+            html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+          } catch (_) {}
+        }
+        setState(() {});
+      }
     });
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text);
@@ -117,7 +127,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     _gpsSearchController.addListener(() {
       setState(() => _gpsSearchQuery = _gpsSearchController.text);
     });
-    _loadAll(showLoading: true);
+    _loadTabIfNeeded(widget.initialTab.clamp(0, 4), forceReload: true);
   }
 
   @override
@@ -125,6 +135,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     super.didUpdateWidget(oldWidget);
     if (widget.initialTab != oldWidget.initialTab) {
       _tabController.animateTo(widget.initialTab.clamp(0, 4));
+      _loadTabIfNeeded(widget.initialTab.clamp(0, 4));
     }
   }
 
@@ -140,27 +151,27 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   // ═══════════════════ Data Fetching ═══════════════════
   Future<void> _loadAll({bool showLoading = false}) async {
-    if (showLoading) {
-      setState(() => _isLoading = true);
-    }
+    await _loadTabIfNeeded(_tabController.index, forceReload: true);
+  }
+
+  Future<void> _loadTabIfNeeded(int tabIndex, {bool forceReload = false}) async {
+    if (!mounted) return;
+    if (!forceReload && _loadedTabs.contains(tabIndex)) return;
+
+    setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        ApiService().get('/transport/vehicles?page_size=100', useCache: false),
-        ApiService().get('/transport/categories', useCache: false),
-        ApiService().get('/transport/documents', useCache: false),
-        ApiService().get('/transport/insurance-fitness', useCache: false),
-        ApiService().get('/transport/gps-devices', useCache: false),
-      ]);
-
-      if (mounted) {
-        setState(() {
-          _vehicles = (results[0]['data']?['vehicles'] as List<dynamic>?) ?? [];
-          _categories = (results[1]['data'] as List<dynamic>?) ?? [];
-          _documents = (results[2]['data'] as List<dynamic>?) ?? [];
-          _insuranceFitness = (results[3]['data'] as List<dynamic>?) ?? [];
-          _gpsDevices = (results[4]['data'] as List<dynamic>?) ?? [];
-
-          // Preserve currently selected items if still valid
+      switch (tabIndex) {
+        case 0: // Overview
+        case 1: // Vehicles
+          final res = await ApiService().get('/transport/vehicles?page_size=100', useCache: false);
+          final raw = res['data'];
+          if (raw is Map && raw['vehicles'] is List) {
+            _vehicles = raw['vehicles'] as List;
+          } else if (raw is List) {
+            _vehicles = raw;
+          } else {
+            _vehicles = [];
+          }
           if (_vehicles.isNotEmpty) {
             final match = _vehicles.firstWhere(
               (v) => v['id'] == _selectedVehicle?['id'],
@@ -168,6 +179,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             );
             _selectedVehicle = match ?? _vehicles.first;
           }
+          break;
+        case 2: // Categories
+          final res = await ApiService().get('/transport/categories', useCache: false);
+          final raw = res['data'];
+          _categories = (raw is List) ? raw : [];
           if (_categories.isNotEmpty) {
             final match = _categories.firstWhere(
               (c) => c['id'] == _selectedCategory?['id'],
@@ -175,6 +191,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             );
             _selectedCategory = match ?? _categories.first;
           }
+          break;
+        case 3: // Documents
+          final res = await ApiService().get('/transport/documents', useCache: false);
+          final raw = res['data'];
+          _documents = (raw is List) ? raw : [];
           if (_documents.isNotEmpty) {
             final match = _documents.firstWhere(
               (d) => d['id'] == _selectedDocument?['id'],
@@ -182,6 +203,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             );
             _selectedDocument = match ?? _documents.first;
           }
+          break;
+        case 4: // GPS Devices
+          final res = await ApiService().get('/transport/gps-devices', useCache: false);
+          final raw = res['data'];
+          _gpsDevices = (raw is List) ? raw : [];
           if (_gpsDevices.isNotEmpty) {
             final match = _gpsDevices.firstWhere(
               (dev) => dev['id'] == _selectedGpsDevice?['id'],
@@ -189,13 +215,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             );
             _selectedGpsDevice = match ?? _gpsDevices.first;
           }
-          _isLoading = false;
-        });
+          break;
       }
-    } catch (_) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      _loadedTabs.add(tabIndex);
+    } catch (e) {
+      debugPrint('Error loading fleet tab $tabIndex: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -553,6 +579,18 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         borderRadius: BorderRadius.circular(8),
         child: TabBar(
           controller: _tabController,
+          onTap: (index) {
+            if (_tabController.index != index) {
+              _tabController.animateTo(index);
+            }
+            if (kIsWeb) {
+              try {
+                html.window.history.replaceState(null, '', '/admin/fleet?tab=$index');
+                html.window.dispatchEvent(html.CustomEvent('tab_changed'));
+              } catch (_) {}
+            }
+            setState(() {});
+          },
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           padding: EdgeInsets.zero,
@@ -1326,60 +1364,116 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final inactive = _vehicles.where((v) => v['live_status'] == 'offline').length;
     final totalSeats = _vehicles.fold<int>(0, (sum, v) => sum + (v['total_capacity'] as int? ?? 52));
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        SizedBox(width: 180, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus, const Color(0xFF6366F1), 'View all vehicles')),
-        SizedBox(width: 180, child: _buildKpiCardMini('Active Vehicles', '$active', Icons.insert_drive_file_outlined, Colors.green, _pct(active, totalVehicles))),
-        SizedBox(width: 180, child: _buildKpiCardMini('In Maintenance', maintenance.toString().padLeft(2, '0'), Icons.build_outlined, Colors.orange, _pct(maintenance, totalVehicles))),
-        SizedBox(width: 180, child: _buildKpiCardMini('Inactive Vehicles', inactive.toString().padLeft(2, '0'), Icons.lock_outline, Colors.blue, _pct(inactive, totalVehicles))),
-        SizedBox(width: 180, child: _buildKpiCardMini('Average Utilization', '78.45%', Icons.check_circle_outline, Colors.green, 'This month')),
-        SizedBox(width: 180, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal, const Color(0xFF6366F1), 'Seats')),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxW = constraints.maxWidth;
+        if (maxW >= 950) {
+          return Row(
+            children: [
+              Expanded(child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_rounded, const Color(0xFF4F46E5), '100% Fleet')),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Active Vehicles', '$active', Icons.directions_bus_filled_rounded, const Color(0xFF10B981), _pct(active, totalVehicles))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('In Maintenance', maintenance.toString().padLeft(2, '0'), Icons.build_circle_rounded, const Color(0xFFF59E0B), _pct(maintenance, totalVehicles))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Inactive Vehicles', inactive.toString().padLeft(2, '0'), Icons.bus_alert_rounded, const Color(0xFF64748B), _pct(inactive, totalVehicles))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Seats Total')),
+            ],
+          );
+        } else {
+          final double cardW = (maxW - 24) / 3;
+          final double finalW = cardW > 160 ? cardW : 160;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              SizedBox(width: finalW, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_rounded, const Color(0xFF4F46E5), '100% Fleet')),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Active Vehicles', '$active', Icons.directions_bus_filled_rounded, const Color(0xFF10B981), _pct(active, totalVehicles))),
+              SizedBox(width: finalW, child: _buildKpiCardMini('In Maintenance', maintenance.toString().padLeft(2, '0'), Icons.build_circle_rounded, const Color(0xFFF59E0B), _pct(maintenance, totalVehicles))),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Inactive Vehicles', inactive.toString().padLeft(2, '0'), Icons.bus_alert_rounded, const Color(0xFF64748B), _pct(inactive, totalVehicles))),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Seats Total')),
+            ],
+          );
+        }
+      },
     );
   }
 
-  Widget _buildKpiCardMini(String title, String value, IconData icon, Color color, String sub) {
+  Widget _buildKpiCardMini(String title, String value, IconData icon, Color color, String badgeText) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 16),
+                child: Icon(icon, color: color, size: 15),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  sub,
-                  style: GoogleFonts.inter(fontSize: 10, color: color, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                  textAlign: TextAlign.end,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(value, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: _textPrimary)),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF0F172A),
+              height: 1.1,
+              letterSpacing: -0.5,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             title,
-            style: GoogleFonts.inter(fontSize: 11, color: _textSecondary),
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF64748B),
+            ),
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
           ),
@@ -1390,60 +1484,117 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   Widget _buildVehiclesFilterBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 250,
-            height: 40,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 800;
+          final searchWidget = SizedBox(
+            height: 38,
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by bus number, registration no., driver...',
-                hintStyle: GoogleFonts.inter(fontSize: 13, color: _textSecondary),
-                prefixIcon: const Icon(Icons.search, size: 18, color: _textSecondary),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                hintText: 'Search bus number, registration no., driver...',
+                hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
-          ),
-          _buildDropdown('All Status', _statusFilter, ['All', 'On Route', 'Arrived', 'Returning', 'Delayed', 'Offline', 'In Maintenance'], (val) {
-            setState(() => _statusFilter = val ?? 'All');
-          }, width: 150),
-          _buildDropdown('All Categories', _categoryFilter, ['All', ..._dynamicCategoryOptions], (val) {
-            setState(() => _categoryFilter = val ?? 'All');
-          }, width: 170),
-          _buildDropdown('All Fuel Types', _fuelFilter, ['All', 'Diesel', 'Petrol', 'CNG', 'Electric'], (val) {
-            setState(() => _fuelFilter = val ?? 'All');
-          }, width: 160),
-          OutlinedButton.icon(
-            onPressed: () {
-              setState(() {
-                _searchController.clear();
-                _statusFilter = 'All';
-                _categoryFilter = 'All';
-                _fuelFilter = 'All';
-                _currentPage = 1;
-              });
-            },
-            icon: const Icon(Icons.filter_list, size: 16),
-            label: const Text('Reset'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _textSecondary,
-              side: const BorderSide(color: _border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          );
+
+          final refreshButton = IconButton(
+            onPressed: () => _loadAll(showLoading: true),
+            icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+            tooltip: 'Refresh Vehicles Data',
+          );
+
+          final dropdowns = [
+            _buildDropdown('All Status', _statusFilter, ['All', 'On Route', 'Arrived', 'Returning', 'Delayed', 'Offline', 'In Maintenance'], (val) {
+              setState(() => _statusFilter = val ?? 'All');
+            }, width: 140),
+            _buildDropdown('All Categories', _categoryFilter, ['All', ..._dynamicCategoryOptions], (val) {
+              setState(() => _categoryFilter = val ?? 'All');
+            }, width: 150),
+            _buildDropdown('All Fuel Types', _fuelFilter, ['All', 'Diesel', 'Petrol', 'CNG', 'Electric'], (val) {
+              setState(() => _fuelFilter = val ?? 'All');
+            }, width: 140),
+            SizedBox(
+              height: 38,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _searchController.clear();
+                    _statusFilter = 'All';
+                    _categoryFilter = 'All';
+                    _fuelFilter = 'All';
+                    _currentPage = 1;
+                  });
+                },
+                icon: const Icon(Icons.filter_list_rounded, size: 15),
+                label: const Text('Reset'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEEF2FF),
+                  foregroundColor: const Color(0xFF4F46E5),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
             ),
-          ),
-        ],
+            refreshButton,
+          ];
+
+          if (isWide) {
+            return Row(
+              children: [
+                Expanded(child: searchWidget),
+                const SizedBox(width: 10),
+                ...dropdowns.expand((w) => [w, const SizedBox(width: 10)]).toList()..removeLast(),
+              ],
+            );
+          } else {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                searchWidget,
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: dropdowns,
+                ),
+              ],
+            );
+          }
+        },
       ),
     );
   }
@@ -1456,9 +1607,16 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1472,6 +1630,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 headingRowHeight: 46,
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 64,
+                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                 showCheckboxColumn: false,
               columns: const [
                 DataColumn(label: Text('Bus Number')),
@@ -1736,9 +1895,16 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2078,79 +2244,152 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final totalVehicles = _vehicles.length;
     final totalSeats = _vehicles.fold<int>(0, (sum, v) => sum + (v['total_capacity'] as int? ?? 52));
 
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        SizedBox(width: 180, child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_outlined, const Color(0xFF6366F1), 'All categories')),
-        SizedBox(width: 180, child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_outline, Colors.green, _pct(active, totalCats))),
-        SizedBox(width: 180, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_filled, Colors.orange, 'Across all categories')),
-        SizedBox(width: 180, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal, Colors.blue, 'Total seats')),
-        SizedBox(width: 180, child: _buildKpiCardMini('Average Utilization', '78.45%', Icons.trending_up, Colors.red, 'This month')),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxW = constraints.maxWidth;
+        if (maxW >= 950) {
+          return Row(
+            children: [
+              Expanded(child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_rounded, const Color(0xFF4F46E5), 'All Categories')),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_rounded, const Color(0xFF10B981), _pct(active, totalCats))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_filled_rounded, const Color(0xFFF59E0B), 'Across All')),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Total Seats')),
+              const SizedBox(width: 12),
+              Expanded(child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
+            ],
+          );
+        } else {
+          final double cardW = (maxW - 24) / 3;
+          final double finalW = cardW > 160 ? cardW : 160;
+          return Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              SizedBox(width: finalW, child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_rounded, const Color(0xFF4F46E5), 'All Categories')),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_rounded, const Color(0xFF10B981), _pct(active, totalCats))),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_filled_rounded, const Color(0xFFF59E0B), 'Across All')),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Total Seats')),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
+            ],
+          );
+        }
+      },
     );
   }
 
   Widget _buildCategoriesFilterBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 250,
-            height: 40,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 800;
+          final searchWidget = SizedBox(
+            height: 38,
             child: TextField(
               controller: _categorySearchController,
               decoration: InputDecoration(
                 hintText: 'Search categories by name or type...',
-                hintStyle: GoogleFonts.inter(fontSize: 13, color: _textSecondary),
-                prefixIcon: const Icon(Icons.search, size: 18, color: _textSecondary),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                hintStyle: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF94A3B8)),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
-          ),
-          _buildDropdown('All Status', _categoryStatusFilter, ['All', 'Active', 'Inactive'], (val) {
-            setState(() => _categoryStatusFilter = val ?? 'All');
-          }, width: 150),
-          _buildDropdown('All Fuel Types', _categoryFuelFilter, ['All', 'Diesel', 'Petrol', 'CNG', 'Electric'], (val) {
-            setState(() => _categoryFuelFilter = val ?? 'All');
-          }, width: 160),
-          _buildDropdown('All Transmissions', _categoryTransmissionFilter, ['All', 'Manual', 'Automatic'], (val) {
-            setState(() => _categoryTransmissionFilter = val ?? 'All');
-          }, width: 170),
-          OutlinedButton.icon(
-            onPressed: () {
-              setState(() {
-                _categorySearchController.clear();
-                _categoryStatusFilter = 'All';
-                _categoryFuelFilter = 'All';
-                _categoryTransmissionFilter = 'All';
-                _categoryCurrentPage = 1;
-              });
-            },
-            icon: const Icon(Icons.filter_list, size: 16),
-            label: const Text('Reset'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _textSecondary,
-              side: const BorderSide(color: _border),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          );
+
+          final dropdowns = [
+            _buildDropdown('All Status', _categoryStatusFilter, ['All', 'Active', 'Inactive'], (val) {
+              setState(() => _categoryStatusFilter = val ?? 'All');
+            }, width: 130),
+            _buildDropdown('All Fuel Types', _categoryFuelFilter, ['All', 'Diesel', 'Petrol', 'CNG', 'Electric'], (val) {
+              setState(() => _categoryFuelFilter = val ?? 'All');
+            }, width: 140),
+            _buildDropdown('All Transmissions', _categoryTransmissionFilter, ['All', 'Manual', 'Automatic'], (val) {
+              setState(() => _categoryTransmissionFilter = val ?? 'All');
+            }, width: 150),
+            SizedBox(
+              height: 38,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _categorySearchController.clear();
+                    _categoryStatusFilter = 'All';
+                    _categoryFuelFilter = 'All';
+                    _categoryTransmissionFilter = 'All';
+                    _categoryCurrentPage = 1;
+                  });
+                },
+                icon: const Icon(Icons.filter_list_rounded, size: 15),
+                label: const Text('Reset'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEEF2FF),
+                  foregroundColor: const Color(0xFF4F46E5),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAll,
-          ),
-        ],
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 18, color: Color(0xFF475569)),
+              onPressed: _loadAll,
+            ),
+          ];
+
+          if (isWide) {
+            return Row(
+              children: [
+                Expanded(child: searchWidget),
+                const SizedBox(width: 10),
+                ...dropdowns.expand((w) => [w, const SizedBox(width: 10)]).toList()..removeLast(),
+              ],
+            );
+          } else {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                searchWidget,
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: dropdowns,
+                ),
+              ],
+            );
+          }
+        },
       ),
     );
   }
@@ -2163,9 +2402,16 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2179,6 +2425,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 headingRowHeight: 46,
                 dataRowMinHeight: 56,
                 dataRowMaxHeight: 64,
+                headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                 showCheckboxColumn: false,
               columns: const [
                 DataColumn(label: Text('Category Name')),
@@ -2335,9 +2582,16 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final c = _selectedCategory!;
     return Container(
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2553,47 +2807,56 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   Widget _buildDocKpiCard(String title, String value, String subtitle, Color color, IconData icon, Color? valueColor, double width) {
     return Container(
       width: width,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 15),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _textSecondary),
-                  maxLines: 2,
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: const Color(0xFF64748B)),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
                       value,
-                      style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: _textPrimary),
+                      style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: const Color(0xFF0F172A), height: 1.1),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         subtitle,
-                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: valueColor ?? _textSecondary),
+                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: valueColor ?? color),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -3958,96 +4221,136 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   // ═══════════════════ GPS Filter Row ═══════════════════
   Widget _buildGpsFiltersSection(double availableWidth) {
-    final bool wrapFilters = availableWidth < 1250;
-    final List<Widget> filterWidgets = [
-      // Search Box
-      Expanded(
-        flex: wrapFilters ? 0 : 2,
-        child: SizedBox(
-          height: 40,
-          child: TextField(
-            controller: _gpsSearchController,
-            decoration: InputDecoration(
-              hintText: 'Search by device ID, IMEI, vehicle number...',
-              prefixIcon: const Icon(Icons.search, size: 18, color: _textSecondary),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-            ),
-            style: GoogleFonts.inter(fontSize: 13),
-          ),
+    // 1. Sleek Search Input
+    final searchWidget = SizedBox(
+      height: 38,
+      child: TextField(
+        controller: _gpsSearchController,
+        onChanged: (val) => setState(() {
+          _gpsSearchQuery = val;
+          _gpsCurrentPage = 1;
+        }),
+        decoration: InputDecoration(
+          hintText: 'Search device ID, IMEI, bus...',
+          hintStyle: GoogleFonts.inter(fontSize: 12, color: _textSecondary),
+          prefixIcon: const Icon(Icons.search, size: 18, color: _textSecondary),
+          suffixIcon: _gpsSearchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 16, color: _textSecondary),
+                  onPressed: () {
+                    _gpsSearchController.clear();
+                    setState(() {
+                      _gpsSearchQuery = '';
+                      _gpsCurrentPage = 1;
+                    });
+                  },
+                )
+              : null,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _accent, width: 1.5)),
         ),
+        style: GoogleFonts.inter(fontSize: 13),
       ),
-      if (wrapFilters) const SizedBox(height: 12) else const SizedBox(width: 12),
-      
-      // Status Filter
-      SizedBox(
-        height: 40,
-        width: wrapFilters ? double.infinity : 160,
-        child: DropdownButtonFormField<String>(
-          initialValue: _gpsStatusFilter,
-          isExpanded: true,
-          decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
-          items: ['All', 'Online', 'Offline', 'Issues'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: (val) => setState(() {
-            _gpsStatusFilter = val!;
-            _gpsCurrentPage = 1;
-          }),
-        ),
-      ),
-      if (wrapFilters) const SizedBox(height: 12) else const SizedBox(width: 12),
+    );
 
-      // Provider Filter
-      SizedBox(
-        height: 40,
-        width: wrapFilters ? double.infinity : 180,
-        child: DropdownButtonFormField<String>(
-          initialValue: _gpsProviderFilter,
-          isExpanded: true,
-          decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
-          items: ['All', 'Jio', 'Airtel', 'Vi'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Providers' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: (val) => setState(() {
-            _gpsProviderFilter = val!;
-            _gpsCurrentPage = 1;
-          }),
+    // 2. Status Dropdown
+    final statusWidget = SizedBox(
+      height: 38,
+      child: DropdownButtonFormField<String>(
+        initialValue: _gpsStatusFilter,
+        isExpanded: true,
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
         ),
+        items: ['All', 'Online', 'Offline', 'Issues'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Status' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
+        onChanged: (val) => setState(() {
+          _gpsStatusFilter = val!;
+          _gpsCurrentPage = 1;
+        }),
       ),
-      if (wrapFilters) const SizedBox(height: 12) else const SizedBox(width: 12),
+    );
 
-      // Vehicle Type Filter
-      SizedBox(
-        height: 40,
-        width: wrapFilters ? double.infinity : 200,
-        child: DropdownButtonFormField<String>(
-          initialValue: _gpsVehicleFilter,
-          isExpanded: true,
-          decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12), border: OutlineInputBorder()),
-          items: ['All', 'AC Bus', 'Non AC Bus', 'Mini Bus', 'Tempo Traveller', 'Electric Bus'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Types' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: (val) => setState(() {
-            _gpsVehicleFilter = val!;
-            _gpsCurrentPage = 1;
-          }),
+    // 3. Provider Dropdown
+    final providerWidget = SizedBox(
+      height: 38,
+      child: DropdownButtonFormField<String>(
+        initialValue: _gpsProviderFilter,
+        isExpanded: true,
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
         ),
+        items: ['All', 'Jio', 'Airtel', 'Vi'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Providers' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
+        onChanged: (val) => setState(() {
+          _gpsProviderFilter = val!;
+          _gpsCurrentPage = 1;
+        }),
       ),
-      if (wrapFilters) const SizedBox(height: 12) else const SizedBox(width: 12),
+    );
 
-      // Actions (Filters Toggle / Reset)
-      Row(
-        children: [
-          OutlinedButton.icon(
-            onPressed: () {},
+    // 4. Vehicle Type Dropdown
+    final typeWidget = SizedBox(
+      height: 38,
+      child: DropdownButtonFormField<String>(
+        initialValue: _gpsVehicleFilter,
+        isExpanded: true,
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+        ),
+        items: ['All', 'AC Bus', 'Non AC Bus', 'Mini Bus', 'Tempo Traveller', 'Electric Bus'].map((s) => DropdownMenuItem(value: s, child: Text(s == 'All' ? 'All Types' : s, style: GoogleFonts.inter(fontSize: 12), overflow: TextOverflow.ellipsis))).toList(),
+        onChanged: (val) => setState(() {
+          _gpsVehicleFilter = val!;
+          _gpsCurrentPage = 1;
+        }),
+      ),
+    );
+
+    // 5. Actions (Filters button + Refresh icon) with identical 38px height
+    final actionsWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          height: 38,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              setState(() {
+                // Toggle filter view if needed or apply filters
+              });
+            },
             icon: const Icon(Icons.filter_list, size: 16),
-            label: const Text('Filters'),
+            label: Text('Filters', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500)),
             style: OutlinedButton.styleFrom(
               foregroundColor: _textPrimary,
               side: const BorderSide(color: _border),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              minimumSize: const Size(0, 38),
+              maximumSize: const Size(double.infinity, 38),
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 20, color: _textSecondary),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 38,
+          height: 38,
+          child: IconButton(
+            icon: const Icon(Icons.refresh, size: 18, color: _textSecondary),
             onPressed: () {
               setState(() {
                 _gpsSearchController.clear();
@@ -4061,22 +4364,87 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             style: IconButton.styleFrom(
               side: const BorderSide(color: _border),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(38, 38),
+              maximumSize: const Size(38, 38),
             ),
           ),
-        ],
-      ),
-    ];
+        ),
+      ],
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: wrapFilters
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: filterWidgets.map((w) => w is Expanded ? SizedBox(width: double.infinity, child: w.child) : w).toList(),
-            )
-          : Row(
-              children: filterWidgets,
-            ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          
+          // Large Screen / Desktop (>= 800px): Everything on 1 sleek line!
+          if (width >= 800) {
+            return Row(
+              children: [
+                SizedBox(width: 240, child: searchWidget),
+                const SizedBox(width: 10),
+                SizedBox(width: 130, child: statusWidget),
+                const SizedBox(width: 10),
+                SizedBox(width: 130, child: providerWidget),
+                const SizedBox(width: 10),
+                SizedBox(width: 140, child: typeWidget),
+                const Spacer(),
+                actionsWidget,
+              ],
+            );
+          }
+          
+          // Medium Screen / Tablet (500px to 800px): 2 clean rows
+          if (width >= 500) {
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: searchWidget),
+                    const SizedBox(width: 10),
+                    actionsWidget,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: statusWidget),
+                    const SizedBox(width: 10),
+                    Expanded(child: providerWidget),
+                    const SizedBox(width: 10),
+                    Expanded(child: typeWidget),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          // Small Screen / Mobile (< 500px): 3 clean compact rows
+          return Column(
+            children: [
+              searchWidget,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: statusWidget),
+                  const SizedBox(width: 10),
+                  Expanded(child: providerWidget),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: typeWidget),
+                  const SizedBox(width: 10),
+                  actionsWidget,
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 

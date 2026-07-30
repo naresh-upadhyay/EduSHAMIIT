@@ -30,33 +30,10 @@ class _DriverManagementScreenState extends ConsumerState<DriverManagementScreen>
 
     return Scaffold(
       backgroundColor: _bg,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Premium Header
-          Container(
-            decoration: const BoxDecoration(
-              color: _cardBg,
-              border: Border(
-                bottom: BorderSide(color: _border, width: 1),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-            child: _buildHeader(),
-          ),
-
-          // Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: DriverManagementTab(
-                key: _driverTabKey,
-                schoolId: schoolId,
-                initialTab: widget.initialTab,
-              ),
-            ),
-          ),
-        ],
+      body: DriverManagementTab(
+        key: _driverTabKey,
+        schoolId: schoolId,
+        initialTab: widget.initialTab,
       ),
     );
   }

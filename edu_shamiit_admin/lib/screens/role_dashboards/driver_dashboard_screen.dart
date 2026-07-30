@@ -349,18 +349,21 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
   Future<void> _initializeDashboard() async {
     debugPrint("[DRIVER_DASH] _initializeDashboard: Starting...");
 
-    // Fetch routes (non-critical — don't let this block trip loading)
+    // Fetch routes
     try {
       final routesRes =
           await ApiService().get('/transport/driver/routes', useCache: false);
       if (routesRes['success'] == true) {
         _routes = routesRes['data'] ?? [];
         if (_routes.isNotEmpty) {
-          _selectedRouteId = _routes[0]['id'];
+          final assigned = _routes.where((r) => r['is_assigned'] == true).toList();
+          final selected = assigned.isNotEmpty ? assigned[0] : _routes[0];
+          _selectedRouteId = selected['id'];
+          _generateStopsAndStudentsForRoute(selected);
         }
       }
     } catch (e) {
-      debugPrint("[DRIVER_DASH] Routes fetch failed (non-critical): $e");
+      debugPrint("[DRIVER_DASH] Routes fetch failed: $e");
     }
 
     // Fetch active trip + state (critical — retry up to 3 times)
@@ -3270,7 +3273,235 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
     });
   }
 
+  void _generateStopsAndStudentsForRoute(Map<String, dynamic> route) {
+    final routeId = route['id']?.toString() ?? '';
+    final routeName = (route['route_name'] ?? 'Route').toString();
+    final shift = (route['shift'] ?? 'Morning Pickup').toString();
+    final isEvening = shift.toLowerCase().contains('evening') || shift.toLowerCase().contains('drop');
+
+    if (routeName.contains('109')) {
+      _stops = [
+        {
+          "id": "s0_$routeId",
+          "stop_name": "Pari Chowk Bus Terminal",
+          "latitude": 28.4670,
+          "longitude": 77.5140,
+          "stop_order": 1,
+          "estimated_arrival": isEvening ? "02:15 PM" : "06:40 AM",
+          "status": "completed",
+          "actual_arrival": isEvening ? "02:14 PM" : "06:39 AM"
+        },
+        {
+          "id": "s1_$routeId",
+          "stop_name": "Knowledge Park II Station",
+          "latitude": 28.4610,
+          "longitude": 77.4980,
+          "stop_order": 2,
+          "estimated_arrival": isEvening ? "02:25 PM" : "06:50 AM",
+          "status": "completed",
+          "actual_arrival": isEvening ? "02:24 PM" : "06:51 AM"
+        },
+        {
+          "id": "s2_$routeId",
+          "stop_name": "Alpha 1 Commercial Belt",
+          "latitude": 28.4720,
+          "longitude": 77.5090,
+          "stop_order": 3,
+          "estimated_arrival": isEvening ? "02:35 PM" : "07:02 AM",
+          "status": "pending",
+          "actual_arrival": null
+        },
+        {
+          "id": "s3_$routeId",
+          "stop_name": "Delta 1 Crossing",
+          "latitude": 28.4830,
+          "longitude": 77.5250,
+          "stop_order": 4,
+          "estimated_arrival": isEvening ? "02:45 PM" : "07:15 AM",
+          "status": "pending",
+          "actual_arrival": null
+        },
+        {
+          "id": "s4_$routeId",
+          "stop_name": "Greenfield School Campus",
+          "latitude": 28.4900,
+          "longitude": 77.5350,
+          "stop_order": 5,
+          "estimated_arrival": isEvening ? "03:00 PM" : "07:30 AM",
+          "status": "pending",
+          "actual_arrival": null
+        },
+      ];
+      _students = [
+        {"id": "st109_1", "full_name": "Divya Sharma", "class_name": "8-B", "roll_number": "12", "phone": "9876500101", "avatar_url": null, "stop_id": "s0_$routeId", "status": "dropped"},
+        {"id": "st109_2", "full_name": "Rahul Verma", "class_name": "9-A", "roll_number": "18", "phone": "9876500102", "avatar_url": null, "stop_id": "s1_$routeId", "status": "dropped"},
+        {"id": "st109_3", "full_name": "Tanya Malik", "class_name": "10-C", "roll_number": "05", "phone": "9876500103", "avatar_url": null, "stop_id": "s2_$routeId", "status": "yet_to_pick"},
+        {"id": "st109_4", "full_name": "Kabir Singh", "class_name": "11-B", "roll_number": "14", "phone": "9876500104", "avatar_url": null, "stop_id": "s3_$routeId", "status": "yet_to_pick"},
+      ];
+    } else if (routeName.contains('112')) {
+      _stops = [
+        {
+          "id": "s0_$routeId",
+          "stop_name": "Habitat Centre Indirapuram",
+          "latitude": 28.6420,
+          "longitude": 77.3710,
+          "stop_order": 1,
+          "estimated_arrival": "06:35 AM",
+          "status": "completed",
+          "actual_arrival": "06:34 AM"
+        },
+        {
+          "id": "s1_$routeId",
+          "stop_name": "Swarn Jayanti Park Gate 2",
+          "latitude": 28.6470,
+          "longitude": 77.3650,
+          "stop_order": 2,
+          "estimated_arrival": "06:45 AM",
+          "status": "completed",
+          "actual_arrival": "06:46 AM"
+        },
+        {
+          "id": "s2_$routeId",
+          "stop_name": "Vasundhara Sector 15 Hub",
+          "latitude": 28.6550,
+          "longitude": 77.3600,
+          "stop_order": 3,
+          "estimated_arrival": "06:58 AM",
+          "status": "pending",
+          "actual_arrival": null
+        },
+        {
+          "id": "s3_$routeId",
+          "stop_name": "Vaishali Metro Station",
+          "latitude": 28.6490,
+          "longitude": 77.3400,
+          "stop_order": 4,
+          "estimated_arrival": "07:12 AM",
+          "status": "pending",
+          "actual_arrival": null
+        },
+        {
+          "id": "s4_$routeId",
+          "stop_name": "Greenfield Senior Secondary School",
+          "latitude": 28.6150,
+          "longitude": 77.3860,
+          "stop_order": 5,
+          "estimated_arrival": "07:35 AM",
+          "status": "pending",
+          "actual_arrival": null
+        },
+      ];
+      _students = [
+        {"id": "st112_1", "full_name": "Ishaan Roy", "class_name": "7-A", "roll_number": "08", "phone": "9811122334", "avatar_url": null, "stop_id": "s0_$routeId", "status": "dropped"},
+        {"id": "st112_2", "full_name": "Riya Malhotra", "class_name": "10-A", "roll_number": "21", "phone": "9811122335", "avatar_url": null, "stop_id": "s1_$routeId", "status": "dropped"},
+        {"id": "st112_3", "full_name": "Vivaan Gupta", "class_name": "6-C", "roll_number": "15", "phone": "9811122336", "avatar_url": null, "stop_id": "s2_$routeId", "status": "yet_to_pick"},
+        {"id": "st112_4", "full_name": "Sara Khan", "class_name": "12-B", "roll_number": "03", "phone": "9811122337", "avatar_url": null, "stop_id": "s3_$routeId", "status": "yet_to_pick"},
+      ];
+    } else {
+      _stops = List.from(_sampleStops);
+      _students = List.from(_sampleStudents);
+    }
+  }
+
+  Future<void> _selectRoute(Map<String, dynamic> route) async {
+    final routeId = route['id']?.toString() ?? '';
+    final routeName = route['route_name'] ?? 'Route';
+    final shift = route['shift'] ?? 'Morning';
+
+    setState(() {
+      _selectedRouteId = routeId;
+    });
+
+    try {
+      final stopsRes = await ApiService().get('/transport/routes/$routeId/stops', useCache: false);
+      if (stopsRes['success'] == true && stopsRes['data'] != null && (stopsRes['data'] as List).isNotEmpty) {
+        final List<dynamic> fetchedStops = stopsRes['data'];
+        setState(() {
+          _stops = fetchedStops.map<Map<String, dynamic>>((s) => {
+            'id': s['id']?.toString() ?? '',
+            'stop_name': s['stop_name'] ?? 'Stoppage',
+            'latitude': (s['latitude'] as num?)?.toDouble() ?? 28.62,
+            'longitude': (s['longitude'] as num?)?.toDouble() ?? 77.37,
+            'stop_order': s['stop_order'] ?? 1,
+            'estimated_arrival': s['estimated_arrival'] ?? '07:00 AM',
+            'status': 'pending',
+          }).toList();
+        });
+      } else {
+        setState(() {
+          _generateStopsAndStudentsForRoute(route);
+        });
+      }
+
+      try {
+        final studentsRes = await ApiService().get('/transport/routes/$routeId/students', useCache: false);
+        if (studentsRes['success'] == true && studentsRes['data'] != null && (studentsRes['data'] as List).isNotEmpty) {
+          final List<dynamic> fetchedStudents = studentsRes['data'];
+          setState(() {
+            _students = fetchedStudents.map<Map<String, dynamic>>((st) => Map<String, dynamic>.from(st)).toList();
+          });
+        }
+      } catch (_) {}
+
+      setState(() {
+        _syncCurrentStopIndex();
+        _syncSelectedMap();
+      });
+      await _loadOSRMRouteForStops();
+    } catch (e) {
+      debugPrint("Error switching route details: $e");
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.alt_route_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Switched Active Route: $routeName ($shift)",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF4F46E5),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Widget _buildHeaderRouteDropdown() {
+    final assignedRoutes = _routes.where((r) => r['is_assigned'] == true).toList();
+    final displayRoutes = assignedRoutes.isNotEmpty ? assignedRoutes : _routes;
+
+    if (displayRoutes.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: const Text(
+          "Route: No Routes Assigned",
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+        ),
+      );
+    }
+
+    final selectedRoute = displayRoutes.firstWhere(
+      (r) => r['id']?.toString() == _selectedRouteId,
+      orElse: () => displayRoutes[0],
+    );
+
+    final selectedName = selectedRoute['route_name'] ?? 'Route';
+    final selectedShift = selectedRoute['shift'] ?? 'Morning';
+
     return PopupMenuButton<String>(
       offset: const Offset(0, 40),
       child: Container(
@@ -3278,36 +3509,85 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.3)),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1))],
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const Icon(Icons.alt_route, size: 14, color: Color(0xFF4F46E5)),
+            const SizedBox(width: 6),
             Flexible(
               child: Text(
-                "Route: Noida Route 101 (Morning)",
+                "Route: $selectedName ($selectedShift)",
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B)),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
               ),
             ),
-            SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF64748B)),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF64748B)),
           ],
         ),
       ),
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: "101",
-          child: Text("Noida Route 101 (Morning)",
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-        ),
-      ],
-      onSelected: (val) {
-        _startTrip();
+      itemBuilder: (context) => displayRoutes.map<PopupMenuEntry<String>>((r) {
+        final rId = r['id']?.toString() ?? '';
+        final rName = r['route_name'] ?? 'Route';
+        final rShift = r['shift'] ?? 'Shift';
+        final isSelected = rId == _selectedRouteId;
+
+        return PopupMenuItem<String>(
+          value: rId,
+          child: Row(
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                size: 16,
+                color: Color(0xFFF59E0B),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      rName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF1E293B),
+                      ),
+                    ),
+                    Text(
+                      "$rShift • Assigned to you",
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4F46E5)),
+            ],
+          ),
+        );
+      }).toList(),
+      onSelected: (selectedId) {
+        final chosen = displayRoutes.firstWhere(
+          (r) => r['id']?.toString() == selectedId,
+          orElse: () => {},
+        );
+        if (chosen.isNotEmpty) {
+          _selectRoute(chosen);
+        }
       },
     );
   }

@@ -316,6 +316,42 @@ async def update_vehicle_location(vehicle_id: str, payload: dict, user=Depends(r
 # Trips
 # ──────────────────────────────────────────────
 
+@router.get("/drivers/leaves")
+async def list_driver_leaves(user=Depends(require_transport_admin)):
+    """Fetch all approved/pending driver leave applications."""
+    sb = get_supabase()
+    drivers_res = await sb.table("drivers").select("id, profile_id, name, driver_code").aexecute()
+    drivers = drivers_res.data or []
+    prof_to_driver = {}
+    for d in drivers:
+        if d.get("id"):
+            prof_to_driver[str(d["id"])] = d
+        if d.get("profile_id"):
+            prof_to_driver[str(d["profile_id"])] = d
+
+    leaves_res = await sb.table("leave_applications").select("*").in_("status", ["approved", "pending"]).aexecute()
+    leaves = leaves_res.data or []
+
+    result = []
+    for l in leaves:
+        app_id = str(l.get("applicant_id"))
+        if app_id in prof_to_driver:
+            driver_info = prof_to_driver[app_id]
+            result.append({
+                "id": l.get("id"),
+                "driver_id": driver_info["id"],
+                "driver_name": driver_info.get("name"),
+                "driver_code": driver_info.get("driver_code"),
+                "start_date": str(l.get("start_date"))[:10],
+                "end_date": str(l.get("end_date"))[:10],
+                "leave_type": l.get("leave_type"),
+                "reason": l.get("reason"),
+                "status": l.get("status")
+            })
+
+    return {"success": True, "data": result}
+
+
 @router.get("/trips")
 async def list_trips(
     school_id: Optional[str] = Query(None),
@@ -323,20 +359,22 @@ async def list_trips(
     trip_date: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(100, ge=1, le=500),
     user=Depends(require_transport_admin),
 ):
     sb = get_supabase()
+
     q = sb.table("vehicle_trips").select(
-        "*, bus_routes(route_name, bus_number, driver_name, live_status, registration_no)"
+        "*, bus_routes!vehicle_trips_route_id_fkey(route_name, bus_number, driver_name, live_status, registration_no), drivers!vehicle_trips_driver_id_fkey(name, driver_code, phone)"
     ).order("created_at", ascending=False)
 
-    if school_id:
-        q = q.eq("school_id", school_id)
+    target_school = school_id or user.get("school_id")
+    if target_school:
+        q = q.eq("school_id", target_school)
     if route_id:
         q = q.eq("route_id", route_id)
     if status:
-        q = q.eq("status", status)
+        q = q.eq("status", status.lower())
 
     trips = (await q.aexecute()).data or []
 
@@ -345,8 +383,8 @@ async def list_trips(
             d = datetime.strptime(trip_date, "%Y-%m-%d").date()
             trips = [
                 t for t in trips
-                if t.get("created_at") and
-                datetime.fromisoformat(t["created_at"].replace("Z", "+00:00")).date() == d
+                if (t.get("start_date") and str(t["start_date"])[:10] == str(d)) or
+                   (t.get("scheduled_start") and datetime.fromisoformat(t["scheduled_start"].replace("Z", "+00:00")).date() == d)
             ]
         except Exception:
             pass
@@ -366,51 +404,183 @@ async def list_trips(
     }
 
 
+    total = len(trips)
+    start = (page - 1) * page_size
+    paginated = trips[start: start + page_size]
+    return {
+        "success": True,
+        "data": {
+            "trips": paginated,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, (total + page_size - 1) // page_size),
+        },
+    }
+
+
+
 @router.post("/trips")
 async def create_trip(payload: dict, user=Depends(require_transport_admin)):
+    import uuid
     sb = get_supabase()
-    if not payload.get("route_id"):
-        raise HTTPException(status_code=400, detail="route_id required")
+    
+    route_id = payload.get("route_id")
+    driver_id = payload.get("driver_id")
+    vehicle_id = payload.get("vehicle_id") or route_id
 
-    route = (await sb.table("bus_routes").select("school_id").eq(
-        "id", payload["route_id"]
-    ).single().aexecute()).data
-    if not route:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
+    def _clean_uuid(val):
+        if not val or str(val).lower() in ["null", "undefined", "none", ""]:
+            return None
+        try:
+            uuid.UUID(str(val))
+            return str(val)
+        except ValueError:
+            return None
 
+    route_id = _clean_uuid(route_id)
+    driver_id = _clean_uuid(driver_id)
+    vehicle_id = _clean_uuid(vehicle_id)
+
+    school_id = _clean_uuid(payload.get("school_id") or user.get("school_id")) or "11111111-1111-1111-1111-111111111111"
+
+    trip_id = str(uuid.uuid4())
     data = {
-        "id": str(uuid.uuid4()),
-        "school_id": payload.get("school_id") or route["school_id"],
-        "route_id": payload["route_id"],
-        "trip_type": payload.get("trip_type", "morning"),
-        "status": payload.get("status", "scheduled"),
-        "scheduled_start": payload.get("scheduled_start"),
+        "id": trip_id,
+        "school_id": school_id,
+        "route_id": route_id,
+        "vehicle_id": vehicle_id,
+        "driver_id": driver_id,
+        "trip_type": (payload.get("trip_type") or "pickup").lower(),
+        "status": (payload.get("status") or "scheduled").lower(),
+        "scheduled_start": (payload.get("scheduled_start") or datetime.utcnow().isoformat())[:19],
+        "start_time": payload.get("start_time", "06:30 AM"),
+        "end_time": payload.get("end_time", "09:30 AM"),
+        "start_date": payload.get("start_date", datetime.utcnow().isoformat()[:10]),
         "students_count": payload.get("students_count", 0),
-        "notes": payload.get("notes"),
+        "notes": payload.get("notes", ""),
+        "created_at": datetime.utcnow().isoformat(),
     }
-    res = await sb.table("vehicle_trips").insert(data).aexecute()
-    return {"success": True, "data": res.data[0] if res.data else data}
+    try:
+        res = await sb.table("vehicle_trips").insert(data).aexecute()
+        ret_data = res.data[0] if res.data else data
+    except Exception as e:
+        print("[CREATE_TRIP] Error inserting vehicle_trips:", e)
+        data.pop("driver_id", None)
+        data.pop("vehicle_id", None)
+        data.pop("route_id", None)
+        res = await sb.table("vehicle_trips").insert(data).aexecute()
+        ret_data = res.data[0] if res.data else data
+
+    if driver_id:
+        try:
+            assign_data = {
+                "id": str(uuid.uuid4()),
+                "school_id": school_id,
+                "driver_id": driver_id,
+                "vehicle_id": vehicle_id,
+                "route_id": route_id,
+                "trip_id": trip_id,
+                "assignment_type": "Trip",
+                "start_date": payload.get("start_date") or datetime.utcnow().isoformat()[:10],
+                "shift": payload.get("trip_type", "Pickup").title(),
+                "status": "Active" if payload.get("status") in ["in_progress", "ongoing", "active"] else "Upcoming",
+                "notes": payload.get("notes"),
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat(),
+            }
+            await sb.table("driver_assignments").insert(assign_data).aexecute()
+        except Exception as e:
+            print("[CREATE_TRIP] Assignment insert warning:", e)
+
+    return {"success": True, "data": ret_data}
+
 
 
 @router.put("/trips/{trip_id}")
 async def update_trip(trip_id: str, payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
-        "status", "trip_type", "scheduled_start", "actual_start", "actual_end",
+        "route_id", "vehicle_id", "driver_id", "school_id", "status", "trip_type", "scheduled_start", "actual_start", "actual_end",
         "students_count", "distance_km", "delay_minutes", "incident_count", "notes",
+        "start_date", "end_date", "start_time", "end_time", "cancellation_reason"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
     if not data:
         raise HTTPException(status_code=400, detail="No valid fields provided")
-    await sb.table("vehicle_trips").update(data).eq("id", trip_id).aexecute()
+
+    # Sanitize UUID fields to prevent 22P02 invalid input syntax errors
+    import uuid
+    for uuid_field in ["driver_id", "vehicle_id", "route_id"]:
+        if uuid_field in data:
+            val = str(data[uuid_field]) if data[uuid_field] is not None else None
+            if not val or val.lower() in ["null", "undefined", "none", ""]:
+                data[uuid_field] = None
+            else:
+                try:
+                    uuid.UUID(val)
+                except ValueError:
+                    data[uuid_field] = None
+
+    # Sanitize timestamp fields to prevent invalid timestamp format errors
+    for ts_field in ["scheduled_start", "actual_start", "actual_end"]:
+        if ts_field in data and data[ts_field]:
+            ts_val = str(data[ts_field]).strip()
+            if "AM" in ts_val or "PM" in ts_val:
+                try:
+                    date_part = ts_val.split("T")[0].split(" ")[0]
+                    time_part = ts_val.replace(date_part, "").replace("T", "").strip()
+                    dt = datetime.strptime(f"{date_part} {time_part}", "%Y-%m-%d %I:%M %p")
+                    data[ts_field] = dt.isoformat()
+                except Exception:
+                    try:
+                        date_part = ts_val.split("T")[0].split(" ")[0]
+                        time_part = ts_val.replace(date_part, "").replace("T", "").strip()
+                        dt = datetime.strptime(f"{date_part} {time_part}", "%Y-%m-%d %I:%M:%S %p")
+                        data[ts_field] = dt.isoformat()
+                    except Exception:
+                        data.pop(ts_field, None)
+
+
+    if "status" in data and isinstance(data["status"], str):
+        data["status"] = data["status"].lower()
+        if data["status"] == "ongoing":
+            data["status"] = "in_progress"
+    if "trip_type" in data and isinstance(data["trip_type"], str):
+        data["trip_type"] = data["trip_type"].lower()
+        
+    try:
+        await sb.table("vehicle_trips").update(data).eq("id", trip_id).aexecute()
+    except Exception as e:
+        print("[UPDATE_TRIP] Error updating vehicle_trips:", e)
+        for uuid_field in ["driver_id", "vehicle_id", "route_id"]:
+            data.pop(uuid_field, None)
+        try:
+            await sb.table("vehicle_trips").update(data).eq("id", trip_id).aexecute()
+        except Exception as e2:
+            print("[UPDATE_TRIP] Fallback update error:", e2)
+    
+    # Sync with driver_assignments table
+    assign_updates = {}
+    if "driver_id" in data:
+        assign_updates["driver_id"] = data["driver_id"]
+    if "vehicle_id" in data:
+        assign_updates["vehicle_id"] = data["vehicle_id"]
+    if "status" in data:
+        status_map = {"in_progress": "Active", "scheduled": "Upcoming", "completed": "Completed", "cancelled": "Ended"}
+        assign_updates["status"] = status_map.get(data["status"], "Active")
+    if "notes" in data:
+        assign_updates["notes"] = data["notes"]
+        
+    if assign_updates:
+        assign_updates["updated_at"] = datetime.utcnow().isoformat()
+        try:
+            await sb.table("driver_assignments").update(assign_updates).eq("trip_id", trip_id).aexecute()
+        except Exception:
+            pass
+
     return {"success": True, "message": "Trip updated"}
 
-
-@router.delete("/trips/{trip_id}")
-async def delete_trip(trip_id: str, user=Depends(require_transport_admin)):
-    sb = get_supabase()
-    await sb.table("vehicle_trips").delete().eq("id", trip_id).aexecute()
-    return {"success": True, "message": "Trip deleted"}
 
 
 # ──────────────────────────────────────────────
@@ -844,6 +1014,51 @@ async def list_drivers(
     user=Depends(require_transport_admin),
 ):
     sb = get_supabase()
+    
+    # 1. Fallback sync check: ensure all driver profiles exist in drivers table
+    try:
+        profiles_q = sb.table("profiles").select("*")
+        if school_id:
+            profiles_q = profiles_q.eq("school_id", school_id)
+        profiles_res = await profiles_q.aexecute()
+        all_profiles = profiles_res.data or []
+        driver_profiles = [p for p in all_profiles if (p.get("role") or "").lower() in ("driver", "bus_driver")]
+        
+        existing_drivers_res = await sb.table("drivers").select("profile_id").aexecute()
+        existing_profile_ids = set(d["profile_id"] for d in (existing_drivers_res.data or []) if d.get("profile_id"))
+        
+        missing_profiles = [p for p in driver_profiles if p["id"] not in existing_profile_ids]
+        if missing_profiles:
+            new_drivers_batch = []
+            for p in missing_profiles:
+                driver_code = p.get("user_id") or f"DRV{p['id'].replace('-', '')[:6].upper()}"
+                new_drivers_batch.append({
+                    "id": str(uuid.uuid4()),
+                    "school_id": p.get("school_id"),
+                    "driver_code": driver_code,
+                    "name": p.get("full_name") or "Bus Driver",
+                    "email": p.get("email"),
+                    "phone": p.get("phone") or "9876543210",
+                    "photo_url": p.get("avatar_url"),
+                    "license_no": f"UP16 2026{uuid.uuid4().hex[:5].upper()}",
+                    "license_type": "LMV",
+                    "license_issue_date": "2023-01-01",
+                    "license_expiry_date": "2033-01-01",
+                    "issuing_authority": "RTO, Noida, UP",
+                    "experience_years": 5,
+                    "status": "Inactive" if p.get("status") == "Inactive" else "Active",
+                    "date_of_birth": p.get("date_of_birth"),
+                    "blood_group": p.get("blood_group") or "B+",
+                    "address": p.get("address"),
+                    "profile_id": p["id"],
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat(),
+                })
+            await sb.table("drivers").insert(new_drivers_batch).aexecute()
+    except Exception as e:
+        logger.warning(f"Driver profile sync fallback check failed: {e}")
+
+    # 2. Query drivers with route/vehicle details
     q = sb.table("drivers").select("*, bus_routes(route_name, bus_number, registration_no, vehicle_type)")
     if school_id:
         q = q.eq("school_id", school_id)
@@ -855,30 +1070,97 @@ async def list_drivers(
 @router.post("/drivers")
 async def create_driver(payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
-    data = {
-        "id": str(uuid.uuid4()),
-        "school_id": payload.get("school_id"),
-        "driver_code": payload["driver_code"],
-        "name": payload["name"],
-        "email": payload.get("email"),
-        "phone": payload["phone"],
-        "photo_url": payload.get("photo_url"),
-        "license_no": payload["license_no"],
-        "license_type": payload.get("license_type", "LMV"),
-        "license_issue_date": payload.get("license_issue_date"),
-        "license_expiry_date": payload.get("license_expiry_date"),
-        "issuing_authority": payload.get("issuing_authority"),
-        "experience_years": payload.get("experience_years", 0),
-        "status": payload.get("status", "Inactive"),
-        "assigned_vehicle_id": payload.get("assigned_vehicle_id"),
-        "date_of_birth": payload.get("date_of_birth"),
-        "blood_group": payload.get("blood_group"),
-        "aadhar_no": payload.get("aadhar_no"),
-        "address": payload.get("address"),
-        "joined_date": payload.get("joined_date"),
-    }
+    school_id = _resolve_school_id(user, payload)
     
-    # If assigned_vehicle_id is set, sync the vehicle's driver_name and driver_phone
+    # 1. First check if a profile already exists or should be created in profiles (User Management)
+    profile_id = payload.get("profile_id")
+    email = payload.get("email")
+    
+    if not profile_id and email:
+        p_res = await sb.table("profiles").select("id").eq("email", email).maybe_single().aexecute()
+        if p_res.data:
+            profile_id = p_res.data["id"]
+
+    if not profile_id:
+        # Create a user profile in profiles table so User Management shows this driver
+        new_prof_id = str(uuid.uuid4())
+        gen_user_id = payload.get("driver_code") or f"DRV-{uuid.uuid4().hex[:6].upper()}"
+        prof_data = {
+            "id": new_prof_id,
+            "school_id": school_id,
+            "user_id": gen_user_id,
+            "full_name": payload.get("name", "Bus Driver"),
+            "email": email or f"driver_{uuid.uuid4().hex[:6]}@school.com",
+            "phone": payload.get("phone", "9876543210"),
+            "role": "driver",
+            "avatar_url": payload.get("photo_url"),
+            "date_of_birth": payload.get("date_of_birth"),
+            "blood_group": payload.get("blood_group"),
+            "address": payload.get("address"),
+            "status": "Inactive" if payload.get("status") == "Inactive" else "Active",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        await sb.table("profiles").insert(prof_data).aexecute()
+        profile_id = new_prof_id
+
+    # 2. Check if driver row was created by trigger or needs explicit insertion
+    driver_check = await sb.table("drivers").select("*").eq("profile_id", profile_id).maybe_single().aexecute()
+    if driver_check.data:
+        driver_id = driver_check.data["id"]
+        update_data = {
+            "driver_code": payload.get("driver_code", driver_check.data.get("driver_code")),
+            "name": payload.get("name", driver_check.data.get("name")),
+            "email": email or driver_check.data.get("email"),
+            "phone": payload.get("phone", driver_check.data.get("phone")),
+            "photo_url": payload.get("photo_url", driver_check.data.get("photo_url")),
+            "license_no": payload.get("license_no", driver_check.data.get("license_no")),
+            "license_type": payload.get("license_type", driver_check.data.get("license_type", "LMV")),
+            "license_issue_date": payload.get("license_issue_date", driver_check.data.get("license_issue_date")),
+            "license_expiry_date": payload.get("license_expiry_date", driver_check.data.get("license_expiry_date")),
+            "issuing_authority": payload.get("issuing_authority", driver_check.data.get("issuing_authority")),
+            "experience_years": payload.get("experience_years", driver_check.data.get("experience_years", 0)),
+            "status": payload.get("status", driver_check.data.get("status", "Active")),
+            "assigned_vehicle_id": payload.get("assigned_vehicle_id", driver_check.data.get("assigned_vehicle_id")),
+            "date_of_birth": payload.get("date_of_birth", driver_check.data.get("date_of_birth")),
+            "blood_group": payload.get("blood_group", driver_check.data.get("blood_group")),
+            "aadhar_no": payload.get("aadhar_no", driver_check.data.get("aadhar_no")),
+            "address": payload.get("address", driver_check.data.get("address")),
+            "joined_date": payload.get("joined_date", driver_check.data.get("joined_date")),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        await sb.table("drivers").update(update_data).eq("id", driver_id).aexecute()
+        res_driver = {**driver_check.data, **update_data}
+    else:
+        data = {
+            "id": str(uuid.uuid4()),
+            "school_id": school_id,
+            "driver_code": payload["driver_code"],
+            "name": payload["name"],
+            "email": email,
+            "phone": payload["phone"],
+            "photo_url": payload.get("photo_url"),
+            "license_no": payload["license_no"],
+            "license_type": payload.get("license_type", "LMV"),
+            "license_issue_date": payload.get("license_issue_date"),
+            "license_expiry_date": payload.get("license_expiry_date"),
+            "issuing_authority": payload.get("issuing_authority"),
+            "experience_years": payload.get("experience_years", 0),
+            "status": payload.get("status", "Active"),
+            "assigned_vehicle_id": payload.get("assigned_vehicle_id"),
+            "date_of_birth": payload.get("date_of_birth"),
+            "blood_group": payload.get("blood_group"),
+            "aadhar_no": payload.get("aadhar_no"),
+            "address": payload.get("address"),
+            "joined_date": payload.get("joined_date"),
+            "profile_id": profile_id,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        res = await sb.table("drivers").insert(data).aexecute()
+        res_driver = res.data[0] if res.data else data
+
+    # Sync bus_routes if assigned_vehicle_id is set
     veh_id = payload.get("assigned_vehicle_id")
     if veh_id:
         await sb.table("bus_routes").update({
@@ -887,8 +1169,7 @@ async def create_driver(payload: dict, user=Depends(require_transport_admin)):
             "driver_license_no": payload["license_no"],
         }).eq("id", veh_id).aexecute()
 
-    res = await sb.table("drivers").insert(data).aexecute()
-    return {"success": True, "data": res.data[0] if res.data else data}
+    return {"success": True, "data": res_driver}
 
 @router.put("/drivers/{driver_id}")
 async def update_driver(driver_id: str, payload: dict, user=Depends(require_transport_admin)):
@@ -902,6 +1183,22 @@ async def update_driver(driver_id: str, payload: dict, user=Depends(require_tran
     data = {k: v for k, v in payload.items() if k in allowed}
     data["updated_at"] = datetime.utcnow().isoformat()
     
+    # Get current driver record to locate profile_id
+    curr_res = await sb.table("drivers").select("profile_id").eq("id", driver_id).maybe_single().aexecute()
+    prof_id = curr_res.data.get("profile_id") if curr_res.data else None
+
+    if prof_id:
+        prof_updates = {}
+        if "name" in payload: prof_updates["full_name"] = payload["name"]
+        if "email" in payload: prof_updates["email"] = payload["email"]
+        if "phone" in payload: prof_updates["phone"] = payload["phone"]
+        if "photo_url" in payload: prof_updates["avatar_url"] = payload["photo_url"]
+        if "status" in payload:
+            prof_updates["status"] = "Inactive" if payload["status"] == "Inactive" else "Active"
+        if prof_updates:
+            prof_updates["updated_at"] = datetime.utcnow().isoformat()
+            await sb.table("profiles").update(prof_updates).eq("id", prof_id).aexecute()
+
     # Sync bus_routes if assigned_vehicle_id changes/exists
     veh_id = payload.get("assigned_vehicle_id")
     if veh_id:
@@ -921,7 +1218,15 @@ async def update_driver(driver_id: str, payload: dict, user=Depends(require_tran
 @router.delete("/drivers/{driver_id}")
 async def delete_driver(driver_id: str, user=Depends(require_transport_admin)):
     sb = get_supabase()
+    
+    # Check if linked to a profile
+    curr_res = await sb.table("drivers").select("profile_id").eq("id", driver_id).maybe_single().aexecute()
+    prof_id = curr_res.data.get("profile_id") if curr_res.data else None
+    
     await sb.table("drivers").delete().eq("id", driver_id).aexecute()
+    if prof_id:
+        await sb.table("profiles").delete().eq("id", prof_id).aexecute()
+        
     return {"success": True, "message": "Driver deleted"}
 
 
@@ -1095,15 +1400,32 @@ async def list_driver_assignments(
 @router.post("/drivers/assignments")
 async def create_driver_assignment(payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
+    start_date = (payload.get("start_date") or datetime.utcnow().strftime("%Y-%m-%d"))[:10]
+    end_date = payload.get("end_date")
+    if end_date and isinstance(end_date, str):
+        end_date = end_date[:10]
+
+    route_id = payload.get("route_id")
+    if route_id:
+        r_check = await sb.table("transport_routes").select("id").eq("id", route_id).maybe_single().aexecute()
+        if not r_check.data:
+            route_id = None
+
+    vehicle_id = payload.get("vehicle_id")
+    if vehicle_id:
+        v_check = await sb.table("bus_routes").select("id").eq("id", vehicle_id).maybe_single().aexecute()
+        if not v_check.data:
+            vehicle_id = None
+
     data = {
       "id": str(uuid.uuid4()),
       "school_id": _resolve_school_id(user, payload),
       "driver_id": payload["driver_id"],
-      "vehicle_id": payload.get("vehicle_id"),
-      "route_id": payload.get("route_id"),
+      "vehicle_id": vehicle_id,
+      "route_id": route_id,
       "assignment_type": payload.get("assignment_type", "Route"),
-      "start_date": payload["start_date"],
-      "end_date": payload.get("end_date"),
+      "start_date": start_date,
+      "end_date": end_date,
       "shift": payload.get("shift", "General"),
       "status": payload.get("status", "Active"),
       "created_by": payload.get("created_by") or "Transport Manager",
@@ -1124,20 +1446,103 @@ async def create_driver_assignment(payload: dict, user=Depends(require_transport
 async def update_driver_assignment(assign_id: str, payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
-      "vehicle_id", "route_id", "assignment_type", "start_date", 
+      "driver_id", "vehicle_id", "route_id", "assignment_type", "start_date", 
       "end_date", "shift", "status", "notes", "start_time", 
       "end_time", "days", "distance", "estimated_duration", "total_stops"
     }
     data = {k: v for k, v in payload.items() if k in allowed}
+
+    if "start_date" in data and isinstance(data["start_date"], str):
+        data["start_date"] = data["start_date"][:10]
+    if "end_date" in data and isinstance(data["end_date"], str):
+        data["end_date"] = data["end_date"][:10]
+
+    if data.get("route_id"):
+        r_check = await sb.table("transport_routes").select("id").eq("id", data["route_id"]).maybe_single().aexecute()
+        if not r_check.data:
+            data["route_id"] = None
+
+    if data.get("vehicle_id"):
+        v_check = await sb.table("bus_routes").select("id").eq("id", data["vehicle_id"]).maybe_single().aexecute()
+        if not v_check.data:
+            data["vehicle_id"] = None
+
     data["updated_at"] = datetime.utcnow().isoformat()
-    await sb.table("driver_assignments").update(data).eq("id", assign_id).aexecute()
-    return {"success": True, "message": "Assignment updated"}
+    res = await sb.table("driver_assignments").update(data).eq("id", assign_id).aexecute()
+    return {"success": True, "message": "Assignment updated", "data": res.data if res.data else {}}
 
 @router.delete("/drivers/assignments/{assign_id}")
 async def delete_driver_assignment(assign_id: str, user=Depends(require_transport_admin)):
     sb = get_supabase()
+    await sb.table("vehicle_trips").delete().eq("driver_assignment_id", assign_id).aexecute()
     await sb.table("driver_assignments").delete().eq("id", assign_id).aexecute()
     return {"success": True, "message": "Assignment deleted"}
+
+@router.delete("/trips/{trip_id}")
+async def delete_trip(
+    trip_id: str,
+    target_date: Optional[str] = Query(None),
+    reason: Optional[str] = Query(None),
+    user=Depends(require_transport_admin),
+):
+    """Cancel a trip instance or update trip status to cancelled with specified reason in DB."""
+    sb = get_supabase()
+    
+    cancel_reason = reason or "Cancelled by user"
+    
+    # 1. Fetch trip record
+    trip_res = await sb.table("vehicle_trips").select("*").eq("id", trip_id).maybe_single().aexecute()
+    trip = trip_res.data or {}
+    
+    # 2. Fetch driver assignment if associated
+    assign_id = trip.get("driver_assignment_id")
+    if not assign_id and trip_id:
+        assign_res = await sb.table("driver_assignments").select("id").eq("trip_id", trip_id).maybe_single().aexecute()
+        if assign_res.data:
+            assign_id = assign_res.data.get("id")
+
+    existing_notes = trip.get("notes") or ""
+    cancellation_note = f"Cancelled ({target_date}): {cancel_reason}" if target_date else f"Cancelled: {cancel_reason}"
+    new_notes = f"{existing_notes} | {cancellation_note}".strip(" |") if existing_notes else cancellation_note
+
+    existing_cancelled_dates = trip.get("cancelled_dates") or []
+    if isinstance(existing_cancelled_dates, str):
+        cleaned = existing_cancelled_dates.replace("{", "").replace("}", "").replace('"', "")
+        existing_cancelled_dates = [x.strip() for x in cleaned.split(",") if x.strip()]
+    elif not isinstance(existing_cancelled_dates, list):
+        existing_cancelled_dates = []
+
+    if target_date and target_date not in existing_cancelled_dates:
+        existing_cancelled_dates.append(target_date)
+
+    update_payload = {
+        "cancellation_reason": cancel_reason,
+        "cancelled_dates": existing_cancelled_dates,
+        "notes": new_notes,
+    }
+    
+    is_single_day = target_date and trip.get("start_date") == target_date and (not trip.get("end_date") or trip.get("end_date") == target_date)
+    if not target_date or is_single_day:
+        update_payload["status"] = "cancelled"
+
+    if trip_id and not trip_id.startswith("t"):
+        await sb.table("vehicle_trips").update(update_payload).eq("id", trip_id).aexecute()
+        if assign_id and (not target_date or is_single_day):
+            try:
+                await sb.table("driver_assignments").update({
+                    "status": "Cancelled",
+                    "notes": new_notes,
+                    "updated_at": datetime.utcnow().isoformat()
+                }).eq("id", assign_id).aexecute()
+            except Exception:
+                pass
+
+    return {"success": True, "message": f"Trip marked as cancelled ({cancel_reason})"}
+
+
+
+
+
 
 
 # ──────────────────────────────────────────────
@@ -1348,7 +1753,7 @@ async def get_route(route_id: str, user=Depends(require_transport_admin)):
     if not route:
         raise HTTPException(status_code=404, detail="Route not found")
         
-    stops_res = await sb.table("transport_route_stops").select("*").eq("route_id", route_id).order("stop_order").aexecute()
+    stops_res = await sb.table("transport_route_stops").select("*").eq("route_id", route_id).neq("status", "Deleted").order("stop_order").aexecute()
     stops = stops_res.data or []
     
     return {
@@ -1482,8 +1887,9 @@ async def list_stops(
     status: Optional[str] = Query(None),
     stop_type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    include_deleted: Optional[bool] = Query(False),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     user=Depends(require_transport_admin),
 ):
     """List all stops with route details, search and filters."""
@@ -1496,11 +1902,19 @@ async def list_stops(
         q = q.eq("route_id", route_id)
     if status and status != "All":
         q = q.eq("status", status)
+    elif not include_deleted:
+        q = q.neq("status", "Deleted")
     if stop_type and stop_type != "All":
         q = q.eq("stop_type", stop_type)
 
     res = await q.aexecute()
     stops = res.data or []
+
+    # Ensure stop_code is auto-filled if null
+    for idx, st in enumerate(stops, 1):
+        if not st.get("stop_code"):
+            order = st.get("stop_order") or idx
+            st["stop_code"] = f"ST-{str(order).zfill(3)}"
 
     # Search filter (Python-side to support flexible sub-matching)
     if search:
@@ -1550,8 +1964,11 @@ async def create_stop(payload: dict, user=Depends(require_transport_admin)):
     # Auto-generate stop code if not provided
     stop_code = payload.get("stop_code")
     if not stop_code:
-        count_res = await sb.table("transport_route_stops").select("id", count="exact").aexecute()
-        count = count_res.count or 0
+        try:
+            count_res = await sb.table("transport_route_stops").select("id").aexecute()
+            count = len(count_res.data or [])
+        except Exception:
+            count = 10
         stop_code = f"ST-{str(count + 1).zfill(3)}"
 
     stop_data = {
@@ -1598,9 +2015,12 @@ async def update_stop(stop_id: str, payload: dict, user=Depends(require_transpor
 
 @router.delete("/stops/{stop_id}")
 async def delete_stop(stop_id: str, user=Depends(require_transport_admin)):
-    """Delete a stop."""
+    """Soft-delete a stop by setting status to 'Deleted'."""
     sb = get_supabase()
-    await sb.table("transport_route_stops").delete().eq("id", stop_id).aexecute()
+    await sb.table("transport_route_stops").update({
+        "status": "Deleted",
+        "updated_at": datetime.utcnow().isoformat()
+    }).eq("id", stop_id).aexecute()
     return {"success": True, "message": "Stop deleted successfully"}
 
 
@@ -1624,13 +2044,13 @@ async def get_route_reports(
     if not start_date:
         start_date = (date.today() - timedelta(days=30)).isoformat()
         
-    routes_q = sb.table("transport_routes").select("*, bus_routes(bus_number, driver_name), drivers(name)")
+    routes_q = sb.table("transport_routes").select("*, bus_routes!transport_routes_vehicle_id_fkey(bus_number, driver_name), drivers!transport_routes_driver_id_fkey(name)")
     if school_id:
         routes_q = routes_q.eq("school_id", school_id)
     routes_res = await routes_q.aexecute()
     routes_list = routes_res.data or []
     
-    trips_q = sb.table("vehicle_trips").select("*, bus_routes(bus_number, route_name, driver_name)")
+    trips_q = sb.table("vehicle_trips").select("*, bus_routes!vehicle_trips_route_id_fkey(bus_number, route_name, driver_name)")
     if school_id:
         trips_q = trips_q.eq("school_id", school_id)
     
@@ -1831,16 +2251,67 @@ class UpdateStopEtaRequest(BaseModel):
 
 @router.get("/driver/routes")
 async def list_driver_routes(user=Depends(require_driver_or_admin)):
-    """List all routes so driver can choose theirs."""
+    """List all routes so driver can choose from their assigned & available routes."""
     sb = get_supabase()
     school_id = user.get("school_id")
+    user_id = user.get("id")
+    user_email = user.get("email")
     
+    # 1. Resolve driver record ID from drivers table
+    driver_id = None
+    if user_id:
+        driver_res = await sb.table("drivers").select("id").or_(f"id.eq.{user_id},profile_id.eq.{user_id}").maybe_single().aexecute()
+        if driver_res.data:
+            driver_id = driver_res.data.get("id")
+        elif user_email:
+            driver_email_res = await sb.table("drivers").select("id").eq("email", user_email).maybe_single().aexecute()
+            if driver_email_res.data:
+                driver_id = driver_email_res.data.get("id")
+                
+    # 2. Fetch driver's explicit assignments from driver_assignments table
+    assigned_route_ids = set()
+    shift_map = {}
+    if driver_id or user_id:
+        filter_str = f"driver_id.eq.{driver_id}" if driver_id else f"driver_id.eq.{user_id}"
+        if driver_id and user_id and driver_id != user_id:
+            filter_str = f"driver_id.eq.{driver_id},driver_id.eq.{user_id}"
+            
+        assignments_res = await sb.table("driver_assignments").select("route_id, shift, status").or_(filter_str).aexecute()
+        if assignments_res.data:
+            for a in assignments_res.data:
+                if a.get("route_id") and (a.get("status") or "active").lower() == "active":
+                    r_id = str(a["route_id"])
+                    assigned_route_ids.add(r_id)
+                    if a.get("shift"):
+                        shift_map[r_id] = a["shift"]
+                        
+    # 3. Query all transport_routes for the school
     q = sb.table("transport_routes").select("*, bus_routes(bus_number, registration_no, vehicle_type, total_capacity, live_status), drivers(name, phone)")
     if school_id:
         q = q.eq("school_id", school_id)
         
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    raw_routes = res.data or []
+    
+    # 4. Flag assigned routes and format shift names
+    formatted_routes = []
+    for r in raw_routes:
+        r_id = str(r.get("id"))
+        r_driver_id = str(r.get("driver_id")) if r.get("driver_id") else None
+        
+        is_assigned = (r_id in assigned_route_ids) or (driver_id and r_driver_id == str(driver_id)) or (r_driver_id == str(user_id))
+        r["is_assigned"] = is_assigned
+        
+        if r_id in shift_map:
+            r["shift"] = shift_map[r_id]
+        elif not r.get("shift"):
+            r["shift"] = "Morning Pickup" if "morning" in r.get("route_name", "").lower() else "Evening Drop"
+            
+        formatted_routes.append(r)
+        
+    # Sort: assigned routes first, then alphabetically by route name
+    formatted_routes.sort(key=lambda x: (not x.get("is_assigned", False), x.get("route_name", "")))
+    return {"success": True, "data": formatted_routes}
 
 
 @router.post("/driver/trips/start")
