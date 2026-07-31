@@ -237,7 +237,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             _documents = (docRaw is List) ? docRaw : [];
           } catch (_) {}
           try {
-            final drvRes = await ApiService().get('/auth/users?role=driver', useCache: false);
+            final drvRes = await ApiService().get('/transport/drivers', useCache: false);
             final drvRaw = drvRes['data'];
             if (drvRaw is List) _drivers = drvRaw;
           } catch (_) {}
@@ -1861,7 +1861,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     DataCell(_buildFuelIndicator(v['fuel_level_pct'])),
                     DataCell(Text('${v['total_capacity'] ?? 52}')),
                     DataCell(_buildSpeedBadge(v['speed_kmh'])),
-                    const DataCell(Text('2 min ago')),
+                    DataCell(Text(_formatRelativeTime(v['updated_at']))),
                     DataCell(Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -3867,6 +3867,24 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       return '$day $month $year $hour:$min $ampm';
     } catch (_) {
       return dtStr.toString();
+    }
+  }
+
+  String _formatRelativeTime(dynamic dtStr) {
+    if (dtStr == null || dtStr.toString().isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(dtStr.toString()).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
+      if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      if (diff.inDays < 30) return '${diff.inDays}d ago';
+      final months = diff.inDays ~/ 30;
+      if (months < 12) return '${months}mo ago';
+      return '${diff.inDays ~/ 365}y ago';
+    } catch (_) {
+      return '—';
     }
   }
 
@@ -6510,21 +6528,21 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final driverNameCtrl = TextEditingController();
     final driverPhoneCtrl = TextEditingController();
     final routeNameCtrl = TextEditingController();
-    final modelCtrl = TextEditingController(text: 'Tata Starbus');
-    final mfgYearCtrl = TextEditingController(text: '2022');
+    final modelCtrl = TextEditingController();
+    final mfgYearCtrl = TextEditingController();
     final capacityCtrl = TextEditingController(text: '52');
-    final chassisCtrl = TextEditingController(text: 'MA3KC2B1S12345678');
-    final engineCtrl = TextEditingController(text: 'ENG12345678');
-    final colorCtrl = TextEditingController(text: 'Yellow');
-    final pucCtrl = TextEditingController(text: 'UP16PUC123456');
-    final permitCtrl = TextEditingController(text: 'UP16TP2023001');
+    final chassisCtrl = TextEditingController();
+    final engineCtrl = TextEditingController();
+    final colorCtrl = TextEditingController();
+    final pucCtrl = TextEditingController();
+    final permitCtrl = TextEditingController();
 
-    final luggageCtrl = TextEditingController(text: '500 L');
-    final fuelTankCtrl = TextEditingController(text: '150 Liters');
-    final odoCtrl = TextEditingController(text: '45280');
-    final firstAidCtrl = TextEditingController(text: '2026-12-12');
-    final fireExtCtrl = TextEditingController(text: '2027-01-15');
-    final lastServicedCtrl = TextEditingController(text: '2024-05-10');
+    final luggageCtrl = TextEditingController();
+    final fuelTankCtrl = TextEditingController();
+    final odoCtrl = TextEditingController();
+    final firstAidCtrl = TextEditingController();
+    final fireExtCtrl = TextEditingController();
+    final lastServicedCtrl = TextEditingController();
 
     final vehicleTypeList = List<String>.from(_dynamicCategoryOptions);
     String vehicleType = vehicleTypeList.isNotEmpty ? vehicleTypeList.first : 'AC Bus';
@@ -6634,11 +6652,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               child: Text('None (Unassigned) - Optional', style: TextStyle(color: Colors.grey)),
                             ),
                             ..._drivers.map((d) {
-                              final name = d['name'] ?? 'Driver';
-                              final phone = d['phone'] ?? '';
-                              final label = phone.toString().isNotEmpty ? '$name  •  $phone' : name.toString();
+                              final name = (d['name'] ?? d['full_name'] ?? 'Driver').toString();
+                              final phone = (d['phone'] ?? '').toString();
+                              final label = phone.isNotEmpty ? '$name  •  $phone' : name;
                               return DropdownMenuItem<String>(
-                                value: d['id'].toString(),
+                                value: (d['id'] ?? d['profile_id'] ?? '').toString(),
                                 child: Text(label, overflow: TextOverflow.ellipsis),
                               );
                             }),
@@ -6651,12 +6669,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                                 driverPhoneCtrl.clear();
                               } else {
                                 final d = _drivers.firstWhere(
-                                  (element) => element['id'].toString() == selectedDriverId,
+                                  (element) => (element['id']?.toString() == selectedDriverId || element['profile_id']?.toString() == selectedDriverId),
                                   orElse: () => null,
                                 );
                                 if (d != null) {
-                                  driverNameCtrl.text = d['name']?.toString() ?? '';
-                                  driverPhoneCtrl.text = d['phone']?.toString() ?? '';
+                                  driverNameCtrl.text = (d['name'] ?? d['full_name'] ?? '').toString();
+                                  driverPhoneCtrl.text = (d['phone'] ?? '').toString();
                                 }
                               }
                             });
@@ -6720,8 +6738,24 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: mfgYearCtrl,
-                                decoration: const InputDecoration(labelText: 'Mfg Year'),
-                                keyboardType: TextInputType.number,
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Mfg Year',
+                                  suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+                                ),
+                                onTap: () async {
+                                  final curYear = int.tryParse(mfgYearCtrl.text) ?? DateTime.now().year;
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime(curYear),
+                                    firstDate: DateTime(1980),
+                                    lastDate: DateTime(2100),
+                                    initialDatePickerMode: DatePickerMode.year,
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => mfgYearCtrl.text = '${picked.year}');
+                                  }
+                                },
                               ),
                             ),
                           ],
@@ -6822,14 +6856,52 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: firstAidCtrl,
-                                decoration: const InputDecoration(labelText: 'First Aid Kit Expiry'),
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'First Aid Kit Expiry',
+                                  hintText: 'YYYY-MM-DD',
+                                  suffixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+                                ),
+                                onTap: () async {
+                                  final cur = DateTime.tryParse(firstAidCtrl.text) ?? DateTime.now();
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: cur,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      firstAidCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                    });
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: TextFormField(
                                 controller: fireExtCtrl,
-                                decoration: const InputDecoration(labelText: 'Fire Extinguisher Expiry'),
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Fire Extinguisher Expiry',
+                                  hintText: 'YYYY-MM-DD',
+                                  suffixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+                                ),
+                                onTap: () async {
+                                  final cur = DateTime.tryParse(fireExtCtrl.text) ?? DateTime.now();
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: cur,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      fireExtCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                    });
+                                  }
+                                },
                               ),
                             ),
                           ],
@@ -6837,7 +6909,26 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: lastServicedCtrl,
-                          decoration: const InputDecoration(labelText: 'Last Serviced Date'),
+                          readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Last Serviced Date',
+                            hintText: 'YYYY-MM-DD',
+                            suffixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+                          ),
+                          onTap: () async {
+                            final cur = DateTime.tryParse(lastServicedCtrl.text) ?? DateTime.now();
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: cur,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                lastServicedCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                              });
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -6850,39 +6941,42 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       try {
-                        await ApiService().post('/transport/vehicles', {
+                        final payload = <String, dynamic>{
                           'bus_number': busNumCtrl.text,
                           'registration_no': regNumCtrl.text,
                           'vehicle_type': vehicleType,
                           'fuel_type': fuelType,
-                          'driver_name': selectedDriverId == 'none' ? null : (driverNameCtrl.text.isEmpty ? null : driverNameCtrl.text),
-                          'driver_phone': selectedDriverId == 'none' ? null : (driverPhoneCtrl.text.isEmpty ? null : driverPhoneCtrl.text),
-                          'driver_id': selectedDriverId == 'none' ? null : selectedDriverId,
-                          'route_name': routeNameCtrl.text,
-                          'total_capacity': int.tryParse(capacityCtrl.text) ?? 52,
                           'live_status': liveStatus,
                           'status': status,
-                          'chassis_no': chassisCtrl.text,
-                          'engine_no': engineCtrl.text,
-                          'model': modelCtrl.text,
-                          'year_of_mfg': int.tryParse(mfgYearCtrl.text) ?? 2022,
-                          'color': colorCtrl.text,
-                          'puc_no': pucCtrl.text,
-                          'permit_no': permitCtrl.text,
-                          'luggage_capacity': luggageCtrl.text,
-                          'fuel_tank_capacity': fuelTankCtrl.text,
-                          'transmission': transmission,
-                          'odometer_km': int.tryParse(odoCtrl.text) ?? 45280,
-                          'speed_governor': speedGovernor,
-                          'cctv_installed': cctvInstalled,
-                          'panic_button': panicButton,
-                          'first_aid_expiry': firstAidCtrl.text,
-                          'fire_extinguisher_expiry': fireExtCtrl.text,
-                          'last_serviced_date': lastServicedCtrl.text,
-                          'ownership_type': ownershipType,
-                          'fuel_level_pct': 100,
-                          'speed_kmh': 0,
-                        });
+                          'total_capacity': int.tryParse(capacityCtrl.text) ?? 52,
+                        };
+                        if (selectedDriverId != 'none') {
+                          payload['driver_id'] = selectedDriverId;
+                          if (driverNameCtrl.text.isNotEmpty) payload['driver_name'] = driverNameCtrl.text;
+                          if (driverPhoneCtrl.text.isNotEmpty) payload['driver_phone'] = driverPhoneCtrl.text;
+                        }
+                        if (routeNameCtrl.text.isNotEmpty) payload['route_name'] = routeNameCtrl.text;
+                        if (chassisCtrl.text.isNotEmpty) payload['chassis_no'] = chassisCtrl.text;
+                        if (engineCtrl.text.isNotEmpty) payload['engine_no'] = engineCtrl.text;
+                        if (modelCtrl.text.isNotEmpty) payload['model'] = modelCtrl.text;
+                        if (mfgYearCtrl.text.isNotEmpty) payload['year_of_mfg'] = int.tryParse(mfgYearCtrl.text);
+                        if (colorCtrl.text.isNotEmpty) payload['color'] = colorCtrl.text;
+                        if (pucCtrl.text.isNotEmpty) payload['puc_no'] = pucCtrl.text;
+                        if (permitCtrl.text.isNotEmpty) payload['permit_no'] = permitCtrl.text;
+                        if (luggageCtrl.text.isNotEmpty) payload['luggage_capacity'] = luggageCtrl.text;
+                        if (fuelTankCtrl.text.isNotEmpty) payload['fuel_tank_capacity'] = fuelTankCtrl.text;
+                        payload['transmission'] = transmission;
+                        if (odoCtrl.text.isNotEmpty) payload['odometer_km'] = int.tryParse(odoCtrl.text);
+                        payload['speed_governor'] = speedGovernor;
+                        payload['cctv_installed'] = cctvInstalled;
+                        payload['panic_button'] = panicButton;
+                        if (firstAidCtrl.text.isNotEmpty) payload['first_aid_expiry'] = firstAidCtrl.text;
+                        if (fireExtCtrl.text.isNotEmpty) payload['fire_extinguisher_expiry'] = fireExtCtrl.text;
+                        if (lastServicedCtrl.text.isNotEmpty) payload['last_serviced_date'] = lastServicedCtrl.text;
+                        payload['ownership_type'] = ownershipType;
+                        // Remove any null values
+                        payload.removeWhere((k, v) => v == null);
+                        await ApiService().post('/transport/vehicles', payload);
                         _loadAll();
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
@@ -6909,7 +7003,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final driverPhoneCtrl = TextEditingController(text: v['driver_phone']);
     final routeNameCtrl = TextEditingController(text: v['route_name']);
     final modelCtrl = TextEditingController(text: v['model']);
-    final mfgYearCtrl = TextEditingController(text: '${v['year_of_mfg'] ?? 2022}');
+    final mfgYearCtrl = TextEditingController(text: v['year_of_mfg'] != null ? '${v['year_of_mfg']}' : '');
     final capacityCtrl = TextEditingController(text: '${v['total_capacity'] ?? 52}');
     final chassisCtrl = TextEditingController(text: v['chassis_no']);
     final engineCtrl = TextEditingController(text: v['engine_no']);
@@ -6917,12 +7011,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final pucCtrl = TextEditingController(text: v['puc_no']);
     final permitCtrl = TextEditingController(text: v['permit_no']);
 
-    final luggageCtrl = TextEditingController(text: v['luggage_capacity'] ?? '500 L');
-    final fuelTankCtrl = TextEditingController(text: v['fuel_tank_capacity'] ?? '150 Liters');
-    final odoCtrl = TextEditingController(text: '${v['odometer_km'] ?? 45280}');
-    final firstAidCtrl = TextEditingController(text: v['first_aid_expiry'] ?? '2026-12-12');
-    final fireExtCtrl = TextEditingController(text: v['fire_extinguisher_expiry'] ?? '2027-01-15');
-    final lastServicedCtrl = TextEditingController(text: v['last_serviced_date'] ?? '2024-05-10');
+    final luggageCtrl = TextEditingController(text: v['luggage_capacity'] ?? '');
+    final fuelTankCtrl = TextEditingController(text: v['fuel_tank_capacity'] ?? '');
+    final odoCtrl = TextEditingController(text: v['odometer_km'] != null ? '${v['odometer_km']}' : '');
+    final firstAidCtrl = TextEditingController(text: v['first_aid_expiry'] ?? '');
+    final fireExtCtrl = TextEditingController(text: v['fire_extinguisher_expiry'] ?? '');
+    final lastServicedCtrl = TextEditingController(text: v['last_serviced_date'] ?? '');
 
     String vehicleType = v['vehicle_type'] ?? 'AC Bus';
     String fuelType = v['fuel_type'] ?? 'Diesel';
@@ -7057,11 +7151,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                               child: Text('None (Unassigned) - Optional', style: TextStyle(color: Colors.grey)),
                             ),
                             ..._drivers.map((d) {
-                              final name = d['name'] ?? 'Driver';
-                              final phone = d['phone'] ?? '';
-                              final label = phone.toString().isNotEmpty ? '$name  •  $phone' : name.toString();
+                              final name = (d['name'] ?? d['full_name'] ?? 'Driver').toString();
+                              final phone = (d['phone'] ?? '').toString();
+                              final label = phone.isNotEmpty ? '$name  •  $phone' : name;
                               return DropdownMenuItem<String>(
-                                value: d['id'].toString(),
+                                value: (d['id'] ?? d['profile_id'] ?? '').toString(),
                                 child: Text(label, overflow: TextOverflow.ellipsis),
                               );
                             }),
@@ -7074,12 +7168,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                                 driverPhoneCtrl.clear();
                               } else {
                                 final d = _drivers.firstWhere(
-                                  (element) => element['id'].toString() == selectedDriverId,
+                                  (element) => (element['id']?.toString() == selectedDriverId || element['profile_id']?.toString() == selectedDriverId),
                                   orElse: () => null,
                                 );
                                 if (d != null) {
-                                  driverNameCtrl.text = d['name']?.toString() ?? '';
-                                  driverPhoneCtrl.text = d['phone']?.toString() ?? '';
+                                  driverNameCtrl.text = (d['name'] ?? d['full_name'] ?? '').toString();
+                                  driverPhoneCtrl.text = (d['phone'] ?? '').toString();
                                 }
                               }
                             });
@@ -7143,8 +7237,24 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: mfgYearCtrl,
-                                decoration: const InputDecoration(labelText: 'Mfg Year'),
-                                keyboardType: TextInputType.number,
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Mfg Year',
+                                  suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+                                ),
+                                onTap: () async {
+                                  final curYear = int.tryParse(mfgYearCtrl.text) ?? DateTime.now().year;
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime(curYear),
+                                    firstDate: DateTime(1980),
+                                    lastDate: DateTime(2100),
+                                    initialDatePickerMode: DatePickerMode.year,
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() => mfgYearCtrl.text = '${picked.year}');
+                                  }
+                                },
                               ),
                             ),
                           ],
@@ -7245,14 +7355,52 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                             Expanded(
                               child: TextFormField(
                                 controller: firstAidCtrl,
-                                decoration: const InputDecoration(labelText: 'First Aid Kit Expiry'),
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'First Aid Kit Expiry',
+                                  hintText: 'YYYY-MM-DD',
+                                  suffixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+                                ),
+                                onTap: () async {
+                                  final cur = DateTime.tryParse(firstAidCtrl.text) ?? DateTime.now();
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: cur,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      firstAidCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                    });
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: TextFormField(
                                 controller: fireExtCtrl,
-                                decoration: const InputDecoration(labelText: 'Fire Extinguisher Expiry'),
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Fire Extinguisher Expiry',
+                                  hintText: 'YYYY-MM-DD',
+                                  suffixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+                                ),
+                                onTap: () async {
+                                  final cur = DateTime.tryParse(fireExtCtrl.text) ?? DateTime.now();
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: cur,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      fireExtCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                    });
+                                  }
+                                },
                               ),
                             ),
                           ],
@@ -7260,7 +7408,26 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: lastServicedCtrl,
-                          decoration: const InputDecoration(labelText: 'Last Serviced Date'),
+                          readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Last Serviced Date',
+                            hintText: 'YYYY-MM-DD',
+                            suffixIcon: Icon(Icons.calendar_month_outlined, size: 18),
+                          ),
+                          onTap: () async {
+                            final cur = DateTime.tryParse(lastServicedCtrl.text) ?? DateTime.now();
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: cur,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                lastServicedCtrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                              });
+                            }
+                          },
                         ),
                       ],
                     ),

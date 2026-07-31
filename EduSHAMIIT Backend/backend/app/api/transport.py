@@ -6,9 +6,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
+import json
 import uuid
 import psycopg2
 import psycopg2.extras
+
+def _exec_raw_sql(query: str, params: tuple = (), fetch: bool = True):
+    try:
+        conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+        conn.autocommit = True
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(query, params)
+            if fetch:
+                rows = cur.fetchall()
+                result = [dict(r) for r in rows]
+            else:
+                result = []
+        conn.close()
+        return result
+    except Exception as e:
+        print(f"Direct PostgreSQL query error: {e}")
+        return []
 
 from app.middleware.auth import get_current_user, require_any_role
 from app.services.supabase_client import get_supabase
@@ -267,53 +285,54 @@ async def get_vehicle(vehicle_id: str, user=Depends(require_transport_admin)):
 @router.put("/vehicles/{vehicle_id}")
 async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_transport_admin)):
     """Update vehicle metadata and live status."""
-    sb = get_supabase()
-    allowed = {
+    # Columns that actually exist in the bus_routes table
+    db_columns = {
         "route_name", "bus_number", "registration_no", "driver_name", "driver_phone",
-        "driver_license_no", "driver_id", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
+        "driver_license_no", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
         "model", "year_of_mfg", "fuel_type", "total_capacity", "last_service_date",
         "insurance_expiry", "fitness_expiry", "gps_device_id", "live_status",
         "delay_minutes", "students_on_board", "status", "notes",
         "fuel_level_pct", "speed_kmh", "next_stop", "next_stop_eta",
         "chassis_no", "engine_no", "color", "insurance_status", "fitness_status",
         "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry",
+    }
+    # Fields stored as JSON inside the notes column
+    tech_keys = {
         "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
         "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
         "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
     }
-    data = {k: v for k, v in payload.items() if k in allowed}
+    all_allowed = db_columns | tech_keys | {"driver_id"}
+    data = {k: v for k, v in payload.items() if k in all_allowed}
     if not data:
         raise HTTPException(status_code=400, detail="No valid fields provided")
-    data["updated_at"] = datetime.utcnow().isoformat()
 
     # Driver assignment handling
     if "driver_id" in payload:
         drv_id = payload.get("driver_id")
-        if not drv_id or drv_id == "none":
+        if not drv_id or str(drv_id).lower() == "none":
             data["driver_name"] = None
             data["driver_phone"] = None
             data["driver_license_no"] = None
-            try:
-                await sb.table("drivers").update({"assigned_vehicle_id": None}).eq("assigned_vehicle_id", vehicle_id).aexecute()
-            except Exception:
-                pass
+            _exec_raw_sql("UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id::text = %s;", (vehicle_id,), fetch=False)
         else:
-            try:
-                drv_res = await sb.table("drivers").select("*").eq("id", drv_id).maybe_single().aexecute()
-                if drv_res.data:
-                    data["driver_name"] = drv_res.data.get("name")
-                    data["driver_phone"] = drv_res.data.get("phone")
-                    data["driver_license_no"] = drv_res.data.get("license_no")
-                    await sb.table("drivers").update({"assigned_vehicle_id": vehicle_id}).eq("id", drv_id).aexecute()
-            except Exception:
-                pass
+            drv_rows = _exec_raw_sql(
+                "SELECT * FROM drivers WHERE id::text = %s OR profile_id::text = %s LIMIT 1;",
+                (str(drv_id), str(drv_id)),
+                fetch=True
+            )
+            if drv_rows:
+                d = drv_rows[0]
+                data["driver_name"] = d.get("name")
+                data["driver_phone"] = d.get("phone")
+                data["driver_license_no"] = d.get("license_no")
+                _exec_raw_sql("UPDATE drivers SET assigned_vehicle_id = %s::uuid WHERE id::text = %s;", (vehicle_id, str(d.get("id"))), fetch=False)
 
-    # Automatically resolve category_id and sync category specs
+    # Dynamic category resolution
     if "vehicle_type" in data or "category_id" in data:
         target_id = data.get("category_id")
         target_type = data.get("vehicle_type")
-        cat_res = await sb.table("vehicle_categories").select("*").aexecute()
-        cats = cat_res.data or []
+        cats = _exec_raw_sql("SELECT * FROM vehicle_categories;", fetch=True)
         matched_cat = None
         for c in cats:
             if target_id and str(c.get("id")) == str(target_id):
@@ -328,20 +347,36 @@ async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_tr
             data["fuel_type"] = matched_cat.get("fuel_type") or data.get("fuel_type") or "Diesel"
             data["total_capacity"] = matched_cat.get("capacity") or data.get("total_capacity") or 52
 
-    tech_keys = {
-        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
-        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
-        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
-    }
-    tech_data = {k: data[k] for k in tech_keys if k in data}
+    # Separate tech keys from real DB columns and pack into notes JSON
+    tech_data = {k: data.pop(k) for k in list(data.keys()) if k in tech_keys}
+    # Remove driver_id from data since it's not a real column
+    data.pop("driver_id", None)
 
-    try:
-        await sb.table("bus_routes").update(data).eq("id", vehicle_id).aexecute()
-    except Exception:
-        base_data = {k: v for k, v in data.items() if k not in tech_keys}
-        if tech_data:
-            base_data["notes"] = json.dumps(tech_data)
-        await sb.table("bus_routes").update(base_data).eq("id", vehicle_id).aexecute()
+    if tech_data:
+        # Merge with existing notes
+        existing = _exec_raw_sql("SELECT notes FROM bus_routes WHERE id::text = %s;", (vehicle_id,), fetch=True)
+        old_notes = {}
+        if existing and existing[0].get("notes"):
+            try:
+                old_notes = json.loads(existing[0]["notes"])
+            except Exception:
+                pass
+        old_notes.update(tech_data)
+        data["notes"] = json.dumps(old_notes)
+
+    # Build SET clauses for only real DB columns
+    set_clauses = []
+    params = []
+    for k, v in data.items():
+        if k in db_columns:
+            set_clauses.append(f"{k} = %s")
+            params.append(v)
+    set_clauses.append("updated_at = NOW()")
+    params.append(vehicle_id)
+
+    if set_clauses:
+        sql = f"UPDATE bus_routes SET {', '.join(set_clauses)} WHERE id::text = %s;"
+        _exec_raw_sql(sql, tuple(params), fetch=False)
 
     return {"success": True, "message": "Vehicle updated"}
 
@@ -349,46 +384,63 @@ async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_tr
 @router.post("/vehicles")
 async def create_vehicle(payload: dict, user=Depends(require_transport_admin)):
     """Create a new vehicle."""
-    sb = get_supabase()
-    allowed = {
+    # Columns that actually exist in the bus_routes table
+    db_columns = {
         "school_id", "route_name", "bus_number", "registration_no", "driver_name", "driver_phone",
-        "driver_license_no", "driver_id", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
+        "driver_license_no", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
         "model", "year_of_mfg", "fuel_type", "total_capacity", "last_service_date",
         "insurance_expiry", "fitness_expiry", "gps_device_id", "live_status",
         "delay_minutes", "students_on_board", "status", "notes",
         "fuel_level_pct", "speed_kmh", "next_stop", "next_stop_eta",
         "chassis_no", "engine_no", "color", "insurance_status", "fitness_status",
         "pollution_status", "pollution_expiry", "puc_no", "permit_no", "permit_expiry",
+    }
+    # Fields stored as JSON inside the notes column
+    tech_keys = {
         "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
         "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
         "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
     }
-    data = {k: v for k, v in payload.items() if k in allowed}
-    data["id"] = str(uuid.uuid4())
+    all_allowed = db_columns | tech_keys | {"driver_id"}
+    data = {k: v for k, v in payload.items() if k in all_allowed}
+    vehicle_id = str(uuid.uuid4())
+    data["id"] = vehicle_id
     data["school_id"] = _resolve_school_id(user, data)
+    data["route_name"] = data.get("route_name") or f"Route for {data.get('bus_number', 'Vehicle')}"
+
+    # Override DB defaults with NULL for optional columns not provided by user
+    # (the DB has hardcoded placeholder defaults like 'MA3KC2B1S12345678' for chassis_no)
+    nullable_with_bad_defaults = [
+        "chassis_no", "engine_no", "color", "puc_no", "permit_no",
+        "next_stop", "next_stop_eta",
+    ]
+    for col in nullable_with_bad_defaults:
+        if col not in data:
+            data[col] = None
 
     # Driver assignment handling
     if "driver_id" in payload:
         drv_id = payload.get("driver_id")
-        if not drv_id or drv_id == "none":
+        if not drv_id or str(drv_id).lower() == "none":
             data["driver_name"] = None
             data["driver_phone"] = None
             data["driver_license_no"] = None
         else:
-            try:
-                drv_res = await sb.table("drivers").select("*").eq("id", drv_id).maybe_single().aexecute()
-                if drv_res.data:
-                    data["driver_name"] = drv_res.data.get("name")
-                    data["driver_phone"] = drv_res.data.get("phone")
-                    data["driver_license_no"] = drv_res.data.get("license_no")
-                    await sb.table("drivers").update({"assigned_vehicle_id": data["id"]}).eq("id", drv_id).aexecute()
-            except Exception:
-                pass
+            drv_rows = _exec_raw_sql(
+                "SELECT * FROM drivers WHERE id::text = %s OR profile_id::text = %s LIMIT 1;",
+                (str(drv_id), str(drv_id)),
+                fetch=True
+            )
+            if drv_rows:
+                d = drv_rows[0]
+                data["driver_name"] = d.get("name")
+                data["driver_phone"] = d.get("phone")
+                data["driver_license_no"] = d.get("license_no")
+                _exec_raw_sql("UPDATE drivers SET assigned_vehicle_id = %s::uuid WHERE id::text = %s;", (vehicle_id, str(d.get("id"))), fetch=False)
 
     target_id = data.get("category_id")
     target_type = data.get("vehicle_type")
-    cat_res = await sb.table("vehicle_categories").select("*").aexecute()
-    cats = cat_res.data or []
+    cats = _exec_raw_sql("SELECT * FROM vehicle_categories;", fetch=True)
     matched_cat = None
     for c in cats:
         if target_id and str(c.get("id")) == str(target_id):
@@ -403,39 +455,42 @@ async def create_vehicle(payload: dict, user=Depends(require_transport_admin)):
         data["fuel_type"] = matched_cat.get("fuel_type") or data.get("fuel_type") or "Diesel"
         data["total_capacity"] = matched_cat.get("capacity") or data.get("total_capacity") or 52
 
-    tech_keys = {
-        "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
-        "speed_governor", "cctv_installed", "panic_button", "first_aid_expiry",
-        "fire_extinguisher_expiry", "last_serviced_date", "ownership_type"
-    }
-    tech_data = {k: data[k] for k in tech_keys if k in data}
+    # Separate tech keys from real DB columns and pack into notes JSON
+    tech_data = {k: data.pop(k) for k in list(data.keys()) if k in tech_keys}
+    # Remove driver_id from data since it's not a real column
+    data.pop("driver_id", None)
 
-    try:
-        res = await sb.table("bus_routes").insert(data).aexecute()
-    except Exception:
-        base_data = {k: v for k, v in data.items() if k not in tech_keys}
-        if tech_data:
-            base_data["notes"] = json.dumps(tech_data)
-        res = await sb.table("bus_routes").insert(base_data).aexecute()
+    if tech_data:
+        data["notes"] = json.dumps(tech_data)
 
-    res_data = res.data[0] if res.data else data
+    # Filter to only real DB columns + id
+    insert_data = {k: v for k, v in data.items() if k in db_columns or k == "id"}
+
+    cols = list(insert_data.keys())
+    placeholders = ["%s" for _ in cols]
+    sql = f"INSERT INTO bus_routes ({', '.join(cols)}) VALUES ({', '.join(placeholders)}) RETURNING *;"
+    params = tuple(insert_data[k] for k in cols)
+
+    inserted_rows = _exec_raw_sql(sql, params, fetch=True)
+    res_data = inserted_rows[0] if inserted_rows else data
+
     return {"success": True, "data": _enrich_vehicle_dict(res_data)}
 
 
 @router.delete("/vehicles/{vehicle_id}")
 async def delete_vehicle(vehicle_id: str, user=Depends(require_transport_admin)):
     """Delete a vehicle."""
-    sb = get_supabase()
-    # Delete child constraints first
-    await sb.table("student_transport").delete().eq("route_id", vehicle_id).aexecute()
-    await sb.table("vehicle_documents").delete().eq("vehicle_id", vehicle_id).aexecute()
-    await sb.table("vehicle_insurance_fitness").delete().eq("vehicle_id", vehicle_id).aexecute()
-    await sb.table("gps_devices").delete().eq("vehicle_id", vehicle_id).aexecute()
-    await sb.table("bus_locations").delete().eq("route_id", vehicle_id).aexecute()
-    await sb.table("vehicle_trips").delete().eq("route_id", vehicle_id).aexecute()
-    await sb.table("vehicle_live_alerts").delete().eq("route_id", vehicle_id).aexecute()
-    
-    await sb.table("bus_routes").delete().eq("id", vehicle_id).aexecute()
+    # Delete child constraints first via raw SQL
+    _exec_raw_sql("DELETE FROM student_transport WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
+    _exec_raw_sql("DELETE FROM vehicle_documents WHERE vehicle_id::text = %s;", (vehicle_id,), fetch=False)
+    _exec_raw_sql("DELETE FROM vehicle_insurance_fitness WHERE vehicle_id::text = %s;", (vehicle_id,), fetch=False)
+    _exec_raw_sql("DELETE FROM gps_devices WHERE vehicle_id::text = %s;", (vehicle_id,), fetch=False)
+    _exec_raw_sql("DELETE FROM bus_locations WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
+    _exec_raw_sql("DELETE FROM vehicle_trips WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
+    _exec_raw_sql("DELETE FROM vehicle_live_alerts WHERE route_id::text = %s;", (vehicle_id,), fetch=False)
+    _exec_raw_sql("UPDATE drivers SET assigned_vehicle_id = NULL WHERE assigned_vehicle_id::text = %s;", (vehicle_id,), fetch=False)
+
+    _exec_raw_sql("DELETE FROM bus_routes WHERE id::text = %s;", (vehicle_id,), fetch=False)
     return {"success": True, "message": "Vehicle deleted"}
 
 
