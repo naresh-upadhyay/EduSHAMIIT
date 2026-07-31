@@ -34,6 +34,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   List<dynamic> _documents = [];
   List<dynamic> _insuranceFitness = [];
   List<dynamic> _gpsDevices = [];
+  List<dynamic> _drivers = [];
 
   // Selected vehicle & category for details panel
   dynamic _selectedVehicle;
@@ -154,7 +155,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     );
     _tabController.addListener(() {
       if (mounted) {
-        _loadTabIfNeeded(_tabController.index);
+        _loadTabIfNeeded(_tabController.index, forceReload: true);
         if (kIsWeb && !_tabController.indexIsChanging) {
           try {
             html.window.history.replaceState(null, '', '/admin/fleet?tab=${_tabController.index}');
@@ -200,7 +201,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
 
   // ═══════════════════ Data Fetching ═══════════════════
   Future<void> _loadAll({bool showLoading = false}) async {
+    _loadedTabs.clear();
     await _loadTabIfNeeded(_tabController.index, forceReload: true);
+    if (_tabController.index != 2) {
+      await _loadTabIfNeeded(2, forceReload: true);
+    }
   }
 
   Future<void> _loadTabIfNeeded(int tabIndex, {bool forceReload = false}) async {
@@ -222,9 +227,19 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             _vehicles = [];
           }
           try {
+            final catRes = await ApiService().get('/transport/categories', useCache: false);
+            final catRaw = catRes['data'];
+            _categories = (catRaw is List) ? catRaw : [];
+          } catch (_) {}
+          try {
             final docRes = await ApiService().get('/transport/documents', useCache: false);
             final docRaw = docRes['data'];
             _documents = (docRaw is List) ? docRaw : [];
+          } catch (_) {}
+          try {
+            final drvRes = await ApiService().get('/auth/users?role=driver', useCache: false);
+            final drvRaw = drvRes['data'];
+            if (drvRaw is List) _drivers = drvRaw;
           } catch (_) {}
           if (_vehicles.isNotEmpty) {
             final match = _vehicles.firstWhere(
@@ -238,6 +253,15 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           final res = await ApiService().get('/transport/categories', useCache: false);
           final raw = res['data'];
           _categories = (raw is List) ? raw : [];
+          try {
+            final vehRes = await ApiService().get('/transport/vehicles?page_size=100', useCache: false);
+            final vehRaw = vehRes['data'];
+            if (vehRaw is Map && vehRaw['vehicles'] is List) {
+              _vehicles = vehRaw['vehicles'] as List;
+            } else if (vehRaw is List) {
+              _vehicles = vehRaw;
+            }
+          } catch (_) {}
           if (_categories.isNotEmpty) {
             final match = _categories.firstWhere(
               (c) => c['id'] == _selectedCategory?['id'],
@@ -284,10 +308,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final list = <String>[];
     for (var c in _categories) {
       if (c is Map) {
-        final vType = c['vehicle_type']?.toString().trim();
-        if (vType != null && vType.isNotEmpty && !list.contains(vType)) {
-          list.add(vType);
-        }
+        final status = (c['status'] ?? 'Active').toString().toLowerCase();
+        if (status != 'active') continue; // Only active categories visible in dropdowns
         final name = c['name']?.toString().trim();
         if (name != null && name.isNotEmpty && !list.contains(name)) {
           list.add(name);
@@ -295,9 +317,39 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       }
     }
     if (list.isEmpty) {
-      list.addAll(['AC Bus', 'Non AC Bus', 'Non AC', 'Mini Bus', 'Van', 'Tempo Traveller', 'Electric Bus']);
+      list.addAll(['AC Bus (52 Seater)', 'Non AC Bus (60 Seater)', 'Mini Bus (32 Seater)', 'Tempo Traveller (17 Seater)', 'Electric Bus (40 Seater)']);
     }
     return list;
+  }
+
+  int _getCategoryVehicleCount(dynamic c) {
+    if (c == null) return 0;
+    if (c is Map) {
+      if (c['total_vehicles'] is int) return c['total_vehicles'] as int;
+      if (c['vehicle_count'] is int) return c['vehicle_count'] as int;
+      if (c['total_vehicles'] != null) {
+        final parsed = int.tryParse(c['total_vehicles'].toString());
+        if (parsed != null) return parsed;
+      }
+    }
+    final catId = c['id']?.toString();
+    final catCode = c['category_code']?.toString().toLowerCase().trim();
+    final catName = c['name']?.toString().toLowerCase().trim();
+
+    return _vehicles.where((v) {
+      if (v == null || v is! Map) return false;
+      final vCatId = v['category_id']?.toString();
+      final vCatCode = (v['category_code'] ?? v['category'])?.toString().toLowerCase().trim();
+      final vType = (v['vehicle_type'] ?? v['type'])?.toString().toLowerCase().trim();
+      final vCatName = v['category_name']?.toString().toLowerCase().trim();
+
+      if (catId != null && catId.isNotEmpty && vCatId == catId) return true;
+      if (catCode != null && catCode.isNotEmpty && vCatCode == catCode) return true;
+      if (vType != null && vType.isNotEmpty && (catName != null && vType == catName || catCode != null && vType == catCode)) return true;
+      if (vCatName != null && vCatName.isNotEmpty && catName != null && vCatName == catName) return true;
+
+      return false;
+    }).length;
   }
 
   bool _vehicleMatchesStatus(dynamic v, String filter) {
@@ -306,22 +358,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     final status = (v['status'] ?? '').toString().toLowerCase().trim();
     final f = filter.toLowerCase().trim();
 
-    if (f == 'in maintenance') {
-      return liveStatus == 'in_maintenance' ||
-          liveStatus == 'maintenance' ||
-          liveStatus == 'idle' ||
-          status == 'in maintenance' ||
-          status == 'maintenance' ||
-          status == 'in_maintenance';
-    } else if (f == 'on route') {
+    if (f == 'on_route' || f == 'on route') {
       return liveStatus == 'on_route' ||
           liveStatus == 'on route' ||
-          liveStatus == 'active' ||
-          status == 'active' ||
-          status == 'on route';
-    } else if (f == 'arrived') {
-      return liveStatus == 'arrived' ||
-          liveStatus == 'at_school' ||
+          liveStatus == 'in_transit';
+    } else if (f == 'at_school' || f == 'at school') {
+      return liveStatus == 'at_school' ||
           liveStatus == 'at school';
     } else if (f == 'returning') {
       return liveStatus == 'returning' ||
@@ -333,6 +375,13 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           liveStatus == 'inactive' ||
           status == 'inactive' ||
           status == 'offline';
+    } else if (f == 'in maintenance') {
+      return liveStatus == 'in_maintenance' ||
+          liveStatus == 'maintenance' ||
+          liveStatus == 'idle' ||
+          status == 'in maintenance' ||
+          status == 'maintenance' ||
+          status == 'in_maintenance';
     }
 
     final normalizedF = f.replaceAll(' ', '_');
@@ -355,9 +404,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
       final matchesStatus = _vehicleMatchesStatus(v, _statusFilter);
 
       final matchesCategory = _categoryFilter == 'All' ||
-          (v['vehicle_type'] ?? '').toString().toLowerCase() == _categoryFilter.toLowerCase() ||
-          (v['category_name'] ?? '').toString().toLowerCase() == _categoryFilter.toLowerCase() ||
-          (v['category'] ?? '').toString().toLowerCase() == _categoryFilter.toLowerCase();
+          v['category_id']?.toString() == _categoryFilter ||
+          (v['vehicle_type'] ?? '').toString().toLowerCase().trim() == _categoryFilter.toLowerCase().trim() ||
+          (v['category_name'] ?? '').toString().toLowerCase().trim() == _categoryFilter.toLowerCase().trim() ||
+          (v['category_code'] ?? '').toString().toLowerCase().trim() == _categoryFilter.toLowerCase().trim() ||
+          (v['category'] ?? '').toString().toLowerCase().trim() == _categoryFilter.toLowerCase().trim();
 
       final matchesFuel = _fuelFilter == 'All' ||
           (v['fuel_type'] ?? '').toString().toLowerCase() == _fuelFilter.toLowerCase();
@@ -3340,8 +3391,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   Widget _buildCategoriesKPIs() {
     final totalCats = _categories.length;
     final active = _categories.where((c) => c['status'] == 'Active').length;
-    final totalVehicles = _vehicles.length;
-    final totalSeats = _vehicles.fold<int>(0, (sum, v) => sum + (v['total_capacity'] as int? ?? 52));
+    final inactive = _categories.where((c) => c['status'] == 'Inactive').length;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -3353,11 +3403,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               const SizedBox(width: 12),
               Expanded(child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_rounded, const Color(0xFF10B981), _pct(active, totalCats))),
               const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_filled_rounded, const Color(0xFFF59E0B), 'Across All')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Total Seats')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
+              Expanded(child: _buildKpiCardMini('Inactive Categories', '$inactive', Icons.pause_circle_filled_rounded, const Color(0xFFEF4444), _pct(inactive, totalCats))),
             ],
           );
         } else {
@@ -3369,9 +3415,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             children: [
               SizedBox(width: finalW, child: _buildKpiCardMini('Total Categories', '$totalCats', Icons.category_rounded, const Color(0xFF4F46E5), 'All Categories')),
               SizedBox(width: finalW, child: _buildKpiCardMini('Active Categories', '$active', Icons.check_circle_rounded, const Color(0xFF10B981), _pct(active, totalCats))),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Total Vehicles', '$totalVehicles', Icons.directions_bus_filled_rounded, const Color(0xFFF59E0B), 'Across All')),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Total Capacity', NumberFormat('#,###').format(totalSeats), Icons.airline_seat_recline_normal_rounded, const Color(0xFF8B5CF6), 'Total Seats')),
-              SizedBox(width: finalW, child: _buildKpiCardMini('Avg Utilization', '78.45%', Icons.speed_rounded, const Color(0xFF10B981), 'This Month')),
+              SizedBox(width: finalW, child: _buildKpiCardMini('Inactive Categories', '$inactive', Icons.pause_circle_filled_rounded, const Color(0xFFEF4444), _pct(inactive, totalCats))),
             ],
           );
         }
@@ -3540,7 +3584,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               ],
               rows: paginated.map((c) {
                 final isSel = _selectedCategory?['id'] == c['id'];
-                final count = _vehicles.where((v) => v['vehicle_type'] == c['vehicle_type'] || v['vehicle_type'] == c['name']).length;
+                final count = _getCategoryVehicleCount(c);
                 return DataRow(
                   selected: isSel,
                   onSelectChanged: (_) {
@@ -3750,12 +3794,12 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 _buildDetailRow('Transmission', c['transmission'] ?? 'Manual'),
                 _buildDetailRow('Seating Capacity', '${c['capacity'] ?? 52} Seats'),
                 _buildDetailRow('Luggage Capacity', c['luggage_capacity'] ?? '500 L'),
-                _buildDetailRow('Total Vehicles', '${_vehicles.where((v) => v['vehicle_type'] == c['vehicle_type'] || v['vehicle_type'] == c['name']).length}'),
+                _buildDetailRow('Total Vehicles', '${_getCategoryVehicleCount(c)}'),
                 _buildDetailRow('Status', c['status'] ?? 'Active'),
-                _buildDetailRow('Created On', '12 Jan 2024 10:30 AM'),
-                _buildDetailRow('Created By', 'Transport Manager'),
-                _buildDetailRow('Last Updated', '15 May 2025 04:25 PM'),
-                _buildDetailRow('Updated By', 'Transport Manager'),
+                _buildDetailRow('Created On', _formatDateTime(c['created_at'])),
+                _buildDetailRow('Created By', c['created_by'] ?? 'Transport Manager'),
+                _buildDetailRow('Last Updated', _formatDateTime(c['updated_at'])),
+                _buildDetailRow('Updated By', c['updated_by'] ?? 'Transport Manager'),
               ],
             ),
           ),
@@ -3806,6 +3850,24 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         ],
       ),
     );
+  }
+
+  String _formatDateTime(dynamic dtStr) {
+    if (dtStr == null || dtStr.toString().isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(dtStr.toString()).toLocal();
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = months[dt.month - 1];
+      final year = dt.year;
+      final hourInt = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final hour = hourInt.toString().padLeft(2, '0');
+      final min = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$day $month $year $hour:$min $ampm';
+    } catch (_) {
+      return dtStr.toString();
+    }
   }
 
   // ═══════════════════ 4. VEHICLE DOCUMENTS TAB ═══════════════════
@@ -6471,6 +6533,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     String liveStatus = 'offline';
     String status = 'Active';
 
+    String selectedDriverId = 'none';
     String transmission = 'Manual';
     String speedGovernor = 'Fitted (Max 60 km/h)';
     String cctvInstalled = '4 HD Cameras (Active)';
@@ -6515,64 +6578,94 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: vehicleType,
-                                decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
-                                items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setDialogState(() => vehicleType = val!),
+                        DropdownButtonFormField<String>(
+                          initialValue: vehicleType,
+                          decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
+                          items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (val) => setDialogState(() => vehicleType = val!),
+                        ),
+                        const SizedBox(height: 6),
+                        Builder(
+                          builder: (context) {
+                            final cat = _categories.firstWhere(
+                              (c) => (c['name'] ?? '').toString().toLowerCase().trim() == vehicleType.toLowerCase().trim() ||
+                                     (c['category_code'] ?? '').toString().toLowerCase().trim() == vehicleType.toLowerCase().trim() ||
+                                     (c['id'] ?? '').toString() == vehicleType,
+                              orElse: () => null,
+                            );
+                            final fuel = cat?['fuel_type'] ?? 'Diesel';
+                            final cap = cat?['capacity'] ?? 52;
+                            final trans = cat?['transmission'] ?? 'Manual';
+                            final lug = cat?['luggage_capacity'] ?? '500 L';
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _accent.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: _accent.withOpacity(0.2)),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: fuelType,
-                                decoration: const InputDecoration(labelText: 'Fuel Type'),
-                                items: ['Diesel', 'Petrol', 'CNG', 'Electric', 'Hybrid'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setDialogState(() => fuelType = val!),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.auto_awesome, size: 16, color: _accent),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Category Specs (Auto-Inherited): $fuel  •  $cap Seats  •  $trans  •  Luggage: $lug',
+                                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _accent),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: driverNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Name (Optional)'),
-                              ),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedDriverId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Assign Driver (Optional)',
+                            prefixIcon: Icon(Icons.person_outline, size: 18),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: 'none',
+                              child: Text('None (Unassigned) - Optional', style: TextStyle(color: Colors.grey)),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: driverPhoneCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Phone (Optional)'),
-                              ),
-                            ),
+                            ..._drivers.map((d) {
+                              final name = d['name'] ?? 'Driver';
+                              final phone = d['phone'] ?? '';
+                              final label = phone.toString().isNotEmpty ? '$name  •  $phone' : name.toString();
+                              return DropdownMenuItem<String>(
+                                value: d['id'].toString(),
+                                child: Text(label, overflow: TextOverflow.ellipsis),
+                              );
+                            }),
                           ],
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedDriverId = val ?? 'none';
+                              if (selectedDriverId == 'none') {
+                                driverNameCtrl.clear();
+                                driverPhoneCtrl.clear();
+                              } else {
+                                final d = _drivers.firstWhere(
+                                  (element) => element['id'].toString() == selectedDriverId,
+                                  orElse: () => null,
+                                );
+                                if (d != null) {
+                                  driverNameCtrl.text = d['name']?.toString() ?? '';
+                                  driverPhoneCtrl.text = d['phone']?.toString() ?? '';
+                                }
+                              }
+                            });
+                          },
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: routeNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: capacityCtrl,
-                                decoration: const InputDecoration(labelText: 'Seating Capacity'),
-                                keyboardType: TextInputType.number,
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                          ],
+                        TextFormField(
+                          controller: routeNameCtrl,
+                          decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -6665,28 +6758,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: TextFormField(
-                                controller: luggageCtrl,
-                                decoration: const InputDecoration(labelText: 'Luggage Capacity'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
                                 controller: fuelTankCtrl,
                                 decoration: const InputDecoration(labelText: 'Fuel Tank Capacity'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: transmission,
-                                decoration: const InputDecoration(labelText: 'Transmission'),
-                                items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setDialogState(() => transmission = val!),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -6782,8 +6855,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           'registration_no': regNumCtrl.text,
                           'vehicle_type': vehicleType,
                           'fuel_type': fuelType,
-                          'driver_name': driverNameCtrl.text,
-                          'driver_phone': driverPhoneCtrl.text,
+                          'driver_name': selectedDriverId == 'none' ? null : (driverNameCtrl.text.isEmpty ? null : driverNameCtrl.text),
+                          'driver_phone': selectedDriverId == 'none' ? null : (driverPhoneCtrl.text.isEmpty ? null : driverPhoneCtrl.text),
+                          'driver_id': selectedDriverId == 'none' ? null : selectedDriverId,
                           'route_name': routeNameCtrl.text,
                           'total_capacity': int.tryParse(capacityCtrl.text) ?? 52,
                           'live_status': liveStatus,
@@ -6854,7 +6928,23 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     String fuelType = v['fuel_type'] ?? 'Diesel';
     String liveStatus = v['live_status'] ?? 'offline';
     String status = v['status'] ?? 'Active';
-
+    String selectedDriverId = 'none';
+    if (v['driver_id'] != null) {
+      selectedDriverId = v['driver_id'].toString();
+    } else if (v['driver_name'] != null && v['driver_name'].toString().isNotEmpty) {
+      for (var d in _drivers) {
+        if (d is Map) {
+          final dName = (d['name'] ?? '').toString().toLowerCase().trim();
+          final dPhone = (d['phone'] ?? '').toString().trim();
+          final vName = (v['driver_name'] ?? '').toString().toLowerCase().trim();
+          final vPhone = (v['driver_phone'] ?? '').toString().trim();
+          if ((vName.isNotEmpty && dName == vName) || (vPhone.isNotEmpty && dPhone == vPhone)) {
+            selectedDriverId = d['id'].toString();
+            break;
+          }
+        }
+      }
+    }
     String transmission = v['transmission'] ?? 'Manual';
     String speedGovernor = v['speed_governor'] ?? 'Fitted (Max 60 km/h)';
     String cctvInstalled = v['cctv_installed'] ?? '4 HD Cameras (Active)';
@@ -6911,64 +7001,94 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: vehicleType,
-                                decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
-                                items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setDialogState(() => vehicleType = val!),
+                        DropdownButtonFormField<String>(
+                          initialValue: vehicleType,
+                          decoration: const InputDecoration(labelText: 'Vehicle Category / Type'),
+                          items: vehicleTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (val) => setDialogState(() => vehicleType = val!),
+                        ),
+                        const SizedBox(height: 6),
+                        Builder(
+                          builder: (context) {
+                            final cat = _categories.firstWhere(
+                              (c) => (c['name'] ?? '').toString().toLowerCase().trim() == vehicleType.toLowerCase().trim() ||
+                                     (c['category_code'] ?? '').toString().toLowerCase().trim() == vehicleType.toLowerCase().trim() ||
+                                     (c['id'] ?? '').toString() == vehicleType,
+                              orElse: () => null,
+                            );
+                            final fuel = cat?['fuel_type'] ?? 'Diesel';
+                            final cap = cat?['capacity'] ?? 52;
+                            final trans = cat?['transmission'] ?? 'Manual';
+                            final lug = cat?['luggage_capacity'] ?? '500 L';
+                            return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _accent.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: _accent.withOpacity(0.2)),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: fuelType,
-                                decoration: const InputDecoration(labelText: 'Fuel Type'),
-                                items: fuelTypeList.toSet().map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setDialogState(() => fuelType = val!),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.auto_awesome, size: 16, color: _accent),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Category Specs (Auto-Inherited): $fuel  •  $cap Seats  •  $trans  •  Luggage: $lug',
+                                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _accent),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: driverNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Name (Optional)'),
-                              ),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedDriverId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Assign Driver (Optional)',
+                            prefixIcon: Icon(Icons.person_outline, size: 18),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: 'none',
+                              child: Text('None (Unassigned) - Optional', style: TextStyle(color: Colors.grey)),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: driverPhoneCtrl,
-                                decoration: const InputDecoration(labelText: 'Driver Phone (Optional)'),
-                              ),
-                            ),
+                            ..._drivers.map((d) {
+                              final name = d['name'] ?? 'Driver';
+                              final phone = d['phone'] ?? '';
+                              final label = phone.toString().isNotEmpty ? '$name  •  $phone' : name.toString();
+                              return DropdownMenuItem<String>(
+                                value: d['id'].toString(),
+                                child: Text(label, overflow: TextOverflow.ellipsis),
+                              );
+                            }),
                           ],
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedDriverId = val ?? 'none';
+                              if (selectedDriverId == 'none') {
+                                driverNameCtrl.clear();
+                                driverPhoneCtrl.clear();
+                              } else {
+                                final d = _drivers.firstWhere(
+                                  (element) => element['id'].toString() == selectedDriverId,
+                                  orElse: () => null,
+                                );
+                                if (d != null) {
+                                  driverNameCtrl.text = d['name']?.toString() ?? '';
+                                  driverPhoneCtrl.text = d['phone']?.toString() ?? '';
+                                }
+                              }
+                            });
+                          },
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: routeNameCtrl,
-                                decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
-                                controller: capacityCtrl,
-                                decoration: const InputDecoration(labelText: 'Seating Capacity'),
-                                keyboardType: TextInputType.number,
-                                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
-                              ),
-                            ),
-                          ],
+                        TextFormField(
+                          controller: routeNameCtrl,
+                          decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -7061,28 +7181,8 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           children: [
                             Expanded(
                               child: TextFormField(
-                                controller: luggageCtrl,
-                                decoration: const InputDecoration(labelText: 'Luggage Capacity'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextFormField(
                                 controller: fuelTankCtrl,
                                 decoration: const InputDecoration(labelText: 'Fuel Tank Capacity'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: transmission,
-                                decoration: const InputDecoration(labelText: 'Transmission'),
-                                items: ['Manual', 'Automatic'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                onChanged: (val) => setDialogState(() => transmission = val!),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -7178,8 +7278,9 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           'registration_no': regNumCtrl.text,
                           'vehicle_type': vehicleType,
                           'fuel_type': fuelType,
-                          'driver_name': driverNameCtrl.text,
-                          'driver_phone': driverPhoneCtrl.text,
+                          'driver_name': selectedDriverId == 'none' ? null : (driverNameCtrl.text.isEmpty ? null : driverNameCtrl.text),
+                          'driver_phone': selectedDriverId == 'none' ? null : (driverPhoneCtrl.text.isEmpty ? null : driverPhoneCtrl.text),
+                          'driver_id': selectedDriverId == 'none' ? null : selectedDriverId,
                           'route_name': routeNameCtrl.text,
                           'total_capacity': int.tryParse(capacityCtrl.text) ?? 52,
                           'live_status': liveStatus,
@@ -7593,12 +7694,37 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   }
 
   void _deleteCategoryDialog(dynamic c) {
+    final assignedVehiclesCount = _getCategoryVehicleCount(c);
+    if (assignedVehiclesCount > 0) {
+      showDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: Text('Cannot Delete Category', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: _red)),
+            content: Text(
+              'Category "${c['name'] ?? ''}" has $assignedVehiclesCount vehicle(s) currently assigned to it. '
+              'Categories with assigned vehicles cannot be deleted. Please reassign or remove the vehicles first.',
+              style: GoogleFonts.inter(fontSize: 13),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.white),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           title: Text('Delete Category', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          content: Text('Are you sure you want to delete category ${c['name'] ?? ''}? This will not delete vehicles but they will be unlinked.'),
+          content: Text('Are you sure you want to delete category ${c['name'] ?? ''}?'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             ElevatedButton(

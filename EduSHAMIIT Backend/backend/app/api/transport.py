@@ -157,6 +157,37 @@ async def list_vehicles(
     vehicles = routes_res.data or []
     vehicles = [_enrich_vehicle_dict(v) for v in vehicles]
 
+    # JOIN vehicle_categories to automatically populate category specs on every vehicle
+    try:
+        cats_res = await sb.table("vehicle_categories").select("*").aexecute()
+        cats_list = cats_res.data or []
+        cat_map_by_id = {str(c["id"]): c for c in cats_list if c.get("id")}
+        cat_map_by_name = {c["name"].lower().strip(): c for c in cats_list if c.get("name")}
+        cat_map_by_code = {c["category_code"].lower().strip(): c for c in cats_list if c.get("category_code")}
+
+        for v in vehicles:
+            cid = str(v.get("category_id")) if v.get("category_id") else None
+            vtype = (v.get("vehicle_type") or "").lower().strip()
+
+            matched_cat = None
+            if cid and cid in cat_map_by_id:
+                matched_cat = cat_map_by_id[cid]
+            elif vtype and vtype in cat_map_by_name:
+                matched_cat = cat_map_by_name[vtype]
+            elif vtype and vtype in cat_map_by_code:
+                matched_cat = cat_map_by_code[vtype]
+
+            if matched_cat:
+                v["category_id"] = matched_cat.get("id")
+                v["category_name"] = matched_cat.get("name")
+                v["category_code"] = matched_cat.get("category_code")
+                v["fuel_type"] = matched_cat.get("fuel_type") or v.get("fuel_type") or "Diesel"
+                v["total_capacity"] = matched_cat.get("capacity") or v.get("total_capacity") or 52
+                v["transmission"] = matched_cat.get("transmission") or v.get("transmission") or "Manual"
+                v["luggage_capacity"] = matched_cat.get("luggage_capacity") or v.get("luggage_capacity") or "500 L"
+    except Exception as e:
+        print("Error joining vehicle_categories:", e)
+
     if search:
         s = search.lower()
         vehicles = [
@@ -239,7 +270,7 @@ async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_tr
     sb = get_supabase()
     allowed = {
         "route_name", "bus_number", "registration_no", "driver_name", "driver_phone",
-        "driver_license_no", "assistant_name", "assistant_phone", "vehicle_type",
+        "driver_license_no", "driver_id", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
         "model", "year_of_mfg", "fuel_type", "total_capacity", "last_service_date",
         "insurance_expiry", "fitness_expiry", "gps_device_id", "live_status",
         "delay_minutes", "students_on_board", "status", "notes",
@@ -254,6 +285,48 @@ async def update_vehicle(vehicle_id: str, payload: dict, user=Depends(require_tr
     if not data:
         raise HTTPException(status_code=400, detail="No valid fields provided")
     data["updated_at"] = datetime.utcnow().isoformat()
+
+    # Driver assignment handling
+    if "driver_id" in payload:
+        drv_id = payload.get("driver_id")
+        if not drv_id or drv_id == "none":
+            data["driver_name"] = None
+            data["driver_phone"] = None
+            data["driver_license_no"] = None
+            try:
+                await sb.table("drivers").update({"assigned_vehicle_id": None}).eq("assigned_vehicle_id", vehicle_id).aexecute()
+            except Exception:
+                pass
+        else:
+            try:
+                drv_res = await sb.table("drivers").select("*").eq("id", drv_id).maybe_single().aexecute()
+                if drv_res.data:
+                    data["driver_name"] = drv_res.data.get("name")
+                    data["driver_phone"] = drv_res.data.get("phone")
+                    data["driver_license_no"] = drv_res.data.get("license_no")
+                    await sb.table("drivers").update({"assigned_vehicle_id": vehicle_id}).eq("id", drv_id).aexecute()
+            except Exception:
+                pass
+
+    # Automatically resolve category_id and sync category specs
+    if "vehicle_type" in data or "category_id" in data:
+        target_id = data.get("category_id")
+        target_type = data.get("vehicle_type")
+        cat_res = await sb.table("vehicle_categories").select("*").aexecute()
+        cats = cat_res.data or []
+        matched_cat = None
+        for c in cats:
+            if target_id and str(c.get("id")) == str(target_id):
+                matched_cat = c
+                break
+            if target_type and (target_type == c.get("name") or target_type == c.get("category_code")):
+                matched_cat = c
+                break
+        if matched_cat:
+            data["category_id"] = matched_cat.get("id")
+            data["vehicle_type"] = matched_cat.get("name")
+            data["fuel_type"] = matched_cat.get("fuel_type") or data.get("fuel_type") or "Diesel"
+            data["total_capacity"] = matched_cat.get("capacity") or data.get("total_capacity") or 52
 
     tech_keys = {
         "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
@@ -279,7 +352,7 @@ async def create_vehicle(payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
     allowed = {
         "school_id", "route_name", "bus_number", "registration_no", "driver_name", "driver_phone",
-        "driver_license_no", "assistant_name", "assistant_phone", "vehicle_type",
+        "driver_license_no", "driver_id", "assistant_name", "assistant_phone", "vehicle_type", "category_id",
         "model", "year_of_mfg", "fuel_type", "total_capacity", "last_service_date",
         "insurance_expiry", "fitness_expiry", "gps_device_id", "live_status",
         "delay_minutes", "students_on_board", "status", "notes",
@@ -293,6 +366,42 @@ async def create_vehicle(payload: dict, user=Depends(require_transport_admin)):
     data = {k: v for k, v in payload.items() if k in allowed}
     data["id"] = str(uuid.uuid4())
     data["school_id"] = _resolve_school_id(user, data)
+
+    # Driver assignment handling
+    if "driver_id" in payload:
+        drv_id = payload.get("driver_id")
+        if not drv_id or drv_id == "none":
+            data["driver_name"] = None
+            data["driver_phone"] = None
+            data["driver_license_no"] = None
+        else:
+            try:
+                drv_res = await sb.table("drivers").select("*").eq("id", drv_id).maybe_single().aexecute()
+                if drv_res.data:
+                    data["driver_name"] = drv_res.data.get("name")
+                    data["driver_phone"] = drv_res.data.get("phone")
+                    data["driver_license_no"] = drv_res.data.get("license_no")
+                    await sb.table("drivers").update({"assigned_vehicle_id": data["id"]}).eq("id", drv_id).aexecute()
+            except Exception:
+                pass
+
+    target_id = data.get("category_id")
+    target_type = data.get("vehicle_type")
+    cat_res = await sb.table("vehicle_categories").select("*").aexecute()
+    cats = cat_res.data or []
+    matched_cat = None
+    for c in cats:
+        if target_id and str(c.get("id")) == str(target_id):
+            matched_cat = c
+            break
+        if target_type and (target_type == c.get("name") or target_type == c.get("category_code")):
+            matched_cat = c
+            break
+    if matched_cat:
+        data["category_id"] = matched_cat.get("id")
+        data["vehicle_type"] = matched_cat.get("name")
+        data["fuel_type"] = matched_cat.get("fuel_type") or data.get("fuel_type") or "Diesel"
+        data["total_capacity"] = matched_cat.get("capacity") or data.get("total_capacity") or 52
 
     tech_keys = {
         "luggage_capacity", "fuel_tank_capacity", "transmission", "odometer_km",
@@ -786,11 +895,38 @@ async def list_categories(
     if school_id:
         q = q.eq("school_id", school_id)
     res = await q.aexecute()
-    return {"success": True, "data": res.data or []}
+    cats = res.data or []
+
+    # Fetch vehicles from database to compute real total_vehicles count per category directly from DB via FastAPI
+    routes_res = await sb.table("bus_routes").select("id, category_id, vehicle_type, model").aexecute()
+    vehicles = routes_res.data or []
+
+    for c in cats:
+        cat_id = str(c.get("id"))
+        cat_code = (c.get("category_code") or "").lower().strip()
+        cat_name = (c.get("name") or "").lower().strip()
+        cat_base_name = cat_name.split(" (")[0].strip() if " (" in cat_name else cat_name
+
+        count = 0
+        for v in vehicles:
+            v_cat_id = str(v.get("category_id")) if v.get("category_id") else None
+            v_type = (v.get("vehicle_type") or "").lower().strip()
+
+            if v_cat_id and v_cat_id == cat_id:
+                count += 1
+            elif v_type and (v_type == cat_name or v_type == cat_code):
+                count += 1
+
+        c["total_vehicles"] = count
+        c["vehicle_count"] = count
+
+    return {"success": True, "data": cats}
 
 @router.post("/categories")
 async def create_category(payload: dict, user=Depends(require_transport_admin)):
     sb = get_supabase()
+    user_name = payload.get("created_by") or (user.get("full_name") if isinstance(user, dict) else getattr(user, "full_name", None)) or (user.get("name") if isinstance(user, dict) else None) or "Transport Manager"
+    now_iso = datetime.utcnow().isoformat()
     data = {
         "id": str(uuid.uuid4()),
         "school_id": _resolve_school_id(user, payload),
@@ -802,6 +938,10 @@ async def create_category(payload: dict, user=Depends(require_transport_admin)):
         "transmission": payload.get("transmission", "Manual"),
         "luggage_capacity": payload.get("luggage_capacity", "500 L"),
         "status": payload.get("status", "Active"),
+        "created_by": user_name,
+        "updated_by": user_name,
+        "created_at": now_iso,
+        "updated_at": now_iso,
     }
     res = await sb.table("vehicle_categories").insert(data).aexecute()
     return {"success": True, "data": res.data[0] if res.data else data}
@@ -811,14 +951,38 @@ async def update_category(cat_id: str, payload: dict, user=Depends(require_trans
     sb = get_supabase()
     allowed = {"name", "description", "capacity", "fuel_type", "category_code", "transmission", "luggage_capacity", "status"}
     data = {k: v for k, v in payload.items() if k in allowed}
+    user_name = payload.get("updated_by") or (user.get("full_name") if isinstance(user, dict) else getattr(user, "full_name", None)) or (user.get("name") if isinstance(user, dict) else None) or "Transport Manager"
     data["updated_at"] = datetime.utcnow().isoformat()
+    data["updated_by"] = user_name
     await sb.table("vehicle_categories").update(data).eq("id", cat_id).aexecute()
     return {"success": True, "message": "Category updated"}
 
 @router.delete("/categories/{cat_id}")
 async def delete_category(cat_id: str, user=Depends(require_transport_admin)):
     sb = get_supabase()
-    # Nullify category references on bus routes or set defaults before delete
+    cat_res = await sb.table("vehicle_categories").select("*").eq("id", cat_id).maybe_single().aexecute()
+    cat = cat_res.data
+    if cat:
+        routes_res = await sb.table("bus_routes").select("id, vehicle_type, model").aexecute()
+        vehicles = routes_res.data or []
+        cat_name = (cat.get("name") or "").lower()
+        cat_code = (cat.get("category_code") or "").lower()
+        cat_type = (cat.get("vehicle_type") or "").lower()
+
+        assigned = [
+            v for v in vehicles
+            if (v.get("category_id") and str(v.get("category_id")) == str(cat_id))
+            or (v.get("category_code") and str(v.get("category_code")).lower() == cat_code)
+            or (v.get("vehicle_type") and str(v.get("vehicle_type")).lower() in (cat_name, cat_type))
+            or (v.get("model") and str(v.get("model")).lower() in (cat_name, cat_type))
+        ]
+
+        if len(assigned) > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete category '{cat.get('name')}': {len(assigned)} vehicle(s) are assigned to it. Please reassign or remove the vehicles first."
+            )
+
     await sb.table("vehicle_categories").delete().eq("id", cat_id).aexecute()
     return {"success": True, "message": "Category deleted"}
 
