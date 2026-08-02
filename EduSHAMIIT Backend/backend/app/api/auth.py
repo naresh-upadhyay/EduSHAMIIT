@@ -1212,9 +1212,8 @@ async def delete_user(identifier: str):
         except Exception as e:
             logging.warning(f"Auth record deletion failed for {auth_uuid}: {str(e)}")
             
-        # 3. Delete from profiles table
-        # We delete by the record's primary key (id) for precision
-        await sb.table("profiles").delete().eq("id", auth_uuid).aexecute()
+        # 3. Delete from profiles table and all cascading records using RPC stored procedure
+        await sb.rpc("rpc_admin_delete_user_cascade", {"p_user_id": auth_uuid}).aexecute()
         
         return {
             "success": True,
@@ -1259,26 +1258,14 @@ async def send_login_otp(request: SendLoginOtpRequest):
         user_id = user["id"]
         user_email = user.get("email") or (request.identifier if "@" in request.identifier else None)
         
-        # Check rate limit
-        one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-        res = await sb.table("login_otps").select("id").eq("user_id", user_id).gte("created_at", one_hour_ago.isoformat()).aexecute()
-        if len(res.data) >= settings.OTP_RATE_LIMIT_PER_HOUR:
-            raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Max {settings.OTP_RATE_LIMIT_PER_HOUR} requests per hour.")
-            
-        # Invalidate old OTPs
-        await sb.table("login_otps").update({"status": "used"}).eq("user_id", user_id).eq("status", "pending").aexecute()
-        
-        # Generate & store OTP
+        # Generate & store OTP atomically via RPC stored procedure
         otp = generate_otp(settings.OTP_LENGTH)
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRATION_MINUTES)
-        
-        await sb.table("login_otps").insert({
-            "user_id": user_id,
-            "school_id": user.get("school_id"),
-            "otp": otp,
-            "expires_at": expires_at.isoformat(),
-            "status": "pending"
+        await sb.rpc("rpc_process_send_login_otp", {
+            "p_identifier": request.identifier,
+            "p_otp_code": otp,
+            "p_ip_address": None
         }).aexecute()
+
         
         # Send mail
         sent = email_service.send_login_otp_email(user_email, otp, user.get("full_name"))
@@ -1332,14 +1319,15 @@ async def verify_login_otp(request: VerifyLoginOtpRequest):
         if request.role and not roles_match:
             raise HTTPException(status_code=403, detail="Selected role does not match registered profile")
             
-        now = datetime.now(timezone.utc).isoformat()
-        res = await sb.table("login_otps").select("*").eq("user_id", user_id).eq("otp", request.otp).eq("status", "pending").gte("expires_at", now).aexecute()
+        # Verify OTP code atomically via RPC stored procedure
+        otp_res = await sb.rpc("rpc_process_verify_login_otp", {
+            "p_identifier": request.identifier,
+            "p_otp_code": request.otp
+        }).aexecute()
         
-        if not res.data:
-            raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-            
-        otp_record = res.data[0]
-        await sb.table("login_otps").update({"status": "used"}).eq("id", otp_record["id"]).aexecute()
+        if not otp_res.data or not otp_res.data.get("success"):
+            raise HTTPException(status_code=400, detail="Invalid or expired OTP code")
+
         
         token = jwt.encode(
             {

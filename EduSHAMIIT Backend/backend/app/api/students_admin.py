@@ -1115,15 +1115,15 @@ async def delete_notice(
 @router.get("/transport")
 async def get_transport_overview(user=Depends(require_student_admin), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    routes = (await sb.table("bus_routes").select("*, bus_stops(*)").eq("school_id", school_id).aexecute()).data
-    assignments = (await sb.table("student_transport").select("*, bus_routes(*), bus_stops(*)").eq("school_id", school_id).aexecute()).data
+    routes = (await sb.table("transport_routes").select("*, transport_route_stops(*)").eq("school_id", school_id).aexecute()).data
+    assignments = (await sb.table("student_transport").select("*, transport_routes(*), transport_route_stops(*)").eq("school_id", school_id).aexecute()).data
     return {"success": True, "school_id": school_id, "data": {"routes": routes, "assignments": assignments}}
 
 
 @router.get("/transport/routes")
 async def list_routes(user=Depends(require_student_admin), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    routes = (await sb.table("bus_routes").select("*, bus_stops(*)").eq("school_id", school_id).aexecute()).data
+    routes = (await sb.table("transport_routes").select("*, transport_route_stops(*)").eq("school_id", school_id).aexecute()).data
     return {"success": True, "school_id": school_id, "data": {"routes": routes}}
 
 
@@ -1142,7 +1142,7 @@ async def create_route(request: dict, user=Depends(require_student_admin), schoo
         "total_capacity": request.get("total_capacity", 40),
         "status": request.get("status", "active"),
     }
-    result = await sb.table("bus_routes").insert(data).aexecute()
+    result = await sb.table("transport_routes").insert(data).aexecute()
     return {"success": True, "school_id": school_id, "data": result.data[0] if result.data else data}
 
 
@@ -1163,13 +1163,13 @@ async def update_route(route_id: str, request: dict, user=Depends(require_studen
                 update_data[k] = v
 
     if update_data:
-        await sb.table("bus_routes").update(update_data).eq("id", route_id).eq("school_id", school_id).aexecute()
+        await sb.table("transport_routes").update(update_data).eq("id", route_id).eq("school_id", school_id).aexecute()
 
     # Handle stops reordering and deletion if provided in request
     if "stops" in request and isinstance(request["stops"], list):
         stops_list = request["stops"]
         # Fetch existing stops for this route
-        existing_res = await sb.table("bus_stops").select("id").eq("route_id", route_id).aexecute()
+        existing_res = await sb.table("transport_route_stops").select("id").eq("route_id", route_id).aexecute()
         existing_stops = existing_res.data or []
         existing_ids = {str(s["id"]) for s in existing_stops}
         
@@ -1179,7 +1179,7 @@ async def update_route(route_id: str, request: dict, user=Depends(require_studen
             s_order = stop.get("stop_order", idx + 1)
             if s_id and str(s_id) in existing_ids:
                 current_ids.add(str(s_id))
-                await sb.table("bus_stops").update({
+                await sb.table("transport_route_stops").update({
                     "stop_order": s_order,
                     "stop_name": stop.get("stop_name"),
                     "estimated_arrival": stop.get("estimated_arrival")
@@ -1188,7 +1188,7 @@ async def update_route(route_id: str, request: dict, user=Depends(require_studen
         # Delete stops that were removed from the list
         to_delete = existing_ids - current_ids
         for del_id in to_delete:
-            await sb.table("bus_stops").delete().eq("id", del_id).aexecute()
+            await sb.table("transport_route_stops").delete().eq("id", del_id).aexecute()
 
     return {"success": True, "message": "Route and stops updated"}
 
@@ -1196,7 +1196,7 @@ async def update_route(route_id: str, request: dict, user=Depends(require_studen
 @router.delete("/transport/routes/{route_id}")
 async def delete_route(route_id: str, user=Depends(require_student_admin), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    await sb.table("bus_routes").delete().eq("id", route_id).eq("school_id", school_id).aexecute()
+    await sb.table("transport_routes").delete().eq("id", route_id).eq("school_id", school_id).aexecute()
     return {"success": True, "message": "Route deleted"}
 
 
@@ -1247,7 +1247,7 @@ async def create_bus_stop(request: dict, user=Depends(require_student_admin), sc
         "estimated_arrival": request.get("estimated_arrival"),
         "is_student_stop": request.get("is_student_stop", True)
     }
-    result = await sb.table("bus_stops").insert(data).aexecute()
+    result = await sb.table("transport_route_stops").insert(data).aexecute()
     return {"success": True, "school_id": school_id, "data": result.data[0] if result.data else data}
 
 
@@ -1265,7 +1265,7 @@ async def create_bus_location(request: dict, user=Depends(require_student_admin)
         "speed": request.get("speed", 0.0),
         "recorded_at": datetime.now().isoformat()
     }
-    result = await sb.table("bus_locations").insert(data).aexecute()
+    result = await sb.table("vehicle_trips").insert(data).aexecute()
     return {"success": True, "school_id": school_id, "data": result.data[0] if result.data else data}
 
 

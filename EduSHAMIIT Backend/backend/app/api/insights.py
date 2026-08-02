@@ -47,7 +47,7 @@ async def get_insights(school_id: Optional[str] = Query(None), user=Depends(requ
             "overall_health_status": "Good" if is_filtered else "Excellent",
             "active_users": 1150 if is_filtered else 12478,
             "active_users_change": "+4.2%" if is_filtered else "+8.6%",
-            "system_alerts": 2 if is_filtered else 7,
+            "notifications": 2 if is_filtered else 7,
             "critical_alerts": 1 if is_filtered else 3,
             "warning_alerts": 1 if is_filtered else 4,
             "predicted_issues": 1 if is_filtered else 5,

@@ -2345,29 +2345,29 @@ async def get_super_admin_dashboard_stats(
             else:
                 last_backup_time = "Today, 02:30 AM"
                 
-            system_alerts = []
+            notifications = []
             if pending_schools_count > 0 or total_institutions == 128:
-                system_alerts.append({
+                notifications.append({
                     "title": f"{pending_schools_count or 8} Institutions pending approval",
                     "description": "Review and approve new institution registrations.",
                     "time": "10 min ago",
                     "type": "warning"
                 })
             if inactive_staff_count > 0 or total_users == 1256:
-                system_alerts.append({
+                notifications.append({
                     "title": f"{inactive_staff_count or 23} Staff accounts inactive",
                     "description": "Inactive accounts found in the last 30 days.",
                     "time": "1 hour ago",
                     "type": "info"
                 })
             if suspended_schools_count > 0 or total_institutions == 128:
-                system_alerts.append({
+                notifications.append({
                     "title": f"{suspended_schools_count or 2} Institutions suspended",
                     "description": "Due to policy violations or expired subscriptions.",
                     "time": "3 hours ago",
                     "type": "critical"
                 })
-            system_alerts.append({
+            notifications.append({
                 "title": "Last Backup Completed",
                 "description": "System backup completed successfully.",
                 "time": last_backup_time,
@@ -2469,7 +2469,7 @@ async def get_super_admin_dashboard_stats(
                 "revenue_growth_percent": revenue_growth_percent,
                 "institutions_overview": status_counts,
                 "user_overview_chart": user_overview_chart,
-                "system_alerts": system_alerts,
+                "notifications": notifications,
                 "revenue_overview": {
                     "total_revenue": total_revenue,
                     "total_collections": total_collections,

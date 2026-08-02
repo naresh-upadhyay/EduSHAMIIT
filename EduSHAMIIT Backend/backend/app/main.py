@@ -203,6 +203,9 @@ async def add_request_host_middleware(request: Request, call_next):
         reset_request_host(token)
     return response
 
+_MODULES_CACHE = {"data": [], "timestamp": 0}
+_SCHOOL_TOGGLES_CACHE = {} # {school_id: (data, timestamp)}
+
 @app.middleware("http")
 async def enforce_modules_middleware(request: Request, call_next):
     path = request.url.path
@@ -217,11 +220,17 @@ async def enforce_modules_middleware(request: Request, call_next):
         from app.services.supabase_client import get_supabase
         from fastapi.responses import JSONResponse
         
-        sb = get_supabase()
-        
-        # Fetch enabled modules
-        modules_res = await sb.table("modules").select("id, endpoints, is_enabled").aexecute()
-        modules = modules_res.data or []
+        now = time.time()
+        global _MODULES_CACHE, _SCHOOL_TOGGLES_CACHE
+
+        # 1. High-Speed TTL In-Memory Cache for Modules Configuration (30-second TTL)
+        if now - _MODULES_CACHE["timestamp"] < 30 and _MODULES_CACHE["data"]:
+            modules = _MODULES_CACHE["data"]
+        else:
+            sb = get_supabase()
+            modules_res = await sb.table("modules").select("id, endpoints, is_enabled").aexecute()
+            modules = modules_res.data or []
+            _MODULES_CACHE = {"data": modules, "timestamp": now}
 
         # Find if global module is disabled
         disabled_endpoints = []
@@ -239,31 +248,37 @@ async def enforce_modules_middleware(request: Request, call_next):
                     content={"success": False, "detail": "Access Denied: This feature's module is currently disabled globally by Super Admin."}
                 )
 
-        # Check if disabled for the specific school
+        # 2. High-Speed TTL In-Memory Cache for School Module Toggles (30-second TTL)
         from app.middleware.auth import get_current_user_optional
         user = await get_current_user_optional(request)
         if user and user.get("school_id"):
             school_id = user.get("school_id")
-            school_res = await sb.table("schools").select("module_toggles").eq("id", school_id).single().aexecute()
-            school_data = school_res.data
-            if school_data:
+            if school_id in _SCHOOL_TOGGLES_CACHE and (now - _SCHOOL_TOGGLES_CACHE[school_id][1] < 30):
+                module_toggles = _SCHOOL_TOGGLES_CACHE[school_id][0]
+            else:
+                sb = get_supabase()
+                school_res = await sb.table("schools").select("module_toggles").eq("id", school_id).single().aexecute()
+                school_data = school_res.data or {}
                 module_toggles = school_data.get("module_toggles") or {}
-                for m in modules:
-                    mod_id = m.get("id")
-                    if module_toggles.get(mod_id) is False:
-                        endpoints = m.get("endpoints", [])
-                        if isinstance(endpoints, list):
-                            for pattern in endpoints:
-                                clean_pattern = pattern.rstrip("/")
-                                if path == clean_pattern or path.startswith(clean_pattern + "/"):
-                                    return JSONResponse(
-                                        status_code=403,
-                                        content={"success": False, "detail": "Access Denied: This feature is not enabled for your school."}
-                                    )
+                _SCHOOL_TOGGLES_CACHE[school_id] = (module_toggles, now)
+
+            for m in modules:
+                mod_id = m.get("id")
+                if module_toggles.get(mod_id) is False:
+                    endpoints = m.get("endpoints", [])
+                    if isinstance(endpoints, list):
+                        for pattern in endpoints:
+                            clean_pattern = pattern.rstrip("/")
+                            if path == clean_pattern or path.startswith(clean_pattern + "/"):
+                                return JSONResponse(
+                                    status_code=403,
+                                    content={"success": False, "detail": "Access Denied: This feature is not enabled for your school."}
+                                )
     except Exception as e:
         print(f"Error in enforce_modules_middleware: {e}", flush=True)
 
     return await call_next(request)
+
 
 import traceback
 from fastapi import Request, HTTPException
@@ -359,6 +374,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(AuditLoggingMiddleware)
 
+from fastapi.middleware.gzip import GZipMiddleware
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex="https?://.*",
@@ -366,6 +385,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(student.router, prefix="/api/student", tags=["Student"])
@@ -408,3 +428,33 @@ async def root():
         "version": "1.0.0",
         "docs": "/docs",
     }
+
+
+@app.on_event("startup")
+async def start_automated_archiving_loop():
+    """Automated background tasks for nightly log archiving (24h) and weekly database optimization (7 days)."""
+    async def archive_scheduler():
+        while True:
+            try:
+                from app.services.supabase_client import get_supabase
+                sb = get_supabase()
+                await sb.rpc("archive_old_audit_logs", {"p_retention_days": 90}).aexecute()
+                print("[Auto Archive] Nightly audit log cleanup completed successfully.", flush=True)
+            except Exception as e:
+                print(f"[Auto Archive] Log cleanup background task skipped: {e}", flush=True)
+            await asyncio.sleep(86400)
+
+    async def optimization_scheduler():
+        while True:
+            try:
+                from app.services.supabase_client import get_supabase
+                sb = get_supabase()
+                await sb.rpc("optimize_database_bloat_and_stats").aexecute()
+                print("[Auto Optimization] Weekly database statistics optimization completed.", flush=True)
+            except Exception as e:
+                print(f"[Auto Optimization] Weekly optimization task skipped: {e}", flush=True)
+            await asyncio.sleep(604800)
+
+    asyncio.create_task(archive_scheduler())
+    asyncio.create_task(optimization_scheduler())
+

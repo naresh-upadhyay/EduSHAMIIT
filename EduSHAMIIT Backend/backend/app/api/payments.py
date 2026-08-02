@@ -383,40 +383,13 @@ async def payment_webhook(request: Request):
         if xd["status"] == "success" and st == "success":
             return {"status": "received", "message": "Already processed", "transaction_id": tx}
 
-        update_data = {
-            "status":           st,
-            "gateway_response": body,
-            "updated_at":       now,
-        }
-        if utx:   update_data["upi_transaction_id"] = utx
-        if brf:   update_data["bank_ref_no"]         = brf
-        if gref:  update_data["gateway_ref_id"]       = gref
-        if st == "success":
-            update_data["paid_at"]     = now
-            update_data["verified_at"] = now
-        elif st == "failed":
-            update_data["failure_reason"] = body.get("failure_reason") or body.get("error_description") or "Gateway declined"
+        # Update payment and fee ledger status atomically via RPC stored procedure
+        await sb.rpc("rpc_process_payment_webhook", {
+            "p_payment_id": xd["id"],
+            "p_transaction_id": tx,
+            "p_status": st
+        }).aexecute()
 
-        await sb.table("payments").update(update_data).eq("id", xd["id"]).aexecute()
-
-        # Sync fee on success
-        if st == "success" and xd.get("fee_id"):
-            fee = await (sb.table("fees")
-                           .select("*")
-                           .eq("id", xd["fee_id"])
-                           .maybe_single()
-                           .aexecute())
-            if fee.data:
-                fd        = fee.data
-                new_paid  = float(fd.get("amount_paid") or 0) + float(xd["amount"])
-                net_due   = float(fd["amount"]) + float(fd.get("late_fine") or 0) - float(fd.get("discount") or 0)
-                fee_st    = "paid" if new_paid >= net_due else "partial"
-                await sb.table("fees").update({
-                    "amount_paid": new_paid,
-                    "status":      fee_st,
-                    "paid_at":     now if fee_st == "paid" else None,
-                    "updated_at":  now,
-                }).eq("id", xd["fee_id"]).aexecute()
 
         return {
             "status":          "received",

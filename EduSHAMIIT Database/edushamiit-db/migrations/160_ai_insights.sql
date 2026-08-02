@@ -29,13 +29,12 @@ CREATE TABLE IF NOT EXISTS public.ai_predictions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.ai_chat_history (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    message TEXT NOT NULL,
-    response TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
+-- Ensure columns exist on ai_chat_history (originally created in 037_ai_chat_history.sql)
+ALTER TABLE public.ai_chat_history ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.ai_chat_history ADD COLUMN IF NOT EXISTS message TEXT;
+ALTER TABLE public.ai_chat_history ADD COLUMN IF NOT EXISTS response TEXT;
+ALTER TABLE public.ai_chat_history ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
 
 CREATE INDEX IF NOT EXISTS idx_ai_insights_school ON public.ai_insights(school_id);
 CREATE INDEX IF NOT EXISTS idx_ai_recommendations_school ON public.ai_recommendations(school_id);

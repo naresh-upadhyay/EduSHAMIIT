@@ -36,49 +36,35 @@ class AnnouncementUpdate(BaseModel):
     expires_at: Optional[datetime] = None
 
 # ===========================================================
-# Endpoints
+# Endpoints (Using Unified notifications table)
 # ===========================================================
 
 @router.get("/stats")
 async def get_announcement_stats(user=Depends(require_super_admin_or_director)):
     sb = get_supabase()
     try:
-        res = await sb.table("announcements").select("status, audience").aexecute()
+        res = await sb.table("notifications").select("id, status").eq("category", "announcement").aexecute()
         rows = res.data or []
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {e}")
 
     total = len(rows)
     published = sum(1 for r in rows if r.get("status") == "Published")
-    scheduled = sum(1 for r in rows if r.get("status") == "Scheduled")
     draft = sum(1 for r in rows if r.get("status") == "Draft")
-    expired = sum(1 for r in rows if r.get("status") == "Expired")
-
-    # Audience breakdown
-    breakdown = {}
-    for r in rows:
-        aud = r.get("audience")
-        if aud:
-            if isinstance(aud, list):
-                for single_aud in aud:
-                    if single_aud:
-                        aud_label = str(single_aud).capitalize()
-                        breakdown[aud_label] = breakdown.get(aud_label, 0) + 1
-            else:
-                aud_label = str(aud).capitalize()
-                breakdown[aud_label] = breakdown.get(aud_label, 0) + 1
 
     return {
         "success": True,
         "data": {
             "total": total,
             "published": published,
-            "scheduled": scheduled,
+            "scheduled": 0,
             "draft": draft,
-            "expired": expired,
-            "audience_breakdown": breakdown
+            "expired": 0,
+            "audience_breakdown": {"All": total}
         }
     }
+
+from app.utils.sanitizer import sanitize_search_input
 
 @router.get("")
 async def list_announcements(
@@ -92,25 +78,20 @@ async def list_announcements(
     user=Depends(require_super_admin_or_director)
 ):
     sb = get_supabase()
-    q = sb.table("announcements").select("*, school:schools(name)").count("exact")
+    q = sb.table("notifications").select("*").eq("category", "announcement").count("exact")
 
-    if status and status != "All Status":
-        q = q.eq("status", status)
-    if priority and priority != "All Priority":
-        q = q.eq("priority", priority)
-    if audience and audience != "All Audience":
-        q = q.contains("audience", f"{{{audience.lower()}}}")
     if school_id and school_id != "All Institutions":
-        if school_id == "Global":
-            q = q.is_("school_id", "null")
-        else:
+        if school_id != "Global":
             q = q.eq("school_id", school_id)
 
     if search:
-        search_escaped = f"%{search}%"
-        q = q.or_(f"title.ilike.{search_escaped},description.ilike.{search_escaped}")
+        clean_search = sanitize_search_input(search)
+        if clean_search:
+            search_escaped = f"%{clean_search}%"
+            q = q.or_(f"title.ilike.{search_escaped},message.ilike.{search_escaped}")
 
     offset = (page - 1) * page_size
+
     q = q.order("created_at", ascending=False).limit(page_size).offset(offset)
 
     try:
@@ -134,22 +115,15 @@ async def create_announcement(announcement: AnnouncementCreate, user=Depends(req
 
     payload = {
         "title": announcement.title,
-        "description": announcement.description,
-        "audience": announcement.audience,
+        "message": announcement.description or announcement.title,
+        "category": "announcement",
         "school_id": announcement.school_id,
-        "priority": announcement.priority,
-        "status": announcement.status,
-        "scheduled_at": announcement.scheduled_at.isoformat() if announcement.scheduled_at else None,
-        "published_at": announcement.published_at.isoformat() if announcement.published_at else None,
-        "expires_at": announcement.expires_at.isoformat() if announcement.expires_at else None,
-        "created_by_id": user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
+        "is_read": False,
+        "created_at": datetime.utcnow().isoformat()
     }
 
-    if announcement.status == "Published" and not payload["published_at"]:
-        payload["published_at"] = datetime.utcnow().isoformat()
-
     try:
-        res = await sb.table("announcements").insert(payload).aexecute()
+        res = await sb.table("notifications").insert(payload).aexecute()
         if not res.data:
             raise HTTPException(status_code=500, detail="Failed to create announcement")
         return {"success": True, "data": res.data[0]}
@@ -159,43 +133,19 @@ async def create_announcement(announcement: AnnouncementCreate, user=Depends(req
 @router.put("/{id}")
 async def update_announcement(id: str, announcement: AnnouncementUpdate, user=Depends(require_super_admin_or_director)):
     sb = get_supabase()
-    
-    # 1. Fetch current announcement
-    try:
-        current_res = await sb.table("announcements").select("*").eq("id", id).maybe_single().aexecute()
-        if not current_res.data:
-            raise HTTPException(status_code=404, detail="Announcement not found")
-        current = current_res.data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database read failed: {e}")
 
     payload = {}
     if announcement.title is not None:
         payload["title"] = announcement.title
     if announcement.description is not None:
-        payload["description"] = announcement.description
-    if announcement.audience is not None:
-        payload["audience"] = announcement.audience
+        payload["message"] = announcement.description
     if announcement.school_id is not None:
-        # Allow clearing school_id to make it global by passing None
         payload["school_id"] = announcement.school_id
-    if announcement.priority is not None:
-        payload["priority"] = announcement.priority
-    if announcement.status is not None:
-        payload["status"] = announcement.status
-        if announcement.status == "Published" and current.get("status") != "Published":
-            payload["published_at"] = datetime.utcnow().isoformat()
-    if announcement.scheduled_at is not None:
-        payload["scheduled_at"] = announcement.scheduled_at.isoformat() if announcement.scheduled_at else None
-    if announcement.published_at is not None:
-        payload["published_at"] = announcement.published_at.isoformat() if announcement.published_at else None
-    if announcement.expires_at is not None:
-        payload["expires_at"] = announcement.expires_at.isoformat() if announcement.expires_at else None
 
     payload["updated_at"] = datetime.utcnow().isoformat()
 
     try:
-        res = await sb.table("announcements").update(payload).eq("id", id).aexecute()
+        res = await sb.table("notifications").update(payload).eq("id", id).aexecute()
         if not res.data:
             raise HTTPException(status_code=500, detail="Failed to update announcement")
         return {"success": True, "data": res.data[0]}
@@ -206,9 +156,7 @@ async def update_announcement(id: str, announcement: AnnouncementUpdate, user=De
 async def delete_announcement(id: str, user=Depends(require_super_admin_or_director)):
     sb = get_supabase()
     try:
-        res = await sb.table("announcements").delete().eq("id", id).aexecute()
-        if not res.data:
-            raise HTTPException(status_code=404, detail="Announcement not found")
+        await sb.table("notifications").delete().eq("id", id).aexecute()
         return {"success": True, "message": "Announcement deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database delete failed: {e}")

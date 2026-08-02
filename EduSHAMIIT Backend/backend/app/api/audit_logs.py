@@ -44,184 +44,43 @@ async def log_audit_event_to_db(
     body_json: dict,
     session_id: Optional[str] = None
 ):
-    """Background task to fetch user profiles, map path to module/action, and insert audit logs."""
-    print(f"[AUDIT DEBUG] path={path} method={method} user_id={user_id} status_code={status_code}", flush=True)
+    """
+    Superfast non-blocking background logger calling PostgreSQL RPC.
+    Database triggers automatically capture table mutations (INSERT/UPDATE/DELETE).
+    Auth and non-table events are recorded in 1 RPC call without extra profile lookups.
+    """
     try:
         sb = get_supabase()
 
-        # 1. Fetch user profile if user_id is present
-        user_name = "Unknown User"
-        user_email = "unknown@schoolerp.com"
-        user_role = "User"
-        actual_school_id = school_id
-
-        if user_id:
-            try:
-                profile_res = await sb.table("profiles").select("full_name, email, role, school_id").eq("id", user_id).maybe_single().aexecute()
-                if profile_res.data:
-                    p = profile_res.data
-                    user_name = p.get("full_name", "Unknown User")
-                    user_email = p.get("email", "unknown@schoolerp.com")
-                    user_role = p.get("role", "User")
-                    if not actual_school_id:
-                        actual_school_id = p.get("school_id")
-            except Exception as pe:
-                print(f"[Audit Log] Error fetching profile: {pe}", flush=True)
-        else:
-            # Login attempt lookup by email
-            if body_json and ("email" in body_json or "identifier" in body_json):
-                user_email = body_json.get("email") or body_json.get("identifier")
-                try:
-                    profile_res = await sb.table("profiles").select("id, full_name, role, school_id").eq("email", user_email).maybe_single().aexecute()
-                    if profile_res.data:
-                        p = profile_res.data
-                        user_name = p.get("full_name", "Unknown User")
-                        user_role = p.get("role", "User")
-                        user_id = p.get("id")
-                        if not actual_school_id:
-                            actual_school_id = p.get("school_id")
-                except Exception:
-                    pass
-
-        # 2. Determine module and resource type
-        module = "System"
-        resource_type = "-"
-
-        parts = [p for p in path.split("/") if p]
-        if len(parts) >= 2:
-            sec_part = parts[1]
-            if sec_part == "auth":
-                module = "Authentication"
-                resource_type = "-"
-            elif sec_part == "student" or (len(parts) >= 3 and parts[2] == "students"):
-                module = "Students"
-                resource_type = "Student"
-            elif sec_part == "teacher" or (len(parts) >= 3 and parts[2] == "teachers"):
-                module = "Teachers"
-                resource_type = "Teacher"
-            elif sec_part == "payments":
-                module = "Reports" if "report" in path else "Finance"
-                resource_type = "Payment"
-            elif sec_part == "chat":
-                module = "Authentication" if "login" in path else "Communication"
-                resource_type = "Chat"
-            elif sec_part == "iot":
-                module = "Infrastructure"
-                resource_type = "IoT Device"
-            elif sec_part == "documents":
-                module = "System"
-                resource_type = "Document"
-            elif sec_part == "live_classes":
-                module = "Live Classes"
-                resource_type = "Class"
-            elif sec_part == "admin":
-                if len(parts) >= 3:
-                    third_part = parts[2]
-                    if third_part == "schools" or third_part == "institutions":
-                        module = "Institutions"
-                        resource_type = "Institution"
-                    elif third_part == "roles":
-                        module = "Security"
-                        resource_type = "Role"
-                    elif third_part == "infra":
-                        module = "Infra Monitor"
-                        resource_type = "Infrastructure"
-                    else:
-                        module = third_part.capitalize()
-                        resource_type = third_part.capitalize()
-                else:
-                    module = "System Configuration"
-                    resource_type = "Configuration"
-
-        # 3. Determine Event Type and Action
-        event_type = "Update"
-        action = "Updated"
-
+        # Determine event type
+        event_type = "Access"
         if "login" in path:
-            if status_code == 200:
-                event_type = "Login"
-                action = "Login"
-            else:
-                event_type = "Login Failed"
-                action = "Failed Login"
+            event_type = "Login" if status_code == 200 else "Login Failed"
         elif "logout" in path:
             event_type = "Logout"
-            action = "Logout"
-        elif "backup" in path:
-            event_type = "Backup"
-            action = "Manual Backup"
-            resource_type = "System"
         elif "export" in path or "download" in path:
             event_type = "Export"
-            action = "Exported"
-        elif "role" in path or "permission" in path:
-            event_type = "Permission Change"
-            action = "Updated"
-        elif "bulk" in path:
-            event_type = "Bulk Update"
-            action = "Bulk Updated"
-        else:
-            if method == "POST":
-                event_type = "Create"
-                action = "Created"
-            elif method in ("PUT", "PATCH"):
-                event_type = "Update"
-                action = "Updated"
-            elif method == "DELETE":
-                event_type = "Delete"
-                action = "Deleted"
-            else:
-                event_type = "Access"
-                action = "Accessed"
-
-        # 4. Extract Resource
-        resource = "-"
-        if body_json:
-            if "name" in body_json:
-                resource = body_json["name"]
-            elif "title" in body_json:
-                resource = body_json["title"]
-            elif "full_name" in body_json:
-                resource = f"User: {body_json['full_name']}"
-            elif "email" in body_json:
-                resource = body_json["email"]
-            elif "id" in body_json:
-                resource = f"ID: {body_json['id']}"
-
-        # Fallback to ID from path
-        if resource == "-" and len(parts) >= 3:
-            last_part = parts[-1]
-            if len(last_part) >= 8:
-                resource = f"{resource_type} ID: {last_part}" if resource_type != "-" else f"ID: {last_part}"
+        elif method == "POST":
+            event_type = "Create"
+        elif method in ("PUT", "PATCH"):
+            event_type = "Update"
+        elif method == "DELETE":
+            event_type = "Delete"
 
         status = "Success" if 200 <= status_code < 400 else "Failed"
 
-        # 5. Make Session ID stable per user / ip
-        if not session_id:
-            val = f"{user_id or ip_address}"
-            session_id = f"sess_{hashlib.md5(val.encode('utf-8')).hexdigest()[:16]}"
-
-        # 6. Insert Log into DB
-        await sb.table("audit_logs").insert({
-            "school_id": actual_school_id,
-            "user_id": user_id,
-            "user_email": user_email,
-            "user_name": user_name,
-            "user_role": user_role,
-            "event_type": event_type,
-            "module": module,
-            "action": action,
-            "resource": resource,
-            "resource_type": resource_type,
-            "ip_address": ip_address,
-            "status": status,
-            "changes": body_json,
-            "user_agent": user_agent,
-            "session_id": session_id
+        # Execute 1 single fast RPC call to log auth/system events
+        await sb.rpc("rpc_record_user_auth_activity", {
+            "p_user_id": user_id,
+            "p_event_type": event_type,
+            "p_ip_address": ip_address,
+            "p_user_agent": user_agent,
+            "p_status": status
         }).aexecute()
 
     except Exception as e:
-        print(f"[Audit Log Background Worker] Failed to save log: {e}", flush=True)
+        print(f"[Audit Log Worker] Log skipped: {e}", flush=True)
+
 
 
 @router.get("/audit-logs")
@@ -465,3 +324,28 @@ async def list_audit_log_users(user=Depends(require_super_admin_or_director)):
             seen.add(email)
             unique_users.append(u)
     return {"success": True, "data": unique_users}
+
+
+@router.get("/my-activity")
+async def get_my_activity_history(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    user=Depends(get_current_user)
+):
+    """
+    Superfast PostgreSQL RPC call allowing any authenticated user (Student, Teacher, Admin, Driver)
+    to view their own activity history log instantly.
+    """
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User authentication required")
+
+    sb = get_supabase()
+    res = await sb.rpc("rpc_get_user_my_activity_history", {
+        "p_user_id": user_id,
+        "p_limit": limit,
+        "p_offset": offset
+    }).aexecute()
+
+    return res.data if res.data else {"success": True, "user_id": user_id, "activities": []}
+

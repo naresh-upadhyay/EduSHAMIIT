@@ -1122,24 +1122,24 @@ async def student_fees(status: Optional[str] = None, user=Depends(get_current_us
 @router.get("/transport")
 async def student_transport(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
-    transport = (await sb.table("student_transport").select("*, bus_routes(*), bus_stops(stop_name)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()).data
+    transport = (await sb.table("student_transport").select("*, transport_routes(*), transport_route_stops(stop_name)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()).data
     if not transport:
         return {"success": False, "message": "Not assigned to any bus route"}
-    bus_location = (await sb.table("bus_locations").select("*").eq("school_id", school_id).eq("route_id", transport["route_id"]).order("recorded_at", ascending=False).limit(1).maybe_single().aexecute()).data
-    return {"success": True, "school_id": school_id, "data": {"route": transport.get("bus_routes"), "your_stop": transport.get("bus_stops", {}).get("stop_name"), "live_location": bus_location}}
+    bus_location = (await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", transport["route_id"]).order("recorded_at", ascending=False).limit(1).maybe_single().aexecute()).data
+    return {"success": True, "school_id": school_id, "data": {"route": transport.get("transport_routes"), "your_stop": transport.get("transport_route_stops", {}).get("stop_name"), "live_location": bus_location}}
 
 
 @router.get("/transport/route")
 async def get_student_transport_route(user=Depends(get_current_user), school_id=Depends(require_school_id)):
     sb = get_supabase()
     # 1. Fetch student transport assignment
-    transport_res = await sb.table("student_transport").select("*, bus_routes(*), bus_stops(*)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()
+    transport_res = await sb.table("student_transport").select("*, transport_routes(*), transport_route_stops(*)").eq("school_id", school_id).eq("student_id", user["id"]).maybe_single().aexecute()
     transport = transport_res.data
     
     if not transport:
         raise HTTPException(status_code=404, detail="No transport route assigned to this student")
         
-    vehicle_id = transport.get("route_id") # route_id in student_transport points to bus_routes(id)
+    vehicle_id = transport.get("route_id") # route_id in student_transport points to transport_routes(id)
     stop_id = transport.get("stop_id")
     
     # 2. Fetch active transport route matching this vehicle
@@ -1152,12 +1152,12 @@ async def get_student_transport_route(user=Depends(get_current_user), school_id=
         stops_res = await sb.table("transport_route_stops").select("*").eq("school_id", school_id).eq("route_id", route["id"]).order("stop_order").aexecute()
         stops = stops_res.data or []
     else:
-        # Fallback to bus_stops table for the vehicle
-        stops_res = await sb.table("bus_stops").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("stop_order").aexecute()
+        # Fallback to transport_route_stops table for the vehicle
+        stops_res = await sb.table("transport_route_stops").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("stop_order").aexecute()
         stops = stops_res.data or []
         
     # 4. Fetch live location
-    loc_res = await sb.table("bus_locations").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("recorded_at", ascending=False).limit(1).maybe_single().aexecute()
+    loc_res = await sb.table("vehicle_trips").select("*").eq("school_id", school_id).eq("route_id", vehicle_id).order("recorded_at", ascending=False).limit(1).maybe_single().aexecute()
     live_location = loc_res.data
     
     # 5. Fetch live alerts / updates
@@ -1206,8 +1206,8 @@ async def get_student_transport_route(user=Depends(get_current_user), school_id=
         # If live_location and stops are ordered, we can estimate if boarded
         if live_location and s.get("stop_order"):
             # simple mock heuristics: if bus is beyond this stop's order, mark boarded
-            # For dynamic realism, let's look at bus's next_stop from bus_routes
-            next_stop_name = transport.get("bus_routes", {}).get("next_stop")
+            # For dynamic realism, let's look at bus's next_stop from transport_routes
+            next_stop_name = transport.get("transport_routes", {}).get("next_stop")
             if next_stop_name:
                 # Find next stop order
                 next_order = 999
@@ -1221,7 +1221,7 @@ async def get_student_transport_route(user=Depends(get_current_user), school_id=
                 
         formatted_stops.append(stop_item)
         
-        if str(s["id"]) == str(stop_id) or s["stop_name"] == transport.get("bus_stops", {}).get("stop_name"):
+        if str(s["id"]) == str(stop_id) or s["stop_name"] == transport.get("transport_route_stops", {}).get("stop_name"):
             my_stop_data = {
                 "stop_name": s["stop_name"],
                 "pickup_time": arrival_time_str,
@@ -1235,7 +1235,7 @@ async def get_student_transport_route(user=Depends(get_current_user), school_id=
             
     if not my_stop_data and formatted_stops:
         # Fallback to the student stop details from transport record
-        student_stop_name = transport.get("bus_stops", {}).get("stop_name") or "Your Stop"
+        student_stop_name = transport.get("transport_route_stops", {}).get("stop_name") or "Your Stop"
         my_stop_data = {
             "stop_name": student_stop_name,
             "pickup_time": "07:00 AM",
@@ -1257,7 +1257,7 @@ async def get_student_transport_route(user=Depends(get_current_user), school_id=
         except:
             pass
             
-    bus_info = transport.get("bus_routes") or {}
+    bus_info = transport.get("transport_routes") or {}
     
     return {
         "success": True,
@@ -3818,4 +3818,4 @@ async def student_get_exam_result(
     }
 
 
-
+
