@@ -960,7 +960,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           _buildSubTile('Vehicles', '/admin/fleet', 1, isFleetRoute && activeTab == 1, isDark),
           _buildSubTile('Vehicle Categories', '/admin/fleet', 2, isFleetRoute && activeTab == 2, isDark),
           _buildSubTile('Vehicle Documents', '/admin/fleet', 3, isFleetRoute && activeTab == 3, isDark),
-          _buildSubTile('GPS Devices', '/admin/fleet', 4, isFleetRoute && activeTab == 4, isDark),
         ],
       ],
     );

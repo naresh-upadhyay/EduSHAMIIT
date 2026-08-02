@@ -191,28 +191,8 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
     }
 
     try {
-      // Lazy load shared lookups once
-      if (_vehicles.isEmpty || _routes.isEmpty) {
-        try {
-          final lookups = await Future.wait([
-            ApiService().get('/transport/vehicles?page_size=100', useCache: true),
-            ApiService().get('/transport/routes?page_size=100', useCache: true),
-          ]);
-          final rawVehicles = lookups[0]['data'];
-          if (rawVehicles is Map && rawVehicles['vehicles'] is List) {
-            _vehicles = rawVehicles['vehicles'] as List;
-          } else if (rawVehicles is List) {
-            _vehicles = rawVehicles;
-          } else {
-            _vehicles = [];
-          }
-
-          final rawRoutes = lookups[1]['data'];
-          _routes = (rawRoutes is List) ? rawRoutes : [];
-        } catch (e) {
-          debugPrint('Lookup load error: $e');
-        }
-      }
+      // Lazy load shared lookups (vehicles, routes, and drivers)
+      await _ensureLookupsLoaded(forceReload: forceReload);
 
       switch (tabIndex) {
         case 0: // Drivers
@@ -260,6 +240,52 @@ class DriverManagementTabState extends State<DriverManagementTab> with TickerPro
       debugPrint('Error loading tab $tabIndex: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _ensureLookupsLoaded({bool forceReload = false}) async {
+    if (!forceReload && _vehicles.isNotEmpty && _routes.isNotEmpty && _drivers.isNotEmpty) {
+      return;
+    }
+    final schoolId = widget.schoolId;
+    try {
+      final drvEndpoint = schoolId != null ? '/transport/drivers?school_id=$schoolId' : '/transport/drivers';
+      final lookups = await Future.wait([
+        (_vehicles.isEmpty || forceReload) ? ApiService().get('/transport/vehicles?page_size=100', useCache: !forceReload) : Future.value(null),
+        (_routes.isEmpty || forceReload) ? ApiService().get('/transport/routes?page_size=100', useCache: !forceReload) : Future.value(null),
+        (_drivers.isEmpty || forceReload) ? ApiService().get(drvEndpoint, useCache: !forceReload) : Future.value(null),
+      ]);
+
+      final vRes = lookups[0];
+      if (vRes != null) {
+        final rawVehicles = vRes['data'];
+        if (rawVehicles is Map && rawVehicles['vehicles'] is List) {
+          _vehicles = rawVehicles['vehicles'] as List;
+        } else if (rawVehicles is List) {
+          _vehicles = rawVehicles;
+        }
+      }
+
+      final rRes = lookups[1];
+      if (rRes != null) {
+        final rawRoutes = rRes['data'];
+        _routes = (rawRoutes is List) ? rawRoutes : [];
+      }
+
+      final dRes = lookups[2];
+      if (dRes != null) {
+        final rawDrivers = dRes['data'];
+        if (rawDrivers is List) {
+          _drivers = rawDrivers;
+        } else if (rawDrivers is Map && rawDrivers['drivers'] is List) {
+          _drivers = rawDrivers['drivers'] as List;
+        }
+        if (_drivers.isNotEmpty && _selectedDriver == null) {
+          _selectedDriver = _drivers[0];
+        }
+      }
+    } catch (e) {
+      debugPrint('Lookup load error: $e');
     }
   }
 
@@ -4601,11 +4627,24 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     );
   }
 
-  void _showTrainingFormDialog(dynamic existing) {
+  Future<void> _showTrainingFormDialog(dynamic existing) async {
+    await _ensureLookupsLoaded();
+    if (!mounted) return;
+
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
-    String? selectedDriverId = existing?['driver_id'];
+    final Map<String, dynamic> uniqueDrivers = {};
+    for (final d in _drivers) {
+      final id = d['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueDrivers[id] = d;
+    }
+
+    String? selectedDriverId = existing?['driver_id']?.toString();
+    if (selectedDriverId != null && !uniqueDrivers.containsKey(selectedDriverId)) {
+      selectedDriverId = null;
+    }
+
     final programController = TextEditingController(text: existing?['training_program']);
     String type = existing?['training_type'] ?? 'Safety';
     final providerController = TextEditingController(text: existing?['provider'] ?? 'Road Safety Academy');
@@ -4638,7 +4677,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       DropdownButtonFormField<String>(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Driver *', border: OutlineInputBorder()),
-                        items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text(d['name'] ?? 'Driver'))).toList(),
+                        items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
                         onChanged: isEdit ? null : (val) => setDialogState(() => selectedDriverId = val),
                       ),
@@ -5494,12 +5533,35 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
     );
   }
 
-  void _showViolationFormDialog(dynamic existing) {
+  Future<void> _showViolationFormDialog(dynamic existing) async {
+    await _ensureLookupsLoaded();
+    if (!mounted) return;
+
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
-    String? selectedDriverId = existing?['driver_id'];
-    String? selectedVehicleId = existing?['vehicle_id'];
+    final Map<String, dynamic> uniqueDrivers = {};
+    for (final d in _drivers) {
+      final id = d['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueDrivers[id] = d;
+    }
+
+    final Map<String, dynamic> uniqueVehicles = {};
+    for (final v in _vehicles) {
+      final id = v['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueVehicles[id] = v;
+    }
+
+    String? selectedDriverId = existing?['driver_id']?.toString();
+    if (selectedDriverId != null && !uniqueDrivers.containsKey(selectedDriverId)) {
+      selectedDriverId = null;
+    }
+
+    String? selectedVehicleId = existing?['vehicle_id']?.toString();
+    if (selectedVehicleId != null && !uniqueVehicles.containsKey(selectedVehicleId)) {
+      selectedVehicleId = null;
+    }
+
     String type = existing?['violation_type'] ?? 'Overspeeding';
     String severity = existing?['severity'] ?? 'Medium';
     String status = existing?['status'] ?? 'Pending';
@@ -5527,7 +5589,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       DropdownButtonFormField<String>(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Driver *', border: OutlineInputBorder()),
-                        items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text(d['name'] ?? 'Driver'))).toList(),
+                        items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
                         onChanged: isEdit ? null : (val) => setDialogState(() => selectedDriverId = val),
                       ),
@@ -5535,7 +5597,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       DropdownButtonFormField<String>(
                         initialValue: selectedVehicleId,
                         decoration: const InputDecoration(labelText: 'Vehicle Involved *', border: OutlineInputBorder()),
-                        items: _vehicles.map((v) {
+                        items: uniqueVehicles.values.map((v) {
                           final label = '${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} (${v['route_name'] ?? 'Route'})';
                           return DropdownMenuItem<String>(value: v['id'].toString(), child: Text(label));
                         }).toList(),
@@ -5780,14 +5842,47 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
   }
 
   // ──────── Assignment CRUD Dialogs ────────
-  void _showAssignmentFormDialog(dynamic existing) {
+  Future<void> _showAssignmentFormDialog(dynamic existing) async {
+    await _ensureLookupsLoaded();
+    if (!mounted) return;
+
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
+    // Deduplicate lookup lists by ID to prevent Dropdown assertion errors
+    final Map<String, dynamic> uniqueDrivers = {};
+    for (final d in _drivers) {
+      final id = d['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueDrivers[id] = d;
+    }
+
+    final Map<String, dynamic> uniqueVehicles = {};
+    for (final v in _vehicles) {
+      final id = v['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueVehicles[id] = v;
+    }
+
+    final Map<String, dynamic> uniqueRoutes = {};
+    for (final r in _routes) {
+      final id = r['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueRoutes[id] = r;
+    }
+
     String? selectedDriverId = existing?['driver_id']?.toString();
+    if (selectedDriverId != null && !uniqueDrivers.containsKey(selectedDriverId)) {
+      selectedDriverId = null;
+    }
+
     String? selectedVehicleId = existing?['vehicle_id']?.toString();
+    if (selectedVehicleId != null && !uniqueVehicles.containsKey(selectedVehicleId)) {
+      selectedVehicleId = null;
+    }
+
     String? selectedRouteId = existing?['route_id']?.toString();
-    
+    if (selectedRouteId != null && !uniqueRoutes.containsKey(selectedRouteId)) {
+      selectedRouteId = null;
+    }
+
     // Normalize shift string
     String rawShift = (existing?['shift'] ?? 'Morning').toString();
     String shift = 'Morning';
@@ -5807,13 +5902,6 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
       status = 'Active';
     }
     String assignmentType = existing?['assignment_type'] ?? 'Route';
-
-    if (selectedDriverId != null && !_drivers.any((d) => d['id'].toString() == selectedDriverId)) {
-      selectedDriverId = null;
-    }
-    if (selectedVehicleId != null && !_vehicles.any((v) => v['id'].toString() == selectedVehicleId)) {
-      selectedVehicleId = null;
-    }
 
     final startDateController = TextEditingController(text: existing?['start_date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now()));
     final endDateController = TextEditingController(text: existing?['end_date'] ?? DateFormat('yyyy-MM-dd').format(DateTime.now().add(const Duration(days: 365))));
@@ -5850,9 +5938,9 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                         isExpanded: true,
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
-                        items: _drivers.map((d) => DropdownMenuItem<String>(
+                        items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(
                           value: d['id'].toString(),
-                          child: Text('${d['name']} (${d['driver_code'] ?? 'DRV'})', overflow: TextOverflow.ellipsis),
+                          child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})', overflow: TextOverflow.ellipsis),
                         )).toList(),
                         validator: (val) => val == null ? 'Required' : null,
                         onChanged: (val) => setDialogState(() => selectedDriverId = val),
@@ -5864,9 +5952,9 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               isExpanded: true,
-                              initialValue: (selectedVehicleId != null && _vehicles.any((v) => v['id'].toString() == selectedVehicleId)) ? selectedVehicleId : null,
+                              initialValue: selectedVehicleId,
                               decoration: const InputDecoration(labelText: 'Assign Vehicle *', border: OutlineInputBorder()),
-                              items: _vehicles.map((v) {
+                              items: uniqueVehicles.values.map((v) {
                                 final label = '${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} (${v['vehicle_type'] ?? 'Bus'})';
                                 return DropdownMenuItem<String>(
                                   value: v['id'].toString(),
@@ -5880,9 +5968,9 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               isExpanded: true,
-                              initialValue: (selectedRouteId != null && _routes.any((r) => r['id'].toString() == selectedRouteId)) ? selectedRouteId : null,
+                              initialValue: selectedRouteId,
                               decoration: const InputDecoration(labelText: 'Assign Route / Trip', border: OutlineInputBorder()),
-                              items: _routes.map((r) {
+                              items: uniqueRoutes.values.map((r) {
                                 final label = '${r['route_name'] ?? 'Route'} (${r['shift'] ?? 'General'})';
                                 return DropdownMenuItem<String>(
                                   value: r['id'].toString(),
@@ -6292,14 +6380,24 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
   }
 
   // ──────── Document CRUD Dialogs ────────
-  void _showDocumentFormDialog(dynamic existing) {
+  Future<void> _showDocumentFormDialog(dynamic existing) async {
+    await _ensureLookupsLoaded();
+    if (!mounted) return;
+
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
+    final Map<String, dynamic> uniqueDrivers = {};
+    for (final d in _drivers) {
+      final id = d['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueDrivers[id] = d;
+    }
+
     String? selectedDriverId = existing?['driver_id']?.toString();
-    if (selectedDriverId != null && !_drivers.any((d) => d['id'].toString() == selectedDriverId)) {
+    if (selectedDriverId != null && !uniqueDrivers.containsKey(selectedDriverId)) {
       selectedDriverId = null;
     }
+
     String docType = existing?['document_type'] ?? 'Driving License';
     final allowedTypes = ['Driving License', 'Badge', 'Police Verification', 'Aadhaar Card', 'Medical Certificate', 'Fitness Certificate', 'Pollution Certificate'];
     if (!allowedTypes.contains(docType)) docType = 'Driving License';
@@ -6338,7 +6436,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       DropdownButtonFormField<String>(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
-                        items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name']} (${d['driver_code']})'))).toList(),
+                        items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
                         onChanged: (val) => setDialogState(() => selectedDriverId = val),
                       ),
@@ -6564,12 +6662,34 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
 
 
   // ──────── Performance CRUD & Export Dialogs ────────
-  void _showPerformanceFormDialog(dynamic existing) {
+  Future<void> _showPerformanceFormDialog(dynamic existing) async {
+    await _ensureLookupsLoaded();
+    if (!mounted) return;
+
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
-    String? selectedDriverId = existing?['driver_id'];
-    String? selectedVehicleId = existing?['vehicle_id'];
+    final Map<String, dynamic> uniqueDrivers = {};
+    for (final d in _drivers) {
+      final id = d['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueDrivers[id] = d;
+    }
+
+    final Map<String, dynamic> uniqueVehicles = {};
+    for (final v in _vehicles) {
+      final id = v['id']?.toString();
+      if (id != null && id.isNotEmpty) uniqueVehicles[id] = v;
+    }
+
+    String? selectedDriverId = existing?['driver_id']?.toString();
+    if (selectedDriverId != null && !uniqueDrivers.containsKey(selectedDriverId)) {
+      selectedDriverId = null;
+    }
+
+    String? selectedVehicleId = existing?['vehicle_id']?.toString();
+    if (selectedVehicleId != null && !uniqueVehicles.containsKey(selectedVehicleId)) {
+      selectedVehicleId = null;
+    }
 
     final attController = TextEditingController(text: existing?['attendance_score']?.toString() ?? '4.8');
     final safController = TextEditingController(text: existing?['safety_score']?.toString() ?? '4.5');
@@ -6598,7 +6718,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       DropdownButtonFormField<String>(
                         initialValue: selectedDriverId,
                         decoration: const InputDecoration(labelText: 'Select Driver *', border: OutlineInputBorder()),
-                        items: _drivers.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name']} (${d['driver_code']})'))).toList(),
+                        items: uniqueDrivers.values.map((d) => DropdownMenuItem<String>(value: d['id'].toString(), child: Text('${d['name'] ?? 'Driver'} (${d['driver_code'] ?? 'DRV'})'))).toList(),
                         validator: (val) => val == null ? 'Required' : null,
                         onChanged: (val) => setDialogState(() => selectedDriverId = val),
                       ),
@@ -6606,7 +6726,7 @@ Generated on: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}
                       DropdownButtonFormField<String>(
                         initialValue: selectedVehicleId,
                         decoration: const InputDecoration(labelText: 'Vehicle Assigned', border: OutlineInputBorder()),
-                        items: _vehicles.map((v) => DropdownMenuItem<String>(value: v['id'].toString(), child: Text('${v['registration_no'] ?? v['bus_number']} (${v['vehicle_type'] ?? 'Bus'})'))).toList(),
+                        items: uniqueVehicles.values.map((v) => DropdownMenuItem<String>(value: v['id'].toString(), child: Text('${v['registration_no'] ?? v['bus_number'] ?? 'Bus'} (${v['vehicle_type'] ?? 'Bus'})'))).toList(),
                         onChanged: (val) => setDialogState(() => selectedVehicleId = val),
                       ),
                       const SizedBox(height: 12),

@@ -147,11 +147,11 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   @override
   void initState() {
     super.initState();
-    // 5 Tabs matching mockup (no Insurance & Fitness)
+    // 4 Tabs
     _tabController = TabController(
-      length: 5,
+      length: 4,
       vsync: this,
-      initialIndex: widget.initialTab.clamp(0, 4),
+      initialIndex: widget.initialTab.clamp(0, 3),
     );
     _tabController.addListener(() {
       if (mounted) {
@@ -177,15 +177,15 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
     _gpsSearchController.addListener(() {
       setState(() => _gpsSearchQuery = _gpsSearchController.text);
     });
-    _loadTabIfNeeded(widget.initialTab.clamp(0, 4), forceReload: true);
+    _loadTabIfNeeded(widget.initialTab.clamp(0, 3), forceReload: true);
   }
 
   @override
   void didUpdateWidget(FleetManagementScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialTab != oldWidget.initialTab) {
-      _tabController.animateTo(widget.initialTab.clamp(0, 4));
-      _loadTabIfNeeded(widget.initialTab.clamp(0, 4));
+      _tabController.animateTo(widget.initialTab.clamp(0, 3));
+      _loadTabIfNeeded(widget.initialTab.clamp(0, 3));
     }
   }
 
@@ -652,41 +652,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           ),
         ],
       );
-    } else if (_tabController.index == 4) {
-      title = 'GPS Devices';
-      desc = 'Monitor and manage GPS devices installed in vehicles for real-time tracking.';
-      actions = Row(
-        children: [
-          ElevatedButton.icon(
-            onPressed: () => _showAddGpsDeviceDialog(),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add GPS Device'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _accent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-          ),
-          const SizedBox(width: 12),
-          OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Downloading GPS Devices Report...')),
-              );
-            },
-            icon: const Icon(Icons.download, size: 16),
-            label: const Text('Download Report'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _accent,
-              side: const BorderSide(color: _accent),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-          ),
-        ],
-      );
     }
 
     return Row(
@@ -701,7 +666,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     fontSize: 22, fontWeight: FontWeight.w700, color: _textPrimary),
               ),
               const SizedBox(height: 4),
-              if (_tabController.index == 3 || _tabController.index == 4) ...[
+              if (_tabController.index == 3) ...[
                 Row(
                   children: [
                     Text('Fleet Management', style: GoogleFonts.inter(fontSize: 12, color: _textSecondary)),
@@ -709,7 +674,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                     const Icon(Icons.chevron_right, size: 12, color: _textSecondary),
                     const SizedBox(width: 6),
                     Text(
-                      _tabController.index == 3 ? 'Vehicle Documents' : 'GPS Devices', 
+                      'Vehicle Documents', 
                       style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF1E293B), fontWeight: FontWeight.w500)
                     ),
                   ],
@@ -769,7 +734,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             _buildTabItem(Icons.directions_bus_outlined, 'Vehicles'),
             _buildTabItem(Icons.directions_bus_outlined, 'Vehicle Categories'),
             _buildTabItem(Icons.description_outlined, 'Vehicle Documents'),
-            _buildTabItem(Icons.radar, 'GPS Devices'),
           ],
         ),
       ),
@@ -800,8 +764,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         return _buildCategoriesTab(isDesktop);
       case 3:
         return _buildDocumentsTab();
-      case 4:
-        return _buildGpsDevicesTab();
       default:
         return Padding(
           padding: const EdgeInsets.all(40),
@@ -856,8 +818,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 children: [
                   _buildFuelSummaryCard(),
                   const SizedBox(height: 20),
-                  _buildTripsSummaryCard(),
-                  const SizedBox(height: 20),
                   _buildTopVehiclesDistanceCard(),
                 ],
               );
@@ -866,8 +826,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: _buildFuelSummaryCard()),
-                const SizedBox(width: 20),
-                Expanded(child: _buildTripsSummaryCard()),
                 const SizedBox(width: 20),
                 Expanded(child: _buildTopVehiclesDistanceCard()),
               ],
@@ -919,10 +877,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
         Expanded(child: _buildOverviewKpiCard('Under Maintenance', '$maintenance', Colors.orange, Icons.build_outlined, _pct(maintenance, _vehicles.length))),
         const SizedBox(width: 12),
         Expanded(child: _buildOverviewKpiCard('Out of Service', '$inactive', Colors.red, Icons.bus_alert_outlined, _pct(inactive, _vehicles.length))),
-        const SizedBox(width: 12),
-        Expanded(child: _buildOverviewKpiCard('Total Drivers', '68', Colors.blue, Icons.person_outline, 'All Drivers')),
-        const SizedBox(width: 12),
-        Expanded(child: _buildOverviewKpiCard('Active Routes', '18', Colors.teal, Icons.route_outlined, 'All Routes')),
       ],
     );
   }
@@ -1458,20 +1412,26 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
           Text('Quick Actions', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
           const SizedBox(height: 12),
           Expanded(
-            child: GridView.count(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 2.2,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _quickActionMiniItem('Add Vehicle', Icons.add_circle_outline, _accent, () => _showAddVehicleDialog()),
-                _quickActionMiniItem('Add Driver', Icons.person_add_alt_1_outlined, _blue, () {}),
-                _quickActionMiniItem('Assign Route', Icons.alt_route_outlined, Colors.teal, () {}),
-                _quickActionMiniItem('Schedule Trip', Icons.calendar_today_outlined, Colors.indigo, () {}),
-                _quickActionMiniItem('Add Maintenance', Icons.build_outlined, _orange, () {}),
-                _quickActionMiniItem('View Reports', Icons.analytics_outlined, _accent, () {}),
-              ],
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                child: GridView.count(
+                  shrinkWrap: true,
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 2.2,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _quickActionMiniItem('Add Vehicle', Icons.add_circle_outline, _accent, () => _showAddVehicleDialog()),
+                    _quickActionMiniItem('Add Category', Icons.category_outlined, _blue, () => _showAddCategoryDialog()),
+                    _quickActionMiniItem('Add Document', Icons.note_add_outlined, Colors.teal, () => _showAddDocumentDialog()),
+                    _quickActionMiniItem('Add Service', Icons.build_outlined, _orange, () => _showAddServiceRecordDialog(_selectedVehicle)),
+                    _quickActionMiniItem('Import Vehicles', Icons.file_upload_outlined, Colors.indigo, () {}),
+                    _quickActionMiniItem('View Reports', Icons.analytics_outlined, _accent, () {}),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -1482,10 +1442,17 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   Widget _quickActionMiniItem(String label, IconData icon, Color color, VoidCallback onTap) {
     return OutlinedButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 14, color: color),
-      label: Text(label, style: GoogleFonts.inter(fontSize: 10, color: _textPrimary, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+      icon: Icon(icon, size: 13, color: color),
+      label: Flexible(
+        child: Text(
+          label,
+          style: GoogleFonts.inter(fontSize: 10, color: _textPrimary, fontWeight: FontWeight.w600),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ),
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         side: const BorderSide(color: _border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
@@ -1799,8 +1766,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                 DataColumn(label: Text('Bus Number')),
                 DataColumn(label: Text('Registration No.')),
                 DataColumn(label: Text('Category')),
-                DataColumn(label: Text('Driver')),
-                DataColumn(label: Text('Route')),
                 DataColumn(label: Text('Status')),
                 DataColumn(label: Text('Fuel')),
                 DataColumn(label: Text('Capacity')),
@@ -1847,16 +1812,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                         Text('${v['total_capacity'] ?? 52} Seats', style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
                       ],
                     )),
-                    DataCell(Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(v['driver_name'] ?? '—', style: GoogleFonts.inter(fontWeight: FontWeight.w500)),
-                        if (v['driver_phone'] != null)
-                          Text(v['driver_phone'], style: GoogleFonts.inter(fontSize: 10, color: _textSecondary)),
-                      ],
-                    )),
-                    DataCell(Text(v['route_name'] ?? '—')),
                     DataCell(_buildStatusBadge(v['live_status'] ?? 'offline')),
                     DataCell(_buildFuelIndicator(v['fuel_level_pct'])),
                     DataCell(Text('${v['total_capacity'] ?? 52}')),
@@ -2122,7 +2077,7 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
   }
 
   Widget _buildDetailsTabs() {
-    final tabs = ['Overview', 'Details', 'Documents', 'Maintenance', 'GPS & Tracking'];
+    final tabs = ['Overview', 'Details', 'Documents', 'Maintenance'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -2268,10 +2223,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
             _buildDetailRow('PUC No.', polInfo['doc_no']!),
             _buildDetailRow('Permit No.', permitInfo['doc_no']!),
             _buildDetailRow('Capacity', '${v['total_capacity'] ?? 52} Seats'),
-            const SizedBox(height: 8),
-            _buildDriverRow(v['driver_name'] ?? '—', v['driver_phone'] ?? '—'),
-            const SizedBox(height: 8),
-            _buildRouteRow(v['route_name'] ?? '—'),
             const SizedBox(height: 16),
             GridView.count(
               shrinkWrap: true,
@@ -2471,97 +2422,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                   statusColor: sColor,
                 );
               }),
-          ],
-        ),
-      );
-    } else if (_selectedDetailTab == 4) {
-      // GPS & TRACKING
-      final latLng = _parseLocation(v['current_location'] ?? '28.6129, 77.3910');
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('GPS Hardware & Live Position', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
-                _buildValidTag('Active Online'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildDetailRow('Device ID', v['gps_device_id'] ?? 'GPS-TRK-9101'),
-            _buildDetailRow('IMEI Number', v['gps_imei'] ?? '862345065432109'),
-            _buildDetailRow('SIM / Operator', 'Jio 4G (+91 98765 43210)'),
-            _buildDetailRow('Battery & Signal', '100% Battery • 95% Signal Strength'),
-            _buildDetailRow('Last Ping Recorded', '12 seconds ago'),
-            const SizedBox(height: 12),
-            Container(
-              height: 220,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _border),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Stack(
-                  children: [
-                    FlutterMap(
-                      options: MapOptions(
-                        initialCenter: latLng,
-                        initialZoom: 14.5,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.shamiit.edu',
-                          tileProvider: CancellableNetworkTileProvider(),
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: latLng,
-                              width: 60,
-                              height: 60,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  _PulseAnimationRing(),
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: const BoxDecoration(
-                                      color: _accent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.navigation, color: Colors.white, size: 14),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Positioned(
-                      bottom: 12,
-                      right: 12,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showLiveTrackingMapDialog(v),
-                        icon: const Icon(Icons.open_in_full, size: 14),
-                        label: const Text('Full Live Map'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _accent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       );
@@ -6639,52 +6499,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           },
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedDriverId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Assign Driver (Optional)',
-                            prefixIcon: Icon(Icons.person_outline, size: 18),
-                          ),
-                          items: [
-                            const DropdownMenuItem<String>(
-                              value: 'none',
-                              child: Text('None (Unassigned) - Optional', style: TextStyle(color: Colors.grey)),
-                            ),
-                            ..._drivers.map((d) {
-                              final name = (d['name'] ?? d['full_name'] ?? 'Driver').toString();
-                              final phone = (d['phone'] ?? '').toString();
-                              final label = phone.isNotEmpty ? '$name  •  $phone' : name;
-                              return DropdownMenuItem<String>(
-                                value: (d['id'] ?? d['profile_id'] ?? '').toString(),
-                                child: Text(label, overflow: TextOverflow.ellipsis),
-                              );
-                            }),
-                          ],
-                          onChanged: (val) {
-                            setDialogState(() {
-                              selectedDriverId = val ?? 'none';
-                              if (selectedDriverId == 'none') {
-                                driverNameCtrl.clear();
-                                driverPhoneCtrl.clear();
-                              } else {
-                                final d = _drivers.firstWhere(
-                                  (element) => (element['id']?.toString() == selectedDriverId || element['profile_id']?.toString() == selectedDriverId),
-                                  orElse: () => null,
-                                );
-                                if (d != null) {
-                                  driverNameCtrl.text = (d['name'] ?? d['full_name'] ?? '').toString();
-                                  driverPhoneCtrl.text = (d['phone'] ?? '').toString();
-                                }
-                              }
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: routeNameCtrl,
-                          decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
-                        ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
@@ -7138,52 +6952,6 @@ class _FleetManagementScreenState extends State<FleetManagementScreen>
                           },
                         ),
                         const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedDriverId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Assign Driver (Optional)',
-                            prefixIcon: Icon(Icons.person_outline, size: 18),
-                          ),
-                          items: [
-                            const DropdownMenuItem<String>(
-                              value: 'none',
-                              child: Text('None (Unassigned) - Optional', style: TextStyle(color: Colors.grey)),
-                            ),
-                            ..._drivers.map((d) {
-                              final name = (d['name'] ?? d['full_name'] ?? 'Driver').toString();
-                              final phone = (d['phone'] ?? '').toString();
-                              final label = phone.isNotEmpty ? '$name  •  $phone' : name;
-                              return DropdownMenuItem<String>(
-                                value: (d['id'] ?? d['profile_id'] ?? '').toString(),
-                                child: Text(label, overflow: TextOverflow.ellipsis),
-                              );
-                            }),
-                          ],
-                          onChanged: (val) {
-                            setDialogState(() {
-                              selectedDriverId = val ?? 'none';
-                              if (selectedDriverId == 'none') {
-                                driverNameCtrl.clear();
-                                driverPhoneCtrl.clear();
-                              } else {
-                                final d = _drivers.firstWhere(
-                                  (element) => (element['id']?.toString() == selectedDriverId || element['profile_id']?.toString() == selectedDriverId),
-                                  orElse: () => null,
-                                );
-                                if (d != null) {
-                                  driverNameCtrl.text = (d['name'] ?? d['full_name'] ?? '').toString();
-                                  driverPhoneCtrl.text = (d['phone'] ?? '').toString();
-                                }
-                              }
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: routeNameCtrl,
-                          decoration: const InputDecoration(labelText: 'Route Name (Optional)'),
-                        ),
                         const SizedBox(height: 12),
                         Row(
                           children: [

@@ -242,7 +242,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
             _autoRefreshSeconds--;
           } else {
             _autoRefreshSeconds = 15;
-            _loadLiveTrackingData();
+            _loadLiveTrackingData(isSilent: true);
           }
         });
       } else {
@@ -284,35 +284,16 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     if (!mounted) return;
     if (!forceReload && _loadedTabs.contains(tabIndex)) return;
 
-    final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
     if (_loadedTabs.isEmpty) {
       setState(() => _isLoading = true);
     }
 
     try {
+      await _ensureLookupsLoaded(forceReload: forceReload);
+
       switch (tabIndex) {
         case 0: // Overview
         case 1: // Route List
-          final routesPath = schoolId != null ? '/transport/routes?school_id=$schoolId' : '/transport/routes';
-          final vehiclesPath = schoolId != null ? '/transport/vehicles?page_size=100&school_id=$schoolId' : '/transport/vehicles?page_size=100';
-          final driversPath = schoolId != null ? '/transport/drivers?page_size=100&school_id=$schoolId' : '/transport/drivers?page_size=100';
-          final results = await Future.wait([
-            ApiService().get(routesPath, useCache: false),
-            ApiService().get(vehiclesPath, useCache: false),
-            ApiService().get(driversPath, useCache: false),
-          ]);
-
-          _routes = results[0]['data'] ?? [];
-          final vehData = results[1]['data'];
-          if (vehData is Map && vehData['vehicles'] is List) {
-            _vehicles = vehData['vehicles'];
-          } else if (vehData is List) {
-            _vehicles = vehData;
-          } else {
-            _vehicles = [];
-          }
-          _drivers = results[2]['data'] ?? [];
-
           if (_routes.isNotEmpty) {
             final match = _routes.firstWhere((r) => r['id'] == _selectedRoute?['id'], orElse: () => null);
             _selectedRoute = match ?? _routes.first;
@@ -346,6 +327,51 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
       debugPrint('Error loading route tab $tabIndex: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _ensureLookupsLoaded({bool forceReload = false}) async {
+    if (!forceReload && _routes.isNotEmpty && _vehicles.isNotEmpty && _drivers.isNotEmpty) {
+      return;
+    }
+    final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
+    try {
+      final routesPath = schoolId != null ? '/transport/routes?school_id=$schoolId' : '/transport/routes';
+      final vehiclesPath = schoolId != null ? '/transport/vehicles?page_size=100&school_id=$schoolId' : '/transport/vehicles?page_size=100';
+      final driversPath = schoolId != null ? '/transport/drivers?page_size=100&school_id=$schoolId' : '/transport/drivers?page_size=100';
+
+      final results = await Future.wait([
+        (_routes.isEmpty || forceReload) ? ApiService().get(routesPath, useCache: !forceReload) : Future.value(null),
+        (_vehicles.isEmpty || forceReload) ? ApiService().get(vehiclesPath, useCache: !forceReload) : Future.value(null),
+        (_drivers.isEmpty || forceReload) ? ApiService().get(driversPath, useCache: !forceReload) : Future.value(null),
+      ]);
+
+      final rRes = results[0];
+      if (rRes != null) {
+        _routes = rRes['data'] ?? [];
+      }
+
+      final vRes = results[1];
+      if (vRes != null) {
+        final vehData = vRes['data'];
+        if (vehData is Map && vehData['vehicles'] is List) {
+          _vehicles = vehData['vehicles'];
+        } else if (vehData is List) {
+          _vehicles = vehData;
+        }
+      }
+
+      final dRes = results[2];
+      if (dRes != null) {
+        final rawDrivers = dRes['data'];
+        if (rawDrivers is List) {
+          _drivers = rawDrivers;
+        } else if (rawDrivers is Map && rawDrivers['drivers'] is List) {
+          _drivers = rawDrivers['drivers'] as List;
+        }
+      }
+    } catch (e) {
+      debugPrint('Route lookup load error: $e');
     }
   }
 
@@ -2876,10 +2902,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                       controller: _routeTableScrollController,
                                       child: SingleChildScrollView(
                                         child: SizedBox(
-                                          width: 850,
+                                          width: 960,
                                           child: DataTable(
                                           showCheckboxColumn: false,
-                                          columnSpacing: 18,
+                                          columnSpacing: 16,
                                           horizontalMargin: 10,
                                           columns: const [
                                             DataColumn(label: Text('Route Code')),
@@ -2888,12 +2914,30 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                             DataColumn(label: Text('Distance')),
                                             DataColumn(label: Text('Stops')),
                                             DataColumn(label: Text('Assigned Bus')),
+                                            DataColumn(label: Text('Assigned Driver')),
                                             DataColumn(label: Text('Status')),
                                             DataColumn(label: Text('Actions')),
                                           ],
                                           rows: paginatedRoutes.map((r) {
                                             final isSelected = _selectedRoute?['id'] == r['id'];
                                             final statusColor = r['status'] == 'Active' ? _green : (r['status'] == 'Inactive' ? _red : _blue);
+                                            
+                                            String driverName = 'Unassigned';
+                                            final drvObj = r['drivers'];
+                                            if (drvObj is Map && drvObj['name'] != null && drvObj['name'].toString().trim().isNotEmpty) {
+                                              driverName = drvObj['name'].toString();
+                                            } else if (r['driver_name'] != null && r['driver_name'].toString().trim().isNotEmpty) {
+                                              driverName = r['driver_name'].toString();
+                                            } else if (r['driver_id'] != null) {
+                                              final match = _drivers.firstWhere(
+                                                (d) => d['id']?.toString() == r['driver_id']?.toString(),
+                                                orElse: () => null,
+                                              );
+                                              if (match != null && match['name'] != null) {
+                                                driverName = match['name'].toString();
+                                              }
+                                            }
+
                                             return DataRow(
                                               selected: isSelected,
                                               onSelectChanged: (_) {
@@ -2912,7 +2956,8 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                                                 DataCell(Text(r['area_zone'] ?? '—', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Text('${r['distance_km'] ?? 0.0} km', style: GoogleFonts.inter(fontSize: 12))),
                                               DataCell(Text('${r['stops_count'] ?? 0}', style: GoogleFonts.inter(fontSize: 12))),
-                                              DataCell(Text((r['bus_routes'] ?? {})['bus_number'] ?? 'Unassigned', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
+                                              DataCell(Text((r['bus_routes'] ?? {})['bus_number'] ?? r['bus_number'] ?? 'Unassigned', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
+                                              DataCell(Text(driverName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500))),
                                               DataCell(Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                 decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
@@ -4525,7 +4570,10 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
     }
   }
 
-  void _showTripFormDialog(dynamic existing) {
+  Future<void> _showTripFormDialog(dynamic existing) async {
+    await _ensureLookupsLoaded();
+    if (!mounted) return;
+
     final bool isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
 
@@ -5487,30 +5535,51 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       ),
                     ),
                     _buildTripsFilterDropdown(
-                      value: (_tripsRouteFilter == 'All' || _routes.any((r) => r['id'].toString() == _tripsRouteFilter)) ? _tripsRouteFilter : 'All',
+                      value: (_tripsRouteFilter == 'All' || _routes.any((r) => r['id']?.toString() == _tripsRouteFilter)) ? _tripsRouteFilter : 'All',
                       width: 140,
-                      items: [
-                        const DropdownMenuItem(value: 'All', child: Text('All Routes')),
-                        ..._routes.map((r) => DropdownMenuItem(value: r['id'].toString(), child: Text(r['route_name']))),
-                      ],
+                      items: () {
+                        final Map<String, String> routeMap = {};
+                        for (final r in _routes) {
+                          final id = r['id']?.toString();
+                          if (id != null && id.isNotEmpty) routeMap[id] = (r['route_name'] ?? 'Route').toString();
+                        }
+                        return [
+                          const DropdownMenuItem(value: 'All', child: Text('All Routes')),
+                          ...routeMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
+                        ];
+                      }(),
                       onChanged: (val) => setState(() { _tripsRouteFilter = val!; _tripsCurrentPage = 1; }),
                     ),
                     _buildTripsFilterDropdown(
-                      value: (_tripsBusFilter == 'All' || _vehicles.any((v) => v['id'].toString() == _tripsBusFilter)) ? _tripsBusFilter : 'All',
+                      value: (_tripsBusFilter == 'All' || _vehicles.any((v) => v['id']?.toString() == _tripsBusFilter)) ? _tripsBusFilter : 'All',
                       width: 140,
-                      items: [
-                        const DropdownMenuItem(value: 'All', child: Text('All Vehicles')),
-                        ..._vehicles.map((v) => DropdownMenuItem(value: v['id'].toString(), child: Text(v['bus_number'] ?? ''))),
-                      ],
+                      items: () {
+                        final Map<String, String> vehMap = {};
+                        for (final v in _vehicles) {
+                          final id = v['id']?.toString();
+                          if (id != null && id.isNotEmpty) vehMap[id] = (v['bus_number'] ?? v['registration_no'] ?? 'Bus').toString();
+                        }
+                        return [
+                          const DropdownMenuItem(value: 'All', child: Text('All Vehicles')),
+                          ...vehMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
+                        ];
+                      }(),
                       onChanged: (val) => setState(() { _tripsBusFilter = val!; _tripsCurrentPage = 1; }),
                     ),
                     _buildTripsFilterDropdown(
-                      value: (_tripsDriverFilter == 'All' || _drivers.any((d) => d['id'].toString() == _tripsDriverFilter)) ? _tripsDriverFilter : 'All',
+                      value: (_tripsDriverFilter == 'All' || _drivers.any((d) => d['id']?.toString() == _tripsDriverFilter)) ? _tripsDriverFilter : 'All',
                       width: 140,
-                      items: [
-                        const DropdownMenuItem(value: 'All', child: Text('All Drivers')),
-                        ..._drivers.map((d) => DropdownMenuItem(value: d['id'].toString(), child: Text(d['name'] ?? ''))),
-                      ],
+                      items: () {
+                        final Map<String, String> drvMap = {};
+                        for (final d in _drivers) {
+                          final id = d['id']?.toString();
+                          if (id != null && id.isNotEmpty) drvMap[id] = (d['name'] ?? 'Driver').toString();
+                        }
+                        return [
+                          const DropdownMenuItem(value: 'All', child: Text('All Drivers')),
+                          ...drvMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))),
+                        ];
+                      }(),
                       onChanged: (val) => setState(() { _tripsDriverFilter = val!; _tripsCurrentPage = 1; }),
                     ),
                     _buildTripsFilterDropdown(
@@ -6760,9 +6829,11 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
   }
 
   // --- LIVE TRACKING VIEW IMPLEMENTATION ---
-  Future<void> _loadLiveTrackingData() async {
+  Future<void> _loadLiveTrackingData({bool isSilent = false}) async {
     if (_isLoadingLiveTracking) return;
-    setState(() => _isLoadingLiveTracking = true);
+    if (_trackingVehicles.isEmpty && !isSilent) {
+      setState(() => _isLoadingLiveTracking = true);
+    }
     try {
       final schoolId = ref.read(authProvider).userData?['school_id']?.toString();
       final summaryPath = schoolId != null ? '/transport/dashboard/summary?school_id=$schoolId' : '/transport/dashboard/summary';
@@ -7500,7 +7571,7 @@ class _RouteManagementScreenState extends ConsumerState<RouteManagementScreen> w
                       ),
                     ),
                     const Divider(height: 1),
-                    _isLoadingLiveTracking
+                    (_isLoadingLiveTracking && _trackingVehicles.isEmpty)
                         ? const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
                         : filteredVehicles.isEmpty
                             ? Padding(
